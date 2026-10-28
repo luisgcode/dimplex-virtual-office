@@ -158,6 +158,8 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 @media (max-width:640px){ .card{max-height:62%} .log{max-height:130px} }
 @media (prefers-reduced-motion: reduce){ .spin,.msg.typing i{animation:none} }
 
+@media (max-width:640px){ .card ~ .hint{display:block} .card:not([hidden]) ~ .hint{display:none} }
+
 :root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 </style>
 
@@ -249,7 +251,7 @@ var PEOPLE = [
   { id:"allyson", name:"Allyson", role:"Manager, Marketing", side:1, z:0.8, personality:"One of the bosses. Back-to-back meetings, every single day.", topics:"Meetings and quick syncs", shirt:"#7a4d9e", pants:"#2b2833", skin:"#f3d2b6", hair:"#c9a05c", style:"wavy", sleeves:true, screen:"cal2",
     blurb:"Leaves for one meeting, comes back for a coffee, leaves for the next one.",
     walker:{ sit:6, away:11, offset:14, text:{ sit:"Back-to-back meetings", out:"Running to the next call", away:"Back-to-back meetings", back:"Back-to-back meetings" } } },
-  { id:"stephanie", name:"Stephanie", role:"Flame products", side:1, z:2.65, personality:"Always solving fireplace issues.", topics:"Fireplaces and Flame products", shirt:"#e0703a", pants:"#33302d", skin:"#e8b892", hair:"#111013", style:"pony", sleeves:false, screen:"fire",
+  { id:"stephanie", name:"Stephanie", role:"Flame products", side:1, z:2.65, personality:"Always solving fireplace issues.", topics:"Fireplaces and Flame products", shirt:"#e0703a", pants:"#33302d", skin:"#e8b892", hair:"#111013", style:"pony", sleeves:false, screen:"fire", glasses:true,
     status:"Fixing a fireplace issue", blurb:"Electric fireplaces. If a flame effect looks wrong, she already knows why." },
   { id:"debbie", name:"Debbie", role:"Heat products", side:-1, z:0.8, personality:"Keeps every room in the catalog warm.", topics:"Baseboards and Heat products", shirt:"#b83c4c", pants:"#2d3138", skin:"#f0c6a2", hair:"#2b1d16", style:"long", sleeves:true, screen:"sheet",
     status:"Heat products", blurb:"Baseboards, wall heaters and everything that keeps a room warm in January." },
@@ -732,7 +734,7 @@ monitor(emptyDesk.deskGroup, 0, -1.0, 0.64, 0.38, "off", 0);
 /* Stephanie: small electric fireplace on her desk */
 var flames = [], fireLight;
 (function(){
-  var g = new T.Group(); g.position.set(0.55, 0.762, -0.85); g.rotation.y = Math.PI / 2; g.scale.setScalar(0.42); BY.stephanie.deskGroup.add(g);
+  var g = new T.Group(); g.position.set(0.5, 0.762, -0.82); g.rotation.y = Math.PI / 2; g.scale.setScalar(0.5); BY.stephanie.deskGroup.add(g);
   var white = M("#f4f2ee", { roughness:0.6 });
   add(G.box, white, 1.36, 0.08, 0.42, 0, 0.04, 0, g);
   add(G.box, white, 0.22, 0.86, 0.4, -0.56, 0.47, 0, g);
@@ -820,7 +822,7 @@ plant(-3.95, 5.75, 0.9); plant(3.95, 5.75, 0.9); plant(-2.4, -8.45, 0.95); plant
     for (var k = 0; k < 7; k++) { g.fillStyle = ["#E31837","#3b6fd8","#e2ac2f","#2fb3a3"][k % 4]; var cx = 14 + Math.floor(r() * 5) * 82, cy = 70 + Math.floor(r() * 4) * 56; rrect(g, cx, cy, 74 + (r() < 0.4 ? 82 : 0), 20, 5); g.fill(); }
   });
   var cal = new T.Mesh(G.plane, new T.MeshStandardMaterial({ map:calTex, roughness:0.8 }));
-  cal.scale.set(1.3, 0.76, 1); cal.position.set(-4.485, 2.05, 2.65); cal.rotation.y = Math.PI / 2; scene.add(cal);
+  cal.scale.set(1.3, 0.76, 1); cal.position.set(-4.468, 2.05, 2.65); cal.rotation.y = Math.PI / 2; scene.add(cal);
   add(G.box, M("#2b3038", { roughness:0.5 }), 0.03, 0.8, 1.34, -4.49, 2.05, 2.65, scene, false);
 })();
 
@@ -962,7 +964,8 @@ function buildHead(p, model, head){
 }
 function buildProps(p, model, hand){
   var g = new T.Group(); model.add(g);
-  p.mug = add(G.cyl, M("#ffffff", { roughness:0.4 }), 0.034, 0.08, 0.034, -0.79, 1.43, 0.03, g, false);
+  var mugMat = p.id === "debbie" ? new T.MeshPhysicalMaterial({ color:0xdfeff7, roughness:0.05, transmission:0.85, thickness:0.02, transparent:true, opacity:0.6 }) : M(p.id === "olivia" ? "#b9d3bd" : "#ffffff", { roughness:0.4 });
+  p.mug = add(G.cyl, mugMat, 0.034, 0.08, 0.034, -0.79, 1.43, 0.03, g, false);
   p.phone = add(G.box, M("#16181c", { roughness:0.3, metalness:0.4 }), 0.1, 0.006, 0.05, -0.8, 1.415, -0.03, g, false);
   if (p.id === "olivia") p.swatch = add(G.box, M("#2fb3a3", { roughness:0.6 }), 0.16, 0.004, 0.2, -0.82, 1.412, 0.0, g, false);
   if (p.id === "carla") p.swatch = add(G.box, M("#f4f1ea", { roughness:0.7 }), 0.17, 0.006, 0.23, -0.82, 1.412, 0.0, g, false);
@@ -1103,7 +1106,7 @@ function choose(arr){ return arr[Math.floor(Math.random() * arr.length)]; }
 var PERSONA = {
   luis:      { focus:1.6, social:0.25, shop:0.2, coffee:0.8, breaky:0.6 },
   stephanie: { focus:0.9, social:1.0, shop:1.35, coffee:0.9, breaky:0.8 },
-  debbie:    { focus:0.9, social:1.0, shop:1.35, coffee:1.0, breaky:0.8 },
+  debbie:    { focus:0.9, social:1.0, shop:1.35, coffee:0, breaky:0.8 },
   olivia:    { focus:1.0, social:0.85, shop:0.7, coffee:0.9, breaky:0.9 },
   carla:     { focus:0.8, social:1.45, shop:0.9, coffee:1.0, breaky:0.8 },
   erica:     { focus:0.9, social:0.9, shop:0.6, coffee:1.1, breaky:0.6 },
@@ -1221,7 +1224,7 @@ function decide(p, t){
   var withdrawn = p.mood.kind === "stressed" && prof.traits.stressTol < 0.6;
   opts.push({ k:"micro", s:(1 - n.energy) * 0.9 * w.breaky + (mv < 0 ? 0.25 : 0) + rand(0, 0.6) });
   var coffeeTaken = PEOPLE.some(function(q){ return q.trip && q.trip.kind === "coffee"; });
-  if (!coffeeTaken) opts.push({ k:"coffee", s:n.coffee * 1.3 * w.coffee + rand(0, 0.25) });
+  if (!coffeeTaken && p.id !== "debbie") opts.push({ k:"coffee", s:n.coffee * 1.3 * w.coffee + rand(0, 0.25) });
   var best = null, bs = -1;
   PEOPLE.forEach(function(q){
     if (q === p || !available(q)) return;
@@ -1373,7 +1376,7 @@ function updateAgent(p, t, dt){
     if (k >= 1) {
       if (st === "coffee") {
         n.coffee = 0; n.energy = Math.min(1, n.energy + 0.45);
-        moodShift(p, p.mood.kind === "tired" ? 0.25 : 0.12, "the coffee helped");
+        moodShift(p, p.mood.kind === "tired" ? 0.25 : 0.12, p.id === "olivia" ? "a good cup of tea helped" : "the coffee helped");
         p.lastEvent = { kind:"coffee", t:t };
       }
       if (st === "visit" && tr.target.visitor === p) tr.target.visitor = null;
@@ -1393,7 +1396,7 @@ function updateAgent(p, t, dt){
 
   var kind = p.trip ? p.trip.kind : "";
   if (kind === "meeting") p.statusNow = p.state === "away" ? p.walker.text.away : (p.trip.back ? p.walker.text.back : p.walker.text.out);
-  else if (kind === "coffee") p.statusNow = p.trip.back ? "Back with a coffee" : "Getting coffee";
+  else if (kind === "coffee") p.statusNow = p.id === "olivia" ? (p.trip.back ? "Back with a tea" : "Making a tea") : (p.trip.back ? "Back with a coffee" : "Getting coffee");
   else if (kind === "visit" && p.trip.target.remote) p.statusNow = p.state === "visit" ? "On a video call with " + p.trip.target.name : (p.trip.back ? "Heading back to the desk" : "Walking over to the screens");
   else if (kind === "visit") p.statusNow = p.state === "visit" ? "Chatting with " + p.trip.target.name : (p.trip.back ? "Heading back to the desk" : "Walking over to " + p.trip.target.name);
 }
@@ -1411,9 +1414,24 @@ function basis(th, ph){
   camRight.set(Math.cos(th), 0, -Math.sin(th));
   camUp.crossVectors(camDir, camRight);
 }
+function fitSize(th){
+  basis(th, ISO_PH);
+  var u0 = 1e9, u1 = -1e9, v0 = 1e9, v1 = -1e9;
+  [-4.7, 4.7].forEach(function(x){ [0, 3.2].forEach(function(y){ [-9.2, 9.2].forEach(function(z){
+    corner.set(x, y, z);
+    var u = corner.dot(camRight), v = corner.dot(camUp);
+    u0 = Math.min(u0, u); u1 = Math.max(u1, u); v0 = Math.min(v0, v); v1 = Math.max(v1, v);
+  }); }); });
+  return Math.max((v1 - v0) / (2 * 0.87), (u1 - u0) / (2 * aspect * 0.94));
+}
+function bestPortraitYaw(){
+  var best = 0.42, bs = 1e9;
+  for (var th = 0.25; th <= 0.8; th += 0.05) { var r = fitSize(th); if (r < bs) { bs = r; best = th; } }
+  return best;
+}
 function defaultGoal(){
   /* portrait screens get a steeper yaw so the hallway runs up the screen */
-  var th = aspect < 0.9 ? 0.42 : ISO_TH, ph = ISO_PH;
+  var th = aspect < 0.9 ? bestPortraitYaw() : ISO_TH, ph = ISO_PH;
   basis(th, ph);
   var u0 = 1e9, u1 = -1e9, v0 = 1e9, v1 = -1e9;
   [-4.7, 4.7].forEach(function(x){ [0, 3.2].forEach(function(y){ [-9.2, 9.2].forEach(function(z){
@@ -1423,7 +1441,8 @@ function defaultGoal(){
   }); }); });
   /* top margin 4% of the frame, at least 9% left at the bottom for the entrance and the hint */
   var rr = Math.max((v1 - v0) / (2 * 0.87), (u1 - u0) / (2 * aspect * 0.94));
-  var uc = (u0 + u1) / 2, vc = v1 - 0.92 * rr;
+  var H2 = 2 * rr, extra = H2 - (v1 - v0), top = Math.max(0.04 * H2, extra / 2 - 0.025 * H2);
+  var uc = (u0 + u1) / 2, vc = v1 + top - rr;
   goal.tx = camRight.x * uc + camUp.x * vc;
   goal.ty = camRight.y * uc + camUp.y * vc;
   goal.tz = camRight.z * uc + camUp.z * vc;
@@ -1654,6 +1673,7 @@ function fresh(p, arr){
 }
 function pr(q){ return PROFILE[q.id].pron; }
 function cap(s){ return s.charAt(0).toUpperCase() + s.slice(1); }
+function drinkOf(p){ return p.id === "olivia" ? "tea" : p.id === "debbie" ? "water" : "coffee"; }
 var ACT_TEXT = {
   phone:"Checking a message real quick", sip:"Having a sip of coffee", stretch:"Stretching, too much screen time",
   leanBack:"Taking a ten second breather", headphones:"Fixing my headphones", swatch:"Comparing colour swatches",
@@ -1663,15 +1683,16 @@ var ACT_TEXT = {
 function doingNow(p){
   var tr = p.trip, t = clock.elapsedTime;
   if (tr) {
-    if (tr.kind === "coffee") return tr.back ? "Walking back with my coffee" : "Grabbing a coffee, back in a sec";
+    if (tr.kind === "coffee") return tr.back ? "Walking back with my " + drinkOf(p) : "Grabbing a " + drinkOf(p) + ", back in a sec";
     if (tr.kind === "visit") return tr.back ? "Heading back to my desk" : (p.state === "visit" ? "Chatting with " + tr.target.name : "On my way to see " + tr.target.name);
     if (tr.kind === "meeting") return tr.back ? "Just walking back from a meeting" : "Heading to a meeting";
   }
   if (p.chatWith) return "Chatting with " + p.chatWith.name;
+  if (p.act && p.act.n === "sip") return "Having a sip of " + drinkOf(p);
   if (p.act && ACT_TEXT[p.act.n]) return ACT_TEXT[p.act.n];
   if (p.lastEvent && t - p.lastEvent.t < 25) {
     if (p.lastEvent.kind === "meeting") return "Just got back from a meeting";
-    if (p.lastEvent.kind === "coffee") return "Just got back with a coffee";
+    if (p.lastEvent.kind === "coffee") return "Just got back with a " + drinkOf(p);
   }
   return p.workNow || (p.workNow = choose(PROFILE[p.id].work));
 }
@@ -1698,9 +1719,9 @@ function howReply(p){
   var n = p.needs, m = p.mood.kind, prof = PROFILE[p.id], bits = [fresh(p, OPEN[m])], why = p.moodWhy;
   var t = clock.elapsedTime;
   if (p.lastEvent && t - p.lastEvent.t < 60 && p.lastEvent.kind === "chat" && (m === "great" || m === "good" || m === "excited")) { bits.push("Just had a good chat with " + p.lastEvent.with + "."); why = "talking to " + p.lastEvent.with + " always helps"; }
-  else if (n.coffee > 0.7) { bits.push(fresh(p, ["I really need a coffee.","Coffee would fix a lot right now."])); why = "I have not had my coffee yet"; }
-  else if (n.energy < 0.3) { bits.push("Long day already."); why = "it has been a long day and it is not over"; }
-  else if (n.focus > 0.75 && p.typeOn) { bits.push(fresh(p, ["In the zone today.","Head down, getting stuff done."])); why = "I finally have a quiet stretch to work"; }
+  else if (n.energy < 0.3 || m === "tired") { bits.push(fresh(p, ["Long day already.","Could use a nap, honestly."])); why = p.moodWhy || "it has been a long day and it is not over"; }
+  else if (n.coffee > 0.7 && p.id !== "debbie") { bits.push(fresh(p, ["I really need a " + drinkOf(p) + ".", cap(drinkOf(p)) + " would fix a lot right now."])); why = "I have not had my " + drinkOf(p) + " yet"; }
+  else if (n.focus > 0.75 && p.typeOn && p.mood.v >= 0) { bits.push(fresh(p, ["In the zone today.","Head down, getting stuff done."])); why = "I finally have a quiet stretch to work"; }
   else if (why && (m === "stressed" || m === "tired" || m === "off" || m === "excited")) bits.push(cap(why) + ".");
   if (prof.traits.chattiness > 0.7 && Math.random() < 0.5) bits.push("How about you?");
   return { text:bits.join(" "), reason:why || "it is just that kind of day" };
@@ -1764,7 +1785,24 @@ function converse(p, raw){
   var pre = deep && Math.random() < 0.7 ? fresh(p, ["Headphones off for a sec. ","Okay, quick one. ","Mm? Sure. "]) : "";
   if (deep && !p.annoyedAt) { moodShift(p, -0.06, "I keep getting pulled out of the zone"); p.annoyedAt = t; }
 
-  if (topic && ts >= best.s) return { text:pre + moodTone(p, topic.a), intent:"topic", reason:"it is literally my job" };
+  /* someone else on the team knows this better: point there */
+  var other = null, os = 0;
+  ALL.forEach(function(q){
+    if (q === p || q.remote || q.walker) return;
+    KB[q.id].qa.forEach(function(e){ var sc = 0; e.k.forEach(function(kw){ sc += phraseScore(s, words, kw); }); if (sc > os) { os = sc; other = q; } });
+  });
+  if (other && os >= 2 && os > ts && os >= best.s && !(p.id === "carla" && ts > 0)) {
+    var side = other.side < 0 ? "left" : "right";
+    return { text:pre + fresh(p, ["That's a question for " + other.name + ". " + cap(pr(other)) + " sits on the " + side + " side of the hallway, tap " + (pr(other) === "he" ? "him" : "her") + " and ask.", "Honestly, ask " + other.name + ", that is " + (pr(other) === "he" ? "his" : "her") + " area. " + cap(pr(other)) + " will know right away."]), intent:"refer", reason:other.name + " knows that much better than I do" };
+  }
+  if (topic && ts >= best.s) {
+    var ans = topic.a;
+    if (p.id === "debbie" && topic.k.indexOf("wattage") >= 0) {
+      var mm = /(\d{2,5})\s*(sq|square|ft2)/.exec(s);
+      if (mm) { var sq = +mm[1], wt = Math.max(500, Math.round(sq * 10 / 250) * 250); ans = "For about " + sq + " sq ft with standard 8 ft ceilings, plan on roughly " + wt + " W. That could be one heater or two smaller ones on opposite walls. Add more if the room is drafty or the ceiling is high."; }
+    }
+    return { text:pre + (p.mood.kind === "stressed" ? "Quick answer: " : "") + ans, intent:"topic", reason:"it is literally my job" };
+  }
   var r;
   switch (best.id) {
     case "greet":
@@ -1782,7 +1820,7 @@ function converse(p, raw){
       return { text:pre + r.text + dayBits, intent:"day", reason:r.reason };
     case "doing":
       var d = doingNow(p);
-      return { text:pre + d + "." + (p.chatWith && Math.random() < 0.5 ? " Talking shop, as usual." : ""), intent:"doing", reason:d.toLowerCase() + " is on today's list" };
+      return { text:pre + d + "." + (p.chatWith && Math.random() < 0.5 ? " Talking shop, as usual." : ""), intent:"doing", reason:"it is the top thing on my list today" };
     case "busy":
       if (p.walker && p.cal && p.cal.next - t < 45) return { text:"I have a meeting in a minute, so make it quick.", intent:"busy", reason:"my next meeting starts any second" };
       if (deep || (p.typeOn && p.needs.focus > 0.65)) return { text:pre + fresh(p, ["Pretty busy, deep in something. Can it wait a bit?","Kind of. " + doingNow(p) + "."]), intent:"busy", reason:"I am in the middle of " + doingNow(p).toLowerCase() };
@@ -1790,6 +1828,11 @@ function converse(p, raw){
       return { text:fresh(p, ["Not really, what's up?","I have a minute. Shoot.","For you? Never."]), intent:"busy", reason:"it is a calm moment for once" };
     case "coffee":
       var n = p.needs;
+      if (p.id === "debbie") return { text:fresh(p, ["Thanks, but I don't drink coffee. Water for me!","Not a coffee person, honestly. I'll stick to water.","No coffee for me, thanks. A glass of water and I'm good."]), intent:"coffee", reason:"I never really liked coffee" };
+      if (p.id === "olivia" && !(p.trip && p.trip.kind === "coffee")) {
+        if (n.coffee > 0.45 && p.state === "sit" && !p.chatWith && !PEOPLE.some(function(q){ return q.trip && q.trip.kind === "coffee"; })) { p.pendingCoffee = t + 2.5; return { text:fresh(p, ["Only if it's tea! I'll go make one.","Tea, please. Actually, I'll go make it myself.","A tea sounds perfect, heading there now."]), intent:"coffee", reason:"tea is my thing" }; }
+        return { text:fresh(p, ["I'm a tea person, but thank you!","Just had a tea, thanks.","No coffee for me, tea all day."]), intent:"coffee", reason:"tea is my thing" };
+      }
       if (p.trip && p.trip.kind === "coffee") return { text:"Already on it, I'm getting one right now.", intent:"coffee", reason:"I needed it" };
       if (n.coffee > 0.5 || p.mood.kind === "tired") {
         var canGo = p.state === "sit" && !p.chatWith && !PEOPLE.some(function(q){ return q.trip && q.trip.kind === "coffee"; });
@@ -1811,7 +1854,7 @@ function converse(p, raw){
     case "who": return { text:"I'm " + name + ", " + p.role.toLowerCase() + ". " + p.personality, intent:"who", reason:"" };
     case "mood": r = howReply(p); return { text:r.text, intent:"how", reason:r.reason };
   }
-  return { text:pre + moodTone(p, KB[p.id].fallback), intent:"fallback", reason:"" };
+  return { text:pre + KB[p.id].fallback, intent:"fallback", reason:"" };
 }
 ALL.forEach(function(p){ p.mem = []; p.used = []; p.messages = []; rollMood(p); });
 
@@ -2024,7 +2067,7 @@ REMOTE.forEach(function(p, i){
   add(G.box, M(i ? "#b9936b" : "#d8d2c8", { roughness:0.55 }), 1.5, 0.045, 0.62, 0, 0.74, 0.6, rs, false);
   makeRig(p, rs);
   var cam = new T.PerspectiveCamera(30, 16 / 9, 0.1, 20);
-  cam.position.set(0, 1.32, 2.0); cam.lookAt(0, 1.08, 0);
+  cam.position.set(0, 1.3, 1.7); cam.lookAt(0, 1.1, 0);
   var rt = new T.WebGLRenderTarget(512, 288, { samples:4 });
   p.rs = rs; p.rcam = cam; p.rt = rt;
 
@@ -2037,7 +2080,7 @@ REMOTE.forEach(function(p, i){
   pickables.push(scr);
   var capM = new T.Mesh(G.plane, new T.MeshBasicMaterial({ map:captionTex(p), transparent:true, depthWrite:false, toneMapped:false }));
   capM.scale.set(1.5, 0.1875, 1); capM.position.set(0, -0.43, 0.04); g.add(capM);
-  var anchor = new T.Object3D(); anchor.position.set(0, 0.5, 0.05); g.add(anchor);
+  var anchor = new T.Object3D(); anchor.position.set(0, 0.74, 0.05); g.add(anchor);
   p.head = anchor; p.screenG = g; p.glowM = glowM;
   p.spot = new V3(p.sx, 0, -8.05);
   p.seat = new V3(p.sx, 0, -9.0);
@@ -2079,17 +2122,20 @@ try {
 } catch (e) { composer = null; aoPass = null; }
 loadingEl.hidden = true;
 window.__voReady = true;
+window.__vo = { people:BY, focus:function(id){ focusOn(BY[id]); }, ask:function(id, q){ ask(BY[id], q); } };
+var snapCam = 0;
 /* a link like #p-luis opens that person's card on load */
-function focusFromHash(){ var m = /^#p-([a-z]+)$/.exec(location.hash || ""); if (m && BY[m[1]]) focusOn(BY[m[1]]); }
+function focusFromHash(){ var m = /^#p-([a-z]+)$/.exec(location.hash || ""); if (m && BY[m[1]]) { focusOn(BY[m[1]]); snapCam = 3; } }
 window.addEventListener("hashchange", focusFromHash);
 focusFromHash();
 
+
 /* ---------- loop ---------- */
 var clock = new T.Clock(), headPos = new V3(), tv = new V3();
-var aoFailed = false;
+var aoFailed = false, DT_MAX = 0.05;
 function frame(){
   requestAnimationFrame(frame);
-  var dt = Math.min(clock.getDelta(), 0.05), t = clock.elapsedTime;
+  var dt = Math.min(clock.getDelta(), DT_MAX), t = clock.elapsedTime;
 
   PEOPLE.forEach(function(p){ updateAgent(p, t, dt); });
   updateChats(t);
@@ -2120,7 +2166,8 @@ function frame(){
     if (!focus.root.visible) headPos.copy(EXIT_SPOT).setY(1.6);
     goal.tx = headPos.x; goal.ty = headPos.y - 0.35; goal.tz = headPos.z;
   }
-  var kk = 1 - Math.exp(-dt * (dragging ? 14 : reduceMotion ? 9 : 3.2));
+  var kk = snapCam > 0 ? 1 : 1 - Math.exp(-dt * (dragging ? 14 : reduceMotion ? 9 : 3.2));
+  if (snapCam > 0) snapCam--;
   view.tx = lerp(view.tx, goal.tx, kk); view.ty = lerp(view.ty, goal.ty, kk); view.tz = lerp(view.tz, goal.tz, kk);
   view.r = lerp(view.r, goal.r, kk); view.th = lerp(view.th, goal.th, kk); view.ph = lerp(view.ph, goal.ph, kk);
   var idle = reduceMotion ? 0 : clamp(t - lastInteract - 4, 0, 3) / 3;
