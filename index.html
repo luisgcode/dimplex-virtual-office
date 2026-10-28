@@ -302,7 +302,7 @@ var PEOPLE = [
     status:"Fixing a fireplace issue", blurb:"Electric fireplaces. If a flame effect looks wrong, she already knows why." },
   { id:"debbie", name:"Debbie", role:"Heat products", side:-1, z:0.8, personality:"Keeps every room in the catalog warm.", topics:"Baseboards and Heat products", shirt:"#b83c4c", pants:"#2d3138", skin:"#e8c4a4", hair:"#211611", style:"straight", part:0.012, framing:true, eyeShape:"almond", earrings:"drop", alwaysSmile:true, sleeves:true, screen:"sheet",
     status:"Heat products", blurb:"Baseboards, wall heaters and everything that keeps a room warm in January." },
-  { id:"olivia", name:"Olivia", role:"Designer, web and channel images", side:-1, z:-1.05, personality:"Creates every image for the website and the other channels. Notices every pixel.", topics:"Retouching, lifestyle images, banners and social graphics", shirt:"#2a9d8f", pants:"#22262c", skin:"#f2d6c6", hair:"#e3c16f", style:"straight", part:-0.02, sunglasses:true, earrings:"small", alwaysSmile:true, coat:true, sleeves:true, screen:"swatch",
+  { id:"olivia", name:"Olivia", role:"Designer, web and channel images", side:-1, z:-1.05, personality:"Creates every image for the website and the other channels. Notices every pixel.", topics:"Retouching, lifestyle images, banners and social graphics", shirt:"#2a9d8f", pants:"#22262c", skin:"#f2d6c6", hair:"#e3c16f", style:"straight", part:-0.02, sunglasses:true, earrings:"small", alwaysSmile:true, coat:true, slim:0.9, sleeves:true, screen:"swatch",
     status:"Retouching product shots", blurb:"Turns product shots and brand colors into pages people actually want to scroll." },
   { id:"luis", name:"Luis", role:"Web Manager", side:-1, z:4.5, personality:"Headphones on, building the web.", topics:"The Dimplex, Convectair and Cadet sites", shirt:"#34495e", pants:"#23272e", skin:"#b98a68", hair:"#0c0c0e", style:"short", sleeves:false, screen:"code", headphones:true,
     status:"Headphones on, building the web", blurb:"Dimplex, Convectair and Cadet sites. Headphones on means deep in a build." },
@@ -981,11 +981,11 @@ function colorize(mesh, p, factor){
   var pos = g.attributes.position, n = pos.count, col = new Float32Array(n * 3);
   var ofit = OUTFIT[p.id] || {};
   var cShirt = new T.Color(ofit.shirt || p.shirt), cPants = new T.Color(p.id === "olivia" ? "#3f5f8c" : (ofit.pants || p.pants)), cSkin = new T.Color(p.skin), cShoe = new T.Color(ofit.shoe || "#1b1d21"), cBelt = new T.Color("#2a2c31");
-  var sleeve = p.sleeveless ? 0.17 : p.sleeves ? 0.66 : 0.34;
+  var sleeve = p.sleeveless ? 0.14 : p.sleeves ? 0.62 : 0.32;
   for (var i = 0; i < n; i++) {
     var x = Math.abs(pos.getX(i)), y = pos.getY(i), c;
     if (y < 0.115) c = cShoe;
-    else if (y > 1.535 && x < 0.2) c = cSkin;
+    else if (y > 1.48 && x < 0.2) c = cSkin;
     else if (p.vneck && pos.getZ(i) > 0.03 && y > 1.34 && x < 0.085 - (1.5 - y) * 0.5) c = cSkin;
     else if (x > sleeve && y > 1.25) c = cSkin;
     else if (y < 0.975 && x < 0.3) c = cPants;
@@ -1173,9 +1173,11 @@ function thickAt(gk, x, y, p){
     var puff = p && p.puff && y > 1.25 ? 0.026 * ease((x - 0.18) / 0.06) * (1 - ease((x - 0.28) / 0.055)) : 0;
     /* the shoulder top folds when the arm comes down from the bind pose: a thinner shell there keeps the fold from flaring into flaps */
     var fold = y > 1.36 ? bump(x, 0.13, 0.25, 0.04) * ease((y - 1.36) / 0.06) : 0;
+    if (p && p.coat) return 0.02 * (1 - 0.6 * fold) - 0.009 * bump(y, 1.0, 1.15, 0.04) + (y < 0.92 ? (0.92 - y) * 0.035 : 0);
     return 0.022 * (1 - 0.6 * fold) + puff + (y < 1.1 ? (1.1 - y) * 0.16 : 0);
   }
   if (gk === "pants") return 0.017 + (y < 0.35 ? (0.35 - y) * 0.045 : 0);
+  if (gk === "belt" && p && p.coat) return 0.028;
   if (gk === "trim") return y > 1.44 ? 0.026 : 0.027;
   return THICK[gk];
 }
@@ -1195,7 +1197,7 @@ var OUTFIT = {
   allyson:   { shirt:"#7a4d9e", pants:"#2c2a33", shoe:"#5a2830", trim:"#5f3c80" },
   stephanie: { shirt:"#141416", pants:"#1c2333", shoe:"#141518", trim:"#141416" },
   debbie:    { shirt:"#2a2b30", pants:"#17181b", shoe:"#141518", trim:"#1b1c20" },
-  olivia:    { shirt:"#b9a07a", pants:"#4a4f58", shoe:"#ecebe6", trim:"#3a3226" },
+  olivia:    { shirt:"#bfa37a", pants:"#4a4f58", shoe:"#ecebe6", trim:"#9c7f55", belt:"#7d6140" },
   carla:     { shirt:"#e2ac2f", pants:"#1f2c4a", shoe:"#6b4226", trim:"#c58f1f" },
   marissa:   { shirt:"#4f7cc4", pants:"#2a2d35", shoe:"#141518", trim:"#3c64a5" },
   stephanieb:{ shirt:"#151618", pants:"#2b2f36", shoe:"#141518", trim:"#151618" }
@@ -1204,19 +1206,14 @@ function garmentOf(p, x, y, zz){
   x = Math.abs(x);
   if (y < 0.12) return "shoe";
   if (y > 1.505 && x < 0.2) return null;
-  var sleeve = p.sleeveless ? 0.17 : p.sleeves ? 0.665 : 0.36;
-  if (y > 1.2 && x > sleeve) return null;
-  if (p.coat && y > 0.6 && y < 0.975 && x < 0.3) return "shirt";
-  if (y < 0.975 && x < 0.3) return "pants";
-  if (y < 1.008 && x < 0.3) return p.coat ? "shirt" : "belt";
-  if (!p.coat && y < 1.04 && x < 0.3) return "trim";
-  if (!p.sleeves && y > 1.25 && x > 0.315) return "trim";
+  if (y > 1.2 && x > sleeveX(p)) return null;
   if (p.vneck && zz > 0.04 && y > 1.36 && x < 0.075 - (1.5 - y) * 0.5) return null;
-  if (y > 1.445 && x < 0.105) return "trim";
-  if (!p.vneck && !p.puff && x < 0.013 && y > 1.06 && y < 1.445 && zz > 0.05) return "trim";
-  if (p.sleeves && y > 1.2 && x > 0.615) return "trim";
+  if (x < 0.3 && y < waistY(p)) return "pants";
   return "shirt";
 }
+function sleeveX(p){ return p.sleeveless ? 0.17 : p.sleeves ? 0.665 : 0.36; }
+/* where the top ends and the trousers start: the shirt is tucked at the waist, a coat runs down to the knee */
+function waistY(p){ return p.coat ? 0.6 : 1.008; }
 function triGarments(reg, idx){
   var out = new Array(idx.length / 3);
   for (var k = 0; k < idx.length; k += 3) {
@@ -1225,54 +1222,76 @@ function triGarments(reg, idx){
   }
   return out;
 }
-/* trim (collar, cuffs, placket, waistband) is painted on the shirt shell as a soft vertex colour instead of a separate
+/* trim (collar, cuffs, waistband) is painted on the shirt shell as a soft vertex colour instead of a separate
    material: following triangle edges it showed as a jagged staircase, sampled as a smooth field it reads as a clean edge */
 function trimWeight(p, x, y, zz){
   x = Math.abs(x);
   var w = 0;
-  if (!p.coat && x < 0.3) w = Math.max(w, ease((y - 1.0) / 0.012) * (1 - ease((y - 1.032) / 0.014)));
+  if (!p.coat && x < 0.3) w = Math.max(w, 1 - ease((y - 1.03) / 0.014));
   if (!p.sleeves && !p.sleeveless && y > 1.2) w = Math.max(w, ease((x - 0.3) / 0.03));
   if (p.sleeves && y > 1.2) w = Math.max(w, ease((x - 0.6) / 0.03));
-  if (!p.coat) w = Math.max(w, ease((y - 1.442) / 0.02) * (1 - ease((x - 0.096) / 0.02)));
+  w = Math.max(w, ease((y - 1.442) / 0.02) * (1 - ease((x - 0.096) / 0.02)));
+  /* trench: a wider collar and a turned-up hem band */
+  if (p.coat) w = Math.max(w, ease((y - 1.4) / 0.03) * (1 - ease((x - 0.13) / 0.025)), 1 - ease((y - 0.635) / 0.02));
   return w;
 }
+/* Garment shells. Every edge of a garment is a straight line, never a staircase of triangle edges:
+   - a triangle that crosses from one garment into the one below goes into both; in the upper one its lower corners are
+     lifted onto the boundary level, the lower one simply continues underneath;
+   - at the cuffs and the neckline the bare-skin corners are pulled onto the cuff or neck line, the body shows beyond it;
+   - the belt is a separate band laid over the waist, its corners clamped between two level lines. */
+var LAYER = { shoe:0, pants:1, shirt:2 };
 function buildClothes(p, body){
   if (!WEAVE) { WEAVE = fabricNormal(false); TWILL = fabricNormal(true); }
   var g = body.geometry, pos = g.attributes.position, nor = g.attributes.normal, uv = g.attributes.uv;
   var si = g.attributes.skinIndex, sw = g.attributes.skinWeight, idx = g.index.array, n = pos.count, i, k;
   var reg = new Array(n);
   for (i = 0; i < n; i++) reg[i] = garmentOf(p, pos.getX(i), pos.getY(i), pos.getZ(i));
-  /* every covered triangle belongs to exactly one garment (majority vote, so seams between garments leave no gap),
-     and every vertex gets one offset shared by all garments that touch it, so neighbouring shells meet edge to edge */
-  var triG = triGarments(reg, idx), vth = new Float32Array(n), surfN = body.userData.surfN || n;
-  /* the joint rings under the surface get no shell of their own: offset along their own normals they poked out as tufts */
-  for (k = 0; k < idx.length; k += 3) if (idx[k] >= surfN || idx[k + 1] >= surfN || idx[k + 2] >= surfN) triG[k / 3] = null;
-  for (k = 0; k < idx.length; k += 3) {
-    if (!triG[k / 3]) continue;
-    for (var e = 0; e < 3; e++) { var vv = idx[k + e]; vth[vv] = Math.max(vth[vv], thickAt(triG[k / 3], pos.getX(vv), pos.getY(vv), p)); }
-  }
+  var surfN = body.userData.surfN || n, SX = sleeveX(p), WY = waistY(p);
   var P = [], N = [], U = [], SI = [], SW = [], C = [], IDX = [], groups = [];
   var o = OUTFIT[p.id] || { shirt:p.shirt, pants:p.pants, shoe:"#141518", trim:p.shirt };
   var cS = new T.Color(o.shirt), cT = new T.Color(o.trim), cV = new T.Color();
-  GARMENTS.forEach(function(gk, gi){
-    if (gk === "trim") return;
-    var map = new Map(), start = IDX.length;
+  var lowY = { shoe:-1, pants:0.12, shirt:WY };
+  var BELT = p.coat ? [0.985, 1.035] : [0.975, 1.008];
+  function vert(map, v, gk, px, py, th){
+    var key = v * 4 + (py === pos.getY(v) && px === pos.getX(v) ? 0 : 1), ni = map.get(key);
+    if (ni !== undefined) return ni;
+    ni = P.length / 3; map.set(key, ni);
+    var nx = nor.getX(v), ny = nor.getY(v), nz = nor.getZ(v);
+    P.push(px + nx * th, py + ny * th, pos.getZ(v) + nz * th);
+    N.push(nx, ny, nz); U.push(uv ? uv.getX(v) : 0, uv ? uv.getY(v) : 0);
+    SI.push(si.getX(v), si.getY(v), si.getZ(v), si.getW(v)); SW.push(sw.getX(v), sw.getY(v), sw.getZ(v), sw.getW(v));
+    cV.copy(cS).lerp(cT, gk === "shirt" ? trimWeight(p, px, py, pos.getZ(v)) : 0);
+    C.push(cV.r, cV.g, cV.b);
+    return ni;
+  }
+  ["shirt", "pants", "shoe", "belt"].forEach(function(gk){
+    var gi = GARMENTS.indexOf(gk), map = new Map(), start = IDX.length;
     for (k = 0; k < idx.length; k += 3) {
-      var a = idx[k], b = idx[k + 1], c = idx[k + 2], tg = triG[k / 3];
-      if (tg !== gk && !(gk === "shirt" && tg === "trim")) continue;
-      [a, b, c].forEach(function(v){
-        var ni = map.get(v);
-        if (ni === undefined) {
-          ni = P.length / 3; map.set(v, ni);
-          var nx = nor.getX(v), ny = nor.getY(v), nz = nor.getZ(v), th = vth[v];
-          P.push(pos.getX(v) + nx * th, pos.getY(v) + ny * th, pos.getZ(v) + nz * th);
-          N.push(nx, ny, nz); U.push(uv ? uv.getX(v) : 0, uv ? uv.getY(v) : 0);
-          SI.push(si.getX(v), si.getY(v), si.getZ(v), si.getW(v)); SW.push(sw.getX(v), sw.getY(v), sw.getZ(v), sw.getW(v));
-          cV.copy(cS).lerp(cT, gk === "shirt" ? trimWeight(p, pos.getX(v), pos.getY(v), pos.getZ(v)) : 0);
-          C.push(cV.r, cV.g, cV.b);
-        }
-        IDX.push(ni);
-      });
+      var tri = [idx[k], idx[k + 1], idx[k + 2]];
+      /* the joint rings under the surface get no shell of their own: offset along their own normals they poked out as tufts */
+      if (tri[0] >= surfN || tri[1] >= surfN || tri[2] >= surfN) continue;
+      var ra = reg[tri[0]], rb = reg[tri[1]], rc = reg[tri[2]], out = [], e, v, x, y, ax;
+      if (gk === "belt") {
+        if (p.coat || !ra || !rb || !rc) continue;
+        var y0 = Math.min(pos.getY(tri[0]), pos.getY(tri[1]), pos.getY(tri[2])), y1 = Math.max(pos.getY(tri[0]), pos.getY(tri[1]), pos.getY(tri[2]));
+        if (y1 <= BELT[0] || y0 >= BELT[1] || Math.abs(pos.getX(tri[0])) > 0.3) continue;
+        for (e = 0; e < 3; e++) { v = tri[e]; y = clamp(pos.getY(v), BELT[0], BELT[1]); out.push(vert(map, v, gk, pos.getX(v), y, thickAt("belt", pos.getX(v), y, p))); }
+        IDX.push(out[0], out[1], out[2]);
+        continue;
+      }
+      if (ra !== gk && rb !== gk && rc !== gk) continue;
+      var bare = !ra || !rb || !rc;
+      for (e = 0; e < 3 && out; e++) {
+        v = tri[e]; x = pos.getX(v); y = pos.getY(v); ax = Math.abs(x);
+        var r = reg[v];
+        if (r === gk || (r && LAYER[r] > LAYER[gk])) out.push(vert(map, v, gk, x, y, thickAt(gk, x, y, p)));
+        else if (r) { y = Math.max(y, lowY[gk]); out.push(vert(map, v, gk, x, y, thickAt(gk, x, y, p))); }
+        else if (gk === "shirt" && y > 1.2 && ax > SX) { x = Math.sign(x) * SX; out.push(vert(map, v, gk, x, y, thickAt(gk, x, y, p))); }
+        else if (gk === "shirt" && y > 1.505 && ax < 0.2) { y = 1.505; out.push(vert(map, v, gk, x, y, thickAt(gk, x, y, p))); }
+        else out = null;
+      }
+      if (out && !(bare && gk !== "shirt")) IDX.push(out[0], out[1], out[2]);
     }
     if (IDX.length > start) groups.push([start, IDX.length - start, gi]);
   });
@@ -1292,7 +1311,7 @@ function buildClothes(p, body){
       ? new T.MeshStandardMaterial({ color:0xffffff, map:(DENIM = DENIM || denimTex()), roughness:0.88, normalMap:TWILL, normalScale:new T.Vector2(0.7, 0.7), envMapIntensity:0.45 })
       : new T.MeshStandardMaterial({ color:o.pants, roughness:0.8, normalMap:TWILL, normalScale:new T.Vector2(0.55, 0.55), envMapIntensity:0.5 }),
     new T.MeshStandardMaterial({ color:o.shoe, roughness:0.3, metalness:0.05, envMapIntensity:0.8 }),
-    M("#2a2c31", { roughness:0.4, envMapIntensity:0.6 }),
+    o.belt ? new T.MeshStandardMaterial({ color:o.belt, roughness:0.75, normalMap:TWILL, normalScale:new T.Vector2(0.5, 0.5), envMapIntensity:0.5 }) : M("#2a2c31", { roughness:0.4, envMapIntensity:0.6 }),
     new T.MeshStandardMaterial({ color:o.trim, roughness:0.8, normalMap:WEAVE, normalScale:new T.Vector2(0.4, 0.4), envMapIntensity:0.5 })
   ];
   var cl = new T.SkinnedMesh(geo, mats);
@@ -1300,6 +1319,26 @@ function buildClothes(p, body){
   cl.frustumCulled = false; cl.castShadow = false; cl.receiveShadow = true;
   body.parent.add(cl);
   return cl;
+}
+/* trench belt: a rigid band fitted to the waist and carried by the hips, with a buckle at the front */
+function trenchBelt(p, model, body){
+  var pos = body.geometry.attributes.position, n = body.userData.surfN || pos.count, Y = 1.075;
+  var x1 = 0, z0 = 1, z1 = -1;
+  for (var i = 0; i < n; i++) {
+    if (Math.abs(pos.getY(i) - Y) > 0.012 || Math.abs(pos.getX(i)) > 0.3) continue;
+    x1 = Math.max(x1, Math.abs(pos.getX(i))); z0 = Math.min(z0, pos.getZ(i)); z1 = Math.max(z1, pos.getZ(i));
+  }
+  if (!x1 || z1 <= z0) return;
+  var o = OUTFIT[p.id], m = new T.MeshStandardMaterial({ color:o.belt || o.trim, roughness:0.7, normalMap:TWILL, normalScale:new T.Vector2(0.5, 0.5), envMapIntensity:0.5 });
+  var g = new T.Group(); model.add(g);
+  var pad = 0.022, cz = (z0 + z1) / 2;
+  var band = new T.Mesh(new T.CylinderGeometry(1, 1, 0.042, 40, 1, true), m);
+  band.scale.set(x1 + pad, 1, (z1 - z0) / 2 + pad); band.position.set(0, Y, cz); g.add(band);
+  var buckle = M("#6d5434", { roughness:0.45, metalness:0.4 });
+  add(G.box, buckle, 0.05, 0.05, 0.012, 0, Y, z1 + pad + 0.004, g, false);
+  add(G.box, m, 0.03, 0.03, 0.014, 0, Y, z1 + pad + 0.008, g, false);
+  model.updateMatrixWorld(true);
+  model.getObjectByName("mixamorigHips").attach(g);
 }
 /* body triangles that sit entirely under a garment are never seen: removing them ends any z-fighting with the shells */
 function hideCovered(p, body){
@@ -1319,6 +1358,8 @@ function makeRig(p, sc){
   var model = SkeletonUtils.clone(GLTF.scene);
   p.k = p.id === "debbie" || p.id === "olivia" ? 0.945 : 1;
   model.scale.setScalar(CH_SCALE * p.k);
+  /* Olivia is slim: a narrower frame under the tailored trench */
+  if (p.slim) { model.scale.x *= p.slim; model.scale.z *= p.slim; }
   p.seatDrop = 1.04 * CH_SCALE * p.k - 0.53;
   root.add(model);
   var bodyMesh = null;
@@ -1338,6 +1379,7 @@ function makeRig(p, sc){
       if (mg) { bodyMesh.geometry = mg; bodyMesh.userData.surfN = surfN; jm.parent.remove(jm); }
     }
     buildClothes(p, bodyMesh);
+    if (p.coat) trenchBelt(p, model, bodyMesh);
     hideCovered(p, bodyMesh);
   }
   var b = {};
@@ -2379,7 +2421,7 @@ function renderPortrait(){
   else {
     p.head.getWorldPosition(pHead);
     /* film the face: from the front when seated (between them and the monitors), otherwise from the viewer's side */
-    var seated = p.state === "sit", dd = seated ? 0.66 : 1.15;
+    var seated = p.state === "sit", dd = window.__voPDist || (seated ? 0.66 : 1.15);
     if (seated && p.face) {
       p.face.mouth.getWorldPosition(pDir); pDir.sub(pHead); pDir.y = 0;
       if (pDir.lengthSq() < 1e-6) pDir.set(camDir.x, 0, camDir.z);
@@ -2387,8 +2429,8 @@ function renderPortrait(){
       if (window.__voPYaw) pDir.applyAxisAngle(UP, window.__voPYaw);
     } else pDir.set(camDir.x, 0, camDir.z).normalize();
     if (pcam.fov !== (seated ? 42 : 28)) pcam.fov = seated ? 42 : 28;
-    pcam.position.set(pHead.x + pDir.x * dd, pHead.y + 0.12, pHead.z + pDir.z * dd);
-    pcam.lookAt(pHead.x, pHead.y - 0.02, pHead.z);
+    pcam.position.set(pHead.x + pDir.x * dd, pHead.y + 0.12 - (window.__voPDrop || 0), pHead.z + pDir.z * dd);
+    pcam.lookAt(pHead.x, pHead.y - 0.02 - (window.__voPDrop || 0), pHead.z);
   }
   var x = r.left - c.left, y = c.bottom - r.bottom;
   renderer.setScissorTest(true);
