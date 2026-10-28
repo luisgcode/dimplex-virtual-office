@@ -4,7 +4,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Dimplex Virtual Office</title>
-<meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600;700&display=swap">
@@ -127,11 +126,43 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   .card,.pulse{animation:none}
   .chip,.tag,.bubble{transition:none}
 }
+/* rebuild: compact labels, status only on hover or focus */
+.tag{padding:3px 8px 4px;border-radius:8px;gap:1px}
+.tag .n{font-size:12px}
+.tag .st{display:none}
+.tag:hover .st,.tag.on .st{display:block}
+.tag.off{opacity:0;pointer-events:none}
+.vignette{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 45%,rgba(0,0,0,0) 60%,rgba(20,26,34,.16) 100%);z-index:0}
+#loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:10px;font-weight:600;color:#3b434c;background:rgba(231,235,238,.55);z-index:4}
+.spin{width:18px;height:18px;border-radius:50%;border:2px solid #b9c1c9;border-top-color:#e31837;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.card{max-height:calc(100% - 28px);overflow-y:auto;overscroll-behavior:contain;width:min(360px, calc(100% - 32px))}
+.mood{margin:0;font-size:13.5px;font-weight:600}
+.ask{display:grid;gap:8px;border-top:1px solid var(--line);padding-top:10px}
+.ask-h{margin:0;font-size:10.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.log{display:flex;flex-direction:column;gap:6px;max-height:190px;overflow-y:auto;padding-right:2px}
+.msg{max-width:85%;padding:7px 10px;border-radius:12px;font-size:13px;line-height:1.4;overflow-wrap:anywhere}
+.msg.me{align-self:flex-end;background:var(--ink);color:var(--surface);border-bottom-right-radius:4px}
+.msg.them{align-self:flex-start;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-bottom-left-radius:4px}
+.msg.typing{display:flex;gap:4px;padding:10px 12px}
+.msg.typing i{width:6px;height:6px;border-radius:50%;background:var(--muted);animation:blink 1s infinite}
+.msg.typing i:nth-child(2){animation-delay:.15s}.msg.typing i:nth-child(3){animation-delay:.3s}
+@keyframes blink{0%,80%,100%{opacity:.25}40%{opacity:1}}
+.sugg{display:flex;flex-wrap:wrap;gap:6px}
+.q{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:5px 10px;font:500 12px/1.2 var(--f-body);cursor:pointer;text-align:left}
+.q:hover{border-color:var(--muted)}
+.ask-f{display:flex;gap:6px}
+.ask-f input{flex:1;min-width:0;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:10px;padding:8px 10px;font:14px var(--f-body)}
+.ask-f input:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.send{border:0;border-radius:10px;padding:8px 14px;background:var(--accent);color:var(--on-accent);font:700 13px var(--f-body);cursor:pointer}
+@media (max-width:640px){ .card{max-height:62%} .log{max-height:130px} }
+@media (prefers-reduced-motion: reduce){ .spin,.msg.typing i{animation:none} }
+
 :root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 </style>
+
 </head>
 <body>
-
 <header>
   <div class="brand">
     <div class="mark" aria-hidden="true">D</div>
@@ -161,23 +192,54 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
       <button class="x" id="cClose" type="button" aria-label="Close card">&times;</button>
     </div>
     <p class="status"><span class="pulse"></span><span id="cStatus"></span></p>
+    <p class="mood" id="cMood"></p>
     <dl class="traits">
       <div><dt>Personality</dt><dd id="cPers"></dd></div>
       <div><dt>Always talking about</dt><dd id="cTopics"></dd></div>
     </dl>
+    <div class="ask">
+      <p class="ask-h" id="askH">Ask</p>
+      <div class="log" id="log" hidden></div>
+      <div class="sugg" id="sugg"></div>
+      <form class="ask-f" id="askForm" autocomplete="off">
+        <input id="askIn" type="text" maxlength="160" placeholder="Ask something" aria-label="Your question">
+        <button type="submit" class="send">Ask</button>
+      </form>
+    </div>
   </section>
-  <p class="hint" id="hint">Drag to rotate. Tap anyone to visit their desk.</p>
+  <p class="hint" id="hint">Drag to rotate. Tap anyone to chat with them.</p>
+  <div class="vignette" aria-hidden="true"></div>
+  <div id="loading"><span class="spin"></span>Loading the team…</div>
   <div id="fallback" hidden>The 3D office needs WebGL. Try a recent version of Chrome, Edge, Safari or Firefox.</div>
 </main>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
 <script>
-(function(){
+setTimeout(function(){ if (!window.__voReady) { var f = document.getElementById("fallback"), l = document.getElementById("loading"); if (!window.__voStarted) { l.hidden = true; f.textContent = "The 3D office could not start in this browser. Try a recent version of Chrome, Edge, Safari or Firefox."; f.hidden = false; } } }, 20000);
+</script>
+<script type="module">
+import * as THREE from "three";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import * as SkeletonUtils from "three/addons/utils/SkeletonUtils.js";
+import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
+import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
+import { GTAOPass } from "three/addons/postprocessing/GTAOPass.js";
+import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
+
+(async function(){
 "use strict";
+window.__voStarted = true;
 var stage = document.getElementById("stage");
 var fallback = document.getElementById("fallback");
-if (!window.THREE) { fallback.hidden = false; return; }
+var loadingEl = document.getElementById("loading");
 var T = THREE;
+function fail(msg){ loadingEl.hidden = true; fallback.textContent = msg; fallback.hidden = false; }
 
 /* ---------- team ---------- */
 var PEOPLE = [
@@ -189,14 +251,14 @@ var PEOPLE = [
     walker:{ sit:6, away:11, offset:14, text:{ sit:"Back-to-back meetings", out:"Running to the next call", away:"Back-to-back meetings", back:"Back-to-back meetings" } } },
   { id:"stephanie", name:"Stephanie", role:"Flame products", side:1, z:2.65, personality:"Always solving fireplace issues.", topics:"Fireplaces and Flame products", shirt:"#e0703a", pants:"#33302d", skin:"#e8b892", hair:"#111013", style:"pony", sleeves:false, screen:"fire",
     status:"Fixing a fireplace issue", blurb:"Electric fireplaces. If a flame effect looks wrong, she already knows why." },
-  { id:"debbie", name:"Debbie", role:"Heat products", side:-1, z:0.8, personality:"Keeps every room in the catalog warm.", topics:"Baseboards and Heat products", shirt:"#b83c4c", pants:"#2d3138", skin:"#f0c6a2", hair:"#b98f5e", style:"long", sleeves:true, screen:"sheet",
+  { id:"debbie", name:"Debbie", role:"Heat products", side:-1, z:0.8, personality:"Keeps every room in the catalog warm.", topics:"Baseboards and Heat products", shirt:"#b83c4c", pants:"#2d3138", skin:"#f0c6a2", hair:"#2b1d16", style:"long", sleeves:true, screen:"sheet",
     status:"Heat products", blurb:"Baseboards, wall heaters and everything that keeps a room warm in January." },
-  { id:"olivia", name:"Olivia", role:"Designer", side:-1, z:-1.05, personality:"The designer. Notices every pixel.", topics:"Design, images and color", shirt:"#2a9d8f", pants:"#22262c", skin:"#c68b62", hair:"#1d1714", style:"halfup", sleeves:false, screen:"swatch", glasses:true,
-    status:"Designing", blurb:"Turns product shots and brand colors into pages people actually want to scroll." },
+  { id:"olivia", name:"Olivia", role:"Designer, web and channel images", side:-1, z:-1.05, personality:"Creates every image for the website and the other channels. Notices every pixel.", topics:"Retouching, lifestyle images, banners and social graphics", shirt:"#2a9d8f", pants:"#22262c", skin:"#c68b62", hair:"#1d1714", style:"halfup", sleeves:false, screen:"swatch", glasses:true,
+    status:"Retouching product shots", blurb:"Turns product shots and brand colors into pages people actually want to scroll." },
   { id:"luis", name:"Luis", role:"Web Manager", side:-1, z:4.5, personality:"Headphones on, building the web.", topics:"The Dimplex, Convectair and Cadet sites", shirt:"#34495e", pants:"#23272e", skin:"#d9a57c", hair:"#0c0c0e", style:"short", sleeves:false, screen:"code", headphones:true,
     status:"Headphones on, building the web", blurb:"Dimplex, Convectair and Cadet sites. Headphones on means deep in a build." },
-  { id:"carla", name:"Carla", role:"Marketing", side:-1, z:2.65, personality:"Friendly teammate. The answer is always yes.", topics:"Whatever the team needs next", shirt:"#e2ac2f", pants:"#2a2f3a", skin:"#e6b38c", hair:"#3a2418", style:"wavy", sleeves:true, screen:"tasks",
-    status:"On it", blurb:"Ask her for anything and the answer is the same: on it." }
+  { id:"carla", name:"Carla", role:"Events and tradeshows", side:-1, z:2.65, personality:"Friendly organiser. Runs every tradeshow, booth and event trip.", topics:"Tradeshows, booths and event logistics", shirt:"#e2ac2f", pants:"#2a2f3a", skin:"#e6b38c", hair:"#3a2418", style:"wavy", sleeves:true, screen:"tasks",
+    status:"Planning the next show", blurb:"Ask her for anything and the answer is the same: on it." }
 ];
 var LINES = {
   erica:["Jumping on a call","Back in 5, another meeting","Can we take this offline?","Who moved my 2:00?"],
@@ -205,43 +267,56 @@ var LINES = {
   debbie:["Baseboard sell sheet is ready","Which wattage is this baseboard?","Convectair or Cadet baseboard?","Baseboards are moving this week"],
   olivia:["New lifestyle shots are in","Can we make the logo bigger? Kidding","Color profile is sRGB, I promise","Exporting the hero images now"],
   luis:["Headphones on","Pushing to the site","Deploying now","Fixing one more page"],
-  carla:["On it!","Coffee anyone?","Sending it over now","Happy Friday, everyone!"]
+  carla:["Booth ships Monday!","Who needs a show badge?","Hotel is booked","Which products go to the show?"],
+  marissa:["Can you hear me okay?","You are on mute!","Hi from home!","Let me share my screen"],
+  stephanieb:["Hi everyone!","Sorry, my cat just walked across the keyboard","Can you see my screen?","Wifi is being dramatic today"]
 };
-var BY = {}; PEOPLE.forEach(function(p){ BY[p.id] = p; });
+var REMOTE = [
+  { id:"marissa", name:"Marissa", fullName:"Marissa", role:"Team member, remote", remote:true, sx:-3.35, shirt:"#4f7cc4", pants:"#2a2d35", skin:"#e9b996", hair:"#5a3a26", style:"wavy", sleeves:true,
+    status:"Online, working from home", personality:"Works from home and is always one message away.", topics:"Whatever the team needs, from her home office" },
+  { id:"stephanieb", name:"Stephanie B.", fullName:"Stephanie Benoit", role:"Team member, remote", remote:true, sx:3.35, shirt:"#6f9e55", pants:"#2b2f36", skin:"#f0cfb4", hair:"#d8b878", style:"long", sleeves:false,
+    status:"Online, working from home", personality:"Remote teammate with great energy and an even better video background.", topics:"Team updates, from her home office" }
+];
+var ALL = PEOPLE.concat(REMOTE);
+var BY = {}; ALL.forEach(function(p){ BY[p.id] = p; });
+
 
 /* ---------- renderer ---------- */
 var renderer;
 try {
   renderer = new T.WebGLRenderer({ antialias:true, powerPreference:"high-performance" });
-} catch (e) { fallback.hidden = false; return; }
-renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+} catch (e) { fail("The 3D office needs WebGL. Try a recent version of Chrome, Edge, Safari or Firefox."); return; }
+var isSmall = Math.min(window.innerWidth, window.innerHeight) < 700;
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isSmall ? 1.75 : 2));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = T.PCFSoftShadowMap;
-renderer.outputEncoding = T.sRGBEncoding;
+renderer.outputColorSpace = T.SRGBColorSpace;
 renderer.toneMapping = T.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.05;
+renderer.toneMappingExposure = 1.0;
+renderer.useLegacyLights = true;
 stage.insertBefore(renderer.domElement, stage.firstChild);
 var canvas = renderer.domElement;
 var maxAniso = renderer.capabilities.getMaxAnisotropy();
 
 var scene = new T.Scene();
 scene.background = new T.Color(0xe7ebee);
-
 var camera = new T.OrthographicCamera(-10, 10, 10, -10, 0.1, 220);
-
 var reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+var pmrem = new T.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(renderer), 0.04).texture;
+var composer = null, aoPass = null;
 
 /* ---------- lights ---------- */
-scene.add(new T.HemisphereLight(0xffffff, 0xc9b49a, 0.62));
+scene.add(new T.HemisphereLight(0xffffff, 0xc9b49a, 0.42));
 var sun = new T.DirectionalLight(0xfff4e6, 1.0);
 sun.position.set(9, 20, 8);
 sun.target.position.set(0, 0, -1.5);
 sun.castShadow = true;
-sun.shadow.mapSize.set(1024, 1024);
+sun.shadow.mapSize.set(isSmall ? 1024 : 2048, isSmall ? 1024 : 2048);
 var sc = sun.shadow.camera;
 sc.left = -12; sc.right = 12; sc.top = 12; sc.bottom = -12; sc.near = 1; sc.far = 60;
-sun.shadow.bias = -0.0006;
-sun.shadow.normalBias = 0.02;
+sun.shadow.bias = -0.0004;
+sun.shadow.normalBias = 0.03;
 sun.shadow.radius = 3;
 scene.add(sun, sun.target);
 var fill = new T.DirectionalLight(0xdce7ff, 0.28);
@@ -292,7 +367,7 @@ function canvasTex(w, h, draw){
   var g = c.getContext("2d");
   draw(g, w, h);
   var t = new T.CanvasTexture(c);
-  t.encoding = T.sRGBEncoding;
+  t.colorSpace = T.SRGBColorSpace;
   t.anisotropy = maxAniso;
   return t;
 }
@@ -372,7 +447,7 @@ var skyTex = canvasTex(256, 256, function(g, w, h){
   }
 });
 var winMat = new T.MeshBasicMaterial({ map:skyTex });
-[[4.5, 1.5], [2.65, 1.5], [-1.05, 1.5], [-4.2, 2.2]].forEach(function(q){
+[[4.5, 1.5], [-1.05, 1.5], [-4.2, 2.2]].forEach(function(q){
   var z = q[0], ww = q[1], wy = 2.15, wh = 1.0;
   var win = new T.Mesh(G.plane, winMat);
   win.scale.set(ww, wh, 1);
@@ -393,7 +468,7 @@ var haloTex = canvasTex(256, 128, function(g, w, h){
   g.fillStyle = gr; g.fillRect(0, 0, w, h);
 });
 var halo = new T.Mesh(G.plane, new T.MeshBasicMaterial({ map:haloTex, transparent:true, blending:T.AdditiveBlending, depthWrite:false, toneMapped:false }));
-halo.scale.set(8.8, 3.1, 1); halo.position.set(0, 1.85, -8.92);
+halo.scale.set(5.6, 2.4, 1); halo.position.set(0, 2.15, -8.92);
 scene.add(halo);
 var logoTex = canvasTex(1024, 262, function(g, w, h){
   g.fillStyle = "#ffffff"; g.fillRect(0, 0, w, h);
@@ -405,9 +480,9 @@ var logoTex = canvasTex(1024, 262, function(g, w, h){
   g.textAlign = "center"; g.textBaseline = "middle";
   g.fillText("Dimplex", w / 2, h / 2 + 6);
 });
-add(G.box, new T.MeshBasicMaterial({ color:0xffffff, toneMapped:false }), 6.62, 1.82, 0.12, 0, 1.95, -8.9, scene, false);
+add(G.box, new T.MeshBasicMaterial({ color:0xffffff, toneMapped:false }), 4.12, 1.18, 0.12, 0, 2.15, -8.9, scene, false);
 var logo = new T.Mesh(G.plane, new T.MeshBasicMaterial({ map:logoTex, toneMapped:false }));
-logo.scale.set(6.4, 1.64, 1); logo.position.set(0, 1.95, -8.835);
+logo.scale.set(3.92, 1.0, 1); logo.position.set(0, 2.15, -8.835);
 scene.add(logo);
 var logoLight = new T.PointLight(0xfff0f0, 0.55, 9, 2);
 logoLight.position.set(0, 1.9, -7.6);
@@ -539,6 +614,9 @@ function screenTex(kind){
 
 /* ---------- furniture ---------- */
 var plane1 = G.plane;
+G.hsph = new T.SphereGeometry(1, 32, 22);
+G.hcap2 = new T.SphereGeometry(1, 32, 16, 0, Math.PI * 2, 0, Math.PI * 0.53);
+G.band3 = new T.TorusGeometry(0.102, 0.011, 8, 32, Math.PI);
 function monitor(parent, x, z, w, h, kind, ry){
   var g = new T.Group(); g.position.set(x, 0.76, z); g.rotation.y = ry || 0; parent.add(g);
   add(G.box, metalDark, 0.24, 0.015, 0.17, 0, 0.008, 0, g, false);
@@ -618,170 +696,10 @@ function desk(p){
   return g;
 }
 
-/* ---------- characters ---------- */
-/* Proportions: about 1.73 m tall, head about 1/7 of height. Limbs are tapered capsules, torso is a lathe with a waist. */
-function taperCap(rt, rb, len){
-  var pts = [], n = 7, i, a;
-  for (i = n; i >= 0; i--) { a = -Math.PI / 2 * i / n; pts.push(new T.Vector2(Math.max(0.0001, rb * Math.cos(a)), -len + rb * Math.sin(a))); }
-  for (i = 0; i <= n; i++) { a = Math.PI / 2 * i / n; pts.push(new T.Vector2(Math.max(0.0001, rt * Math.cos(a)), rt * Math.sin(a))); }
-  return new T.LatheGeometry(pts, 20);
-}
-G.upperArm = taperCap(0.047, 0.04, 0.27);
-G.foreArm = taperCap(0.039, 0.031, 0.24);
-G.thigh = taperCap(0.07, 0.054, 0.42);
-G.shin = taperCap(0.05, 0.039, 0.38);
-G.torso2 = new T.LatheGeometry([[0.0001,0],[0.15,0],[0.162,0.05],[0.152,0.16],[0.145,0.22],[0.158,0.3],[0.178,0.4],[0.186,0.47],[0.18,0.52],[0.15,0.56],[0.09,0.585],[0.0001,0.59]].map(function(q){ return new T.Vector2(q[0], q[1]); }), 28);
-G.hsph = new T.SphereGeometry(1, 32, 22);
-G.hcap2 = new T.SphereGeometry(1, 32, 16, 0, Math.PI * 2, 0, Math.PI * 0.53);
-G.band2 = new T.TorusGeometry(0.122, 0.014, 8, 32, Math.PI);
 
-var fabricTex = canvasTex(128, 128, function(g, w, h){
-  var r = seeded(29);
-  g.fillStyle = "#808080"; g.fillRect(0, 0, w, h);
-  for (var y = 0; y < h; y += 2) { g.fillStyle = "rgba(255,255,255," + (0.06 + r() * 0.08).toFixed(3) + ")"; g.fillRect(0, y, w, 1); }
-  for (var x = 0; x < w; x += 2) { g.fillStyle = "rgba(0,0,0," + (0.05 + r() * 0.07).toFixed(3) + ")"; g.fillRect(x, 0, 1, h); }
-});
-fabricTex.wrapS = fabricTex.wrapT = T.RepeatWrapping;
-fabricTex.repeat.set(6, 6);
-var fabCache = {};
-function Mfab(color, rough){
-  var key = color + rough;
-  if (!fabCache[key]) fabCache[key] = new T.MeshStandardMaterial({ color:color, roughness:rough, metalness:0, bumpMap:fabricTex, bumpScale:0.0025 });
-  return fabCache[key];
-}
 
-function hair(head, style, m){
-  var cap = add(G.hcap2, m, 0.106, 0.126, 0.118, 0, 0.006, -0.004, head);
-  cap.rotation.x = -0.42;
-  if (style === "short") {
-    add(G.hsph, m, 0.098, 0.045, 0.1, 0, 0.088, 0.012, head);
-    return;
-  }
-  /* every long style: side volume, a back panel past the shoulders and strands framing the face */
-  add(G.hsph, m, 0.118, 0.11, 0.1, 0, -0.03, -0.032, head);
-  add(G.hsph, m, 0.1, 0.04, 0.1, 0, 0.09, 0.015, head);
-  if (style === "pony") {
-    var pony = add(G.hsph, m, 0.045, 0.18, 0.048, 0, -0.11, -0.145, head);
-    pony.rotation.x = 0.28;
-    add(G.cyl, M("#E31837", { roughness:0.5 }), 0.03, 0.022, 0.03, 0, 0.03, -0.125, head, false).rotation.x = 1.1;
-    return;
-  }
-  var back = add(G.hsph, m, 0.115, 0.25, 0.062, 0, -0.17, -0.062, head);
-  back.rotation.x = 0.1;
-  [-1, 1].forEach(function(sd){
-    var st = add(G.hsph, m, 0.034, 0.15, 0.048, sd * 0.098, -0.12, -0.005, head);
-    st.rotation.z = sd * 0.08;
-  });
-  if (style === "wavy") {
-    [[-0.075, -0.33, -0.06], [0, -0.36, -0.075], [0.075, -0.33, -0.06], [-0.1, -0.24, -0.02], [0.1, -0.24, -0.02]].forEach(function(q){
-      add(G.hsph, m, 0.05, 0.055, 0.045, q[0], q[1], q[2], head, false);
-    });
-  } else if (style === "halfup") {
-    add(G.hsph, m, 0.045, 0.042, 0.045, 0, 0.045, -0.118, head);
-  }
-}
-function makePerson(p){
-  var root = new T.Group(), body = new T.Group();
-  root.add(body);
-  var shirt = Mfab(p.shirt, 0.88), pants = Mfab(p.pants, 0.8);
-  var skin = M(p.skin, { roughness:0.55 }), hairM = M(p.hair, { roughness:0.5 });
-  var lip = M(new T.Color(p.skin).lerp(new T.Color("#a0524a"), 0.45).getStyle(), { roughness:0.5 });
-  var shoe = M("#1d1f23", { roughness:0.35 }), sole = M("#3a3c40", { roughness:0.8 });
-
-  /* hips, belt, torso, collar, neck */
-  add(G.hsph, pants, 0.158, 0.1, 0.112, 0, 0.86, 0, body);
-  add(G.cyl, M("#24262b", { roughness:0.4 }), 0.152, 0.03, 0.108, 0, 0.9, 0, body, false);
-  var torso = add(G.torso2, shirt, 1, 1, 0.64, 0, 0.86, 0, body);
-  add(G.ring, shirt, 0.055, 0.055, 0.12, 0, 1.445, 0.0, body, false).rotation.x = Math.PI / 2;
-  add(G.cyl, skin, 0.042, 0.11, 0.042, 0, 1.48, 0, body);
-
-  /* head */
-  var head = new T.Group(); head.position.y = 1.61; body.add(head);
-  add(G.hsph, skin, 0.098, 0.118, 0.108, 0, 0, 0, head);
-  add(G.hsph, skin, 0.08, 0.068, 0.088, 0, -0.045, 0.01, head);
-  [-1, 1].forEach(function(s){
-    add(G.sph, eyeMat, 0.011, 0.013, 0.008, s * 0.034, 0.008, 0.1, head, false);
-    var brow = add(G.box, hairM, 0.03, 0.006, 0.008, s * 0.035, 0.034, 0.101, head, false);
-    brow.rotation.z = -s * 0.12;
-    add(G.sph, skin, 0.012, 0.026, 0.018, s * 0.097, -0.005, 0, head, false);
-  });
-  add(G.sph, skin, 0.014, 0.024, 0.018, 0, -0.012, 0.108, head, false);
-  add(G.sph, lip, 0.024, 0.008, 0.01, 0, -0.052, 0.094, head, false);
-  hair(head, p.style, hairM);
-
-  if (p.glasses) {
-    var fr = M("#1e2126", { roughness:0.3 });
-    [-0.035, 0.035].forEach(function(x){ add(G.ring, fr, 0.024, 0.024, 0.024, x, 0.008, 0.106, head, false); });
-    add(G.box, fr, 0.022, 0.005, 0.005, 0, 0.01, 0.109, head, false);
-  }
-  if (p.headphones) {
-    var hpDark = M("#1b1e23", { roughness:0.35, metalness:0.3 }), hpRed = M("#E31837", { roughness:0.35 });
-    add(G.band2, hpDark, 1, 1.05, 1.15, 0, 0.0, -0.006, head);
-    [-1, 1].forEach(function(s){
-      var cup = add(G.cyl, hpDark, 0.056, 0.046, 0.056, s * 0.116, -0.012, 0, head);
-      cup.rotation.z = Math.PI / 2;
-      var cap2 = add(G.cyl, hpRed, 0.044, 0.016, 0.044, s * 0.144, -0.012, 0, head, false);
-      cap2.rotation.z = Math.PI / 2;
-    });
-  }
-
-  /* arms and legs */
-  var arms = [], legs = [];
-  [-1, 1].forEach(function(s){
-    var sh = new T.Group(); sh.position.set(s * 0.19, 1.405, 0); body.add(sh);
-    add(G.hsph, shirt, 0.064, 0.06, 0.062, 0, 0, 0, sh);
-    add(G.upperArm, shirt, 1, 1, 1, 0, 0, 0, sh);
-    var el = new T.Group(); el.position.y = -0.27; sh.add(el);
-    add(G.foreArm, p.sleeves ? shirt : skin, 1, 1, 1, 0, 0, 0, el);
-    if (p.sleeves) add(G.cyl, skin, 0.03, 0.02, 0.03, 0, -0.245, 0, el, false);
-    add(G.hsph, skin, 0.042, 0.05, 0.02, 0, -0.29, 0.004, el);
-    add(G.hsph, skin, 0.012, 0.026, 0.012, -s * 0.034, -0.27, 0.01, el, false).rotation.z = -s * 0.5;
-    arms.push({ sh:sh, el:el, s:s });
-
-    var hip = new T.Group(); hip.position.set(s * 0.085, 0.86, 0); body.add(hip);
-    add(G.thigh, pants, 1, 1, 1, 0, 0, 0, hip);
-    var kn = new T.Group(); kn.position.y = -0.42; hip.add(kn);
-    add(G.shin, pants, 1, 1, 1, 0, 0, 0, kn);
-    add(G.hsph, shoe, 0.048, 0.04, 0.115, 0, -0.4, 0.04, kn);
-    add(G.box, sole, 0.094, 0.016, 0.225, 0, -0.43, 0.04, kn, false);
-    legs.push({ hip:hip, kn:kn, s:s });
-  });
-
-  root.traverse(function(o){ if (o.isMesh) o.userData.pid = p.id; });
-  p.root = root; p.body = body; p.head = head; p.arms = arms; p.legs = legs; p.torso = torso;
-  p.seat = new V3(p.side * 3.3, 0, p.z);
-  p.sitHeading = p.side * Math.PI / 2;
-  root.position.copy(p.seat);
-  root.rotation.y = p.sitHeading;
-  p.heading = p.sitHeading;
-  scene.add(root);
-}
-
-/* s: 0 seated, 1 standing. Seated arms: upper arm forward, elbow bent about 90 deg, hands on the keyboard. */
-function pose(p, s, walk, phase, t, typing){
-  var br = Math.sin(t * 1.7 + p.z * 2) * 0.012;
-  p.body.position.y = -0.36 * (1 - s) + walk * 0.022 * Math.abs(Math.cos(phase));
-  p.body.rotation.set(0, 0, 0);
-  p.head.rotation.set(0, 0, 0);
-  p.torso.scale.set(1 + br, 1 + br * 0.4, 0.64 * (1 + br * 1.5));
-  var sw = Math.sin(phase) * 0.5 * walk;
-  var burst = typing ? p.typeAmp : 0;
-  for (var i = 0; i < 2; i++) {
-    var L = p.legs[i], A = p.arms[i], sg = L.s;
-    L.hip.rotation.set(lerp(-Math.PI / 2 + 0.08, 0, s) + sw * sg, 0, sg * lerp(0.06, 0, s));
-    L.kn.rotation.x = lerp(Math.PI / 2 - 0.12, 0, s) + walk * 0.55 * Math.max(0, sg * Math.cos(phase));
-    var ty = typing ? burst * 0.045 * Math.max(0, Math.sin(t * 12 + i * 2.3 + Math.sin(t * 1.9 + i) * 2)) : 0;
-    A.sh.position.y = 1.405 + br * 0.6;
-    A.sh.rotation.set(lerp(-0.55, 0.05, s) - sw * sg * 0.9 + ty * 0.5, 0, A.s * lerp(0.14, 0.08, s));
-    A.el.rotation.set(lerp(-1.05, -0.18, s) - ty, 0, -A.s * lerp(0.32, 0, s));
-  }
-}
-
-/* ---------- build team ---------- */
-PEOPLE.forEach(function(p){ desk(p); makePerson(p); });
-var pickables = [];
-PEOPLE.forEach(function(p){ p.root.traverse(function(o){ if (o.isMesh) pickables.push(o); }); });
-
+/* ---------- desks and props ---------- */
+PEOPLE.forEach(function(p){ desk(p); });
 /* the empty desk at the entrance, right side */
 var emptyDesk = { side:1, z:4.5 };
 desk(emptyDesk);
@@ -862,19 +780,318 @@ var heatStrips = [], heatMotes = [], heatLight;
 
 /* coffee point just outside the entrance */
 (function(){
-  aoDecal(scene, -0.75, 8.05, 1.7, 0.9);
-  add(G.box, M("#f4f3f0", { roughness:0.6 }), 1.3, 0.9, 0.5, -0.75, 0.45, 8.1, scene);
-  add(G.box, oakMat, 1.36, 0.05, 0.54, -0.75, 0.925, 8.1, scene);
-  add(G.box, M("#1e2126", { roughness:0.35, metalness:0.4 }), 0.32, 0.45, 0.3, -1.1, 1.175, 8.15, scene);
-  add(G.box, M("#cfd4d9", { roughness:0.3, metalness:0.6 }), 0.22, 0.05, 0.04, -1.1, 1.22, 7.99, scene, false);
-  [-0.6, -0.45, -0.3].forEach(function(x, i){ add(G.cyl, M(i === 1 ? "#E31837" : "#ffffff", { roughness:0.4 }), 0.045, 0.1, 0.045, x, 1.0, 8.0, scene); });
+  aoDecal(scene, -1.05, 8.05, 1.3, 0.9);
+  add(G.box, M("#f4f3f0", { roughness:0.6 }), 0.8, 0.9, 0.5, -1.05, 0.45, 8.1, scene);
+  add(G.box, oakMat, 0.86, 0.05, 0.54, -1.05, 0.925, 8.1, scene);
+  add(G.box, M("#1e2126", { roughness:0.35, metalness:0.4 }), 0.3, 0.45, 0.3, -1.25, 1.175, 8.15, scene);
+  add(G.box, M("#cfd4d9", { roughness:0.3, metalness:0.6 }), 0.2, 0.05, 0.04, -1.25, 1.22, 7.99, scene, false);
+  [-0.95, -0.82, -0.7].forEach(function(x, i){ add(G.cyl, M(i === 1 ? "#E31837" : "#ffffff", { roughness:0.4 }), 0.04, 0.1, 0.04, x, 1.0, 8.0, scene); });
 })();
-plant(-3.95, 5.75, 0.9); plant(3.95, 5.75, 0.9); plant(-3.9, -8.4, 1.15); plant(3.9, -8.4, 1.0); plant(3.95, -3.3, 0.85); plant(3.95, -6.4, 0.95);
+plant(-3.95, 5.75, 0.9); plant(3.95, 5.75, 0.9); plant(-2.4, -8.45, 0.95); plant(2.4, -8.45, 0.95); plant(3.95, -3.3, 0.85); plant(-4.0, -6.4, 1.1);
+
+/* Carla: events corner (tabletop roll-up banner, brochure boxes, event calendar on the wall) */
+(function(){
+  var dgc = BY.carla.deskGroup;
+  var banTex = canvasTex(128, 320, function(g, w, h){
+    g.fillStyle = "#ffffff"; g.fillRect(0, 0, w, h);
+    g.fillStyle = "#E31837"; g.fillRect(0, 0, w, 70);
+    g.fillStyle = "#ffffff"; g.font = "italic 900 26px " + FONT; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText("Dimplex", w / 2, 36);
+    var gr = g.createLinearGradient(0, 110, 0, 240); gr.addColorStop(0, "#2a1d16"); gr.addColorStop(1, "#5b3219");
+    g.fillStyle = gr; g.fillRect(12, 100, w - 24, 140);
+    g.fillStyle = "#ff8a2a";
+    for (var i = 0; i < 5; i++) { g.beginPath(); var fx = 26 + i * 19; g.moveTo(fx - 8, 230); g.quadraticCurveTo(fx, 160, fx + 8, 230); g.fill(); }
+    g.fillStyle = "#c3c9cf"; g.fillRect(20, 262, 88, 8); g.fillRect(30, 280, 68, 8);
+  });
+  var ban = new T.Mesh(G.plane, new T.MeshStandardMaterial({ map:banTex, roughness:0.7 }));
+  ban.scale.set(0.2, 0.5, 1); ban.position.set(0.66, 1.03, -0.98); dgc.add(ban);
+  add(G.box, M("#2a2d33", { roughness:0.4, metalness:0.4 }), 0.24, 0.03, 0.06, 0.66, 0.78, -0.98, dgc, false);
+  var kraft = M("#b98d5c", { roughness:0.9 });
+  add(G.box, kraft, 0.42, 0.3, 0.3, 0.5, 0.15, -0.85, dgc);
+  add(G.box, kraft, 0.38, 0.26, 0.28, 0.48, 0.43, -0.85, dgc);
+  add(G.box, M("#ffffff", { roughness:0.6 }), 0.2, 0.01, 0.14, 0.48, 0.565, -0.85, dgc, false);
+  var calTex = canvasTex(512, 300, function(g, w, h){
+    var r = seeded(77);
+    g.fillStyle = "#ffffff"; g.fillRect(0, 0, w, h);
+    g.fillStyle = "#2b3038"; g.fillRect(0, 0, w, 54);
+    g.fillStyle = "#ffffff"; g.font = "700 30px " + FONT; g.textBaseline = "middle"; g.fillText("EVENTS", 20, 28);
+    g.strokeStyle = "#dfe3e8"; g.lineWidth = 2;
+    for (var c = 0; c <= 6; c++) { g.beginPath(); g.moveTo(10 + c * 82, 64); g.lineTo(10 + c * 82, h - 10); g.stroke(); }
+    for (var rr = 0; rr <= 4; rr++) { g.beginPath(); g.moveTo(10, 64 + rr * 56); g.lineTo(w - 10, 64 + rr * 56); g.stroke(); }
+    for (var k = 0; k < 7; k++) { g.fillStyle = ["#E31837","#3b6fd8","#e2ac2f","#2fb3a3"][k % 4]; var cx = 14 + Math.floor(r() * 5) * 82, cy = 70 + Math.floor(r() * 4) * 56; rrect(g, cx, cy, 74 + (r() < 0.4 ? 82 : 0), 20, 5); g.fill(); }
+  });
+  var cal = new T.Mesh(G.plane, new T.MeshStandardMaterial({ map:calTex, roughness:0.8 }));
+  cal.scale.set(1.3, 0.76, 1); cal.position.set(-4.485, 2.05, 2.65); cal.rotation.y = Math.PI / 2; scene.add(cal);
+  add(G.box, M("#2b3038", { roughness:0.5 }), 0.03, 0.8, 1.34, -4.49, 2.05, 2.65, scene, false);
+})();
+
+
+
 
 /* focus ring */
 var ringMat = new T.MeshBasicMaterial({ color:0xe31837, transparent:true, opacity:0.85, toneMapped:false, depthWrite:false });
 var focusRing = new T.Mesh(new T.RingGeometry(0.46, 0.54, 48), ringMat);
 focusRing.rotation.x = -Math.PI / 2; focusRing.visible = false; scene.add(focusRing);
+
+
+
+/* ---------- characters: rigged, skinned mannequin with skeletal animation ---------- */
+var MODEL_URL = "https://cdn.jsdelivr.net/gh/mrdoob/three.js@r160/examples/models/gltf/Xbot.glb";
+var CH_SCALE = 1.70 / 1.806;
+var WALK_V = 1.26;      /* metres per second that match the walk clip at this scale, so feet do not slide */
+var SEAT_DROP = 0.45;   /* hips drop from standing to the chair seat */
+var BONE_NAMES = ["Hips","Spine","Spine1","Spine2","Neck","Head","HeadTop_End","LeftArm","LeftForeArm","LeftHand","LeftHandMiddle1","RightArm","RightForeArm","RightHand","RightHandMiddle1","LeftUpLeg","LeftLeg","LeftFoot","LeftToeBase","RightUpLeg","RightLeg","RightFoot","RightToeBase"];
+var CHILD = { Spine:"Spine1", Spine1:"Spine2", Spine2:"Neck", Head:"HeadTop_End", LeftArm:"LeftForeArm", LeftForeArm:"LeftHand", LeftHand:"LeftHandMiddle1", RightArm:"RightForeArm", RightForeArm:"RightHand", RightHand:"RightHandMiddle1", LeftUpLeg:"LeftLeg", LeftLeg:"LeftFoot", LeftFoot:"LeftToeBase", RightUpLeg:"RightLeg", RightLeg:"RightFoot", RightFoot:"RightToeBase" };
+var ORDER = ["Spine","Spine1","Spine2","Head","LeftUpLeg","LeftLeg","LeftFoot","RightUpLeg","RightLeg","RightFoot","LeftArm","LeftForeArm","LeftHand","RightArm","RightForeArm","RightHand"];
+
+/* seated pose as aim directions in the character's own frame (x left, y up, z forward) */
+var SEATED = {
+  Spine:[0, 1, 0.07], Spine1:[0, 1, 0.09], Spine2:[0, 1, 0.1], Head:[0, 1, 0.24],
+  LeftUpLeg:[0.1, -0.1, 1], LeftLeg:[0, -1, -0.06], LeftFoot:[0.05, -0.35, 1],
+  RightUpLeg:[-0.1, -0.1, 1], RightLeg:[0, -1, -0.06], RightFoot:[-0.05, -0.35, 1],
+  LeftArm:[0.13, -0.6, 0.75], LeftForeArm:[-0.25, 0.1, 1], LeftHand:[-0.06, -0.15, 1],
+  RightArm:[-0.13, -0.6, 0.75], RightForeArm:[0.25, 0.1, 1], RightHand:[0.06, -0.15, 1]
+};
+var ACTS = {
+  stretch:{ LeftArm:[0.25, 1, -0.05], LeftForeArm:[0.1, 1, 0], RightArm:[-0.25, 1, -0.05], RightForeArm:[-0.1, 1, 0], Head:[0, 1, -0.25] },
+  sip:{ RightArm:[-0.3, -0.5, 0.6], RightForeArm:[0.3, 0.9, 0.25], Head:[0, 1, -0.05] },
+  phone:{ LeftArm:[0.15, -0.85, 0.4], LeftForeArm:[-0.3, 0.45, 1], RightArm:[-0.15, -0.85, 0.4], RightForeArm:[0.3, 0.45, 1], Head:[0, 1, 0.5] },
+  headphones:{ RightArm:[-0.9, 0.25, 0.1], RightForeArm:[0.35, 1, 0.05] },
+  swatch:{ RightArm:[-0.15, 0.15, 1], RightForeArm:[-0.05, 0.45, 1] },
+  point:{ RightArm:[-0.1, 0.5, 1], RightForeArm:[-0.05, 0.6, 1], Head:[0, 1, -0.2] },
+  wave:{ RightArm:[-0.9, 0.4, 0.2], RightForeArm:[-0.1, 1, 0.1] },
+  talk:{ RightArm:[-0.2, -0.8, 0.45], RightForeArm:[0.1, 0.25, 1] },
+  answer:{ RightArm:[-0.2, -0.8, 0.45], RightForeArm:[0.1, 0.3, 1] },
+  leanBack:{ Spine1:[0, 1, -0.15], LeftArm:[0.8, 0.55, -0.15], LeftForeArm:[-0.6, 0.45, -0.4], RightArm:[-0.8, 0.55, -0.15], RightForeArm:[0.6, 0.45, -0.4] },
+  call:{ RightArm:[-0.55, -0.3, 0.25], RightForeArm:[0.45, 0.9, -0.1], Head:[0, 1, 0.05] },
+  checklist:{ LeftArm:[0.15, -0.85, 0.4], LeftForeArm:[-0.3, 0.5, 1], RightArm:[-0.15, -0.85, 0.4], RightForeArm:[0.3, 0.4, 1], Head:[0, 1, 0.45] },
+  leanFire:{}, turn:{}
+};
+
+var _a = new V3(), _b = new V3(), _d = new V3(), _t = new V3(), _q = new T.Quaternion(), _wq = new T.Quaternion(), _pq = new T.Quaternion(), _rq = new T.Quaternion(), UP = new V3(0, 1, 0);
+function aim(bone, child, dir, w, rq){
+  if (w <= 0.001 || !bone || !child) return;
+  bone.getWorldPosition(_a); child.getWorldPosition(_b);
+  _d.subVectors(_b, _a).normalize();
+  _t.set(dir[0], dir[1], dir[2]).normalize().applyQuaternion(rq);
+  if (w < 1) _t.lerpVectors(_d, _t, w).normalize();
+  _q.setFromUnitVectors(_d, _t);
+  bone.getWorldQuaternion(_wq); _wq.premultiply(_q);
+  bone.parent.getWorldQuaternion(_pq);
+  bone.quaternion.copy(_pq.invert().multiply(_wq));
+  bone.updateMatrixWorld(true);
+}
+function yawBone(bone, ang){
+  if (!bone || Math.abs(ang) < 0.0005) return;
+  _q.setFromAxisAngle(UP, ang);
+  bone.getWorldQuaternion(_wq); _wq.premultiply(_q);
+  bone.parent.getWorldQuaternion(_pq);
+  bone.quaternion.copy(_pq.invert().multiply(_wq));
+  bone.updateMatrixWorld(true);
+}
+
+function colorize(mesh, p, factor){
+  var g = mesh.geometry = mesh.geometry.clone();
+  var pos = g.attributes.position, n = pos.count, col = new Float32Array(n * 3);
+  var cShirt = new T.Color(p.shirt), cPants = new T.Color(p.pants), cSkin = new T.Color(p.skin), cShoe = new T.Color("#1b1d21"), cBelt = new T.Color("#2a2c31");
+  var sleeve = p.sleeves ? 0.66 : 0.34;
+  for (var i = 0; i < n; i++) {
+    var x = Math.abs(pos.getX(i)), y = pos.getY(i), c;
+    if (y < 0.115) c = cShoe;
+    else if (y > 1.535 && x < 0.2) c = cSkin;
+    else if (x > sleeve && y > 1.25) c = cSkin;
+    else if (y < 0.975 && x < 0.3) c = cPants;
+    else if (y < 1.005 && x < 0.3) c = cBelt;
+    else c = cShirt;
+    col[i * 3] = c.r * factor; col[i * 3 + 1] = c.g * factor; col[i * 3 + 2] = c.b * factor;
+  }
+  g.setAttribute("color", new T.BufferAttribute(col, 3));
+  mesh.material = new T.MeshStandardMaterial({ vertexColors:true, roughness:factor < 1 ? 0.5 : 0.78, metalness:0, envMapIntensity:0.55 });
+}
+
+/* head attachments are modelled in the model's bind-pose space, then re-parented to the Head bone so they follow every animation */
+function buildHead(p, model, head){
+  var g = new T.Group(); model.add(g);
+  var hm = new T.MeshPhysicalMaterial({ color:p.hair, roughness:0.48, sheen:0.7, sheenRoughness:0.45, sheenColor:new T.Color(p.hair).offsetHSL(0, 0, 0.22), envMapIntensity:0.55 });
+  var cap = add(G.hcap2, hm, 0.097, 0.114, 0.137, 0, 1.709, -0.008, g);
+  cap.rotation.x = -0.42;
+  var st = p.style;
+  if (st === "short") {
+    add(G.hsph, hm, 0.09, 0.04, 0.12, 0, 1.785, 0.012, g);
+  } else {
+    add(G.hsph, hm, 0.104, 0.1, 0.124, 0, 1.68, -0.03, g);
+    add(G.hsph, hm, 0.09, 0.042, 0.12, 0, 1.785, 0.01, g);
+    if (st === "pony") {
+      var pony = add(G.hsph, hm, 0.042, 0.17, 0.046, 0, 1.6, -0.155, g);
+      pony.rotation.x = 0.3;
+      add(G.cyl, M("#E31837", { roughness:0.5 }), 0.03, 0.024, 0.03, 0, 1.705, -0.136, g, false).rotation.x = 1.1;
+    } else {
+      var back = add(G.hsph, hm, 0.1, 0.215, 0.06, 0, 1.55, -0.09, g);
+      back.rotation.x = 0.12;
+      [-1, 1].forEach(function(s){ add(G.hsph, hm, 0.028, 0.13, 0.05, s * 0.088, 1.6, 0.005, g); });
+      if (st === "wavy") {
+        [[-0.065, 1.37, -0.085], [0, 1.35, -0.095], [0.065, 1.37, -0.085], [-0.09, 1.47, -0.02], [0.09, 1.47, -0.02]].forEach(function(q){ add(G.hsph, hm, 0.045, 0.05, 0.042, q[0], q[1], q[2], g, false); });
+      } else if (st === "halfup") {
+        add(G.hsph, hm, 0.042, 0.04, 0.042, 0, 1.745, -0.128, g);
+      }
+    }
+  }
+  if (p.headphones) {
+    var hpDark = M("#1b1e23", { roughness:0.35, metalness:0.3 }), hpRed = M("#E31837", { roughness:0.35 });
+    add(G.band3, hpDark, 1, 1.02, 1.3, 0, 1.69, 0.004, g);
+    [-1, 1].forEach(function(s){
+      add(G.cyl, hpDark, 0.046, 0.036, 0.046, s * 0.1, 1.675, 0.004, g).rotation.z = Math.PI / 2;
+      add(G.cyl, hpRed, 0.036, 0.012, 0.036, s * 0.122, 1.675, 0.004, g, false).rotation.z = Math.PI / 2;
+    });
+  }
+  if (p.glasses) {
+    var fr = M("#0e0f11", { roughness:0.32, metalness:0.2 });
+    var lens = new T.MeshStandardMaterial({ color:0x2a3138, roughness:0.08, metalness:0.1, transparent:true, opacity:0.22, depthWrite:false });
+    [-1, 1].forEach(function(s){
+      var cx = s * 0.034, cy = 1.664, cz = 0.124;
+      add(G.box, fr, 0.05, 0.006, 0.006, cx, cy + 0.016, cz, g, false);
+      add(G.box, fr, 0.05, 0.005, 0.006, cx, cy - 0.016, cz, g, false);
+      add(G.box, fr, 0.005, 0.034, 0.006, cx - 0.025, cy, cz, g, false);
+      add(G.box, fr, 0.005, 0.034, 0.006, cx + 0.025, cy, cz, g, false);
+      var l = new T.Mesh(G.plane, lens); l.scale.set(0.046, 0.028, 1); l.position.set(cx, cy, cz - 0.001); g.add(l);
+      add(G.box, fr, 0.005, 0.005, 0.13, s * 0.06, cy + 0.012, cz - 0.065, g, false);
+    });
+    add(G.box, fr, 0.018, 0.004, 0.005, 0, 1.672, 0.124, g, false);
+  }
+  model.updateMatrixWorld(true);
+  head.attach(g);
+}
+function buildProps(p, model, hand){
+  var g = new T.Group(); model.add(g);
+  p.mug = add(G.cyl, M("#ffffff", { roughness:0.4 }), 0.034, 0.08, 0.034, -0.79, 1.43, 0.03, g, false);
+  p.phone = add(G.box, M("#16181c", { roughness:0.3, metalness:0.4 }), 0.1, 0.006, 0.05, -0.8, 1.415, -0.03, g, false);
+  if (p.id === "olivia") p.swatch = add(G.box, M("#2fb3a3", { roughness:0.6 }), 0.16, 0.004, 0.2, -0.82, 1.412, 0.0, g, false);
+  if (p.id === "carla") p.swatch = add(G.box, M("#f4f1ea", { roughness:0.7 }), 0.17, 0.006, 0.23, -0.82, 1.412, 0.0, g, false);
+  [p.mug, p.phone, p.swatch].forEach(function(m){ if (m) m.visible = false; });
+  model.updateMatrixWorld(true);
+  hand.attach(g);
+}
+
+var GLTF = null, CLIPS = {};
+function makeRig(p, sc){
+  var root = new T.Group();
+  var model = SkeletonUtils.clone(GLTF.scene);
+  model.scale.setScalar(CH_SCALE);
+  root.add(model);
+  model.traverse(function(o){
+    if (o.isSkinnedMesh) { colorize(o, p, o.name.indexOf("Joints") >= 0 ? 0.82 : 1); o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; }
+  });
+  var b = {};
+  BONE_NAMES.forEach(function(n){ b[n] = model.getObjectByName("mixamorig" + n); });
+  root.updateMatrixWorld(true);
+  buildHead(p, model, b.Head);
+  buildProps(p, model, b.RightHand);
+  var mixer = new T.AnimationMixer(model);
+  var idle = mixer.clipAction(CLIPS.idle), walk = mixer.clipAction(CLIPS.walk), nod = mixer.clipAction(CLIPS.agree);
+  idle.play(); walk.play(); nod.play();
+  idle.time = Math.random() * CLIPS.idle.duration; walk.time = Math.random() * CLIPS.walk.duration;
+  idle.timeScale = rand(0.85, 1.1);
+  walk.setEffectiveWeight(0); nod.setEffectiveWeight(0);
+  var proxy = new T.Mesh(new T.CylinderGeometry(0.32, 0.32, 1.8, 10), new T.MeshBasicMaterial({ visible:false }));
+  proxy.position.y = 0.9; proxy.userData.pid = p.id; root.add(proxy);
+  if (!p.remote) pickables.push(proxy);
+  p.root = root; p.head = b.Head;
+  p.rig = { root:root, model:model, b:b, mixer:mixer, idle:idle, walk:walk, nod:nod, walkW:0, walkTarget:0, nodW:0, nodTarget:0, sit:1, proxy:proxy };
+  p.swivel = 0;
+  if (p.remote) { p.sitHeading = 0; p.heading = 0; }
+  else {
+    p.seat = new V3(p.side * 3.3, 0, p.z);
+    p.sitHeading = p.side * Math.PI / 2;
+    p.heading = p.sitHeading;
+    root.position.copy(p.seat);
+  }
+  root.rotation.y = p.heading;
+  (sc || scene).add(root);
+}
+var pickables = [];
+
+function updateRig(p, t, dt){
+  var r = p.rig;
+  r.walkW = lerp(r.walkW, r.walkTarget, 1 - Math.exp(-dt * 6));
+  r.nodW = lerp(r.nodW, r.nodTarget, 1 - Math.exp(-dt * 4));
+  r.idle.setEffectiveWeight(1 - r.walkW);
+  r.walk.setEffectiveWeight(r.walkW);
+  r.walk.timeScale = p.pace || 1;
+  r.nod.setEffectiveWeight(r.nodW);
+  r.mixer.update(dt);
+  var sit = ease(r.sit);
+  r.model.position.y = -SEAT_DROP * sit;
+  r.proxy.scale.y = 1 - 0.3 * sit; r.proxy.position.y = 0.9 * (1 - 0.3 * sit);
+  r.root.rotation.y = p.heading + p.swivel;
+  r.root.updateMatrixWorld(true);
+  _rq.copy(r.root.quaternion);
+  var b = r.b, i, n;
+  /* mood and energy shape posture: low mood slumps, high mood sits up */
+  var slump = clamp(-p.mood.v, 0, 1) * 0.6 + (1 - p.needs.energy) * 0.25 - clamp(p.mood.v, 0, 1) * 0.1;
+  var tempo = 8 + 5 * p.needs.energy + 2 * Math.max(0, p.mood.v);
+  if (sit > 0.001) {
+    var ty = p.typeAmp || 0;
+    for (i = 0; i < ORDER.length; i++) {
+      n = ORDER[i];
+      var d = SEATED[n];
+      if (n === "Spine1" || n === "Spine2") d = [d[0], d[1], d[2] + slump * 0.16];
+      else if (n === "Head") d = [d[0], d[1], d[2] + slump * 0.3];
+      if (ty > 0.02 && (n === "LeftHand" || n === "RightHand")) {
+        var ph = n === "LeftHand" ? 0 : 1.7;
+        d = [d[0], d[1] + ty * 0.22 * Math.max(0, Math.sin(t * tempo + ph + Math.sin(t * 1.7 + ph) * 2)), d[2]];
+      }
+      if (ty > 0.02 && (n === "LeftForeArm" || n === "RightForeArm")) d = [d[0], d[1] + ty * 0.03 * Math.sin(t * 7 + (n === "LeftForeArm" ? 0 : 2)), d[2]];
+      aim(b[n], b[CHILD[n]], d, n === "Head" ? sit * 0.6 : sit, _rq);
+    }
+  }
+  if (sit < 0.99) {
+    aim(b.Spine1, b.Spine2, [0, 1, 0.04 + slump * 0.2], (1 - sit) * 0.7, _rq);
+    aim(b.Head, b.HeadTop_End, [0, 1, 0.1 + slump * 0.28], (1 - sit) * 0.35, _rq);
+  }
+  var a = p.act;
+  if (a) {
+    var u = t - a.t0, w = bump(u, 0, a.dur, 0.45);
+    if (w > 0.001) {
+      var set = ACTS[a.n] || {};
+      for (i = 0; i < ORDER.length; i++) {
+        n = ORDER[i];
+        var dd = set[n];
+        if (!dd) continue;
+        if (a.n === "wave" && n === "RightForeArm") dd = [dd[0] + 0.45 * Math.sin(t * 9), dd[1], dd[2]];
+        if ((a.n === "talk" || a.n === "answer") && n === "RightForeArm") dd = [dd[0] + 0.15 * Math.sin(t * 4.3), dd[1] + 0.2 * Math.sin(t * 3.1), dd[2]];
+        aim(b[n], b[CHILD[n]], dd, w, _rq);
+      }
+      if (a.n === "turn" || a.n === "answer") {
+        var yaw = p.remote ? 0 : a.n === "answer" ? camYaw(p) : (a.target && !a.target.remote ? yawTo(p, a.target) : 0);
+        yaw = clamp(yaw, -2.2, 2.2);
+        yawBone(b.Spine1, clamp(yaw * 0.25, -0.45, 0.45) * w);
+        yawBone(b.Head, clamp(yaw * 0.55, -1.0, 1.0) * w);
+      } else if (a.n === "leanFire") {
+        yawBone(b.Spine1, -0.3 * w); yawBone(b.Head, -0.55 * w);
+      }
+    }
+    if (p.mug) p.mug.visible = a.n === "sip" && w > 0.3;
+    if (p.phone) p.phone.visible = a.n === "phone" && w > 0.3;
+    if (p.swatch) p.swatch.visible = (a.n === "swatch" || a.n === "checklist") && w > 0.2;
+  } else {
+    if (p.mug) p.mug.visible = false;
+    if (p.phone) p.phone.visible = false;
+    if (p.swatch) p.swatch.visible = false;
+  }
+  if (p.id === "luis" && sit > 0.5 && !a) yawBone(b.Head, 0);
+}
+var lookV = new V3(), _inv = new T.Quaternion();
+function yawTo(p, q){
+  lookV.copy(q.root.position).sub(p.root.position);
+  _inv.copy(p.root.quaternion).invert();
+  lookV.applyQuaternion(_inv);
+  return Math.atan2(lookV.x, lookV.z);
+}
+function camYaw(p){
+  lookV.copy(camDir); lookV.y = 0;
+  _inv.copy(p.root.quaternion).invert();
+  lookV.applyQuaternion(_inv);
+  return Math.atan2(lookV.x, lookV.z);
+}
 
 /* ---------- behaviour: a small needs-based agent per person ----------
    Every visit starts from fresh random needs (Math.random, no fixed seed). Each person keeps
@@ -894,27 +1111,27 @@ var PERSONA = {
 };
 var POOLS = {
   luis:["stretch","headphones","sip","leanBack","headphones"],
-  carla:["sip","phone","stretch","wave"],
+  carla:["checklist","call","sip","stretch","wave","call"],
   debbie:["point","sip","phone","point"],
   olivia:["swatch","stretch","sip","swatch"],
   stephanie:["leanFire","phone","sip","leanFire"],
   erica:["phone","sip","phone"],
   allyson:["phone","sip","phone"]
 };
-var COFFEE_SPOT = new V3(-0.75, 0, 7.35), EXIT_SPOT = new V3(0.5, 0, 8.9);
+var COFFEE_SPOT = new V3(-1.0, 0, 7.35), EXIT_SPOT = new V3(-0.35, 0, 9.1);
 
-PEOPLE.forEach(function(p){
+ALL.forEach(function(p, i){
+  p.idx = i; p.pace = 1; p.nextAct = rand(3, 10);
   p.w = PERSONA[p.id];
   p.needs = { energy:rand(0.45, 1), focus:rand(0.3, 0.9), social:rand(0, 0.6), coffee:rand(0, 0.55) };
   p.state = "sit"; p.t0 = 0; p.dur = 0;
   p.decideAt = rand(2, 7);
   p.typeOn = Math.random() < 0.7; p.typeNext = rand(0.5, 5); p.typeAmp = 0;
-  p.act = null; p.nod = rand(10.5, 13);
-  p.trip = null; p.chatWith = null;
+  p.act = null; p.trip = null; p.chatWith = null; p.visitor = null; p.log = [];
   if (p.walker) p.cal = { next:rand(20, 60) };
 });
 
-/* ---------- paths ---------- */
+/* ---------- paths along the aisle (keep right, so people pass each other) ---------- */
 var tmpPos = new V3();
 function makePath(pts){
   var clean = [pts[0]];
@@ -931,70 +1148,28 @@ function along(w, d){
   tmpPos.lerpVectors(a, b, seg > 0 ? (d - w.cum[i - 1]) / seg : 0);
   return Math.atan2(b.x - a.x, b.z - a.z);
 }
-function routeFromSeat(p, dest, viaZ){
-  var lane = rand(-0.4, 0.4), s = p.seat;
-  var pts = [s.clone(), new V3(p.side * 2.35, 0, s.z), new V3(lane, 0, s.z + 0.3 * Math.sign(viaZ - s.z || 1)), new V3(lane, 0, viaZ)];
-  pts.push(dest.clone());
+function aislePath(a, aSide, b, bSide){
+  var dir = Math.sign(b.z - a.z) || 1, lane = dir > 0 ? -0.42 : 0.42;
+  var pts = [a.clone()];
+  if (aSide) pts.push(new V3(aSide * 2.3, 0, a.z));
+  pts.push(new V3(lane, 0, a.z + dir * 0.3));
+  pts.push(new V3(lane, 0, b.z - dir * 0.3));
+  if (bSide) pts.push(new V3(bSide * 2.3, 0, b.z));
+  pts.push(b.clone());
   return makePath(pts);
 }
-function reversePath(path){ return makePath(path.pts.slice().reverse()); }
-
-function turnTo(p, target, dt){
+function smoothTurn(p, target, dt, rate){
   var d = target - p.heading;
   d = Math.atan2(Math.sin(d), Math.cos(d));
-  p.heading += d * Math.min(1, dt * 9);
-  p.root.rotation.y = p.heading;
+  p.heading += d * (1 - Math.exp(-dt * (rate || 7)));
 }
 
-/* ---------- small acts (stretch, sip, phone, turn ...) ---------- */
-var lookV = new V3();
-function yawTo(p, q){
-  lookV.copy(q.root.position);
-  p.root.updateMatrixWorld();
-  p.root.worldToLocal(lookV);
-  return Math.atan2(lookV.x, lookV.z);
-}
+/* ---------- small acts ---------- */
 function startAct(p, name, t, dur, target){
-  var a = { n:name, t0:t, dur:dur || rand(2.2, 4.2), yaw:0, target:target || null };
-  if (name === "turn" && target) a.yaw = yawTo(p, target);
-  p.act = a;
-}
-function applyAct(p, a, b, t){
-  var R = p.arms[1], Lf = p.arms[0], H = p.head;
-  function arm(A, x, z, ex, ez){
-    A.sh.rotation.x = lerp(A.sh.rotation.x, x, b); A.sh.rotation.z = lerp(A.sh.rotation.z, A.s * z, b);
-    A.el.rotation.x = lerp(A.el.rotation.x, ex, b); A.el.rotation.z = lerp(A.el.rotation.z, A.s * ez, b);
-  }
-  switch (a.n) {
-    case "stretch": arm(R, -2.9, 0.25, -0.35, 0); arm(Lf, -2.9, 0.25, -0.35, 0); H.rotation.x -= 0.2 * b; break;
-    case "sip": arm(R, -0.55, 0.12, -2.35, -0.4); H.rotation.x -= 0.12 * b; if (p.mug) p.mug.visible = b > 0.3; break;
-    case "turn":
-      if (a.target) a.yaw = lerp(a.yaw, yawTo(p, a.target), 0.1);
-      var yaw = clamp(a.yaw, -2.4, 2.4);
-      H.rotation.y += clamp(yaw * 0.75, -1.2, 1.2) * b;
-      p.body.rotation.y += clamp(yaw * 0.3, -0.5, 0.5) * b;
-      break;
-    case "talk": arm(R, -0.5, 0.15, -1.2 + 0.25 * Math.sin(t * 5), -0.3); H.rotation.x += 0.04 * Math.sin(t * 3) * b; break;
-    case "leanBack": p.body.rotation.x = -0.07 * b; arm(R, -2.6, 0.75, -2.2, 0); arm(Lf, -2.6, 0.75, -2.2, 0); H.rotation.x -= 0.15 * b; break;
-    case "phone": arm(R, -0.35, 0.1, -1.75, -0.45); arm(Lf, -0.35, 0.1, -1.75, -0.45); H.rotation.x += 0.35 * b; if (p.phone) p.phone.visible = b > 0.3; break;
-    case "headphones": arm(R, -0.25, 1.3, -2.3, 0); H.rotation.z += 0.08 * b; break;
-    case "swatch": arm(R, -1.45, 0.1, -0.55, 0); H.rotation.x -= 0.1 * b; if (p.swatch) p.swatch.visible = b > 0.2; break;
-    case "leanFire": p.body.rotation.y -= 0.35 * b; H.rotation.y -= 0.5 * b; H.rotation.x += 0.12 * b; break;
-    case "point": arm(R, -2.05, 0.05, -0.15, 0); H.rotation.x -= 0.28 * b; break;
-    case "wave": arm(R, -0.2, 2.6, 0, 0.55 + 0.35 * Math.sin(t * 13)); H.rotation.y += 0.55 * b; break;
-  }
-}
-function actLayer(p, t){
-  if (p.swatch) p.swatch.visible = false;
-  if (p.mug) p.mug.visible = false;
-  if (p.phone) p.phone.visible = false;
-  if (!p.act) return;
-  var a = p.act, u = t - a.t0;
-  if (u > a.dur + 0.5) { p.act = null; return; }
-  applyAct(p, a, bump(u, 0, a.dur, 0.45), t);
+  p.act = { n:name, t0:t, dur:dur || rand(2.2, 4.2), target:target || null };
 }
 
-/* ---------- chats: short two-person conversations, with a rare small bubble ---------- */
+/* ---------- chats with a rare small bubble ---------- */
 var chats = [];
 function showBubble(p, text){
   if (text) {
@@ -1002,9 +1177,13 @@ function showBubble(p, text){
     if (!p.bubbleOn) { p.bubbleOn = true; p.bubble.classList.add("show"); }
   } else if (p.bubbleOn) { p.bubbleOn = false; p.bubble.classList.remove("show"); }
 }
-function startChat(a, b, t, dur){
-  var talky = !chats.some(function(c){ return c.bubbles; }) && Math.random() < 0.6;
-  chats.push({ a:a, b:b, t0:t, dur:dur, bubbles:talky, lines:[choose(LINES[a.id]), choose(LINES[b.id])] });
+function startChat(a, b, t, dur, lines){
+  var talky = !chats.some(function(c){ return c.bubbles; }) && (lines ? true : Math.random() < 0.55);
+  chats.push({ a:a, b:b, t0:t, dur:dur, bubbles:talky, lines:lines || [choose(LINES[a.id]), choose(LINES[b.id])] });
+  if (b.id === "luis" && luisDeepWork(b)) moodShift(b, -0.2, "I got pulled out of the zone");
+  else moodShift(b, 0.08, "I just had a good chat with " + a.name);
+  moodShift(a, 0.08, "I just had a good chat with " + b.name);
+  a.lastEvent = { kind:"chat", with:b.name, t:t }; b.lastEvent = { kind:"chat", with:a.name, t:t };
   a.chatWith = b; b.chatWith = a;
   a.needs.social = Math.max(0, a.needs.social - 0.7); b.needs.social = Math.max(0, b.needs.social - 0.6);
   b.needs.focus *= 0.6;
@@ -1012,12 +1191,14 @@ function startChat(a, b, t, dur){
 function updateChats(t){
   chats = chats.filter(function(c){
     var u = t - c.t0;
+    c.a.rig.nodTarget = u < c.dur ? 0.45 : 0; c.b.rig.nodTarget = u < c.dur ? 0.35 : 0;
     if (c.bubbles) {
       showBubble(c.a, u > 0.6 && u < 3.0 && c.a.root.visible ? c.lines[0] : null);
       showBubble(c.b, u > 3.2 && u < 5.6 && c.b.root.visible ? c.lines[1] : null);
     }
     if (u > c.dur) {
       showBubble(c.a, null); showBubble(c.b, null);
+      c.a.rig.nodTarget = 0; c.b.rig.nodTarget = 0;
       if (c.a.chatWith === c.b) c.a.chatWith = null;
       if (c.b.chatWith === c.a) c.b.chatWith = null;
       return false;
@@ -1027,7 +1208,7 @@ function updateChats(t){
 }
 
 /* ---------- decisions ---------- */
-function available(q){ return q.state === "sit" && q.root.visible && !q.chatWith && !q.visitor; }
+function available(q){ return q.state === "sit" && q.root.visible && !q.chatWith && !q.visitor && !q.answering; }
 function neighbours(p){ return PEOPLE.filter(function(q){ return q !== p && Math.abs(q.z - p.z) < 2.0 && available(q); }); }
 function bossAway(p){ return PEOPLE.some(function(q){ return q !== p && q.trip && q.trip.kind === "meeting"; }); }
 function luisDeepWork(q){ return q.id === "luis" && q.typeOn && q.needs.focus > 0.5; }
@@ -1035,30 +1216,41 @@ function luisDeepWork(q){ return q.id === "luis" && q.typeOn && q.needs.focus > 
 function decide(p, t){
   var n = p.needs, w = p.w, opts = [];
   opts.push({ k:"work", s:0.85 * w.focus * (0.6 + n.energy * 0.6) + n.focus * 0.3 + rand(0, 0.3) });
-  opts.push({ k:"micro", s:(1 - n.energy) * 0.9 * w.breaky + rand(0, 0.6) });
+  var mv = p.mood.v, prof = PROFILE[p.id];
+  var sociable = 1 + 0.5 * mv;
+  var withdrawn = p.mood.kind === "stressed" && prof.traits.stressTol < 0.6;
+  opts.push({ k:"micro", s:(1 - n.energy) * 0.9 * w.breaky + (mv < 0 ? 0.25 : 0) + rand(0, 0.6) });
   var coffeeTaken = PEOPLE.some(function(q){ return q.trip && q.trip.kind === "coffee"; });
   if (!coffeeTaken) opts.push({ k:"coffee", s:n.coffee * 1.3 * w.coffee + rand(0, 0.25) });
   var best = null, bs = -1;
   PEOPLE.forEach(function(q){
     if (q === p || !available(q)) return;
-    var sc = n.social * w.social * 1.35 + rand(0, 0.3);
+    var sc = n.social * w.social * 1.35 * sociable + rand(0, 0.3);
     if (luisDeepWork(q)) sc *= 0.2;
     if (Math.abs(q.z - p.z) < 2.2) sc *= 1.1;
     if (q.walker && p.walker) sc *= 0.6;
     if (sc > bs) { bs = sc; best = q; }
   });
-  if (best) opts.push({ k:"visit", s:bs, q:best });
+  if (best && !withdrawn) opts.push({ k:"visit", s:bs, q:best });
   var nbs = neighbours(p).filter(function(q){ return !luisDeepWork(q); });
-  if (nbs.length) opts.push({ k:"talk", s:n.social * w.shop * 1.1 + rand(0, 0.3), q:choose(nbs) });
+  if (nbs.length && !withdrawn) opts.push({ k:"talk", s:n.social * w.shop * 1.1 * sociable + rand(0, 0.3), q:choose(nbs) });
+  /* Carla checks on anyone who seems down */
+  if (p.id === "carla") PEOPLE.forEach(function(q){ if (q !== p && available(q) && q.mood.v < -0.2 && !luisDeepWork(q)) opts.push({ k:"visit", s:1.5 + rand(0, 0.4), q:q, care:true }); });
+  /* walk up to a wall screen and talk to a remote colleague */
+  REMOTE.forEach(function(rq){
+    if (rq.visitor || rq.chatWith || rq.answering || withdrawn) return;
+    opts.push({ k:"visit", s:n.social * w.social * 0.95 * sociable + rand(0, 0.3), q:rq });
+  });
   opts.sort(function(a, b){ return b.s - a.s; });
   var o = opts[0];
   if (o.k === "work") { p.typeOn = true; p.typeNext = t + rand(3, 8); n.focus = Math.min(1, n.focus + 0.15); }
   else if (o.k === "micro") { startAct(p, choose(POOLS[p.id]), t); n.energy = Math.min(1, n.energy + 0.12); }
-  else if (o.k === "coffee") { goTrip(p, t, "coffee", null, routeFromSeat(p, COFFEE_SPOT, 6.6)); }
+  else if (o.k === "coffee") goTrip(p, t, "coffee", null, aislePath(p.seat, p.side, COFFEE_SPOT, 0));
   else if (o.k === "visit") {
-    var q = o.q, spot = new V3(q.side * 2.25, 0, q.seat.z + rand(-0.15, 0.15));
+    var q = o.q, spot = q.remote ? q.spot.clone() : new V3(q.side * 2.15, 0, q.seat.z + rand(-0.12, 0.12));
     q.visitor = p;
-    goTrip(p, t, "visit", q, routeFromSeat(p, spot, q.seat.z));
+    goTrip(p, t, "visit", q, aislePath(p.seat, p.side, spot, 0));
+    p.trip.care = !!o.care;
   } else if (o.k === "talk") {
     var dur = rand(5.5, 8);
     startAct(p, "turn", t, dur, o.q); startAct(o.q, "turn", t, dur, p);
@@ -1066,119 +1258,145 @@ function decide(p, t){
   }
 }
 function goTrip(p, t, kind, target, path){
-  p.trip = { kind:kind, target:target, path:path };
+  p.trip = { kind:kind, target:target, path:path, d:0, back:false };
   p.act = null; p.typeOn = false;
-  setState(p, "up", t, 0.8);
+  setState(p, "up", t, 0.6);
 }
 function setState(p, st, t, dur){ p.state = st; p.t0 = t; p.dur = dur; }
+function startReturn(p, t){
+  var tr = p.trip, from = p.root.position.clone();
+  tr.path = aislePath(from, 0, p.seat, p.side); tr.d = 0; tr.back = true;
+  setState(p, "walk", t, 0);
+}
 
 /* ---------- per-frame update ---------- */
+var fwd = new V3(), dv = new V3();
 function updateAgent(p, t, dt){
-  var n = p.needs, w = p.w;
+  var n = p.needs, w = p.w, r = p.rig;
   n.energy = clamp(n.energy - dt * 0.004 * (p.typeOn ? 1.3 : 0.6), 0, 1);
   n.coffee = clamp(n.coffee + dt * 0.0055 * w.coffee, 0, 1);
   n.social = clamp(n.social + dt * 0.0085 * w.social, 0, 1);
   n.focus = clamp(n.focus + dt * (p.typeOn ? 0.01 : -0.006), 0, 1);
+  if (p.act && t - p.act.t0 > p.act.dur + 0.5) p.act = null;
+  if (p.answering && t > p.answering) p.answering = 0;
+  p.mood.v += (MOODS[p.mood.base].v - p.mood.v) * dt * 0.003;
+  if (Math.random() < dt * 0.2) recomputeMood(p);
+  p.pace = 0.86 + 0.24 * (p.mood.v + 1) / 2 + 0.06 * (p.needs.energy - 0.5);
 
-  var k = p.dur > 0 ? clamp((t - p.t0) / p.dur, 0, 1) : 1, done = t - p.t0 >= p.dur;
-  var st = p.state, trip = p.trip, heading = p.sitHeading, s = 0, walk = 0, stride = 0;
+  var st = p.state, k = p.dur > 0 ? clamp((t - p.t0) / p.dur, 0, 1) : 1, tr = p.trip;
   p.root.visible = st !== "away";
+  r.walkTarget = 0;
+  var swivelTarget = 0;
 
   if (st === "sit") {
     p.root.position.copy(p.seat);
-    if (p.cal && t >= p.cal.next && !p.act && !p.chatWith) {
+    r.sit = 1;
+    if (p.pendingCoffee && t >= p.pendingCoffee) {
+      p.pendingCoffee = 0;
+      if (!p.chatWith && !PEOPLE.some(function(q){ return q.trip && q.trip.kind === "coffee"; })) { p.act = null; goTrip(p, t, "coffee", null, aislePath(p.seat, p.side, COFFEE_SPOT, 0)); }
+    } else if (p.cal && t >= p.cal.next && !p.act && !p.chatWith && !p.answering) {
       if (bossAway(p) && Math.random() < 0.85) p.cal.next = t + rand(10, 25);
-      else goTrip(p, t, "meeting", null, routeFromSeat(p, EXIT_SPOT, 6.0));
-    } else if (t >= p.decideAt && !p.act && !p.chatWith && !p.visitor) {
+      else goTrip(p, t, "meeting", null, aislePath(p.seat, p.side, EXIT_SPOT, 0));
+    } else if (t >= p.decideAt && !p.act && !p.chatWith && !p.visitor && !p.answering) {
       p.decideAt = t + rand(3.5, 7);
       decide(p, t);
     }
     if (p.state === "sit") {
+      if (p.messages && p.messages.length && !p.trip) {
+        p.log.push({ who:"them", text:"Back! I got your message: \u201c" + p.messages.join(" / ") + "\u201d. I will get back to you on that." });
+        p.messages = [];
+        if (focus === p) renderLog(p);
+      }
       if (t > p.typeNext) { p.typeOn = !p.typeOn; p.typeNext = t + (p.typeOn ? rand(2, 7) : rand(0.8, 3.5)); }
-      p.typeAmp = lerp(p.typeAmp, p.typeOn && !p.act ? 1 : 0.15, Math.min(1, dt * 4));
-      turnTo(p, heading, dt);
-      pose(p, 0, 0, 0, t, true);
-      actLayer(p, t);
-      if (p.id === "luis") p.head.rotation.x += 0.06 * Math.max(0, Math.sin(t * p.nod)) * (p.act ? 0.3 : 1);
-      p.statusNow = p.chatWith ? "Chatting with " + p.chatWith.name : p.walker ? p.walker.text.sit : p.status;
+      p.typeAmp = lerp(p.typeAmp, p.typeOn && !p.act ? 1 : 0, 1 - Math.exp(-dt * 4));
+      smoothTurn(p, p.sitHeading, dt);
+      if (p.act && (p.act.n === "turn" || p.act.n === "answer")) {
+        var yaw = p.act.n === "answer" ? camYaw(p) + p.swivel : (p.act.target ? yawTo(p, p.act.target) + p.swivel : 0);
+        swivelTarget = clamp(yaw * 0.35, -0.6, 0.6) * bump(t - p.act.t0, 0, p.act.dur, 0.6);
+      }
+      p.swivel = lerp(p.swivel, swivelTarget, 1 - Math.exp(-dt * 5));
+      p.statusNow = p.answering ? "Answering your question" : p.chatWith ? "Chatting with " + p.chatWith.name : p.walker ? p.walker.text.sit : p.status;
       return;
     }
-    st = p.state; k = 0; done = false;
+    st = p.state; k = 0; tr = p.trip;
   }
+  p.typeAmp = lerp(p.typeAmp, 0, 1 - Math.exp(-dt * 6));
+  p.swivel = lerp(p.swivel, 0, 1 - Math.exp(-dt * 5));
 
   if (st === "up" || st === "down") {
     p.root.position.copy(p.seat);
-    s = st === "up" ? ease(k) : 1 - ease(k);
-    turnTo(p, heading, dt);
-    pose(p, s, 0, 0, t, false);
-    actLayer(p, t);
-    if (done) {
-      if (st === "up") { trip.dir = 1; setState(p, "walk", t, trip.path.L / 1.25); }
-      else { p.trip = null; setState(p, "sit", t, 0); p.decideAt = t + rand(3, 8); }
+    r.sit = st === "up" ? 1 - k : k;
+    smoothTurn(p, p.sitHeading, dt);
+    if (k >= 1) {
+      if (st === "up") setState(p, "walk", t, 0);
+      else { p.trip = null; setState(p, "sit", t, 0); r.sit = 1; p.decideAt = t + rand(3, 8); }
     }
   } else if (st === "walk") {
-    var path = trip.path, d = trip.dir > 0 ? k * path.L : (1 - k) * path.L;
-    heading = along(path, d) + (trip.dir > 0 ? 0 : Math.PI);
+    r.sit = 0;
+    var path = tr.path, rem = path.L - tr.d;
+    var want = rem > 0.04 ? clamp(rem / 0.8, 0.3, 1) : 0;
+    /* simple avoidance: yield to whoever is ahead and close */
+    fwd.set(Math.sin(p.heading), 0, Math.cos(p.heading));
+    PEOPLE.forEach(function(q){
+      if (q === p || !q.root.visible || q.state === "sit" || q.state === "up" || q.state === "down") return;
+      dv.subVectors(q.root.position, p.root.position); dv.y = 0;
+      var dist = dv.length();
+      if (dist < 0.85 && dv.dot(fwd) > dist * 0.3 && (q.state !== "walk" || q.idx < p.idx)) want = Math.min(want, 0.08);
+    });
+    r.walkTarget = want;
+    tr.d = Math.min(path.L, tr.d + WALK_V * p.pace * r.walkW * dt);
+    var hd = along(path, tr.d);
     p.root.position.copy(tmpPos);
-    walk = ease(Math.min(k * path.L, (1 - k) * path.L) / 0.4 + 0.3);
-    stride = k * path.L * 4.6;
-    turnTo(p, heading, dt);
-    pose(p, 1, walk, stride, t, false);
-    actLayer(p, t);
-    if (trip.kind === "meeting" && p.root.position.z > 8.4) p.root.visible = false;
-    if (done) {
-      if (trip.dir < 0) { setState(p, "down", t, 0.8); }
-      else if (trip.kind === "meeting") { setState(p, "away", t, rand(15, 35)); }
-      else if (trip.kind === "coffee") { setState(p, "coffee", t, rand(5, 8)); startAct(p, "sip", t + 1, 3); }
+    if (rem > 0.05) smoothTurn(p, hd, dt, 6);
+    if (tr.kind === "meeting" && p.root.position.z > 8.6) p.root.visible = false;
+    if (rem <= 0.04 && r.walkW < 0.25) {
+      if (tr.back) setState(p, "down", t, 0.6);
+      else if (tr.kind === "meeting") setState(p, "away", t, rand(15, 35));
+      else if (tr.kind === "coffee") { setState(p, "coffee", t, rand(5, 8)); startAct(p, "sip", t + 1.2, 3); }
       else {
-        var q = trip.target;
-        if (q.state === "sit" && q.visitor === p) {
+        var q = tr.target;
+        if (q.state === "sit" && q.visitor === p && !q.answering) {
           var cd = rand(6, 10);
           setState(p, "visit", t, cd);
-          startAct(q, "turn", t, cd - 0.3, p);
-          startAct(p, p.id === "olivia" ? "swatch" : "talk", t + 0.4, cd - 1.2);
-          startChat(p, q, t, cd);
-        } else { setState(p, "visit", t, 1.2); }
+          startAct(q, q.remote ? "answer" : "turn", t, cd - 0.3, p);
+          startAct(p, p.id === "olivia" && !q.remote ? "swatch" : "talk", t + 0.5, cd - 1.2);
+          if (tr.care) { startChat(p, q, t, cd, ["Hey, everything okay?", "Thanks, Carla. Better now."]); moodShift(q, 0.25, "Carla came by to check on me"); }
+          else startChat(p, q, t, cd);
+        } else setState(p, "visit", t, 1.2);
       }
     }
   } else if (st === "visit" || st === "coffee") {
-    var spot = trip.path.pts[trip.path.pts.length - 1];
+    r.sit = 0;
+    var spot = tr.path.pts[tr.path.pts.length - 1];
     p.root.position.copy(spot);
-    if (st === "visit") heading = Math.atan2(trip.target.seat.x - spot.x, trip.target.seat.z - spot.z);
-    else heading = 0;
-    turnTo(p, heading, dt);
-    pose(p, 1, 0, 0, t, false);
-    actLayer(p, t);
-    if (done) {
-      if (st === "coffee") { n.coffee = 0; n.energy = Math.min(1, n.energy + 0.45); }
-      if (st === "visit" && trip.target.visitor === p) trip.target.visitor = null;
-      trip.dir = -1; setState(p, "walk", t, trip.path.L / 1.25);
+    smoothTurn(p, st === "visit" ? Math.atan2(tr.target.seat.x - spot.x, tr.target.seat.z - spot.z) : 0, dt, 5);
+    if (k >= 1) {
+      if (st === "coffee") {
+        n.coffee = 0; n.energy = Math.min(1, n.energy + 0.45);
+        moodShift(p, p.mood.kind === "tired" ? 0.25 : 0.12, "the coffee helped");
+        p.lastEvent = { kind:"coffee", t:t };
+      }
+      if (st === "visit" && tr.target.visitor === p) tr.target.visitor = null;
+      startReturn(p, t);
     }
   } else if (st === "away") {
+    r.sit = 0;
     p.root.position.copy(EXIT_SPOT);
-    pose(p, 1, 0, 0, t, false);
-    if (done) {
+    if (k >= 1) {
       n.energy = Math.max(0.2, n.energy - 0.1);
-      p.cal.next = t + trip.path.L / 1.25 + 1.6 + rand(30, 90);
-      trip.dir = -1; setState(p, "walk", t, trip.path.L / 1.25);
+      moodShift(p, -0.05 - 0.06 * p.dur / 25, p.dur > 25 ? "that meeting ran long" : "back-to-back meetings");
+      p.lastEvent = { kind:"meeting", t:t };
+      p.cal.next = t + 12 + rand(30, 90);
+      startReturn(p, t);
     }
   }
 
-  /* status line */
   var kind = p.trip ? p.trip.kind : "";
-  if (kind === "meeting") p.statusNow = p.state === "away" ? p.walker.text.away : (p.trip.dir < 0 ? p.walker.text.back : p.walker.text.out);
-  else if (kind === "coffee") p.statusNow = p.trip.dir < 0 && p.state === "walk" ? "Back with a coffee" : "Getting coffee";
-  else if (kind === "visit") p.statusNow = p.state === "visit" ? "Chatting with " + p.trip.target.name : (p.trip.dir < 0 ? "Heading back to the desk" : "Walking over to " + p.trip.target.name);
+  if (kind === "meeting") p.statusNow = p.state === "away" ? p.walker.text.away : (p.trip.back ? p.walker.text.back : p.walker.text.out);
+  else if (kind === "coffee") p.statusNow = p.trip.back ? "Back with a coffee" : "Getting coffee";
+  else if (kind === "visit" && p.trip.target.remote) p.statusNow = p.state === "visit" ? "On a video call with " + p.trip.target.name : (p.trip.back ? "Heading back to the desk" : "Walking over to the screens");
+  else if (kind === "visit") p.statusNow = p.state === "visit" ? "Chatting with " + p.trip.target.name : (p.trip.back ? "Heading back to the desk" : "Walking over to " + p.trip.target.name);
 }
-
-/* small props used by the acts */
-PEOPLE.forEach(function(p){
-  var hand = p.arms[1].el;
-  p.mug = add(G.cyl, M("#ffffff", { roughness:0.4 }), 0.03, 0.07, 0.03, 0, -0.3, 0.045, hand, false); p.mug.visible = false;
-  p.phone = add(G.box, M("#16181c", { roughness:0.3, metalness:0.4 }), 0.05, 0.1, 0.008, 0, -0.32, 0.03, hand, false); p.phone.visible = false;
-});
-BY.olivia.swatch = add(G.box, M("#2fb3a3", { roughness:0.6 }), 0.14, 0.18, 0.004, 0, -0.36, 0.04, BY.olivia.arms[1].el, false);
-BY.olivia.swatch.visible = false;
 
 /* ---------- camera rig: orthographic isometric ---------- */
 /* r is the half-height of the orthographic frame; th is yaw around the hallway, ph the angle from vertical.
@@ -1203,11 +1421,13 @@ function defaultGoal(){
     var u = corner.dot(camRight), v = corner.dot(camUp);
     u0 = Math.min(u0, u); u1 = Math.max(u1, u); v0 = Math.min(v0, v); v1 = Math.max(v1, v);
   }); }); });
-  var uc = (u0 + u1) / 2, vc = (v0 + v1) / 2;
+  /* top margin 4% of the frame, at least 9% left at the bottom for the entrance and the hint */
+  var rr = Math.max((v1 - v0) / (2 * 0.87), (u1 - u0) / (2 * aspect * 0.94));
+  var uc = (u0 + u1) / 2, vc = v1 - 0.92 * rr;
   goal.tx = camRight.x * uc + camUp.x * vc;
   goal.ty = camRight.y * uc + camUp.y * vc;
   goal.tz = camRight.z * uc + camUp.z * vc;
-  goal.r = Math.max((v1 - v0) / 2, (u1 - u0) / (2 * aspect)) * 1.04 + 0.4;
+  goal.r = rr;
   goal.th = nearAngle(view.th, th); goal.ph = ph;
 }
 function nearAngle(cur, target){ return target + Math.PI * 2 * Math.round((cur - target) / (Math.PI * 2)); }
@@ -1217,53 +1437,483 @@ function resize(){
   if (!w || !h) return;
   aspect = w / h;
   renderer.setSize(w, h, false);
+  if (composer) composer.setSize(w, h);
   if (!focus && performance.now() / 1000 - lastInteract > 2) defaultGoal();
 }
 if (window.ResizeObserver) new ResizeObserver(resize).observe(stage); else window.addEventListener("resize", resize);
 resize();
-view.tx = goal.tx; view.ty = goal.ty; view.tz = goal.tz; view.r = goal.r * 1.25;
+view.tx = goal.tx; view.ty = goal.ty; view.tz = goal.tz; view.r = goal.r; view.th = goal.th;
+
+
+
+/* ---------- knowledge: what each person can tell you (public, generic product knowledge) ---------- */
+/* ---------- personality profiles and moods of the day ---------- */
+var MOODS = {
+  excited:{ e:"\u{1F929}", label:"Excited", v:0.85 },
+  great:{ e:"\u{1F604}", label:"Great", v:0.6 },
+  good:{ e:"\u{1F642}", label:"Good", v:0.3 },
+  okay:{ e:"\u{1F610}", label:"Okay", v:0 },
+  tired:{ e:"\u{1F971}", label:"Tired", v:-0.3 },
+  stressed:{ e:"\u{1F623}", label:"Stressed", v:-0.4 },
+  off:{ e:"\u{1F912}", label:"A bit under the weather", v:-0.5 }
+};
+var PROFILE = {
+  luis:{ pron:"he", traits:{ patience:0.5, humour:0.6, chattiness:0.3, stressTol:0.8 },
+    moodW:{ excited:1, great:2, good:3, okay:2, tired:1.5, stressed:1, off:0.4 },
+    likes:"clean code and a fast page", dislikes:"being pulled out of the zone",
+    joke:"If the headphones are on, assume I am deploying.",
+    work:["Pushing updates to the product pages","Fixing a layout on the Convectair site","Publishing new product pages","Cleaning up the Cadet menus"] },
+  stephanie:{ pron:"she", traits:{ patience:0.8, humour:0.7, chattiness:0.8, stressTol:0.6 },
+    moodW:{ excited:2.5, great:2.5, good:2.5, okay:1.5, tired:1, stressed:1, off:0.4 },
+    likes:"a flame effect that looks real", dislikes:"blurry fireplace photos",
+    joke:"I have seen more flames today than a firefighter.",
+    work:["Working through fireplace tickets","Checking flame settings on a new unit","Writing up an Optimyst answer","Reviewing fireplace product copy"] },
+  debbie:{ pron:"she", traits:{ patience:0.7, humour:0.6, chattiness:0.7, stressTol:0.4 },
+    moodW:{ excited:1, great:2, good:3, okay:2, tired:1.2, stressed:1.6, off:0.4 },
+    likes:"a sell sheet with no typos", dislikes:"wattage questions with no room size",
+    joke:"Every room is a baseboard opportunity.",
+    work:["Updating the baseboard sell sheet","Checking wattages for the heater lineup","Answering a thermostat question","Reviewing Cadet and Convectair specs"] },
+  olivia:{ pron:"she", traits:{ patience:0.6, humour:0.8, chattiness:0.6, stressTol:0.6 },
+    moodW:{ excited:1.8, great:2.2, good:2.5, okay:1.5, tired:1.2, stressed:1, off:0.4 },
+    likes:"good light and lots of white space", dislikes:"stretched logos",
+    joke:"Yes, I can make the logo bigger. No, I will not.",
+    work:["Retouching product shots for the site","Exporting hero images for the website","Building banners for a campaign","Making social graphics for this week"] },
+  carla:{ pron:"she", traits:{ patience:0.9, humour:0.7, chattiness:0.9, stressTol:0.8 },
+    moodW:{ excited:2, great:3, good:3, okay:1, tired:0.8, stressed:0.5, off:0.3 },
+    likes:"a booth that is built on time", dislikes:"crates that go missing",
+    joke:"I have packed more booths than suitcases.",
+    work:["Confirming booth shipping for the next show","Booking hotel rooms for the tradeshow","Ordering badges for the team","Planning which products go to the show"] },
+  marissa:{ pron:"she", traits:{ patience:0.8, humour:0.7, chattiness:0.7, stressTol:0.7 },
+    moodW:{ excited:1, great:2.5, good:3, okay:1.5, tired:1, stressed:0.8, off:0.4 },
+    likes:"a quiet house and a strong coffee", dislikes:"frozen video calls",
+    joke:"My commute is from the kitchen to the desk. Traffic is light.",
+    work:["Answering messages from the team","Updating a shared document","Working through my task list","Catching up on email"] },
+  stephanieb:{ pron:"she", traits:{ patience:0.7, humour:0.85, chattiness:0.8, stressTol:0.7 },
+    moodW:{ excited:1.5, great:2.5, good:2.5, okay:1.5, tired:1, stressed:0.8, off:0.4 },
+    likes:"her cat and a good playlist", dislikes:"when the wifi drops mid sentence",
+    joke:"My cat attends more meetings than I do.",
+    work:["Catching up on team messages","Reviewing a shared file","Preparing an update for the team","Clearing my inbox"] },
+  erica:{ pron:"she", traits:{ patience:0.7, humour:0.8, chattiness:0.6, stressTol:0.7 },
+    moodW:{ excited:1, great:2, good:2.5, okay:2, tired:1.5, stressed:1.5, off:0.4 },
+    likes:"a meeting that ends early", dislikes:"meetings that could have been an email",
+    joke:"My calendar has a calendar.",
+    work:["Prepping for my next meeting","Catching up on email between calls","Reviewing the launch plan","Updating priorities for the team"] },
+  allyson:{ pron:"she", traits:{ patience:0.7, humour:0.6, chattiness:0.6, stressTol:0.7 },
+    moodW:{ excited:1, great:2, good:2.5, okay:2, tired:1.5, stressed:1.5, off:0.4 },
+    likes:"a clear decision", dislikes:"double-booked afternoons",
+    joke:"Back-to-back is my love language.",
+    work:["Reviewing priorities between calls","Signing off a few decisions","Catching up on the campaign plan","Writing notes from my last meeting"] }
+};
+function rollMood(p){
+  var w = PROFILE[p.id].moodW, tot = 0, k;
+  for (k in w) tot += w[k];
+  var r = Math.random() * tot;
+  for (k in w) { r -= w[k]; if (r <= 0) break; }
+  p.mood = { kind:k, base:k, v:MOODS[k].v };
+  p.moodWhy = k === "excited" ? (p.id === "stephanie" ? "a new fireplace is about to launch" : "something good is coming this week")
+    : k === "stressed" ? "deadlines everywhere" : k === "tired" ? "I did not sleep much" : k === "off" ? "I think I am catching a cold" : "";
+}
+function recomputeMood(p){
+  var m = p.mood, v = m.v, prof = PROFILE[p.id];
+  if (m.base === "off" && v < 0.3) { m.kind = "off"; return; }
+  if (v > 0.7) m.kind = m.base === "excited" ? "excited" : "great";
+  else if (v > 0.4) m.kind = "great";
+  else if (v > 0.15) m.kind = "good";
+  else if (v > -0.15) m.kind = "okay";
+  else m.kind = p.needs.energy < 0.35 || prof.traits.stressTol > 0.6 ? "tired" : "stressed";
+}
+function moodShift(p, dv, why){
+  p.mood.v = clamp(p.mood.v + dv, -1, 1);
+  if (why) p.moodWhy = why;
+  recomputeMood(p);
+}
+
+/* ---------- topic knowledge (public, generic) ---------- */
+var KB = {
+  stephanie:{ qa:[
+    { q:"What is Optimyst?", k:["optimyst","water vapour","water vapor","vapour","vapor","mist","steam","smoke"], a:"Optimyst uses ultrasonic water vapour lit by LEDs, so the flames and smoke look real and you can put your hand right through them. You just top up the water tank now and then." },
+    { q:"What is Revillusion?", k:["revillusion","firebox","log set","logs","brick"], a:"Revillusion is the built-in firebox line. It layers a realistic flame over a detailed log set and a brick-look interior, so it reads like a real wood fire from across the room." },
+    { q:"Tell me about Ignite linear fireplaces", k:["ignite","linear","long fireplace","wide","evolve"], a:"Ignite is the linear range. Long, clean flame bands you can recess into a wall or a media unit, with lots of flame colour and ember bed options." },
+    { q:"Built-in or wall-mount?", k:["built-in","built in","recess","wall-mount","wall mount","hang","install","insert"], a:"Wall-mount is the quick win: hang it like a TV. Built-in means framing it into the wall for a flush look, more work but very clean. Inserts go into an existing fireplace opening." },
+    { q:"Plug-in or hard-wired?", k:["plug","hardwire","hard-wired","hardwired","outlet","electrician","wiring","voltage"], a:"Many units plug into a standard household outlet. Bigger ones can be hard-wired, and that is a job for a licensed electrician. Always check the installation manual for the exact model." },
+    { q:"How do I choose a size?", k:["size","how big","width","measure","which size"], a:"Measure the wall first. A fireplace that fills about a third to half of the wall width usually looks balanced, and if a TV goes above, leave room for viewing height." },
+    { q:"Can I use the flame without heat?", k:["without heat","no heat","flame only","separately","heat off","summer"], a:"Yes. You can run the flame effect on its own all year and switch the heater on only when you want the warmth." }
+  ], fallback:"Hmm, not sure about that one. Ask me about Optimyst, Revillusion, Ignite, sizing or installation and I am all yours." },
+  debbie:{ qa:[
+    { q:"What size baseboard do I need?", k:["wattage","watts","watt","how many","square feet","sq ft","room size","what size"], a:"Rule of thumb: about 10 watts per square foot for a typical room with 8 ft ceilings. A 150 sq ft bedroom lands around 1500 W. Older, drafty or high-ceiling rooms need more." },
+    { q:"Cadet or Convectair?", k:["cadet","convectair","difference","which brand"], a:"Both are in the family. Cadet is known for baseboards and wall heaters that just work. Convectair is all about quiet, even convection heat with a clean design. It comes down to the room and the look you want." },
+    { q:"Fan-forced or convection?", k:["fan","fan-forced","forced","convection","quiet","noise","silent"], a:"Fan-forced heaters warm a room fast, great for bathrooms and entryways. Convection heaters are silent and give a gentle, even heat, nice for bedrooms and living spaces." },
+    { q:"Which thermostat should I use?", k:["thermostat","programmable","smart","line voltage","control"], a:"Electric baseboards usually pair with a line-voltage thermostat. A programmable or smart one lets you drop the temperature at night and save energy." },
+    { q:"120V or 240V?", k:["120","240","voltage","volts"], a:"Most permanent baseboards run on 240V and are hard-wired by an electrician. 120V models exist for smaller spaces. Match the heater voltage to the circuit, always." },
+    { q:"Where should a baseboard go?", k:["where should","placement","under a window","window","position"], a:"Under a window is the classic spot, because it counters the cold air coming off the glass. Keep furniture and curtains clear of the heater." }
+  ], fallback:"That is outside my heaters corner. Try me on wattage, Cadet vs Convectair, thermostats or fan-forced vs convection." },
+  olivia:{ qa:[
+    { q:"sRGB or CMYK?", k:["srgb","cmyk","colour profile","color profile","profile","print","rgb"], a:"sRGB for anything on a screen, CMYK for print. Export web images in sRGB or the colours shift, I promise." },
+    { q:"What image size for the web?", k:["image size","pixels","px","resolution","dimensions","export","how wide"], a:"For a full-width hero I export around 2400 px wide, product tiles around 1200 px. Then compress to WebP or a good JPG so pages load fast." },
+    { q:"How do you shoot products?", k:["photo","photography","shoot","lifestyle","studio","camera","background"], a:"Two kinds: clean studio shots on a consistent background for product pages, and lifestyle shots in real rooms so people can picture it at home." },
+    { q:"What are the brand colours?", k:["brand colour","brand color","palette","red","colours","colors"], a:"Dimplex red does the heavy lifting, with lots of white space and warm neutrals around it. Red is an accent, not a background for everything." },
+    { q:"How do you retouch product shots?", k:["retouch","retouching","clean up","photoshop","cutout"], a:"Clean the dust and reflections, even out the colour so every finish matches the real product, then a clean cutout or a consistent background. The flame has to look like the real flame, no fake glow." },
+    { q:"Who makes the banners and social graphics?", k:["banner","banners","social graphic","graphics","campaign","ads"], a:"That's me. Website banners, social posts, email headers, all of it. Same photos, cropped and laid out for each channel." },
+    { q:"Can we make the logo bigger?", k:["logo","bigger","larger"], a:"Ha. The logo is exactly the size it needs to be. Give it room to breathe instead." },
+    { q:"Any tips for social images?", k:["social","instagram","facebook","post","story","stories"], a:"Square or 4:5 for feeds, 9:16 for stories. Keep text short and big, and let the flame or the room do the talking." }
+  ], fallback:"Not my area, but if it has pixels I can probably help. Ask me about image sizes, colour profiles or product photos." },
+  luis:{ qa:[
+    { q:"Where are the manuals?", k:["manual","manuals","instructions","guide","pdf","download","documents"], a:"Open the product page and scroll to the documents section. Manuals, install guides and spec sheets live there as downloads." },
+    { q:"Where is the spec sheet?", k:["spec","specs","specification","dimensions","spec sheet"], a:"Same place: product page, documents section. Key specs are also listed on the page itself, so you may not even need the PDF." },
+    { q:"How do I find a dealer?", k:["dealer","retailer","where to buy","buy","store","near me","purchase"], a:"Use Where to Buy on the site. Enter your postal code and it lists retailers near you." },
+    { q:"How do I find a product?", k:["search","find a product","model number","model","product"], a:"Use the search bar at the top and type the model number or the product name. The model number is the fastest way." },
+    { q:"Which sites do you run?", k:["sites","website","websites","convectair","cadet","dimplex site"], a:"Dimplex, Convectair and Cadet. Same team, three sites, a lot of product pages." },
+    { q:"What are you listening to?", k:["music","listening","headphones","song","playlist"], a:"Something with a steady beat. Helps me push pages without distractions." }
+  ], fallback:"Not sure on that one. Anything about the website, manuals or finding a dealer, I can help." },
+  erica:{ qa:[
+    { q:"What are the priorities this week?", k:["priority","priorities","this week","focus","important","goal"], a:"Launch pages first, then the seasonal campaign. Everything else goes on the list." },
+    { q:"Can we meet?", k:["meet","meeting","call","sync","catch up","calendar","invite"], a:"Absolutely. Send me an invite. Fair warning, my calendar has a calendar." },
+    { q:"I have a new idea", k:["idea","proposal","suggest","new project"], a:"Love it. Let's put it on the agenda and look at it together." },
+    { q:"Who should I ask about what?", k:["who should","who knows","who handles","ask about"], a:"Stephanie for fireplaces, Debbie for heat, Olivia for design and Luis for the websites. Carla knows where everything is." }
+  ], fallback:"Good question. Let's put it on the agenda." },
+  allyson:{ qa:[
+    { q:"What is the plan for this quarter?", k:["plan","quarter","roadmap","priorities","goal"], a:"Keep the product pages sharp, support the launches and measure what works. We review it every week." },
+    { q:"Can we sync?", k:["sync","meet","meeting","call","calendar","invite"], a:"Yes, grab fifteen minutes on my calendar. If it is blocked, I am probably already in one." },
+    { q:"I need a decision", k:["decision","decide","approve","approval","sign off"], a:"Send me the options and your recommendation. I will look at it between meetings." },
+    { q:"Who handles what?", k:["who handles","who knows","who should","team"], a:"Stephanie owns Flame, Debbie owns Heat, Olivia designs, Luis runs the websites and Carla keeps us all moving." }
+  ], fallback:"Let's put it on the agenda for the next sync." },
+  carla:{ qa:[
+    { q:"What's the next tradeshow?", k:["tradeshow","trade show","next show","next event","expo","show schedule","dates"], a:"There is always a next one! The full show schedule is on the events calendar behind me. Tell me which show and I will check the dates." },
+    { q:"How do you set up a booth?", k:["booth","set up","setup","floor plan","build the booth"], a:"Floor plan first, then power drops, then the displays go in. Fireplaces need power and a little breathing room, so I plan the booth around the live units." },
+    { q:"How do the displays get there?", k:["ship","shipping","freight","crate","crates","displays","pallet","logistics"], a:"Everything ships in crates weeks ahead to the show warehouse, then it gets delivered to the booth. Golden rule: label every crate twice." },
+    { q:"Which products go to the show?", k:["which products","bring","what goes","lineup","units"], a:"New launches first, then the best sellers people want to see in person. Flame always gets the front of the booth, it pulls people in." },
+    { q:"How do I get a show badge?", k:["badge","badges","register","registration","pass"], a:"Send me your name and the days you will be there and I will register you. Badges are usually picked up on site." },
+    { q:"Who books the travel?", k:["travel","hotel","flight","booking","trip"], a:"Me! Hotels near the venue go fast, so I book early. Tell me your dates and I will sort it out." },
+    { q:"Who can help with fireplaces?", k:["fireplace","flame","optimyst","ignite","revillusion"], a:"That's Stephanie! Second desk on the right. She knows every flame effect by heart." }
+  ], fallback:"Not sure, but I can find out. On it!" },
+  marissa:{ qa:[
+    { q:"Where are you working from?", k:["where are you","working from","home office","remote"], a:"Home! My desk, my plant and the best coffee in town." },
+    { q:"Can you hear me?", k:["hear","mute","muted","audio","mic","microphone","sound"], a:"Loud and clear. If I freeze, it is my wifi, not me." },
+    { q:"Do you miss the office?", k:["miss","the office","come in"], a:"I miss the coffee chats. Not the commute." },
+    { q:"How do I reach you?", k:["reach","contact","ping","message you","email"], a:"Just message me. Green dot means go." },
+    { q:"What are your hours?", k:["time zone","timezone","hours","your schedule"], a:"Same hours as the team, so ping me anytime during the day." }
+  ], fallback:"Hmm, you cut out for a second there. Can you say that again?" },
+  stephanieb:{ qa:[
+    { q:"Where are you working from?", k:["where are you","working from","home office","remote"], a:"Hi from home! The background is real, I promise." },
+    { q:"Can you see my screen?", k:["screen","share","camera","video"], a:"Yes, I can see it. Unless that was my cat again." },
+    { q:"Is that your cat?", k:["cat","pet","dog"], a:"Yes, and she thinks she runs the meetings. Honestly, she might." },
+    { q:"How do I reach you?", k:["reach","contact","ping","message you","email"], a:"Message me anytime. I am always online during the day." },
+    { q:"Do you come to the office?", k:["the office","come in","visit"], a:"Sometimes! But my commute is ten steps and I am not giving that up easily." }
+  ], fallback:"Sorry, my wifi is being dramatic. What was that?" }
+};
+
+/* ---------- conversation: intents + live state ---------- */
+var INTENTS = [
+  { id:"greet", k:["hi","hello","hey","good morning","good afternoon","morning","hiya","yo","howdy"] },
+  { id:"bye", k:["bye","goodbye","see you","see ya","later","good night","ciao","talk later"] },
+  { id:"thanks", k:["thanks","thank you","thx","cheers","appreciate","ty"] },
+  { id:"how", k:["how are you","how r u","how are u","how you doing","how's it going","hows it going","how are things","you ok","are you ok","you okay","are you okay","feeling","how do you feel","you good","how ya doing"] },
+  { id:"doing", k:["what are you doing","what are you up to","what you doing","whatcha doing","what's up","whats up","working on","up to","what r u doing","doing now"] },
+  { id:"day", k:["how's your day","hows your day","how is your day","how was your day","your day","day going","good day"] },
+  { id:"busy", k:["are you busy","you busy","busy","got a minute","have a minute","got a sec","free right now","quick question","can i interrupt"] },
+  { id:"coffee", k:["want a coffee","want coffee","coffee","latte","espresso","cup of tea","tea","grab a drink"] },
+  { id:"where", k:["where is","where's","wheres","where are","seen"] },
+  { id:"why", k:["why","how come","what happened","really","how so"] },
+  { id:"weather", k:["weather","rain","raining","snow","cold out","sunny","hot outside","outside"] },
+  { id:"weekend", k:["weekend","saturday","sunday","friday","plans","vacation","holiday"] },
+  { id:"lunch", k:["lunch","hungry","eat","food","dinner","snack"] },
+  { id:"joke", k:["joke","funny","make me laugh","something funny"] },
+  { id:"who", k:["who are you","what do you do","your job","your role","what's your role","what is your job"] },
+  { id:"mood", k:["mood","happy","sad","stressed","tired"] }
+];
+function lev(a, b){
+  if (Math.abs(a.length - b.length) > 1) return 9;
+  var m = a.length, n = b.length, prev = [], cur = [], i, j;
+  for (j = 0; j <= n; j++) prev[j] = j;
+  for (i = 1; i <= m; i++) {
+    cur = [i];
+    for (j = 1; j <= n; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    prev = cur;
+  }
+  return prev[n];
+}
+function norm(s){ return " " + s.toLowerCase().replace(/[’']/g, "'").replace(/[^a-z0-9' -]/g, " ").replace(/\s+/g, " ").trim() + " "; }
+function phraseScore(s, words, kw){
+  if (s.indexOf(" " + kw + " ") >= 0) return kw.split(" ").length * 2;
+  if (kw.indexOf(" ") < 0 && kw.length >= 5) {
+    for (var i = 0; i < words.length; i++) if (words[i].length >= 4 && lev(words[i], kw) <= 1) return 1;
+  }
+  return 0;
+}
+function personIn(s){
+  if (/ (benoit|stephanie b) /.test(s)) return BY.stephanieb;
+  for (var i = 0; i < ALL.length; i++) if (s.indexOf(" " + ALL[i].name.toLowerCase().replace(".", "")) >= 0) return ALL[i];
+  if (/ (your )?bosse?s? /.test(s)) return BY.erica;
+  return null;
+}
+function fresh(p, arr){
+  var opts = arr.filter(function(x){ return p.used.indexOf(x) < 0; });
+  var pick = choose(opts.length ? opts : arr);
+  p.used.push(pick); if (p.used.length > 8) p.used.shift();
+  return pick;
+}
+function pr(q){ return PROFILE[q.id].pron; }
+function cap(s){ return s.charAt(0).toUpperCase() + s.slice(1); }
+var ACT_TEXT = {
+  phone:"Checking a message real quick", sip:"Having a sip of coffee", stretch:"Stretching, too much screen time",
+  leanBack:"Taking a ten second breather", headphones:"Fixing my headphones", swatch:"Comparing colour swatches",
+  leanFire:"Staring at this flame effect, something is off", point:"Checking on the wall heater", wave:"Waving at someone",
+  checklist:"Going through the booth checklist", call:"On the phone with a venue"
+};
+function doingNow(p){
+  var tr = p.trip, t = clock.elapsedTime;
+  if (tr) {
+    if (tr.kind === "coffee") return tr.back ? "Walking back with my coffee" : "Grabbing a coffee, back in a sec";
+    if (tr.kind === "visit") return tr.back ? "Heading back to my desk" : (p.state === "visit" ? "Chatting with " + tr.target.name : "On my way to see " + tr.target.name);
+    if (tr.kind === "meeting") return tr.back ? "Just walking back from a meeting" : "Heading to a meeting";
+  }
+  if (p.chatWith) return "Chatting with " + p.chatWith.name;
+  if (p.act && ACT_TEXT[p.act.n]) return ACT_TEXT[p.act.n];
+  if (p.lastEvent && t - p.lastEvent.t < 25) {
+    if (p.lastEvent.kind === "meeting") return "Just got back from a meeting";
+    if (p.lastEvent.kind === "coffee") return "Just got back with a coffee";
+  }
+  return p.workNow || (p.workNow = choose(PROFILE[p.id].work));
+}
+function locate(q){
+  var P = pr(q), tr = q.trip;
+  if (q.remote) return (q.chatWith ? cap(P) + " is on the big screen by the logo, on a call with " + q.chatWith.name : cap(P) + " is on the big screen by the logo, working from home") + ". " + doingNow(q) + ".";
+  if (q.state === "away") return cap(P) + " is in a meeting. Should be back soon.";
+  if (tr && tr.kind === "meeting") return tr.back ? cap(P) + " is walking back from a meeting." : cap(P) + " is heading out to a meeting.";
+  if (tr && tr.kind === "coffee") return cap(P) + " is getting coffee by the entrance.";
+  if (tr && tr.kind === "visit") return q.state === "visit" ? cap(P) + " is over at " + tr.target.name + "'s desk." : cap(P) + " is walking over to " + tr.target.name + ".";
+  if (q.chatWith) return "At " + (P === "he" ? "his" : "her") + " desk, chatting with " + q.chatWith.name + ".";
+  return "At " + (P === "he" ? "his" : "her") + " desk. " + doingNow(q) + ".";
+}
+var OPEN = {
+  excited:["Honestly? Fantastic.","Really good, I can't sit still today.","Amazing, actually."],
+  great:["Great, thanks!","Doing really well.","Pretty great today."],
+  good:["Good, thanks.","Not bad at all.","Doing well."],
+  okay:["Okay, I guess.","Fine. Just one of those days.","Can't complain. Well, I could."],
+  tired:["A bit tired, honestly.","Running low on energy.","Tired. Very tired."],
+  stressed:["Honestly, not my best day.","Stressed, if I'm honest.","Juggling too many things right now."],
+  off:["A bit under the weather today.","Not feeling a hundred percent.","Hanging in there, a little sick."]
+};
+function howReply(p){
+  var n = p.needs, m = p.mood.kind, prof = PROFILE[p.id], bits = [fresh(p, OPEN[m])], why = p.moodWhy;
+  var t = clock.elapsedTime;
+  if (p.lastEvent && t - p.lastEvent.t < 60 && p.lastEvent.kind === "chat" && (m === "great" || m === "good" || m === "excited")) { bits.push("Just had a good chat with " + p.lastEvent.with + "."); why = "talking to " + p.lastEvent.with + " always helps"; }
+  else if (n.coffee > 0.7) { bits.push(fresh(p, ["I really need a coffee.","Coffee would fix a lot right now."])); why = "I have not had my coffee yet"; }
+  else if (n.energy < 0.3) { bits.push("Long day already."); why = "it has been a long day and it is not over"; }
+  else if (n.focus > 0.75 && p.typeOn) { bits.push(fresh(p, ["In the zone today.","Head down, getting stuff done."])); why = "I finally have a quiet stretch to work"; }
+  else if (why && (m === "stressed" || m === "tired" || m === "off" || m === "excited")) bits.push(cap(why) + ".");
+  if (prof.traits.chattiness > 0.7 && Math.random() < 0.5) bits.push("How about you?");
+  return { text:bits.join(" "), reason:why || "it is just that kind of day" };
+}
+var SMALL = {
+  weather:{
+    stephanie:["Cold outside? Perfect fireplace weather.","Whatever it is outside, the flame effect says cozy."],
+    debbie:["Cold days are baseboard days. I'm not complaining.","If it's chilly, someone needs a heater, and I know a few."],
+    _:["Haven't looked outside in hours, honestly.","Grey out there, but it's warm in here.","Nice enough. I'll see it at lunch, maybe."]
+  },
+  weekend:{
+    erica:["Weekend? Let me check my calendar. Kidding. Mostly.","Something without a single meeting invite, I hope."],
+    luis:["Probably something away from a screen. Probably.","No deploys. That's the plan."],
+    _:["Nothing big, just recharging.","A bit of rest, a bit of family time.","Still deciding. Any ideas?"]
+  },
+  lunch:{
+    carla:["I'm going in a bit, want me to grab you something?","Lunch sounds great, I'll ask around who's in."],
+    _:["Soon, I hope. My stomach agrees.","Not yet, trying to finish this first.","Already thinking about it, honestly."]
+  }
+};
+function smallTalk(p, kind){
+  var set = SMALL[kind], arr = set[p.id] || set._;
+  return fresh(p, arr);
+}
+function moodTone(p, text){
+  var m = p.mood.kind, prof = PROFILE[p.id];
+  if ((m === "stressed" || m === "tired") && prof.traits.chattiness < 0.75) return text.split(". ")[0].replace(/\.?$/, ".");
+  if ((m === "great" || m === "excited") && prof.traits.humour > 0.65 && Math.random() < 0.25) return text + " " + prof.joke;
+  return text;
+}
+function converse(p, raw){
+  var s = norm(raw), words = s.trim().split(" "), t = clock.elapsedTime, prof = PROFILE[p.id];
+  var last = p.mem[p.mem.length - 1];
+  var name = p.name, P = prof.pron;
+
+  /* away: offer to take a message */
+  if (p.walker && (p.state === "away" || (p.trip && p.trip.kind === "meeting" && !p.trip.back))) {
+    if (last && last.intent === "away" && !/^ (hi|hello|hey|where|ok|okay|no|nope|never mind) /.test(s)) {
+      p.messages.push(raw);
+      return { text:"Got it. I'll pass that to " + name + " as soon as " + P + " is back.", intent:"msg", reason:"" , system:true };
+    }
+    return { text:name + " is in a meeting, try again later. Want to leave a message? Just type it here.", intent:"away", reason:"", system:true };
+  }
+
+  /* score intents and topic knowledge */
+  var best = { id:"", s:0 };
+  INTENTS.forEach(function(it){
+    var sc = 0;
+    it.k.forEach(function(kw){ sc = Math.max(sc, phraseScore(s, words, kw)); });
+    if (it.id === "where" && !personIn(s)) sc = 0;
+    if (it.id === "why" && words.length > 4) sc *= 0.5;
+    if (sc > best.s) best = { id:it.id, s:sc };
+  });
+  var topic = null, ts = 0;
+  KB[p.id].qa.forEach(function(e){
+    var sc = 0;
+    e.k.forEach(function(kw){ sc += phraseScore(s, words, kw); });
+    if (sc > ts) { ts = sc; topic = e; }
+  });
+  var deep = p.id === "luis" && p.typeOn && p.needs.focus > 0.6 && p.state === "sit";
+  var pre = deep && Math.random() < 0.7 ? fresh(p, ["Headphones off for a sec. ","Okay, quick one. ","Mm? Sure. "]) : "";
+  if (deep && !p.annoyedAt) { moodShift(p, -0.06, "I keep getting pulled out of the zone"); p.annoyedAt = t; }
+
+  if (topic && ts >= best.s) return { text:pre + moodTone(p, topic.a), intent:"topic", reason:"it is literally my job" };
+  var r;
+  switch (best.id) {
+    case "greet":
+      if (p.remote) return { text:fresh(p, ["Hi from home!","Hey! Can you hear me okay?","Hi! Waving at you through the screen."]), intent:"greet", reason:"" };
+      return { text:pre + fresh(p, [
+        p.mood.v > 0.3 ? "Hey! Good to see you." : "Hi.",
+        "Hi there! " + (p.mood.v > 0 ? "What's up?" : "What do you need?"),
+        "Hey. " + doingNow(p) + ", but go ahead."]), intent:"greet", reason:"" };
+    case "bye": return { text:fresh(p, ["See you!","Bye! Come back anytime.","Later!","Talk soon."]), intent:"bye", reason:"" };
+    case "thanks": return { text:fresh(p, ["Anytime!","Happy to help.","Of course.","No problem at all."]), intent:"thanks", reason:"" };
+    case "how": r = howReply(p); return { text:pre + r.text, intent:"how", reason:r.reason };
+    case "day":
+      r = howReply(p);
+      var dayBits = p.walker ? (prof.traits.humour > 0.7 ? " " + prof.joke : " Lots of meetings, as usual.") : "";
+      return { text:pre + r.text + dayBits, intent:"day", reason:r.reason };
+    case "doing":
+      var d = doingNow(p);
+      return { text:pre + d + "." + (p.chatWith && Math.random() < 0.5 ? " Talking shop, as usual." : ""), intent:"doing", reason:d.toLowerCase() + " is on today's list" };
+    case "busy":
+      if (p.walker && p.cal && p.cal.next - t < 45) return { text:"I have a meeting in a minute, so make it quick.", intent:"busy", reason:"my next meeting starts any second" };
+      if (deep || (p.typeOn && p.needs.focus > 0.65)) return { text:pre + fresh(p, ["Pretty busy, deep in something. Can it wait a bit?","Kind of. " + doingNow(p) + "."]), intent:"busy", reason:"I am in the middle of " + doingNow(p).toLowerCase() };
+      if (p.mood.kind === "stressed") return { text:"Honestly, yes. But go ahead.", intent:"busy", reason:p.moodWhy || "deadlines everywhere" };
+      return { text:fresh(p, ["Not really, what's up?","I have a minute. Shoot.","For you? Never."]), intent:"busy", reason:"it is a calm moment for once" };
+    case "coffee":
+      var n = p.needs;
+      if (p.trip && p.trip.kind === "coffee") return { text:"Already on it, I'm getting one right now.", intent:"coffee", reason:"I needed it" };
+      if (n.coffee > 0.5 || p.mood.kind === "tired") {
+        var canGo = p.state === "sit" && !p.chatWith && !PEOPLE.some(function(q){ return q.trip && q.trip.kind === "coffee"; });
+        if (canGo) p.pendingCoffee = t + 2.5;
+        return { text:fresh(p, ["Yes please! I was just thinking about it.","Oh, you read my mind. Heading there now.","Absolutely. Coffee first, then everything else."]), intent:"coffee", reason:"I have not had one in a while" };
+      }
+      if (n.focus > 0.65 && p.typeOn) return { text:"Thanks, but I'm in the middle of something. Maybe later.", intent:"coffee", reason:"I want to finish this first" };
+      return { text:fresh(p, ["I'm good for now, thanks!","Just had one, but thank you.","Maybe later, thanks."]), intent:"coffee", reason:"I had one not long ago" };
+    case "where":
+      var q = personIn(s);
+      if (q === p) return { text:"Right here!", intent:"where", reason:"" };
+      return { text:locate(q), intent:"where", reason:"" };
+    case "why":
+      if (last && last.reason) return { text:fresh(p, ["Well, ","Honestly, ","Mostly because "]) + last.reason + ".", intent:"why", reason:"" };
+      return { text:"Why what? Ask me anything.", intent:"why", reason:"" };
+    case "weather": case "weekend": case "lunch":
+      return { text:moodTone(p, smallTalk(p, best.id)), intent:best.id, reason:"" };
+    case "joke": return { text:prof.joke, intent:"joke", reason:"it is the running joke around here" };
+    case "who": return { text:"I'm " + name + ", " + p.role.toLowerCase() + ". " + p.personality, intent:"who", reason:"" };
+    case "mood": r = howReply(p); return { text:r.text, intent:"how", reason:r.reason };
+  }
+  return { text:pre + moodTone(p, KB[p.id].fallback), intent:"fallback", reason:"" };
+}
+ALL.forEach(function(p){ p.mem = []; p.used = []; p.messages = []; rollMood(p); });
+
 
 /* ---------- UI ---------- */
 var chipsEl = document.getElementById("chips"), labelsEl = document.getElementById("labels");
 var card = document.getElementById("card"), hint = document.getElementById("hint");
 var cName = document.getElementById("cName"), cRole = document.getElementById("cRole"), cStatus = document.getElementById("cStatus"), cPers = document.getElementById("cPers"), cTopics = document.getElementById("cTopics"), cAvatar = document.getElementById("cAvatar");
+var cMood = document.getElementById("cMood"), askH = document.getElementById("askH"), logEl = document.getElementById("log"), suggEl = document.getElementById("sugg"), askForm = document.getElementById("askForm"), askIn = document.getElementById("askIn");
 
-PEOPLE.forEach(function(p){
+ALL.forEach(function(p){
   var b = document.createElement("button");
   b.type = "button"; b.className = "chip"; b.style.setProperty("--c", p.shirt);
   b.setAttribute("aria-pressed", "false");
   b.innerHTML = '<span class="d"></span>' + p.name;
   b.addEventListener("click", function(){ focus === p ? clearFocus() : focusOn(p); });
   chipsEl.appendChild(b); p.chip = b;
-
   var tag = document.createElement("button");
   tag.type = "button"; tag.className = "tag"; tag.style.setProperty("--c", p.shirt);
-  tag.setAttribute("aria-label", "Visit " + p.name);
+  tag.setAttribute("aria-label", "Open " + p.name);
   tag.innerHTML = '<span class="bubble" aria-hidden="true"></span><span class="n"><i></i>' + p.name + '</span><span class="st"></span>';
   tag.addEventListener("click", function(){ focusOn(p); });
-  labelsEl.appendChild(tag); p.tag = tag; p.tagSt = tag.querySelector(".st"); p.tagText = ""; p.bubble = tag.querySelector(".bubble"); p.bubbleOn = false;
+  labelsEl.appendChild(tag); p.tag = tag; p.tagSt = tag.querySelector(".st"); p.tagText = "";
+  p.bubble = tag.querySelector(".bubble"); p.bubbleOn = false; p.tagW = 0; p.tagH = 0;
+});
+
+function renderLog(p){
+  logEl.innerHTML = "";
+  p.log.forEach(function(m){
+    var d = document.createElement("div");
+    d.className = "msg " + m.who + (m.typing ? " typing" : "");
+    if (m.typing) d.innerHTML = "<i></i><i></i><i></i>"; else d.textContent = m.text;
+    logEl.appendChild(d);
+  });
+  logEl.hidden = p.log.length === 0;
+  logEl.scrollTop = logEl.scrollHeight;
+}
+function renderSugg(p){
+  suggEl.innerHTML = "";
+  ["How are you?", "What are you doing?", "Want a coffee?"].concat(KB[p.id].qa.slice(0, 3).map(function(e){ return e.q; })).forEach(function(q){
+    var b = document.createElement("button");
+    b.type = "button"; b.className = "q"; b.textContent = q;
+    b.addEventListener("click", function(){ ask(p, q); });
+    suggEl.appendChild(b);
+  });
+}
+function ask(p, text){
+  text = text.trim();
+  if (!text) return;
+  p.log.push({ who:"me", text:text });
+  var typing = { who:"them", typing:true };
+  p.log.push(typing);
+  if (focus === p) renderLog(p);
+  var res = converse(p, text), reply = res.text;
+  p.mem.push({ q:text, intent:res.intent, reason:res.reason }); if (p.mem.length > 3) p.mem.shift();
+  var delay = 650 + Math.random() * 650 + Math.min(900, reply.length * 6);
+  var now = clock.elapsedTime;
+  if (!res.system && p.root.visible && (p.state === "sit" || p.state === "visit" || p.state === "coffee")) {
+    var talkDur = clamp(reply.length / 16, 2.5, 6.5) + delay / 1000;
+    p.answering = now + talkDur;
+    startAct(p, "answer", now, talkDur);
+    p.rig.nodTarget = 0.35;
+    setTimeout(function(){ if (p.rig) p.rig.nodTarget = 0; }, talkDur * 1000);
+  }
+  setTimeout(function(){
+    var i = p.log.indexOf(typing);
+    if (i >= 0) p.log.splice(i, 1, { who:"them", text:reply });
+    if (focus === p) renderLog(p);
+  }, delay);
+}
+askForm.addEventListener("submit", function(e){
+  e.preventDefault();
+  if (!focus) return;
+  ask(focus, askIn.value);
+  askIn.value = "";
 });
 
 function focusOn(p){
   focus = p;
   lastInteract = performance.now() / 1000;
   goal.r = aspect < 0.9 ? Math.max(2.6, 1.9 / aspect) : 2.7;
-  PEOPLE.forEach(function(q){ q.chip.setAttribute("aria-pressed", q === p ? "true" : "false"); q.tag.classList.toggle("on", q === p); });
-  cName.textContent = p.name; cRole.textContent = p.role; cPers.textContent = p.personality; cTopics.textContent = p.topics;
+  ALL.forEach(function(q){ q.chip.setAttribute("aria-pressed", q === p ? "true" : "false"); q.tag.classList.toggle("on", q === p); });
+  cName.textContent = p.fullName || p.name; cRole.textContent = p.role;
+  cMood.textContent = MOODS[p.mood.kind].e + " " + MOODS[p.mood.kind].label;
+  cPers.textContent = p.personality; cTopics.textContent = p.topics;
   cAvatar.textContent = p.name.charAt(0); cAvatar.style.setProperty("--c", p.shirt);
   cStatus.textContent = p.statusNow || p.status || "";
+  askH.textContent = "Ask " + p.name;
+  askIn.placeholder = "Ask " + p.name + " something";
+  renderLog(p); renderSugg(p);
   card.hidden = false;
   p.chip.scrollIntoView({ block:"nearest", inline:"nearest" });
 }
 function clearFocus(){
   focus = null;
-  PEOPLE.forEach(function(q){ q.chip.setAttribute("aria-pressed", "false"); q.tag.classList.remove("on"); });
+  ALL.forEach(function(q){ q.chip.setAttribute("aria-pressed", "false"); q.tag.classList.remove("on"); });
   card.hidden = true;
   defaultGoal();
 }
 document.getElementById("reset").addEventListener("click", clearFocus);
 document.getElementById("cClose").addEventListener("click", clearFocus);
-window.addEventListener("keydown", function(e){ if (e.key === "Escape") clearFocus(); });
+window.addEventListener("keydown", function(e){ if (e.key === "Escape" && document.activeElement !== askIn) clearFocus(); });
 
 /* ---------- pointer orbit ---------- */
 var pointers = new Map(), dragDist = 0, pinch0 = 0, r0 = 0;
@@ -1317,27 +1967,145 @@ function pick(e){
   }
 }
 
+
+
+/* ---------- load the people ---------- */
+try {
+  GLTF = await new GLTFLoader().loadAsync(MODEL_URL);
+} catch (e) { fail("Could not load the 3D people. Check your connection and reload the page."); return; }
+GLTF.animations.forEach(function(c){ CLIPS[c.name] = c; });
+T.AnimationUtils.makeClipAdditive(CLIPS.agree);
+PEOPLE.forEach(function(p){ makeRig(p); });
+/* ---------- remote colleagues: each one lives in a small scene rendered to a wall screen ---------- */
+function homeTex(seed, wall, accent){
+  return canvasTex(512, 320, function(g, w, h){
+    var r = seeded(seed), i;
+    g.fillStyle = wall; g.fillRect(0, 0, w, h);
+    g.fillStyle = "rgba(0,0,0,0.06)"; g.fillRect(0, h * 0.82, w, h * 0.18);
+    var sky = g.createLinearGradient(0, 30, 0, 170);
+    sky.addColorStop(0, "#9cc7ea"); sky.addColorStop(1, "#e3eff7");
+    g.fillStyle = "#f4f2ee"; g.fillRect(28, 26, 150, 150);
+    g.fillStyle = sky; g.fillRect(36, 34, 134, 134);
+    g.fillStyle = "#f4f2ee"; g.fillRect(100, 34, 6, 134); g.fillRect(36, 98, 134, 6);
+    g.fillStyle = "#6f5640"; g.fillRect(330, 40, 150, 10); g.fillRect(330, 110, 150, 10); g.fillRect(330, 180, 150, 10);
+    for (var shelf = 0; shelf < 3; shelf++) {
+      var x = 336;
+      while (x < 470) {
+        var bw = 8 + r() * 12, bh = 34 + r() * 22;
+        g.fillStyle = ["#c44d3a","#3c6e9c","#d9b45a","#5b8c5a","#8a6aa8","#e0dcd2"][Math.floor(r() * 6)];
+        g.fillRect(x, 40 + shelf * 70 - bh, bw, bh);
+        x += bw + 2;
+      }
+    }
+    g.fillStyle = accent; g.fillRect(220, 50, 70, 90);
+    g.fillStyle = "rgba(255,255,255,0.5)"; g.fillRect(228, 58, 54, 74);
+    g.fillStyle = "#e8e2d8"; g.fillRect(205, 215, 46, 70);
+    for (i = 0; i < 7; i++) { g.fillStyle = i % 2 ? "#3f7d4a" : "#5a9e63"; g.beginPath(); g.ellipse(228 + Math.cos(i) * 18, 200 - i * 6, 14, 30, i * 0.5, 0, 7); g.fill(); }
+  });
+}
+function captionTex(p){
+  return canvasTex(512, 64, function(g, w, h){
+    g.fillStyle = "rgba(10,12,15,0.62)"; rrect(g, 8, 8, w - 16, h - 16, 12); g.fill();
+    g.fillStyle = "#35d07f"; g.beginPath(); g.arc(34, h / 2, 8, 0, 7); g.fill();
+    g.fillStyle = "#ffffff"; g.font = "600 24px " + FONT; g.textBaseline = "middle"; g.textAlign = "left";
+    g.fillText("Online", 52, h / 2 + 1);
+    g.textAlign = "right"; g.font = "700 26px " + FONT;
+    g.fillText(p.fullName || p.name, w - 26, h / 2 + 1);
+  });
+}
+REMOTE.forEach(function(p, i){
+  var rs = new T.Scene();
+  rs.background = new T.Color(i ? "#e9e1d6" : "#dfe6ea");
+  rs.environment = scene.environment;
+  rs.add(new T.HemisphereLight(0xffffff, 0xb8a58c, 0.7));
+  var dl = new T.DirectionalLight(0xfff1e0, 0.9); dl.position.set(1.5, 3, 3); rs.add(dl);
+  var back = new T.Mesh(new T.PlaneGeometry(4.4, 2.75), new T.MeshStandardMaterial({ map:homeTex(31 + i * 17, i ? "#e9e1d6" : "#dfe6ea", i ? "#c96f4a" : "#4a7fc9"), roughness:0.9 }));
+  back.position.set(0, 1.3, -1.25); rs.add(back);
+  add(G.box, M(i ? "#b9936b" : "#d8d2c8", { roughness:0.55 }), 1.5, 0.045, 0.62, 0, 0.74, 0.6, rs, false);
+  makeRig(p, rs);
+  var cam = new T.PerspectiveCamera(30, 16 / 9, 0.1, 20);
+  cam.position.set(0, 1.32, 2.0); cam.lookAt(0, 1.08, 0);
+  var rt = new T.WebGLRenderTarget(512, 288, { samples:4 });
+  p.rs = rs; p.rcam = cam; p.rt = rt;
+
+  var g = new T.Group(); g.position.set(p.sx, 1.78, -8.9); scene.add(g);
+  add(G.box, M("#121418", { roughness:0.35, metalness:0.4 }), 2.0, 1.16, 0.07, 0, 0, 0, g);
+  var glowM = new T.MeshBasicMaterial({ color:0x8fc0ff, transparent:true, opacity:0.32, blending:T.AdditiveBlending, depthWrite:false });
+  var glow = new T.Mesh(G.plane, glowM); glow.scale.set(2.2, 1.36, 1); glow.position.z = -0.03; g.add(glow);
+  var scr = new T.Mesh(G.plane, new T.MeshBasicMaterial({ map:rt.texture }));
+  scr.scale.set(1.9, 1.07, 1); scr.position.z = 0.037; scr.userData.pid = p.id; g.add(scr);
+  pickables.push(scr);
+  var capM = new T.Mesh(G.plane, new T.MeshBasicMaterial({ map:captionTex(p), transparent:true, depthWrite:false, toneMapped:false }));
+  capM.scale.set(1.5, 0.1875, 1); capM.position.set(0, -0.43, 0.04); g.add(capM);
+  var anchor = new T.Object3D(); anchor.position.set(0, 0.5, 0.05); g.add(anchor);
+  p.head = anchor; p.screenG = g; p.glowM = glowM;
+  p.spot = new V3(p.sx, 0, -8.05);
+  p.seat = new V3(p.sx, 0, -9.0);
+});
+function updateRemote(p, t, dt){
+  var r = p.rig;
+  r.sit = 1; r.walkTarget = 0;
+  p.mood.v += (MOODS[p.mood.base].v - p.mood.v) * dt * 0.003;
+  if (t > p.typeNext) { p.typeOn = !p.typeOn; p.typeNext = t + (p.typeOn ? rand(2, 7) : rand(0.8, 3.5)); }
+  if (p.act && t - p.act.t0 > p.act.dur + 0.5) p.act = null;
+  if (p.answering && t > p.answering) p.answering = 0;
+  if (p.chatWith && (!p.act || p.act.n !== "answer")) startAct(p, "answer", t, 4);
+  if (!p.act && !p.chatWith && !p.answering && t > p.nextAct) { startAct(p, choose(["sip","phone","stretch","leanBack","sip"]), t); p.nextAct = t + rand(6, 16); }
+  p.typeAmp = lerp(p.typeAmp, p.typeOn && !p.act ? 1 : 0, 1 - Math.exp(-dt * 4));
+  p.glowM.opacity = 0.26 + (p.chatWith || p.answering ? 0.18 : 0) + 0.04 * Math.sin(t * 2 + p.sx);
+  p.statusNow = p.answering ? "Answering your question" : p.chatWith ? "On a video call with " + p.chatWith.name : p.status;
+  updateRig(p, t, dt);
+}
+
+scene.traverse(function(o){ if (o.material && o.material.isMeshStandardMaterial && o.material.envMapIntensity === 1) o.material.envMapIntensity = 0.5; });
+
+/* ---------- post-processing: ground-contact ambient occlusion on larger screens ---------- */
+try {
+  if (!isSmall) {
+    composer = new EffectComposer(renderer);
+    composer.addPass(new RenderPass(scene, camera));
+    aoPass = new GTAOPass(scene, camera, stage.clientWidth, stage.clientHeight);
+    aoPass.gtaoMaterial.defines.PERSPECTIVE_CAMERA = 0;
+    aoPass.pdMaterial.defines.PERSPECTIVE_CAMERA = 0;
+    aoPass.gtaoMaterial.needsUpdate = true; aoPass.pdMaterial.needsUpdate = true;
+    aoPass.updateGtaoMaterial({ radius:0.35, distanceExponent:1.5, thickness:1, scale:1, samples:12 });
+    aoPass.updatePdMaterial({ lumaPhi:10, depthPhi:2, normalPhi:3, radius:5, rings:2, samples:12 });
+    aoPass.blendIntensity = 0.85;
+    composer.addPass(aoPass);
+    composer.addPass(new OutputPass());
+    composer.setPixelRatio(renderer.getPixelRatio());
+    composer.setSize(stage.clientWidth, stage.clientHeight);
+  }
+} catch (e) { composer = null; aoPass = null; }
+loadingEl.hidden = true;
+window.__voReady = true;
+/* a link like #p-luis opens that person's card on load */
+function focusFromHash(){ var m = /^#p-([a-z]+)$/.exec(location.hash || ""); if (m && BY[m[1]]) focusOn(BY[m[1]]); }
+window.addEventListener("hashchange", focusFromHash);
+focusFromHash();
+
 /* ---------- loop ---------- */
-var clock = new T.Clock(), tv = new V3(), headPos = new V3();
+var clock = new T.Clock(), headPos = new V3(), tv = new V3();
+var aoFailed = false;
 function frame(){
   requestAnimationFrame(frame);
   var dt = Math.min(clock.getDelta(), 0.05), t = clock.elapsedTime;
 
   PEOPLE.forEach(function(p){ updateAgent(p, t, dt); });
   updateChats(t);
+  PEOPLE.forEach(function(p){ if (p.root.visible) updateRig(p, t, dt); else p.rig.mixer.update(dt); });
+  REMOTE.forEach(function(p){ updateRemote(p, t, dt); });
 
-  /* entrance lamp: red while someone is out at a meeting */
   var busy = false;
   PEOPLE.forEach(function(p){ if (p.trip && p.trip.kind === "meeting") busy = true; });
   roomLampMat.color.setHex(busy ? 0xff2a3d : 0x29c46b);
 
-  /* fire + heat */
   flames.forEach(function(f){
-    var n = noise(t * 7 + f.o);
-    f.m.scale.y = f.s * (0.82 + 0.28 * n);
+    var nn = noise(t * 7 + f.o);
+    f.m.scale.y = f.s * (0.82 + 0.28 * nn);
     f.m.scale.x = (f.m.scale.z > 0.5 ? 1 : 0.55) * (0.92 + 0.1 * noise(t * 5 + f.o * 2));
   });
-  fireLight.intensity = 1.0 + 0.35 * noise(t * 9);
+  fireLight.intensity = 0.8 + 0.3 * noise(t * 9);
   var glow = 1.05 + 0.25 * Math.sin(t * 1.4);
   heatStrips.forEach(function(m){ m.material.emissiveIntensity = glow; });
   heatLight.intensity = 0.7 + 0.15 * Math.sin(t * 1.4);
@@ -1347,18 +2115,18 @@ function frame(){
     h.m.scale.setScalar(0.035 * (1 - f) + 0.004);
   });
 
-  /* camera */
   if (focus) {
     focus.head.getWorldPosition(headPos);
+    if (!focus.root.visible) headPos.copy(EXIT_SPOT).setY(1.6);
     goal.tx = headPos.x; goal.ty = headPos.y - 0.35; goal.tz = headPos.z;
   }
-  var k = 1 - Math.exp(-dt * (dragging ? 14 : reduceMotion ? 9 : 3.2));
-  view.tx = lerp(view.tx, goal.tx, k); view.ty = lerp(view.ty, goal.ty, k); view.tz = lerp(view.tz, goal.tz, k);
-  view.r = lerp(view.r, goal.r, k); view.th = lerp(view.th, goal.th, k); view.ph = lerp(view.ph, goal.ph, k);
+  var kk = 1 - Math.exp(-dt * (dragging ? 14 : reduceMotion ? 9 : 3.2));
+  view.tx = lerp(view.tx, goal.tx, kk); view.ty = lerp(view.ty, goal.ty, kk); view.tz = lerp(view.tz, goal.tz, kk);
+  view.r = lerp(view.r, goal.r, kk); view.th = lerp(view.th, goal.th, kk); view.ph = lerp(view.ph, goal.ph, kk);
   var idle = reduceMotion ? 0 : clamp(t - lastInteract - 4, 0, 3) / 3;
   if (lastInteract < 0) idle = reduceMotion ? 0 : 1;
-  var th = view.th + idle * 0.05 * Math.sin(t * 0.17);
-  var ph = view.ph + idle * 0.015 * Math.sin(t * 0.23);
+  var th = view.th + idle * 0.04 * Math.sin(t * 0.17);
+  var ph = view.ph + idle * 0.012 * Math.sin(t * 0.23);
   basis(th, ph);
   camera.position.set(view.tx + camDir.x * 70, view.ty + camDir.y * 70, view.tz + camDir.z * 70);
   camera.lookAt(view.tx, view.ty, view.tz);
@@ -1366,32 +2134,45 @@ function frame(){
   camera.updateProjectionMatrix();
 
   if (focus) {
-    focusRing.visible = focus.root.visible;
+    focusRing.visible = focus.root.visible && !focus.remote;
+    var mk = MOODS[focus.mood.kind].e + " " + MOODS[focus.mood.kind].label;
+    if (cMood.textContent !== mk) cMood.textContent = mk;
     focusRing.position.set(focus.root.position.x, 0.012, focus.root.position.z);
     ringMat.opacity = 0.6 + 0.3 * Math.sin(t * 4);
     if (cStatus.textContent !== focus.statusNow) cStatus.textContent = focus.statusNow;
   } else focusRing.visible = false;
 
-  renderer.render(scene, camera);
+  REMOTE.forEach(function(p){ renderer.setRenderTarget(p.rt); renderer.render(p.rs, p.rcam); });
+  renderer.setRenderTarget(null);
+  if (composer && !aoFailed) {
+    try { composer.render(dt); } catch (e) { aoFailed = true; renderer.render(scene, camera); }
+  } else renderer.render(scene, camera);
 
-  /* labels */
-  var w = stage.clientWidth, h = stage.clientHeight;
-  PEOPLE.forEach(function(p){
-    p.head.getWorldPosition(tv);
-    tv.y += 0.34;
-    tv.project(camera);
+  /* labels: name only, status on hover or focus; drop the ones that would overlap */
+  var w = stage.clientWidth, h = stage.clientHeight, placed = [];
+  var order = ALL.slice().sort(function(a, b){ return (a === focus ? -1 : 0) - (b === focus ? -1 : 0) || (a.remote ? -9 : a.root.position.z) - (b.remote ? -9 : b.root.position.z); });
+  order.forEach(function(p){
     var tag = p.tag;
-    if (tv.z > 1 || tv.x < -1.3 || tv.x > 1.3 || tv.y < -1.3 || tv.y > 1.3) { tag.style.visibility = "hidden"; return; }
-    tag.style.visibility = "visible";
+    p.head.getWorldPosition(tv);
+    if (!p.root.visible) tv.copy(EXIT_SPOT).setY(1.6);
+    tv.y += p.remote ? 0 : 0.3;
+    tv.project(camera);
+    if (tv.z > 1 || tv.x < -1.2 || tv.x > 1.2 || tv.y < -1.2 || tv.y > 1.2 || (!p.root.visible && p !== focus)) { tag.classList.add("off"); showBubble(p, null); return; }
     var x = (tv.x + 1) / 2 * w, y = (1 - tv.y) / 2 * h;
+    if (!p.tagW) { p.tagW = tag.offsetWidth || 70; p.tagH = tag.offsetHeight || 24; }
+    var rect = { l:x - p.tagW / 2, r:x + p.tagW / 2, t:y - p.tagH - 6, b:y - 6 };
+    var hit = placed.some(function(q){ return rect.l < q.r + 4 && rect.r > q.l - 4 && rect.t < q.b + 2 && rect.b > q.t - 2; });
+    if (hit && p !== focus && !p.bubbleOn) { tag.classList.add("off"); return; }
+    placed.push(rect);
+    tag.classList.remove("off");
     tag.style.transform = "translate(" + x.toFixed(1) + "px," + y.toFixed(1) + "px) translate(-50%,-100%) translateY(-6px)";
-    tag.style.opacity = p === focus || !focus ? 1 : 0.8;
     tag.style.zIndex = p === focus ? 2000 : String(Math.round((1 - tv.z) * 900));
     if (p.tagText !== p.statusNow) { p.tagText = p.statusNow; p.tagSt.textContent = p.statusNow; }
   });
 }
 requestAnimationFrame(frame);
 })();
+
 </script>
 </body>
 </html>
