@@ -243,7 +243,6 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
     <p class="mood" id="cMood"></p>
     <dl class="traits">
       <div><dt>Personality</dt><dd id="cPers"></dd></div>
-      <div><dt>Always talking about</dt><dd id="cTopics"></dd></div>
     </dl>
     <div class="ask">
       <p class="ask-h" id="askH">Ask</p>
@@ -293,17 +292,17 @@ function fail(msg){ loadingEl.hidden = true; fallback.textContent = msg; fallbac
 
 /* ---------- team ---------- */
 var PEOPLE = [
-  { id:"erica", name:"Erica", role:"Manager, Marketing", side:1, z:-1.05, personality:"One of the bosses. Always heading to the next meeting.", topics:"Meetings, calendars and the next call", shirt:"#2f5f9e", pants:"#262b35", skin:"#f1c9a8", hair:"#4a2f1f", style:"long", sleeves:true, screen:"cal",
+  { id:"erica", name:"Erica", role:"Manager, Marketing", side:1, z:-1.05, personality:"One of the bosses. Always heading to the next meeting.", topics:"Meetings, calendars and the next call", shirt:"#4a4d52", dot:"#3d6fb0", pants:"#1d1f24", skin:"#efcfbd", hair:"#3b2417", highlight:"#5a3a26", style:"softwave", part:0, eyeColor:"#4a2c1c", vneck:true, alwaysSmile:true, sleeves:true, screen:"cal",
     blurb:"Her calendar has no empty squares. If her chair is empty, check the Meeting Room.",
     walker:{ sit:8, away:9, offset:0, text:{ sit:"Between meetings", out:"Off to another meeting", away:"In a meeting (again)", back:"Back for five minutes" } } },
   { id:"allyson", name:"Allyson", role:"Manager, Marketing", side:1, z:0.8, personality:"One of the bosses. Back-to-back meetings, every single day.", topics:"Meetings and quick syncs", shirt:"#7a4d9e", pants:"#2b2833", skin:"#f3d2b6", hair:"#c9a05c", style:"wavy", sleeves:true, screen:"cal2",
     blurb:"Leaves for one meeting, comes back for a coffee, leaves for the next one.",
     walker:{ sit:6, away:11, offset:14, text:{ sit:"Back-to-back meetings", out:"Running to the next call", away:"Back-to-back meetings", back:"Back-to-back meetings" } } },
-  { id:"stephanie", name:"Stephanie", role:"Flame products", side:1, z:2.65, personality:"Always solving fireplace issues.", topics:"Fireplaces and Flame products", shirt:"#e0703a", pants:"#33302d", skin:"#e8b892", hair:"#111013", style:"pony", sleeves:false, screen:"fire", glasses:true,
+  { id:"stephanie", name:"Stephanie", role:"Flame products", side:1, z:2.65, personality:"Always solving fireplace issues.", topics:"Fireplaces and Flame products", shirt:"#141416", dot:"#e0703a", pants:"#1c2333", skin:"#f0d2c0", hair:"#1e1512", highlight:"#4a1f22", style:"softwave", part:-0.022, sleeves:false, puff:true, alwaysSmile:true, screen:"fire", glasses:true,
     status:"Fixing a fireplace issue", blurb:"Electric fireplaces. If a flame effect looks wrong, she already knows why." },
-  { id:"debbie", name:"Debbie", role:"Heat products", side:-1, z:0.8, personality:"Keeps every room in the catalog warm.", topics:"Baseboards and Heat products", shirt:"#b83c4c", pants:"#2d3138", skin:"#f0c6a2", hair:"#2b1d16", style:"long", sleeves:true, screen:"sheet",
+  { id:"debbie", name:"Debbie", role:"Heat products", side:-1, z:0.8, personality:"Keeps every room in the catalog warm.", topics:"Baseboards and Heat products", shirt:"#b83c4c", pants:"#2d3138", skin:"#e8c4a4", hair:"#211611", style:"straight", part:0.012, framing:true, eyeShape:"almond", earrings:"drop", alwaysSmile:true, sleeves:true, screen:"sheet",
     status:"Heat products", blurb:"Baseboards, wall heaters and everything that keeps a room warm in January." },
-  { id:"olivia", name:"Olivia", role:"Designer, web and channel images", side:-1, z:-1.05, personality:"Creates every image for the website and the other channels. Notices every pixel.", topics:"Retouching, lifestyle images, banners and social graphics", shirt:"#2a9d8f", pants:"#22262c", skin:"#c68b62", hair:"#e3c16f", style:"halfup", sleeves:false, screen:"swatch",
+  { id:"olivia", name:"Olivia", role:"Designer, web and channel images", side:-1, z:-1.05, personality:"Creates every image for the website and the other channels. Notices every pixel.", topics:"Retouching, lifestyle images, banners and social graphics", shirt:"#2a9d8f", pants:"#22262c", skin:"#f2d6c6", hair:"#e3c16f", style:"straight", part:-0.02, sunglasses:true, earrings:"small", alwaysSmile:true, coat:true, sleeves:true, screen:"swatch",
     status:"Retouching product shots", blurb:"Turns product shots and brand colors into pages people actually want to scroll." },
   { id:"luis", name:"Luis", role:"Web Manager", side:-1, z:4.5, personality:"Headphones on, building the web.", topics:"The Dimplex, Convectair and Cadet sites", shirt:"#34495e", pants:"#23272e", skin:"#b98a68", hair:"#0c0c0e", style:"short", sleeves:false, screen:"code", headphones:true,
     status:"Headphones on, building the web", blurb:"Dimplex, Convectair and Cadet sites. Headphones on means deep in a build." },
@@ -324,7 +323,7 @@ var LINES = {
 var REMOTE = [
   { id:"marissa", name:"Marissa", fullName:"Marissa", role:"Team member, remote", remote:true, sx:-1.95, shirt:"#4f7cc4", pants:"#2a2d35", skin:"#e9b996", hair:"#5a3a26", style:"wavy", sleeves:true, glasses:true,
     status:"Online, working remotely", personality:"Works remotely and is always one message away.", topics:"Team updates and shared files" },
-  { id:"stephanieb", name:"Stephanie B.", fullName:"Stephanie Benoit", role:"Team member, remote", remote:true, sx:1.95, shirt:"#151618", pants:"#2b2f36", skin:"#f1d3c2", hair:"#7a3b22", highlight:"#a5583a", style:"curly", sleeves:false, sleeveless:true, lips:"#b3122a", earrings:true, alwaysSmile:true,
+  { id:"stephanieb", name:"Stephanie B.", fullName:"Stephanie Benoit", role:"Team member, remote", remote:true, sx:1.95, shirt:"#151618", dot:"#b5543a", pants:"#2b2f36", skin:"#f1d3c2", hair:"#7a3b22", highlight:"#a5583a", style:"curly", sleeves:false, sleeveless:true, lips:"#b3122a", earrings:true, alwaysSmile:true,
     status:"Online, working remotely", personality:"Remote teammate with great energy on every call.", topics:"Team updates and remote collaboration" }
 ];
 var ALL = PEOPLE.concat(REMOTE);
@@ -340,7 +339,7 @@ var isSmall = Math.min(window.innerWidth, window.innerHeight) < 700;
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isSmall ? 1.75 : 2));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = T.PCFSoftShadowMap;
-renderer.shadowMap.autoUpdate = false;
+renderer.shadowMap.autoUpdate = true;
 renderer.outputColorSpace = T.SRGBColorSpace;
 renderer.toneMapping = T.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.0;
@@ -953,23 +952,26 @@ var ACTS = {
 };
 
 var _a = new V3(), _b = new V3(), _d = new V3(), _t = new V3(), _q = new T.Quaternion(), _wq = new T.Quaternion(), _pq = new T.Quaternion(), _rq = new T.Quaternion(), UP = new V3(0, 1, 0);
+var SCR = [0, 0, 0];
+function v3a(a, x, y, z){ a[0] = x; a[1] = y; a[2] = z; return a; }
 function aim(bone, child, dir, w, rq){
   if (w <= 0.001 || !bone || !child) return;
-  bone.getWorldPosition(_a); child.getWorldPosition(_b);
+  _a.setFromMatrixPosition(bone.matrixWorld); _b.setFromMatrixPosition(child.matrixWorld);
   _d.subVectors(_b, _a).normalize();
   _t.set(dir[0], dir[1], dir[2]).normalize().applyQuaternion(rq);
   if (w < 1) _t.lerpVectors(_d, _t, w).normalize();
   _q.setFromUnitVectors(_d, _t);
-  bone.getWorldQuaternion(_wq); _wq.premultiply(_q);
-  bone.parent.getWorldQuaternion(_pq);
+  bone.matrixWorld.decompose(_dp, _wq, _ds); _wq.premultiply(_q);
+  bone.parent.matrixWorld.decompose(_dp, _pq, _ds);
   bone.quaternion.copy(_pq.invert().multiply(_wq));
   bone.updateMatrixWorld(true);
 }
+var _dp = new V3(), _ds = new V3();
 function yawBone(bone, ang){
   if (!bone || Math.abs(ang) < 0.0005) return;
   _q.setFromAxisAngle(UP, ang);
-  bone.getWorldQuaternion(_wq); _wq.premultiply(_q);
-  bone.parent.getWorldQuaternion(_pq);
+  bone.matrixWorld.decompose(_dp, _wq, _ds); _wq.premultiply(_q);
+  bone.parent.matrixWorld.decompose(_dp, _pq, _ds);
   bone.quaternion.copy(_pq.invert().multiply(_wq));
   bone.updateMatrixWorld(true);
 }
@@ -995,27 +997,42 @@ function colorize(mesh, p, factor){
 }
 
 /* head attachments are modelled in the model's bind-pose space, then re-parented to the Head bone so they follow every animation */
+function waveLocks(g, mats, n, o){
+  var r = seeded(o.seed || 5);
+  for (var i = 0; i < n; i++) {
+    var ang = Math.PI * (0.42 + 1.16 * i / (n - 1)) + (r() - 0.5) * 0.1;
+    var sweep = o.sweep && i > n * 0.62, pts = [];
+    for (var j = 0; j <= 7; j++) {
+      var k = j / 7, y = 1.76 - k * o.len, rad = 0.106 + k * 0.034;
+      var w = o.amp * Math.sin(k * o.freq + i * 1.3) * Math.min(1, k * 3);
+      var x = Math.sin(ang) * rad + w * Math.cos(ang), z = Math.cos(ang) * rad - 0.022 - w * Math.sin(ang);
+      if (sweep) { x += k * 0.06; z += k * 0.09; }
+      pts.push(new T.Vector3(x, y, z));
+    }
+    var geo = new T.TubeGeometry(new T.CatmullRomCurve3(pts), 40, o.thick * (0.85 + r() * 0.3), 8, false);
+    var m = new T.Mesh(geo, mats[i % mats.length]);
+    m.castShadow = false; g.add(m);
+  }
+}
 function buildHead(p, model, head){
   var g = new T.Group(); model.add(g);
   var hm = new T.MeshPhysicalMaterial({ color:p.hair, roughness:0.48, sheen:0.7, sheenRoughness:0.45, sheenColor:new T.Color(p.hair).offsetHSL(0, 0, 0.22), envMapIntensity:0.55 });
   var cap = add(G.hcap2, hm, 0.097, 0.114, 0.137, 0, 1.709, -0.008, g);
   cap.rotation.x = -0.42;
   var st = p.style;
-  if (st === "curly") {
-    /* long, voluminous loose curls with a deep side part, swept over one shoulder */
+  if (st === "curly" || st === "softwave" || st === "straight") {
+    /* smooth, flowing locks: tube strands along wavy paths around the back and sides */
     var hl = new T.MeshPhysicalMaterial({ color:p.highlight || p.hair, roughness:0.45, sheen:0.7, sheenRoughness:0.45, sheenColor:new T.Color(p.highlight || p.hair).offsetHSL(0, 0, 0.18), envMapIntensity:0.55 });
-    add(G.hsph, hm, 0.118, 0.112, 0.132, -0.006, 1.69, -0.03, g);
-    add(G.hsph, hm, 0.095, 0.05, 0.12, -0.022, 1.785, 0.008, g);
-    var cr = seeded(42), ci;
-    for (ci = 0; ci < 30; ci++) {
-      var ang = Math.PI * (0.45 + cr() * 1.1), rad = 0.105 + cr() * 0.03, cy2 = 1.4 + cr() * 0.38;
-      var cs = 0.028 + cr() * 0.016;
-      add(G.hsph, ci % 3 ? hm : hl, cs, cs * 1.15, cs, Math.sin(ang) * rad, cy2, Math.cos(ang) * rad - 0.02, g, false);
-    }
-    for (ci = 0; ci < 9; ci++) {
-      var sc2 = 0.03 + cr() * 0.012;
-      add(G.hsph, ci % 2 ? hl : hm, sc2, sc2 * 1.2, sc2, 0.1 + cr() * 0.05, 1.36 + ci * 0.028, 0.0 + cr() * 0.06, g, false);
-    }
+    var part = p.part || 0;
+    add(G.hsph, hm, 0.112, 0.108, 0.13, part * 0.3, 1.69, -0.028, g);
+    add(G.hsph, hm, 0.094, 0.046, 0.12, part, 1.786, 0.008, g);
+    if (st === "curly") waveLocks(g, [hm, hl, hm], 20, { len:0.44, amp:0.024, freq:10, thick:0.024, sweep:true, seed:42 });
+    else if (st === "softwave") waveLocks(g, [hm, hm, hl], 16, { len:0.32, amp:0.011, freq:5, thick:0.021, sweep:false, seed:17 });
+    else waveLocks(g, [hm, hm, hl], 17, { len:0.4, amp:0.0035, freq:2, thick:0.021, sweep:false, seed:23 });
+    if (p.framing) [-1, 1].forEach(function(s){
+      var fp = [new T.Vector3(s * 0.086, 1.74, 0.07), new T.Vector3(s * 0.098, 1.66, 0.075), new T.Vector3(s * 0.1, 1.56, 0.06), new T.Vector3(s * 0.11, 1.46, 0.045)];
+      var fm = new T.Mesh(new T.TubeGeometry(new T.CatmullRomCurve3(fp), 24, 0.012, 8, false), hm); g.add(fm);
+    });
   } else if (st === "short") {
     add(G.hsph, hm, 0.09, 0.04, 0.12, 0, 1.785, 0.012, g);
   } else {
@@ -1030,7 +1047,7 @@ function buildHead(p, model, head){
       back.rotation.x = 0.12;
       [-1, 1].forEach(function(s){ add(G.hsph, hm, 0.028, 0.13, 0.05, s * 0.088, 1.6, 0.005, g); });
       if (st === "wavy") {
-        [[-0.065, 1.37, -0.085], [0, 1.35, -0.095], [0.065, 1.37, -0.085], [-0.09, 1.47, -0.02], [0.09, 1.47, -0.02]].forEach(function(q){ add(G.hsph, hm, 0.045, 0.05, 0.042, q[0], q[1], q[2], g, false); });
+        waveLocks(g, [hm], 10, { len:0.3, amp:0.012, freq:6, thick:0.018, sweep:false, seed:9 });
       } else if (st === "halfup") {
         add(G.hsph, hm, 0.042, 0.04, 0.042, 0, 1.745, -0.128, g);
       }
@@ -1059,34 +1076,61 @@ function buildHead(p, model, head){
     add(G.box, fr, 0.018, 0.004, 0.005, 0, 1.676, 0.133, g, false);
   }
   /* face: eyes with pupils (they blink), brows, a nose hint and a mouth that opens while talking */
-  var sclera = M("#f3f0ea", { roughness:0.35 }), pupilM = M("#1c1e23", { roughness:0.2 });
+  var sclera = M("#f3f0ea", { roughness:0.35, polygonOffset:true, polygonOffsetFactor:-2, polygonOffsetUnits:-2 }), pupilM = M(p.eyeColor || "#1c1e23", { roughness:0.2, polygonOffset:true, polygonOffsetFactor:-4, polygonOffsetUnits:-4 });
   var browM = M(new T.Color(p.hair).multiplyScalar(0.8).getStyle(), { roughness:0.6 });
   var eyes = [], brows = [], cheeks = [];
   var skinM = M(p.skin, { roughness:0.55 });
   [-1, 1].forEach(function(s){
-    var eg = new T.Group(); eg.position.set(s * 0.031, 1.668, 0.122); g.add(eg);
-    add(G.hsph, sclera, 0.016, 0.0135, 0.0065, 0, 0, 0, eg, false);
-    add(G.hsph, pupilM, 0.0078, 0.0084, 0.003, 0, 0, 0.0052, eg, false);
+    var eg = new T.Group(); eg.position.set(s * 0.031, 1.668, 0.116); g.add(eg);
+    add(G.hsph, sclera, 0.016, p.eyeShape === "almond" ? 0.0098 : 0.0125, 0.0035, 0, 0, 0, eg, false);
+    if (p.eyeShape === "almond") eg.rotation.z = s * 0.1;
+    add(G.hsph, pupilM, 0.0074, 0.008, 0.0016, 0, 0, 0.0031, eg, false);
     eyes.push(eg);
-    var br = add(G.box, browM, 0.024, 0.0038, 0.004, s * 0.033, 1.69, 0.121, g, false);
+    var br = add(G.box, browM, 0.024, p.eyeShape === "almond" ? 0.0026 : 0.0034, 0.003, s * 0.033, 1.69, 0.118, g, false);
     br.rotation.z = -s * 0.1; br.userData.s = s; brows.push(br);
-    var ck = add(G.hsph, skinM, 0.016, 0.011, 0.008, s * 0.046, 1.634, 0.113, g, false);
-    ck.userData.s = s; cheeks.push(ck);
   });
-  add(G.hsph, M(p.skin, { roughness:0.55 }), 0.0085, 0.016, 0.011, 0, 1.646, 0.129, g, false);
-  var mouth = add(G.hsph, M(p.lips || "#7b3f3b", { roughness:0.4 }), 0.016, 0.0034, 0.004, 0, 1.617, 0.121, g, false);
+  add(G.hsph, skinM, 0.0068, 0.013, 0.0065, 0, 1.646, 0.125, g, false);
+  var mouth = add(G.hsph, M(p.lips || "#7b3f3b", { roughness:0.4, polygonOffset:true, polygonOffsetFactor:-3, polygonOffsetUnits:-3 }), 0.016, 0.0034, 0.003, 0, 1.617, 0.12, g, false);
   mouth.userData.base = 0.0034;
   /* mouth curve for expressions: a thin arc, upturned for a smile, turned down for a frown */
-  var lipM = M(p.lips || "#7b3f3b", { roughness:0.4 });
+  var lipM = M(p.lips || "#7b3f3b", { roughness:0.4, polygonOffset:true, polygonOffsetFactor:-3, polygonOffsetUnits:-3 });
   if (p.earrings) {
     var gold = M("#d4a640", { roughness:0.22, metalness:1 });
-    [-1, 1].forEach(function(s){ var hoop = add(G.hoop, gold, 1, 1, 1, s * 0.094, 1.6, -0.005, g, false); hoop.rotation.y = Math.PI / 2; });
+    [-1, 1].forEach(function(s){
+      if (p.earrings === "drop") { add(G.cyl, gold, 0.0018, 0.012, 0.0018, s * 0.093, 1.6, -0.004, g, false); add(G.box, gold, 0.004, 0.012, 0.004, s * 0.093, 1.588, -0.004, g, false); }
+      else { var hs = p.earrings === "small" ? 0.55 : 1; var hoop = add(G.hoop, gold, hs, hs, hs, s * 0.094, 1.6 + (1 - hs) * 0.008, -0.005, g, false); hoop.rotation.y = Math.PI / 2; }
+    });
+  }
+  if (p.sunglasses) {
+    /* sunglasses resting on top of the head */
+    var sgF = M("#1a1b1e", { roughness:0.3, metalness:0.3 }), sgL = M("#2c2a2a", { roughness:0.08, metalness:0.4 });
+    var sgg = new T.Group(); sgg.position.set(0, 1.836, 0.03); sgg.rotation.x = -0.32; g.add(sgg);
+    [-1, 1].forEach(function(s){ add(G.box, sgL, 0.046, 0.026, 0.004, s * 0.034, 0, 0, sgg, false); add(G.box, sgF, 0.05, 0.003, 0.005, s * 0.034, 0.014, 0, sgg, false); });
+    add(G.box, sgF, 0.02, 0.003, 0.004, 0, 0.01, 0, sgg, false);
   }
   var curve = new T.Mesh(G.mouthArc, lipM);
-  curve.position.set(0, 1.62, 0.123); g.add(curve);
+  curve.position.set(0, 1.62, 0.121); g.add(curve);
   p.face = { eyes:eyes, mouth:mouth, curve:curve, brows:brows, cheeks:cheeks };
+  mergeStatic(g, [eyes[0], eyes[1], mouth, curve].concat(brows));
   model.updateMatrixWorld(true);
   head.attach(g);
+}
+function mergeStatic(g, keep){
+  var groups = {}, victims = [];
+  g.children.forEach(function(o){
+    if (!o.isMesh || keep.indexOf(o) >= 0 || Array.isArray(o.material) || !o.geometry.index) return;
+    var at = o.geometry.attributes;
+    if (!at.position || !at.normal || !at.uv || Object.keys(at).length !== 3) return;
+    o.updateMatrix();
+    (groups[o.material.uuid] = groups[o.material.uuid] || { mat:o.material, cast:o.castShadow, geos:[] }).geos.push(o.geometry.clone().applyMatrix4(o.matrix));
+    victims.push(o);
+  });
+  victims.forEach(function(o){ g.remove(o); });
+  Object.keys(groups).forEach(function(k){
+    var gr = groups[k], geo = gr.geos.length > 1 ? BufferGeometryUtils.mergeGeometries(gr.geos, false) : gr.geos[0];
+    if (!geo) return;
+    var m = new T.Mesh(geo, gr.mat); m.castShadow = gr.cast; m.receiveShadow = true; g.add(m);
+  });
 }
 function buildProps(p, model, hand){
   var g = new T.Group(); model.add(g);
@@ -1121,9 +1165,9 @@ function fabricNormal(twill){
 var WEAVE = null, TWILL = null;
 var GARMENTS = ["shirt", "pants", "shoe", "belt", "trim"];
 var THICK = { shirt:0.022, pants:0.017, shoe:0.016, belt:0.027, trim:0.03 };
-function thickAt(gk, x, y){
+function thickAt(gk, x, y, p){
   x = Math.abs(x);
-  if (gk === "shirt") return (x > 0.2 && y > 1.25 ? 0.02 : 0.022) + (y < 1.1 ? (1.1 - y) * 0.16 : 0);
+  if (gk === "shirt") return (x > 0.2 && y > 1.25 ? (p && p.puff ? 0.034 : 0.02) : 0.022) + (y < 1.1 ? (1.1 - y) * 0.16 : 0);
   if (gk === "pants") return 0.017 + (y < 0.35 ? (0.35 - y) * 0.045 : 0);
   if (gk === "trim") return y > 1.44 ? 0.033 : 0.03;
   return THICK[gk];
@@ -1140,11 +1184,11 @@ function denimTex(){
 var DENIM = null;
 var OUTFIT = {
   luis:      { shirt:"#3b6ea8", pants:"#26292f", shoe:"#4a2d1a", trim:"#f3f4f6" },
-  erica:     { shirt:"#1f3a63", pants:"#1b1d22", shoe:"#141518", trim:"#e9edf2" },
+  erica:     { shirt:"#4a4d52", pants:"#1d1f24", shoe:"#141518", trim:"#43464b" },
   allyson:   { shirt:"#7a4d9e", pants:"#2c2a33", shoe:"#5a2830", trim:"#5f3c80" },
-  stephanie: { shirt:"#e0703a", pants:"#24324f", shoe:"#ecebe6", trim:"#c45c29" },
-  debbie:    { shirt:"#b83c4c", pants:"#16171a", shoe:"#141518", trim:"#962e3d" },
-  olivia:    { shirt:"#2a9d8f", pants:"#4a4f58", shoe:"#ecebe6", trim:"#20786d" },
+  stephanie: { shirt:"#141416", pants:"#1c2333", shoe:"#141518", trim:"#141416" },
+  debbie:    { shirt:"#2a2b30", pants:"#17181b", shoe:"#141518", trim:"#1b1c20" },
+  olivia:    { shirt:"#b9a07a", pants:"#4a4f58", shoe:"#ecebe6", trim:"#3a3226" },
   carla:     { shirt:"#e2ac2f", pants:"#1f2c4a", shoe:"#6b4226", trim:"#f6f1e4" },
   marissa:   { shirt:"#4f7cc4", pants:"#2a2d35", shoe:"#141518", trim:"#3c64a5" },
   stephanieb:{ shirt:"#151618", pants:"#2b2f36", shoe:"#141518", trim:"#151618" }
@@ -1155,12 +1199,14 @@ function garmentOf(p, x, y, zz){
   if (y > 1.505 && x < 0.2) return null;
   var sleeve = p.sleeveless ? 0.17 : p.sleeves ? 0.665 : 0.36;
   if (y > 1.2 && x > sleeve) return null;
+  if (p.coat && y > 0.6 && y < 0.975 && x < 0.3) return "shirt";
   if (y < 0.975 && x < 0.3) return "pants";
-  if (y < 1.008 && x < 0.3) return "belt";
-  if (y < 1.04 && x < 0.3) return "trim";
+  if (y < 1.008 && x < 0.3) return p.coat ? "shirt" : "belt";
+  if (!p.coat && y < 1.04 && x < 0.3) return "trim";
   if (!p.sleeves && y > 1.25 && x > 0.315) return "trim";
+  if (p.vneck && zz > 0.04 && y > 1.36 && x < 0.075 - (1.5 - y) * 0.5) return null;
   if (y > 1.445 && x < 0.105) return "trim";
-  if (x < 0.013 && y > 1.06 && y < 1.445 && zz > 0.05) return "trim";
+  if (!p.vneck && !p.puff && x < 0.013 && y > 1.06 && y < 1.445 && zz > 0.05) return "trim";
   if (p.sleeves && y > 1.2 && x > 0.615) return "trim";
   return "shirt";
 }
@@ -1180,7 +1226,7 @@ function buildClothes(p, body){
         var ni = map.get(v);
         if (ni === undefined) {
           ni = P.length / 3; map.set(v, ni);
-          var nx = nor.getX(v), ny = nor.getY(v), nz = nor.getZ(v), th = thickAt(gk, pos.getX(v), pos.getY(v));
+          var nx = nor.getX(v), ny = nor.getY(v), nz = nor.getZ(v), th = thickAt(gk, pos.getX(v), pos.getY(v), p);
           P.push(pos.getX(v) + nx * th, pos.getY(v) + ny * th, pos.getZ(v) + nz * th);
           N.push(nx, ny, nz); U.push(uv ? uv.getX(v) : 0, uv ? uv.getY(v) : 0);
           SI.push(si.getX(v), si.getY(v), si.getZ(v), si.getW(v)); SW.push(sw.getX(v), sw.getY(v), sw.getZ(v), sw.getW(v));
@@ -1215,6 +1261,18 @@ function buildClothes(p, body){
   body.parent.add(cl);
   return cl;
 }
+/* body triangles that sit entirely under a garment are never seen: removing them ends any z-fighting with the shells */
+function hideCovered(p, body){
+  var g = body.geometry, pos = g.attributes.position, idx = g.index.array, keep = [];
+  var reg = new Array(pos.count);
+  for (var i = 0; i < pos.count; i++) reg[i] = garmentOf(p, pos.getX(i), pos.getY(i), pos.getZ(i));
+  for (var k = 0; k < idx.length; k += 3) {
+    var a = idx[k], b = idx[k + 1], c = idx[k + 2];
+    if (reg[a] && reg[b] && reg[c] && reg[a] !== "shoe") continue;
+    keep.push(a, b, c);
+  }
+  g.setIndex(keep);
+}
 var GLTF = null, CLIPS = {};
 function makeRig(p, sc){
   var root = new T.Group();
@@ -1231,7 +1289,16 @@ function makeRig(p, sc){
       if (o.name.indexOf("Surface") >= 0) bodyMesh = o;
     }
   });
-  if (bodyMesh) buildClothes(p, bodyMesh);
+  if (bodyMesh) {
+    var jm = null;
+    model.traverse(function(o){ if (o.isSkinnedMesh && o !== bodyMesh && o.name.indexOf("Joints") >= 0) jm = o; });
+    if (jm) {
+      var mg = BufferGeometryUtils.mergeGeometries([bodyMesh.geometry, jm.geometry], false);
+      if (mg) { bodyMesh.geometry = mg; jm.parent.remove(jm); }
+    }
+    buildClothes(p, bodyMesh);
+    hideCovered(p, bodyMesh);
+  }
   var b = {};
   BONE_NAMES.forEach(function(n){ b[n] = model.getObjectByName("mixamorig" + n); });
   root.updateMatrixWorld(true);
@@ -1285,13 +1352,13 @@ function updateRig(p, t, dt){
     for (i = 0; i < ORDER.length; i++) {
       n = ORDER[i];
       var d = SEATED[n];
-      if (n === "Spine1" || n === "Spine2") d = [d[0], d[1], d[2] + slump * 0.16];
-      else if (n === "Head") d = [d[0], d[1], d[2] + slump * 0.3];
+      if (n === "Spine1" || n === "Spine2") d = v3a(SCR, d[0], d[1], d[2] + slump * 0.16);
+      else if (n === "Head") d = v3a(SCR, d[0], d[1], d[2] + slump * 0.3);
       if (ty > 0.02 && (n === "LeftHand" || n === "RightHand")) {
         var ph = n === "LeftHand" ? 0 : 1.7;
-        d = [d[0], d[1] + ty * 0.22 * Math.max(0, Math.sin(t * tempo + ph + Math.sin(t * 1.7 + ph) * 2)), d[2]];
+        d = v3a(SCR, d[0], d[1] + ty * 0.22 * Math.max(0, Math.sin(t * tempo + ph + Math.sin(t * 1.7 + ph) * 2)), d[2]);
       }
-      if (ty > 0.02 && (n === "LeftForeArm" || n === "RightForeArm")) d = [d[0], d[1] + ty * 0.03 * Math.sin(t * 7 + (n === "LeftForeArm" ? 0 : 2)), d[2]];
+      if (ty > 0.02 && (n === "LeftForeArm" || n === "RightForeArm")) d = v3a(SCR, d[0], d[1] + ty * 0.03 * Math.sin(t * 7 + (n === "LeftForeArm" ? 0 : 2)), d[2]);
       aim(b[n], b[CHILD[n]], d, n === "Head" ? sit * 0.6 : sit, _rq);
     }
   }
@@ -1308,8 +1375,8 @@ function updateRig(p, t, dt){
         n = ORDER[i];
         var dd = set[n];
         if (!dd) continue;
-        if (a.n === "wave" && n === "RightForeArm") dd = [dd[0] + 0.45 * Math.sin(t * 9), dd[1], dd[2]];
-        if ((a.n === "talk" || a.n === "answer") && n === "RightForeArm") dd = [dd[0] + 0.15 * Math.sin(t * 4.3), dd[1] + 0.2 * Math.sin(t * 3.1), dd[2]];
+        if (a.n === "wave" && n === "RightForeArm") dd = v3a(SCR, dd[0] + 0.45 * Math.sin(t * 9), dd[1], dd[2]);
+        if ((a.n === "talk" || a.n === "answer") && n === "RightForeArm") dd = v3a(SCR, dd[0] + 0.15 * Math.sin(t * 4.3), dd[1] + 0.2 * Math.sin(t * 3.1), dd[2]);
         aim(b[n], b[CHILD[n]], dd, w, _rq);
       }
       if (a.n === "turn" || a.n === "answer") {
@@ -1348,8 +1415,8 @@ function updateRig(p, t, dt){
     p.expr = lerp(p.expr === undefined ? want : p.expr, want, 1 - Math.exp(-dt * 3));
     var sm = Math.max(0, p.expr), fr = Math.max(0, -p.expr);
     f.eyes[0].scale.y = bl * (1 - 0.3 * sm); f.eyes[1].scale.y = bl * (1 - 0.3 * sm);
-    f.cheeks.forEach(function(c){ c.scale.set(0.016, 0.011 + 0.004 * sm, 0.006 + 0.008 * sm); c.position.y = 1.634 + 0.004 * sm; });
     f.brows.forEach(function(br){ br.rotation.z = -br.userData.s * (0.1 - 0.28 * fr + 0.06 * sm); br.position.y = 1.69 + 0.003 * sm - 0.003 * fr; });
+    f.curve.position.x = 0;
     var talking = (p.answering && t < p.answering && t > (p.speakFrom || 0)) || p.bubbleOn || (a && a.n === "talk" && t - a.t0 < a.dur);
     var open = talking ? 0.3 + 0.7 * Math.abs(Math.sin(t * 12.5 + Math.sin(t * 3.3) * 2.2)) : 0;
     p.mouthOpen = lerp(p.mouthOpen || 0, open, 1 - Math.exp(-dt * 18));
@@ -2285,14 +2352,14 @@ var cMood = document.getElementById("cMood"), askH = document.getElementById("as
 
 ALL.forEach(function(p){
   var b = document.createElement("button");
-  b.type = "button"; b.className = "chip"; b.style.setProperty("--c", p.shirt);
+  b.type = "button"; b.className = "chip"; b.style.setProperty("--c", p.dot || p.shirt);
   b.setAttribute("aria-pressed", "false");
   b.innerHTML = '<span class="d"></span><span class="lbl">' + p.name + '</span>';
   b.title = p.fullName || p.name;
   b.addEventListener("click", function(){ focus === p ? clearFocus() : focusOn(p); });
   chipsEl.appendChild(b); p.chip = b;
   var tag = document.createElement("button");
-  tag.type = "button"; tag.className = "tag"; tag.style.setProperty("--c", p.shirt);
+  tag.type = "button"; tag.className = "tag"; tag.style.setProperty("--c", p.dot || p.shirt);
   tag.setAttribute("aria-label", "Open " + p.name);
   tag.innerHTML = '<span class="bubble" aria-hidden="true"></span><span class="n"><i></i>' + p.name + '</span><span class="st"></span>';
   tag.addEventListener("click", function(){ focusOn(p); });
@@ -2359,8 +2426,8 @@ function focusOn(p){
   ALL.forEach(function(q){ q.chip.setAttribute("aria-pressed", q === p ? "true" : "false"); q.tag.classList.toggle("on", q === p); });
   cName.textContent = p.fullName || p.name; cRole.textContent = p.role;
   cMood.textContent = MOODS[p.mood.kind].e + " " + MOODS[p.mood.kind].label;
-  cPers.textContent = p.personality; cTopics.textContent = p.topics;
-  cAvatar.textContent = p.name.charAt(0); cAvatar.style.setProperty("--c", p.shirt);
+  cPers.textContent = p.personality;
+  cAvatar.textContent = p.name.charAt(0); cAvatar.style.setProperty("--c", p.dot || p.shirt);
   cStatus.textContent = p.statusNow || p.status || "";
   askH.textContent = "Ask " + p.name;
   askIn.placeholder = "Ask " + p.name + " something";
@@ -2548,7 +2615,7 @@ scene.traverse(function(o){ if (o.material && o.material.isMeshStandardMaterial 
 
 /* ---------- post-processing: ground-contact ambient occlusion on larger screens ---------- */
 try {
-  if (!isSmall) {
+  if (window.__voAO) {
     var cpr = renderer.getPixelRatio();
     composer = new EffectComposer(renderer, new T.WebGLRenderTarget(Math.max(1, stage.clientWidth * cpr), Math.max(1, stage.clientHeight * cpr), { samples:4, type:T.HalfFloatType }));
     composer.addPass(new RenderPass(scene, camera));
@@ -2585,8 +2652,9 @@ function degrade(){
   if (sun.shadow.mapSize.x > 1024) { sun.shadow.mapSize.set(1024, 1024); if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; } return true; }
   return false;
 }
-var STATS = { calls:0, tris:0, ms:0, n:0, last:0 };
-window.__voStats = function(){ return { drawCalls:STATS.calls, triangles:STATS.tris, frameMs:+(STATS.ms / Math.max(1, STATS.n)).toFixed(1), frames:STATS.n, pixelRatio:renderer.getPixelRatio(), ao:!!composer, shadowMap:sun.shadow.mapSize.x }; };
+var STATS = { calls:0, tris:0, ms:0, n:0, last:0, sec:{ agents:0, rigs:0, render:0, labels:0 } };
+function mark(name, t0){ STATS.sec[name] += performance.now() - t0; }
+window.__voStats = function(){ var n = Math.max(1, STATS.n), sec = {}; Object.keys(STATS.sec).forEach(function(k){ sec[k] = +(STATS.sec[k] / n).toFixed(2); }); return { drawCalls:STATS.calls, triangles:STATS.tris, frameMs:+(STATS.ms / n).toFixed(1), frames:STATS.n, msPerSection:sec, pixelRatio:renderer.getPixelRatio(), ao:!!composer, shadowMap:sun.shadow.mapSize.x, geometries:renderer.info.memory.geometries, textures:renderer.info.memory.textures }; };
 renderer.info.autoReset = false;
 function frame(){
   requestAnimationFrame(frame);
@@ -2610,16 +2678,19 @@ function frame(){
     }
   }
 
+  var m0 = performance.now();
   PEOPLE.forEach(function(p){ updateAgent(p, t, dt); });
   updateChats(t);
+  mark("agents", m0); m0 = performance.now();
   /* people off screen animate at a third of the rate */
   PEOPLE.forEach(function(p){
     p.skipDt = (p.skipDt || 0) + dt;
-    if (p.root.visible && (p.onScreen !== false || frameNo % 3 === p.idx % 3)) { updateRig(p, t, p.skipDt); p.skipDt = 0; }
+    if (p.root.visible) { updateRig(p, t, p.skipDt); p.skipDt = 0; }
     else if (!p.root.visible && frameNo % 3 === 0) { p.rig.mixer.update(p.skipDt); p.skipDt = 0; }
   });
   REMOTE.forEach(function(p){ updateRemote(p, t, dt); });
 
+  mark("rigs", m0);
   var busy = false;
   PEOPLE.forEach(function(p){ if (p.trip && p.trip.kind === "meeting") busy = true; });
   roomLampMat.color.setHex(busy ? 0xff2a3d : 0x29c46b);
@@ -2662,7 +2733,7 @@ function frame(){
     if (cStatus.textContent !== focus.statusNow) cStatus.textContent = focus.statusNow;
   } else focusRing.visible = false;
 
-  renderer.shadowMap.needsUpdate = frameNo % 2 === 0 || frameNo < 3;
+  m0 = performance.now();
   /* remote screens: low resolution, one screen per frame */
   var rp = REMOTE[frameNo % REMOTE.length];
   if (!rp.camOff) { renderer.setRenderTarget(rp.rt); renderer.render(rp.rs, rp.rcam); }
@@ -2678,6 +2749,7 @@ function frame(){
     renderPortrait();
   }
 
+  mark("render", m0); m0 = performance.now();
   /* labels: name only, status on hover or focus; drop the ones that would overlap */
   var w = stage.clientWidth, h = stage.clientHeight, placed = [];
   /* the portrait tile is a see-through window onto the canvas: keep labels out of it */
@@ -2706,6 +2778,7 @@ function frame(){
     tag.style.zIndex = p === focus ? 2000 : String(Math.round((1 - tv.z) * 900));
     if (p.tagText !== p.statusNow) { p.tagText = p.statusNow; p.tagSt.textContent = p.statusNow; }
   });
+  mark("labels", m0);
 }
 requestAnimationFrame(frame);
 })();
