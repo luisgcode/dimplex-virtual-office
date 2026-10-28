@@ -160,6 +160,26 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
 @media (max-width:640px){ .card ~ .hint{display:block} .card:not([hidden]) ~ .hint{display:none} }
 
+/* portrait tile: a video-call style close-up of whoever you are chatting with */
+.ptile{position:absolute;top:62px;right:max(16px, env(safe-area-inset-right, 0px));width:232px;border-radius:14px;overflow:hidden;
+  border:1px solid var(--line);box-shadow:var(--shadow);z-index:3;display:flex;flex-direction:column;pointer-events:none;animation:pop .25s ease-out}
+.pview{position:relative;height:280px;background:transparent;box-shadow:inset 0 0 0 2px rgba(255,255,255,.08)}
+.pview[data-away="1"]{background:#1b1f25}
+.pview[data-away="1"]::after{content:attr(data-msg);position:absolute;inset:0;display:grid;place-items:center;color:#c9d0d8;font-weight:600;font-size:13px}
+.live{position:absolute;top:8px;left:8px;padding:2px 7px;border-radius:6px;background:rgba(227,24,55,.92);color:#fff;font:700 10px/1.4 var(--f-body);letter-spacing:.08em;text-transform:uppercase}
+.pcap{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 12px;background:var(--surface);color:var(--ink);font-size:12.5px}
+.pcap b{font:700 13.5px/1.2 var(--f-body)}
+.pcap span{color:var(--muted);white-space:nowrap}
+@media (max-width:640px){
+  .ptile{top:auto;bottom:12px;width:148px;border-radius:12px}
+  .pview{height:170px}
+  .pcap{flex-direction:column;align-items:flex-start;gap:1px;padding:6px 9px}
+  .pcap span{font-size:11px}
+}
+@media (prefers-reduced-motion: reduce){ .ptile{animation:none} }
+
+#labels{z-index:1}
+
 :root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 </style>
 
@@ -210,6 +230,7 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
     </div>
   </section>
   <p class="hint" id="hint">Drag to rotate. Tap anyone to chat with them.</p>
+  <div class="ptile" id="ptile" hidden><div class="pview" id="pview" data-away="0"><span class="live">Live</span></div><div class="pcap"><b id="pName"></b><span id="pMood"></span></div></div>
   <div class="vignette" aria-hidden="true"></div>
   <div id="loading"><span class="spin"></span>Loading the team…</div>
   <div id="fallback" hidden>The 3D office needs WebGL. Try a recent version of Chrome, Edge, Safari or Firefox.</div>
@@ -233,6 +254,7 @@ import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { GTAOPass } from "three/addons/postprocessing/GTAOPass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
+import * as BufferGeometryUtils from "three/addons/utils/BufferGeometryUtils.js";
 
 (async function(){
 "use strict";
@@ -274,9 +296,9 @@ var LINES = {
   stephanieb:["Hi everyone!","Give me a sec, reconnecting","Can you see my screen?","The call is lagging a bit today"]
 };
 var REMOTE = [
-  { id:"marissa", name:"Marissa", fullName:"Marissa", role:"Team member, remote", remote:true, sx:-3.35, shirt:"#4f7cc4", pants:"#2a2d35", skin:"#e9b996", hair:"#5a3a26", style:"wavy", sleeves:true, glasses:true,
+  { id:"marissa", name:"Marissa", fullName:"Marissa", role:"Team member, remote", remote:true, sx:-1.95, shirt:"#4f7cc4", pants:"#2a2d35", skin:"#e9b996", hair:"#5a3a26", style:"wavy", sleeves:true, glasses:true,
     status:"Online, working remotely", personality:"Works remotely and is always one message away.", topics:"Team updates and shared files" },
-  { id:"stephanieb", name:"Stephanie B.", fullName:"Stephanie Benoit", role:"Team member, remote", remote:true, sx:3.35, shirt:"#6f9e55", pants:"#2b2f36", skin:"#f0cfb4", hair:"#d8b878", style:"long", sleeves:false,
+  { id:"stephanieb", name:"Stephanie B.", fullName:"Stephanie Benoit", role:"Team member, remote", remote:true, sx:1.95, shirt:"#6f9e55", pants:"#2b2f36", skin:"#f0cfb4", hair:"#d8b878", style:"long", sleeves:false,
     status:"Online, working remotely", personality:"Remote teammate with great energy on every call.", topics:"Team updates and remote collaboration" }
 ];
 var ALL = PEOPLE.concat(REMOTE);
@@ -289,9 +311,10 @@ try {
   renderer = new T.WebGLRenderer({ antialias:true, powerPreference:"high-performance" });
 } catch (e) { fail("The 3D office needs WebGL. Try a recent version of Chrome, Edge, Safari or Firefox."); return; }
 var isSmall = Math.min(window.innerWidth, window.innerHeight) < 700;
-renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isSmall ? 1.75 : 2));
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isSmall ? 1.25 : 1.5));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = T.PCFSoftShadowMap;
+renderer.shadowMap.autoUpdate = false;
 renderer.outputColorSpace = T.SRGBColorSpace;
 renderer.toneMapping = T.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.0;
@@ -311,12 +334,12 @@ var composer = null, aoPass = null;
 /* ---------- lights ---------- */
 scene.add(new T.HemisphereLight(0xffffff, 0xc9b49a, 0.42));
 var sun = new T.DirectionalLight(0xfff4e6, 1.0);
-sun.position.set(9, 20, 8);
-sun.target.position.set(0, 0, -1.5);
+sun.position.set(9, 20, 15.9);
+sun.target.position.set(0, 0, 1.9);
 sun.castShadow = true;
 sun.shadow.mapSize.set(isSmall ? 1024 : 2048, isSmall ? 1024 : 2048);
 var sc = sun.shadow.camera;
-sc.left = -12; sc.right = 12; sc.top = 12; sc.bottom = -12; sc.near = 1; sc.far = 60;
+sc.left = -7.5; sc.right = 7.5; sc.top = 7.5; sc.bottom = -7.5; sc.near = 5; sc.far = 50;
 sun.shadow.bias = -0.0004;
 sun.shadow.normalBias = 0.03;
 sun.shadow.radius = 3;
@@ -358,7 +381,7 @@ function add(geo, mat, sx, sy, sz, x, y, z, parent, shadow){
   var m = new T.Mesh(geo, mat);
   m.scale.set(sx, sy, sz);
   m.position.set(x, y, z);
-  m.castShadow = shadow !== false;
+  m.castShadow = shadow !== false && Math.abs(sx * sy * sz) > 0.004;
   m.receiveShadow = true;
   parent.add(m);
   return m;
@@ -413,28 +436,28 @@ var woodTex = canvasTex(512, 512, function(g, w, h){
   }
 });
 woodTex.wrapS = woodTex.wrapT = T.RepeatWrapping;
-woodTex.repeat.set(2.35, 2.55);
-var floor = new T.Mesh(new T.PlaneGeometry(9.4, 10.2), new T.MeshStandardMaterial({ map:woodTex, roughness:0.52, metalness:0.02 }));
+woodTex.repeat.set(1.45, 2.55);
+var floor = new T.Mesh(new T.PlaneGeometry(5.8, 10.2), new T.MeshStandardMaterial({ map:woodTex, roughness:0.52, metalness:0.02 }));
 floor.rotation.x = -Math.PI / 2;
 floor.position.set(0, 0, 0.9);
 floor.receiveShadow = true;
 scene.add(floor);
-add(G.box, M("#bfc6cd", { roughness:0.97 }), 2.2, 0.012, 9.8, 0, 0.006, 0.9, scene, false);
-add(G.box, M("#d4d8dd", { roughness:0.9 }), 9.8, 0.3, 10.6, 0, -0.151, 0.9, scene, false);
+add(G.box, M("#bfc6cd", { roughness:0.97 }), 1.3, 0.012, 9.8, 0, 0.006, 0.9, scene, false);
+add(G.box, M("#d4d8dd", { roughness:0.9 }), 6.2, 0.3, 10.6, 0, -0.151, 0.9, scene, false);
 
 /* entrance mat */
 add(G.box, M("#3a3f47", { roughness:1 }), 1.8, 0.016, 0.9, 0, 0.008, 5.4, scene, false);
 
 /* ---------- walls ---------- */
 /* left wall (full height, faces the camera). The hallway is a dead end at the logo wall. */
-add(G.box, wallMat, 0.2, 3.2, 10.4, -4.6, 1.6, 0.9, scene);
+add(G.box, wallMat, 0.2, 3.2, 10.4, -2.9, 1.6, 0.9, scene);
 /* right wall cut away to a low wall so the right row stays visible */
-add(G.box, wallMat, 0.2, 0.8, 10.4, 4.6, 0.4, 0.9, scene);
-add(G.box, M("#e2e2dc", { roughness:0.8 }), 0.26, 0.04, 10.4, 4.6, 0.82, 0.9, scene, false);
-add(G.box, wallMat, 9.4, 3.2, 0.2, 0, 1.6, -4.2, scene);
+add(G.box, wallMat, 0.2, 0.8, 10.4, 2.9, 0.4, 0.9, scene);
+add(G.box, M("#e2e2dc", { roughness:0.8 }), 0.26, 0.04, 10.4, 2.9, 0.82, 0.9, scene, false);
+add(G.box, wallMat, 5.8, 3.2, 0.2, 0, 1.6, -4.2, scene);
 var skirt = M("#dcdcd6", { roughness:0.8 });
-add(G.box, skirt, 0.03, 0.1, 10.2, -4.49, 0.05, 0.9, scene, false);
-add(G.box, skirt, 9, 0.1, 0.03, 0, 0.05, -4.09, scene, false);
+add(G.box, skirt, 0.03, 0.1, 10.2, -2.79, 0.05, 0.9, scene, false);
+add(G.box, skirt, 5.6, 0.1, 0.03, 0, 0.05, -4.09, scene, false);
 
 /* high windows on the left wall, above the monitors */
 var skyTex = canvasTex(256, 256, function(g, w, h){
@@ -453,24 +476,24 @@ var winMat = new T.MeshBasicMaterial({ map:skyTex });
   var z = q[0], ww = q[1], wy = 2.15, wh = 1.0;
   var win = new T.Mesh(G.plane, winMat);
   win.scale.set(ww, wh, 1);
-  win.position.set(-4.49, wy, z);
+  win.position.set(-2.79, wy, z);
   win.rotation.y = Math.PI / 2;
   scene.add(win);
-  add(G.box, alu, 0.06, 0.05, ww + 0.1, -4.47, wy - wh / 2 - 0.02, z, scene, false);
-  add(G.box, alu, 0.06, 0.05, ww + 0.1, -4.47, wy + wh / 2 + 0.02, z, scene, false);
-  add(G.box, alu, 0.06, wh + 0.06, 0.05, -4.47, wy, z - ww / 2 - 0.02, scene, false);
-  add(G.box, alu, 0.06, wh + 0.06, 0.05, -4.47, wy, z + ww / 2 + 0.02, scene, false);
+  add(G.box, alu, 0.06, 0.05, ww + 0.1, -2.77, wy - wh / 2 - 0.02, z, scene, false);
+  add(G.box, alu, 0.06, 0.05, ww + 0.1, -2.77, wy + wh / 2 + 0.02, z, scene, false);
+  add(G.box, alu, 0.06, wh + 0.06, 0.05, -2.77, wy, z - ww / 2 - 0.02, scene, false);
+  add(G.box, alu, 0.06, wh + 0.06, 0.05, -2.77, wy, z + ww / 2 + 0.02, scene, false);
 });
 
 /* ---------- back wall: backlit Dimplex panel ---------- */
-add(G.box, M("#2c3138", { roughness:0.85 }), 9.0, 3.2, 0.06, 0, 1.6, -4.07, scene, false);
+add(G.box, M("#2c3138", { roughness:0.85 }), 5.6, 3.2, 0.06, 0, 1.6, -4.07, scene, false);
 var haloTex = canvasTex(256, 128, function(g, w, h){
   var gr = g.createRadialGradient(w / 2, h / 2, 4, w / 2, h / 2, w / 2);
   gr.addColorStop(0, "rgba(255,255,255,0.75)"); gr.addColorStop(0.45, "rgba(255,236,236,0.28)"); gr.addColorStop(1, "rgba(255,255,255,0)");
   g.fillStyle = gr; g.fillRect(0, 0, w, h);
 });
 var halo = new T.Mesh(G.plane, new T.MeshBasicMaterial({ map:haloTex, transparent:true, blending:T.AdditiveBlending, depthWrite:false, toneMapped:false }));
-halo.scale.set(5.6, 2.4, 1); halo.position.set(0, 2.15, -4.02);
+halo.scale.set(3.0, 1.3, 1); halo.position.set(0, 2.05, -4.02);
 scene.add(halo);
 var logoTex = canvasTex(1024, 262, function(g, w, h){
   g.fillStyle = "#ffffff"; g.fillRect(0, 0, w, h);
@@ -482,30 +505,40 @@ var logoTex = canvasTex(1024, 262, function(g, w, h){
   g.textAlign = "center"; g.textBaseline = "middle";
   g.fillText("Dimplex", w / 2, h / 2 + 6);
 });
-add(G.box, new T.MeshBasicMaterial({ color:0xffffff, toneMapped:false }), 4.12, 1.18, 0.12, 0, 2.15, -4.0, scene, false);
+add(G.box, new T.MeshBasicMaterial({ color:0xffffff, toneMapped:false }), 2.24, 0.66, 0.12, 0, 2.05, -4.0, scene, false);
 var logo = new T.Mesh(G.plane, new T.MeshBasicMaterial({ map:logoTex, toneMapped:false }));
-logo.scale.set(3.92, 1.0, 1); logo.position.set(0, 2.15, -3.935);
+logo.scale.set(2.1, 0.536, 1); logo.position.set(0, 2.05, -3.935);
 scene.add(logo);
 var logoLight = new T.PointLight(0xfff0f0, 0.55, 9, 2);
 logoLight.position.set(0, 1.9, -2.7);
 scene.add(logoLight);
 
-/* ---------- entrance (bottom): open end of the hallway, the only way out ---------- */
-add(G.box, M("#cfd4d9", { roughness:0.9 }), 3.0, 0.3, 3.2, 0, -0.151, 7.6, scene, false);
-add(G.box, M("#e3e6e9", { roughness:0.85 }), 2.8, 0.02, 3.1, 0, 0.0, 7.6, scene, false);
+/* ---------- entrance (bottom): the hallway opens onto a cross corridor with grey carpet ---------- */
+var carpetTex = canvasTex(1024, 128, function(g, w, h){
+  var r = seeded(91);
+  g.fillStyle = "#8d949b"; g.fillRect(0, 0, w, h);
+  for (var i = 0; i < 2600; i++) { g.fillStyle = "rgba(" + (r() < 0.5 ? "255,255,255," : "30,34,40,") + (0.04 + r() * 0.07).toFixed(3) + ")"; g.fillRect(r() * w, r() * h, 2, 2); }
+  g.globalCompositeOperation = "destination-in";
+  var fade = g.createLinearGradient(0, 0, w, 0);
+  fade.addColorStop(0, "rgba(0,0,0,0)"); fade.addColorStop(0.18, "rgba(0,0,0,1)"); fade.addColorStop(0.82, "rgba(0,0,0,1)"); fade.addColorStop(1, "rgba(0,0,0,0)");
+  g.fillStyle = fade; g.fillRect(0, 0, w, h);
+});
+var corridor = new T.Mesh(G.plane, new T.MeshStandardMaterial({ map:carpetTex, roughness:0.98, transparent:true, depthWrite:false }));
+corridor.rotation.x = -Math.PI / 2; corridor.scale.set(15, 2.0, 1); corridor.position.set(0, 0.004, 7.0);
+corridor.receiveShadow = true; scene.add(corridor);
 var signTex = canvasTex(512, 160, function(g, w, h){
-  g.fillStyle = "rgba(43,48,56,0.92)"; rrect(g, 0, 0, w, h, 22); g.fill();
-  g.strokeStyle = "#ffffff"; g.lineWidth = 10; g.lineCap = "round"; g.lineJoin = "round";
-  g.beginPath(); g.moveTo(60, 40); g.lineTo(60, 120); g.moveTo(32, 92); g.lineTo(60, 122); g.lineTo(88, 92); g.stroke();
+  g.fillStyle = "rgba(43,48,56,0.9)"; rrect(g, 0, 0, w, h, 22); g.fill();
   g.fillStyle = "#ffffff"; g.font = "700 46px " + FONT; g.textAlign = "left"; g.textBaseline = "middle";
-  g.fillText("To meeting rooms", 120, h / 2 + 2);
+  g.fillText("To meeting rooms", 34, h / 2 + 2);
+  g.strokeStyle = "#ffffff"; g.lineWidth = 10; g.lineCap = "round"; g.lineJoin = "round";
+  g.beginPath(); g.moveTo(420, 80); g.lineTo(486, 80); g.moveTo(458, 52); g.lineTo(488, 80); g.lineTo(458, 108); g.stroke();
 });
 var floorSign = new T.Mesh(G.plane, new T.MeshBasicMaterial({ map:signTex, transparent:true, toneMapped:false, depthWrite:false }));
-floorSign.rotation.x = -Math.PI / 2; floorSign.scale.set(1.6, 0.5, 1); floorSign.position.set(0.35, 0.015, 6.55);
+floorSign.rotation.x = -Math.PI / 2; floorSign.scale.set(1.5, 0.47, 1); floorSign.position.set(1.7, 0.012, 7.0);
 floorSign.renderOrder = 2; scene.add(floorSign);
 var roomLampMat = new T.MeshBasicMaterial({ color:0x29c46b, toneMapped:false });
 var lampDot = new T.Mesh(new T.CircleGeometry(0.05, 20), roomLampMat);
-lampDot.rotation.x = -Math.PI / 2; lampDot.position.set(1.0, 0.02, 6.55); scene.add(lampDot);
+lampDot.rotation.x = -Math.PI / 2; lampDot.position.set(0.82, 0.016, 7.0); scene.add(lampDot);
 
 /* ---------- screens ---------- */
 function screenTex(kind){
@@ -674,7 +707,7 @@ function plant(x, z, s){
   return g;
 }
 function desk(p){
-  var g = new T.Group(); g.position.set(p.side * 3.3, 0, p.z); g.rotation.y = -p.side * Math.PI / 2; scene.add(g);
+  var g = new T.Group(); g.position.set(p.side * 1.6, 0, p.z); g.rotation.y = -p.side * Math.PI / 2; scene.add(g);
   aoDecal(g, 0, -0.78, 1.9, 1.0);
   add(G.box, deskTop, 1.7, 0.045, 0.82, 0, 0.74, -0.78, g);
   add(G.box, M("#d9d6cf", { roughness:0.6 }), 1.7, 0.012, 0.82, 0, 0.712, -0.78, g, false);
@@ -774,31 +807,24 @@ var heatStrips = [], heatMotes = [], heatLight;
   var z0 = BY.debbie.z;
   var white = M("#f7f7f5", { roughness:0.5 }), grille = M("#c7ccd1", { roughness:0.5, metalness:0.3 });
   var glowMat = new T.MeshStandardMaterial({ color:0x7a2a10, emissive:0xff5a1f, emissiveIntensity:1.2, roughness:0.6 });
-  add(G.box, white, 0.07, 0.44, 1.1, -4.465, 2.0, z0, scene);
-  for (var i = 0; i < 5; i++) add(G.box, grille, 0.02, 0.022, 0.92, -4.43, 1.87 + i * 0.055, z0, scene, false);
-  heatStrips.push(add(G.box, glowMat, 0.02, 0.045, 0.92, -4.43, 2.17, z0, scene, false));
-  add(G.box, white, 0.12, 0.2, 1.6, -4.44, 0.12, z0, scene);
-  heatStrips.push(add(G.box, glowMat, 0.01, 0.045, 1.45, -4.375, 0.16, z0, scene, false));
-  for (var j = 0; j < 5; j++) add(G.box, grille, 0.012, 0.012, 1.45, -4.375, 0.07 + j * 0.022, z0, scene, false);
+  add(G.box, white, 0.07, 0.44, 1.1, -2.765, 2.0, z0, scene);
+  for (var i = 0; i < 5; i++) add(G.box, grille, 0.02, 0.022, 0.92, -2.73, 1.87 + i * 0.055, z0, scene, false);
+  heatStrips.push(add(G.box, glowMat, 0.02, 0.045, 0.92, -2.73, 2.17, z0, scene, false));
+  add(G.box, white, 0.12, 0.2, 1.6, -2.74, 0.12, z0, scene);
+  heatStrips.push(add(G.box, glowMat, 0.01, 0.045, 1.45, -2.675, 0.16, z0, scene, false));
+  for (var j = 0; j < 5; j++) add(G.box, grille, 0.012, 0.012, 1.45, -2.675, 0.07 + j * 0.022, z0, scene, false);
   var moteMat = new T.MeshBasicMaterial({ color:0xff8a4a, transparent:true, opacity:0.4, blending:T.AdditiveBlending, depthWrite:false, toneMapped:false });
   for (var k = 0; k < 12; k++) {
-    var m = add(G.lowSph, moteMat, 0.03, 0.03, 0.03, -4.38, 2.2, z0, scene, false);
+    var m = add(G.lowSph, moteMat, 0.03, 0.03, 0.03, -2.68, 2.2, z0, scene, false);
     heatMotes.push({ m:m, o:k / 12, z:z0 - 0.45 + (k * 0.41) % 0.9 });
   }
   heatLight = new T.PointLight(0xff9a5a, 0.8, 3.5, 2);
-  heatLight.position.set(-3.9, 1.6, z0); scene.add(heatLight);
+  heatLight.position.set(-2.2, 1.6, z0); scene.add(heatLight);
 })();
 
 /* coffee point just outside the entrance */
-(function(){
-  aoDecal(scene, -1.05, 8.05, 1.3, 0.9);
-  add(G.box, M("#f4f3f0", { roughness:0.6 }), 0.8, 0.9, 0.5, -1.05, 0.45, 8.1, scene);
-  add(G.box, oakMat, 0.86, 0.05, 0.54, -1.05, 0.925, 8.1, scene);
-  add(G.box, M("#1e2126", { roughness:0.35, metalness:0.4 }), 0.3, 0.45, 0.3, -1.25, 1.175, 8.15, scene);
-  add(G.box, M("#cfd4d9", { roughness:0.3, metalness:0.6 }), 0.2, 0.05, 0.04, -1.25, 1.22, 7.99, scene, false);
-  [-0.95, -0.82, -0.7].forEach(function(x, i){ add(G.cyl, M(i === 1 ? "#E31837" : "#ffffff", { roughness:0.4 }), 0.04, 0.1, 0.04, x, 1.0, 8.0, scene); });
-})();
-plant(-3.95, 5.75, 0.9); plant(3.95, 5.75, 0.9); plant(-2.4, -3.6, 0.95); plant(2.4, -3.6, 0.95);
+/* coffee is out along the cross corridor */
+plant(-2.45, 5.8, 0.85); plant(2.45, 5.8, 0.85); plant(-2.45, -3.7, 0.8); plant(2.45, -3.7, 0.8);
 
 /* Carla: events corner (tabletop roll-up banner, brochure boxes, event calendar on the wall) */
 (function(){
@@ -831,8 +857,8 @@ plant(-3.95, 5.75, 0.9); plant(3.95, 5.75, 0.9); plant(-2.4, -3.6, 0.95); plant(
     for (var k = 0; k < 7; k++) { g.fillStyle = ["#E31837","#3b6fd8","#e2ac2f","#2fb3a3"][k % 4]; var cx = 14 + Math.floor(r() * 5) * 82, cy = 70 + Math.floor(r() * 4) * 56; rrect(g, cx, cy, 74 + (r() < 0.4 ? 82 : 0), 20, 5); g.fill(); }
   });
   var cal = new T.Mesh(G.plane, new T.MeshStandardMaterial({ map:calTex, roughness:0.8 }));
-  cal.scale.set(1.3, 0.76, 1); cal.position.set(-4.468, 2.05, 2.65); cal.rotation.y = Math.PI / 2; scene.add(cal);
-  add(G.box, M("#2b3038", { roughness:0.5 }), 0.03, 0.8, 1.34, -4.49, 2.05, 2.65, scene, false);
+  cal.scale.set(1.3, 0.76, 1); cal.position.set(-2.768, 2.05, 2.65); cal.rotation.y = Math.PI / 2; scene.add(cal);
+  add(G.box, M("#2b3038", { roughness:0.5 }), 0.03, 0.8, 1.34, -2.79, 2.05, 2.65, scene, false);
 })();
 
 
@@ -844,6 +870,31 @@ var focusRing = new T.Mesh(new T.RingGeometry(0.46, 0.54, 48), ringMat);
 focusRing.rotation.x = -Math.PI / 2; focusRing.visible = false; scene.add(focusRing);
 
 
+
+/* ---------- merge static furniture by material: hundreds of draw calls become a few dozen ---------- */
+flames.forEach(function(f){ f.m.userData.dyn = true; });
+heatMotes.forEach(function(h){ h.m.userData.dyn = true; });
+focusRing.userData.dyn = true;
+(function freezeStatic(){
+  scene.updateMatrixWorld(true);
+  var groups = {}, victims = [];
+  scene.traverse(function(o){
+    if (!o.isMesh || o.isSkinnedMesh || o.userData.dyn || o.renderOrder !== 0 || Array.isArray(o.material) || !o.geometry.index) return;
+    var a = o.geometry.attributes;
+    if (!a.position || !a.normal || !a.uv || Object.keys(a).length !== 3) return;
+    var key = o.material.uuid + (o.castShadow ? "c" : "") + (o.receiveShadow ? "r" : "");
+    (groups[key] = groups[key] || { mat:o.material, cast:o.castShadow, recv:o.receiveShadow, geos:[] }).geos.push(o.geometry.clone().applyMatrix4(o.matrixWorld));
+    victims.push(o);
+  });
+  victims.forEach(function(o){ o.parent.remove(o); });
+  Object.keys(groups).forEach(function(k){
+    var gr = groups[k], geo = gr.geos.length > 1 ? BufferGeometryUtils.mergeGeometries(gr.geos, false) : gr.geos[0];
+    if (!geo) return;
+    var m = new T.Mesh(geo, gr.mat);
+    m.castShadow = gr.cast; m.receiveShadow = gr.recv; m.matrixAutoUpdate = false;
+    scene.add(m);
+  });
+})();
 
 /* ---------- characters: rigged, skinned mannequin with skeletal animation ---------- */
 var MODEL_URL = "https://cdn.jsdelivr.net/gh/mrdoob/three.js@r160/examples/models/gltf/Xbot.glb";
@@ -958,7 +1009,7 @@ function buildHead(p, model, head){
     var fr = M("#0e0f11", { roughness:0.32, metalness:0.2 });
     var lens = new T.MeshStandardMaterial({ color:0x2a3138, roughness:0.08, metalness:0.1, transparent:true, opacity:0.22, depthWrite:false });
     [-1, 1].forEach(function(s){
-      var cx = s * 0.034, cy = 1.664, cz = 0.124;
+      var cx = s * 0.034, cy = 1.668, cz = 0.133;
       add(G.box, fr, 0.05, 0.006, 0.006, cx, cy + 0.016, cz, g, false);
       add(G.box, fr, 0.05, 0.005, 0.006, cx, cy - 0.016, cz, g, false);
       add(G.box, fr, 0.005, 0.034, 0.006, cx - 0.025, cy, cz, g, false);
@@ -966,8 +1017,24 @@ function buildHead(p, model, head){
       var l = new T.Mesh(G.plane, lens); l.scale.set(0.046, 0.028, 1); l.position.set(cx, cy, cz - 0.001); g.add(l);
       add(G.box, fr, 0.005, 0.005, 0.13, s * 0.06, cy + 0.012, cz - 0.065, g, false);
     });
-    add(G.box, fr, 0.018, 0.004, 0.005, 0, 1.672, 0.124, g, false);
+    add(G.box, fr, 0.018, 0.004, 0.005, 0, 1.676, 0.133, g, false);
   }
+  /* face: eyes with pupils (they blink), brows, a nose hint and a mouth that opens while talking */
+  var sclera = M("#f3f0ea", { roughness:0.35 }), pupilM = M("#1c1e23", { roughness:0.2 });
+  var browM = M(new T.Color(p.hair).multiplyScalar(0.8).getStyle(), { roughness:0.6 });
+  var eyes = [];
+  [-1, 1].forEach(function(s){
+    var eg = new T.Group(); eg.position.set(s * 0.031, 1.668, 0.122); g.add(eg);
+    add(G.hsph, sclera, 0.016, 0.0135, 0.0065, 0, 0, 0, eg, false);
+    add(G.hsph, pupilM, 0.0078, 0.0084, 0.003, 0, 0, 0.0052, eg, false);
+    eyes.push(eg);
+    var br = add(G.box, browM, 0.024, 0.0038, 0.004, s * 0.033, 1.69, 0.121, g, false);
+    br.rotation.z = -s * 0.1;
+  });
+  add(G.hsph, M(p.skin, { roughness:0.55 }), 0.0085, 0.016, 0.011, 0, 1.646, 0.129, g, false);
+  var mouth = add(G.hsph, M("#7b3f3b", { roughness:0.45 }), 0.016, 0.0034, 0.004, 0, 1.617, 0.121, g, false);
+  mouth.userData.base = 0.0034;
+  p.face = { eyes:eyes, mouth:mouth };
   model.updateMatrixWorld(true);
   head.attach(g);
 }
@@ -983,15 +1050,102 @@ function buildProps(p, model, hand){
   hand.attach(g);
 }
 
+/* ---------- clothing: garment shells cut from the body mesh, offset outward and skinned to the same skeleton ---------- */
+function fabricNormal(twill){
+  var N = 128, c = document.createElement("canvas"); c.width = c.height = N;
+  var g = c.getContext("2d"), img = g.createImageData(N, N), h = new Float32Array(N * N), r = seeded(twill ? 7 : 3), x, y;
+  for (y = 0; y < N; y++) for (x = 0; x < N; x++) {
+    var v = twill ? 0.5 + 0.5 * Math.sin((x + y) * Math.PI / 3) : (0.5 + 0.5 * Math.sin(x * Math.PI / 2)) * (Math.floor(y / 2) % 2 ? 1 : 0.55) + (0.5 + 0.5 * Math.sin(y * Math.PI / 2)) * (Math.floor(x / 2) % 2 ? 0.55 : 1);
+    h[y * N + x] = v + (r() - 0.5) * 0.25;
+  }
+  for (y = 0; y < N; y++) for (x = 0; x < N; x++) {
+    var dx = h[y * N + (x + 1) % N] - h[y * N + (x + N - 1) % N], dy = h[((y + 1) % N) * N + x] - h[((y + N - 1) % N) * N + x];
+    var nx = -dx * 1.4, ny = -dy * 1.4, nz = 1, l = Math.hypot(nx, ny, nz), i = (y * N + x) * 4;
+    img.data[i] = (nx / l * 0.5 + 0.5) * 255; img.data[i + 1] = (ny / l * 0.5 + 0.5) * 255; img.data[i + 2] = (nz / l * 0.5 + 0.5) * 255; img.data[i + 3] = 255;
+  }
+  g.putImageData(img, 0, 0);
+  var t = new T.CanvasTexture(c);
+  t.wrapS = t.wrapT = T.RepeatWrapping; t.repeat.set(14, 14); t.anisotropy = 4;
+  return t;
+}
+var WEAVE = null, TWILL = null;
+var GARMENTS = ["shirt", "pants", "shoe", "belt", "trim"];
+var THICK = { shirt:0.0075, pants:0.0065, shoe:0.011, belt:0.011, trim:0.0125 };
+function garmentOf(p, x, y){
+  x = Math.abs(x);
+  if (y < 0.12) return "shoe";
+  if (y > 1.505 && x < 0.2) return null;
+  var sleeve = p.sleeves ? 0.665 : 0.36;
+  if (y > 1.2 && x > sleeve) return null;
+  if (y < 0.975 && x < 0.3) return "pants";
+  if (y < 1.008 && x < 0.3) return "belt";
+  if (y > 1.455 && x < 0.1) return "trim";
+  if (p.sleeves && y > 1.2 && x > 0.615) return "trim";
+  return "shirt";
+}
+function buildClothes(p, body){
+  if (!WEAVE) { WEAVE = fabricNormal(false); TWILL = fabricNormal(true); }
+  var g = body.geometry, pos = g.attributes.position, nor = g.attributes.normal, uv = g.attributes.uv;
+  var si = g.attributes.skinIndex, sw = g.attributes.skinWeight, idx = g.index.array, n = pos.count, i, k;
+  var reg = new Array(n);
+  for (i = 0; i < n; i++) reg[i] = garmentOf(p, pos.getX(i), pos.getY(i));
+  var P = [], N = [], U = [], SI = [], SW = [], IDX = [], groups = [];
+  GARMENTS.forEach(function(gk, gi){
+    var map = new Map(), start = IDX.length, th = THICK[gk];
+    for (k = 0; k < idx.length; k += 3) {
+      var a = idx[k], b = idx[k + 1], c = idx[k + 2];
+      if (reg[a] !== gk || reg[b] !== gk || reg[c] !== gk) continue;
+      [a, b, c].forEach(function(v){
+        var ni = map.get(v);
+        if (ni === undefined) {
+          ni = P.length / 3; map.set(v, ni);
+          var nx = nor.getX(v), ny = nor.getY(v), nz = nor.getZ(v);
+          P.push(pos.getX(v) + nx * th, pos.getY(v) + ny * th, pos.getZ(v) + nz * th);
+          N.push(nx, ny, nz); U.push(uv ? uv.getX(v) : 0, uv ? uv.getY(v) : 0);
+          SI.push(si.getX(v), si.getY(v), si.getZ(v), si.getW(v)); SW.push(sw.getX(v), sw.getY(v), sw.getZ(v), sw.getW(v));
+        }
+        IDX.push(ni);
+      });
+    }
+    if (IDX.length > start) groups.push([start, IDX.length - start, gi]);
+  });
+  var geo = new T.BufferGeometry();
+  geo.setAttribute("position", new T.Float32BufferAttribute(P, 3));
+  geo.setAttribute("normal", new T.Float32BufferAttribute(N, 3));
+  geo.setAttribute("uv", new T.Float32BufferAttribute(U, 2));
+  geo.setAttribute("skinIndex", new T.Uint16BufferAttribute(SI, 4));
+  geo.setAttribute("skinWeight", new T.Float32BufferAttribute(SW, 4));
+  geo.setIndex(IDX);
+  groups.forEach(function(gr){ geo.addGroup(gr[0], gr[1], gr[2]); });
+  var shirtM = new T.MeshStandardMaterial({ color:p.shirt, roughness:0.86, normalMap:WEAVE, normalScale:new T.Vector2(0.5, 0.5), envMapIntensity:0.5 });
+  var mats = [
+    shirtM,
+    new T.MeshStandardMaterial({ color:p.pants, roughness:0.8, normalMap:TWILL, normalScale:new T.Vector2(0.45, 0.45), envMapIntensity:0.5 }),
+    M("#16171a", { roughness:0.32, metalness:0.05, envMapIntensity:0.8 }),
+    M("#2a2c31", { roughness:0.4, envMapIntensity:0.6 }),
+    shirtM
+  ];
+  var cl = new T.SkinnedMesh(geo, mats);
+  cl.bind(body.skeleton, body.bindMatrix);
+  cl.frustumCulled = false; cl.castShadow = false; cl.receiveShadow = true;
+  body.parent.add(cl);
+  return cl;
+}
 var GLTF = null, CLIPS = {};
 function makeRig(p, sc){
   var root = new T.Group();
   var model = SkeletonUtils.clone(GLTF.scene);
   model.scale.setScalar(CH_SCALE);
   root.add(model);
+  var bodyMesh = null;
   model.traverse(function(o){
-    if (o.isSkinnedMesh) { colorize(o, p, o.name.indexOf("Joints") >= 0 ? 0.82 : 1); o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; }
+    if (o.isSkinnedMesh) {
+      colorize(o, p, o.name.indexOf("Joints") >= 0 ? 0.82 : 1);
+      o.castShadow = o.name.indexOf("Joints") < 0; o.receiveShadow = true; o.frustumCulled = false;
+      if (o.name.indexOf("Surface") >= 0) bodyMesh = o;
+    }
   });
+  if (bodyMesh) buildClothes(p, bodyMesh);
   var b = {};
   BONE_NAMES.forEach(function(n){ b[n] = model.getObjectByName("mixamorig" + n); });
   root.updateMatrixWorld(true);
@@ -1011,7 +1165,7 @@ function makeRig(p, sc){
   p.swivel = 0;
   if (p.remote) { p.sitHeading = 0; p.heading = 0; }
   else {
-    p.seat = new V3(p.side * 3.3, 0, p.z);
+    p.seat = new V3(p.side * 1.6, 0, p.z);
     p.sitHeading = p.side * Math.PI / 2;
     p.heading = p.sitHeading;
     root.position.copy(p.seat);
@@ -1089,7 +1243,22 @@ function updateRig(p, t, dt){
     if (p.phone) p.phone.visible = false;
     if (p.swatch) p.swatch.visible = false;
   }
-  if (p.id === "luis" && sit > 0.5 && !a) yawBone(b.Head, 0);
+  /* while their card is open, people turn to face the viewer */
+  if (focus === p && !a && !p.remote) {
+    var fy = clamp(camYaw(p), -2.2, 2.2);
+    yawBone(b.Spine1, clamp(fy * 0.25, -0.45, 0.45));
+    yawBone(b.Head, clamp(fy * 0.55, -1.0, 1.0));
+  }
+  var f = p.face;
+  if (f) {
+    if (!p.blinkAt || t > p.blinkAt) { p.blinkAt = t + rand(2.2, 6); p.blinkT = t; }
+    var bl = t - p.blinkT < 0.13 ? 0.12 : 1;
+    f.eyes[0].scale.y = bl; f.eyes[1].scale.y = bl;
+    var talking = (p.answering && t < p.answering && t > (p.speakFrom || 0)) || p.bubbleOn || (a && a.n === "talk" && t - a.t0 < a.dur);
+    var open = talking ? 0.3 + 0.7 * Math.abs(Math.sin(t * 12.5 + Math.sin(t * 3.3) * 2.2)) : 0;
+    p.mouthOpen = lerp(p.mouthOpen || 0, open, 1 - Math.exp(-dt * 18));
+    f.mouth.scale.y = f.mouth.userData.base * (1 + p.mouthOpen * 2.4);
+  }
 }
 var lookV = new V3(), _inv = new T.Quaternion();
 function yawTo(p, q){
@@ -1130,7 +1299,7 @@ var POOLS = {
   erica:["phone","sip","phone"],
   allyson:["phone","sip","phone"]
 };
-var COFFEE_SPOT = new V3(-1.0, 0, 7.35), EXIT_SPOT = new V3(-0.35, 0, 9.1);
+var COFFEE_SPOT = new V3(-6.2, 0, 7.0), EXIT_SPOT = new V3(6.2, 0, 7.0);
 /* the kind of requests Luis gets every day (public product names only) */
 var REQUESTS = {
   stephanie:[
@@ -1198,12 +1367,12 @@ function along(w, d){
   return Math.atan2(b.x - a.x, b.z - a.z);
 }
 function aislePath(a, aSide, b, bSide){
-  var dir = Math.sign(b.z - a.z) || 1, lane = dir > 0 ? -0.42 : 0.42;
+  var dir = Math.sign(b.z - a.z) || 1, lane = dir > 0 ? -0.3 : 0.3;
   var pts = [a.clone()];
-  if (aSide) pts.push(new V3(aSide * 2.3, 0, a.z));
+  if (aSide) pts.push(new V3(aSide * 0.95, 0, a.z));
   pts.push(new V3(lane, 0, a.z + dir * 0.3));
   pts.push(new V3(lane, 0, b.z - dir * 0.3));
-  if (bSide) pts.push(new V3(bSide * 2.3, 0, b.z));
+  if (bSide) pts.push(new V3(bSide * 0.95, 0, b.z));
   pts.push(b.clone());
   return makePath(pts);
 }
@@ -1302,7 +1471,7 @@ function decide(p, t){
   else if (o.k === "micro") { startAct(p, choose(POOLS[p.id]), t); n.energy = Math.min(1, n.energy + 0.12); }
   else if (o.k === "coffee") goTrip(p, t, "coffee", null, aislePath(p.seat, p.side, COFFEE_SPOT, 0));
   else if (o.k === "visit") {
-    var q = o.q, spot = q.remote ? q.spot.clone() : new V3(q.side * 2.15, 0, q.seat.z + rand(-0.12, 0.12));
+    var q = o.q, spot = q.remote ? q.spot.clone() : new V3(q.side * 0.95, 0, q.seat.z + rand(-0.12, 0.12));
     q.visitor = p;
     goTrip(p, t, "visit", q, aislePath(p.seat, p.side, spot, 0));
     p.trip.care = !!o.care;
@@ -1314,7 +1483,7 @@ function decide(p, t){
       startChat(p, L, t, rd + 0.4, makeRequest(p, t));
     } else {
       L.visitor = p;
-      goTrip(p, t, "visit", L, aislePath(p.seat, p.side, new V3(L.side * 2.15, 0, L.seat.z + rand(-0.12, 0.12)), 0));
+      goTrip(p, t, "visit", L, aislePath(p.seat, p.side, new V3(L.side * 0.95, 0, L.seat.z + rand(-0.12, 0.12)), 0));
       p.trip.request = true;
     }
   } else if (o.k === "talk") {
@@ -1350,7 +1519,7 @@ function updateAgent(p, t, dt){
   p.pace = 0.86 + 0.24 * (p.mood.v + 1) / 2 + 0.06 * (p.needs.energy - 0.5);
 
   var st = p.state, k = p.dur > 0 ? clamp((t - p.t0) / p.dur, 0, 1) : 1, tr = p.trip;
-  p.root.visible = st !== "away";
+  p.root.visible = st !== "away" && st !== "coffee";
   r.walkTarget = 0;
   var swivelTarget = 0;
 
@@ -1378,7 +1547,9 @@ function updateAgent(p, t, dt){
       smoothTurn(p, p.sitHeading, dt);
       if (p.act && (p.act.n === "turn" || p.act.n === "answer")) {
         var yaw = p.act.n === "answer" ? camYaw(p) + p.swivel : (p.act.target ? yawTo(p, p.act.target) + p.swivel : 0);
-        swivelTarget = clamp(yaw * 0.35, -0.6, 0.6) * bump(t - p.act.t0, 0, p.act.dur, 0.6);
+        swivelTarget = (p.act.n === "answer" ? clamp(yaw * 0.5, -1.2, 1.2) : clamp(yaw * 0.35, -0.6, 0.6)) * bump(t - p.act.t0, 0, p.act.dur, 0.6);
+      } else if (focus === p) {
+        swivelTarget = clamp((camYaw(p) + p.swivel) * 0.5, -1.2, 1.2);
       }
       p.swivel = lerp(p.swivel, swivelTarget, 1 - Math.exp(-dt * 5));
       p.statusNow = p.answering ? "Answering your question" : p.chatWith ? "Chatting with " + p.chatWith.name : p.walker ? p.walker.text.sit : p.status;
@@ -1414,7 +1585,7 @@ function updateAgent(p, t, dt){
     var hd = along(path, tr.d);
     p.root.position.copy(tmpPos);
     if (rem > 0.05) smoothTurn(p, hd, dt, 6);
-    if (tr.kind === "meeting" && p.root.position.z > 8.6) p.root.visible = false;
+    if ((tr.kind === "meeting" || tr.kind === "coffee") && Math.abs(p.root.position.x) > 4.4) p.root.visible = false;
     if (rem <= 0.04 && r.walkW < 0.25) {
       if (tr.back) setState(p, "down", t, 0.6);
       else if (tr.kind === "meeting") setState(p, "away", t, rand(15, 35));
@@ -1481,7 +1652,7 @@ function basis(th, ph){
 function fitSize(th){
   basis(th, ISO_PH);
   var u0 = 1e9, u1 = -1e9, v0 = 1e9, v1 = -1e9;
-  [-4.6, 4.6].forEach(function(x){ [0, 2.8].forEach(function(y){ [-4.2, 8.6].forEach(function(z){
+  [-2.9, 2.9].forEach(function(x){ [0, 2.8].forEach(function(y){ [-4.2, 8.0].forEach(function(z){
     corner.set(x, y, z);
     var u = corner.dot(camRight), v = corner.dot(camUp);
     u0 = Math.min(u0, u); u1 = Math.max(u1, u); v0 = Math.min(v0, v); v1 = Math.max(v1, v);
@@ -1498,7 +1669,7 @@ function defaultGoal(){
   var th = aspect < 0.9 ? bestPortraitYaw() : ISO_TH, ph = ISO_PH;
   basis(th, ph);
   var u0 = 1e9, u1 = -1e9, v0 = 1e9, v1 = -1e9;
-  [-4.6, 4.6].forEach(function(x){ [0, 2.8].forEach(function(y){ [-4.2, 8.6].forEach(function(z){
+  [-2.9, 2.9].forEach(function(x){ [0, 2.8].forEach(function(y){ [-4.2, 8.0].forEach(function(z){
     corner.set(x, y, z);
     var u = corner.dot(camRight), v = corner.dot(camUp);
     u0 = Math.min(u0, u); u1 = Math.max(u1, u); v0 = Math.min(v0, v); v1 = Math.max(v1, v);
@@ -1510,7 +1681,9 @@ function defaultGoal(){
   goal.tx = camRight.x * uc + camUp.x * vc;
   goal.ty = camRight.y * uc + camUp.y * vc;
   goal.tz = camRight.z * uc + camUp.z * vc;
-  goal.r = rr;
+  /* start close: people and desks fill the screen, the far ends may crop */
+  goal.r = rr * (aspect < 0.9 ? 0.74 : 0.78);
+  goal.tx = 0; goal.ty = 0.8; goal.tz = 1.3;
   goal.th = nearAngle(view.th, th); goal.ph = ph;
 }
 function nearAngle(cur, target){ return target + Math.PI * 2 * Math.round((cur - target) / (Math.PI * 2)); }
@@ -1968,6 +2141,35 @@ ALL.forEach(function(p){ p.mem = []; p.used = []; p.messages = []; rollMood(p); 
 var chipsEl = document.getElementById("chips"), labelsEl = document.getElementById("labels");
 var card = document.getElementById("card"), hint = document.getElementById("hint");
 var cName = document.getElementById("cName"), cRole = document.getElementById("cRole"), cStatus = document.getElementById("cStatus"), cPers = document.getElementById("cPers"), cTopics = document.getElementById("cTopics"), cAvatar = document.getElementById("cAvatar");
+var ptile = document.getElementById("ptile"), pview = document.getElementById("pview"), pName = document.getElementById("pName"), pMood = document.getElementById("pMood");
+var pcam = new T.PerspectiveCamera(28, 0.8, 0.05, 40), pHead = new V3(), pDir = new V3();
+/* live close-up of the person you are chatting with, drawn into a scissor viewport behind the tile */
+function renderPortrait(){
+  var p = focus;
+  var r = pview.getBoundingClientRect(), c = canvas.getBoundingClientRect();
+  var w = r.width, h = r.height;
+  if (w < 20 || h < 20) return;
+  var away = !p.remote && !p.root.visible;
+  if (pview.dataset.away !== (away ? "1" : "0")) pview.dataset.away = away ? "1" : "0";
+  var msg = p.trip && p.trip.kind === "coffee" ? "Getting a " + drinkOf(p) : "In a meeting";
+  if (pview.dataset.msg !== msg) pview.dataset.msg = msg;
+  if (away) return;
+  pcam.aspect = w / h; pcam.updateProjectionMatrix();
+  var sc = scene;
+  if (p.remote) { sc = p.rs; pcam.position.set(0, 1.26, 1.25); pcam.lookAt(0, 1.12, 0); }
+  else {
+    p.head.getWorldPosition(pHead);
+    pDir.set(camDir.x, 0, camDir.z).normalize();
+    pcam.position.set(pHead.x + pDir.x * 1.15, pHead.y + 0.12, pHead.z + pDir.z * 1.15);
+    pcam.lookAt(pHead.x, pHead.y - 0.02, pHead.z);
+  }
+  var x = r.left - c.left, y = c.bottom - r.bottom;
+  renderer.setScissorTest(true);
+  renderer.setViewport(x, y, w, h); renderer.setScissor(x, y, w, h);
+  renderer.render(sc, pcam);
+  renderer.setScissorTest(false);
+  renderer.setViewport(0, 0, c.width, c.height);
+}
 var cMood = document.getElementById("cMood"), askH = document.getElementById("askH"), logEl = document.getElementById("log"), suggEl = document.getElementById("sugg"), askForm = document.getElementById("askForm"), askIn = document.getElementById("askIn");
 
 ALL.forEach(function(p){
@@ -2020,6 +2222,7 @@ function ask(p, text){
   if (!res.system && p.root.visible && (p.state === "sit" || p.state === "visit" || p.state === "coffee")) {
     var talkDur = clamp(reply.length / 16, 2.5, 6.5) + delay / 1000;
     p.answering = now + talkDur;
+    p.speakFrom = now + delay / 1000;
     startAct(p, "answer", now, talkDur);
     p.rig.nodTarget = 0.35;
     setTimeout(function(){ if (p.rig) p.rig.nodTarget = 0; }, talkDur * 1000);
@@ -2051,12 +2254,14 @@ function focusOn(p){
   askIn.placeholder = "Ask " + p.name + " something";
   renderLog(p); renderSugg(p);
   card.hidden = false;
+  ptile.hidden = false; pName.textContent = p.fullName || p.name;
   p.chip.scrollIntoView({ block:"nearest", inline:"nearest" });
 }
 function clearFocus(){
   focus = null;
   ALL.forEach(function(q){ q.chip.setAttribute("aria-pressed", "false"); q.tag.classList.remove("on"); });
   card.hidden = true;
+  ptile.hidden = true;
   defaultGoal();
 }
 document.getElementById("reset").addEventListener("click", clearFocus);
@@ -2173,10 +2378,10 @@ REMOTE.forEach(function(p, i){
   makeRig(p, rs);
   var cam = new T.PerspectiveCamera(30, 16 / 9, 0.1, 20);
   cam.position.set(0, 1.3, 1.7); cam.lookAt(0, 1.1, 0);
-  var rt = new T.WebGLRenderTarget(512, 288, { samples:4 });
+  var rt = new T.WebGLRenderTarget(384, 216, { samples:2 });
   p.rs = rs; p.rcam = cam; p.rt = rt;
 
-  var g = new T.Group(); g.position.set(p.sx, 1.78, -4.0); scene.add(g);
+  var g = new T.Group(); g.position.set(p.sx, 1.8, -4.0); g.scale.setScalar(0.72); scene.add(g);
   add(G.box, M("#121418", { roughness:0.35, metalness:0.4 }), 2.0, 1.16, 0.07, 0, 0, 0, g);
   var glowM = new T.MeshBasicMaterial({ color:0x8fc0ff, transparent:true, opacity:0.32, blending:T.AdditiveBlending, depthWrite:false });
   var glow = new T.Mesh(G.plane, glowM); glow.scale.set(2.2, 1.36, 1); glow.position.z = -0.03; g.add(glow);
@@ -2238,13 +2443,47 @@ focusFromHash();
 /* ---------- loop ---------- */
 var clock = new T.Clock(), headPos = new V3(), tv = new V3();
 var aoFailed = false, DT_MAX = 0.05;
+var frameNo = 0, LBL = null;
+var PERF = { t0:0, frames:0, done:false };
+function degrade(){
+  if (composer) { composer = null; return true; }
+  if (sun.shadow.mapSize.x > 1024) { sun.shadow.mapSize.set(1024, 1024); if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; } return true; }
+  if (renderer.getPixelRatio() > 1) { renderer.setPixelRatio(1); resize(); return true; }
+  return false;
+}
+var STATS = { calls:0, tris:0, ms:0, n:0, last:0 };
+window.__voStats = function(){ return { drawCalls:STATS.calls, triangles:STATS.tris, frameMs:+(STATS.ms / Math.max(1, STATS.n)).toFixed(1), frames:STATS.n, pixelRatio:renderer.getPixelRatio(), ao:!!composer, shadowMap:sun.shadow.mapSize.x }; };
+renderer.info.autoReset = false;
 function frame(){
   requestAnimationFrame(frame);
+  if (document.hidden) return;
+  var nowMs = performance.now();
+  if (STATS.last) { STATS.ms += nowMs - STATS.last; STATS.n++; }
+  STATS.last = nowMs;
+  STATS.calls = renderer.info.render.calls; STATS.tris = renderer.info.render.triangles;
+  renderer.info.reset();
   var dt = Math.min(clock.getDelta(), DT_MAX), t = clock.elapsedTime;
+  frameNo++;
+  if (!LBL) LBL = ALL.slice();
+  /* adaptive quality: measure for 3 s, then drop AO, shadow resolution and pixel ratio until we hold about 45 fps */
+  if (!PERF.done) {
+    PERF.frames++;
+    if (!PERF.t0) PERF.t0 = nowMs;
+    else if (nowMs - PERF.t0 > 3000) {
+      var fps = PERF.frames * 1000 / (nowMs - PERF.t0);
+      if (fps >= 45 || !degrade()) PERF.done = true;
+      PERF.t0 = nowMs; PERF.frames = 0;
+    }
+  }
 
   PEOPLE.forEach(function(p){ updateAgent(p, t, dt); });
   updateChats(t);
-  PEOPLE.forEach(function(p){ if (p.root.visible) updateRig(p, t, dt); else p.rig.mixer.update(dt); });
+  /* people off screen animate at a third of the rate */
+  PEOPLE.forEach(function(p){
+    p.skipDt = (p.skipDt || 0) + dt;
+    if (p.root.visible && (p.onScreen !== false || frameNo % 3 === p.idx % 3)) { updateRig(p, t, p.skipDt); p.skipDt = 0; }
+    else if (!p.root.visible && frameNo % 3 === 0) { p.rig.mixer.update(p.skipDt); p.skipDt = 0; }
+  });
   REMOTE.forEach(function(p){ updateRemote(p, t, dt); });
 
   var busy = false;
@@ -2262,13 +2501,13 @@ function frame(){
   heatLight.intensity = 0.7 + 0.15 * Math.sin(t * 1.4);
   heatMotes.forEach(function(h){
     var f = (t * 0.28 + h.o) % 1;
-    h.m.position.set(-4.38 + f * 0.25, 2.2 + f * 0.8, h.z + Math.sin(t * 2 + h.o * 9) * 0.05);
+    h.m.position.set(-2.68 + f * 0.25, 2.2 + f * 0.8, h.z + Math.sin(t * 2 + h.o * 9) * 0.05);
     h.m.scale.setScalar(0.035 * (1 - f) + 0.004);
   });
 
   if (focus) {
     focus.head.getWorldPosition(headPos);
-    if (!focus.root.visible) headPos.copy(EXIT_SPOT).setY(1.6);
+    if (!focus.root.visible) headPos.copy(focus.trip && focus.trip.kind === "coffee" ? COFFEE_SPOT : EXIT_SPOT).setX(focus.trip && focus.trip.kind === "coffee" ? -4.0 : 4.0).setY(1.6);
     goal.tx = headPos.x; goal.ty = headPos.y - 0.35; goal.tz = headPos.z;
   }
   var kk = snapCam > 0 ? 1 : 1 - Math.exp(-dt * (dragging ? 14 : reduceMotion ? 9 : 3.2));
@@ -2294,22 +2533,33 @@ function frame(){
     if (cStatus.textContent !== focus.statusNow) cStatus.textContent = focus.statusNow;
   } else focusRing.visible = false;
 
-  REMOTE.forEach(function(p){ renderer.setRenderTarget(p.rt); renderer.render(p.rs, p.rcam); });
+  renderer.shadowMap.needsUpdate = frameNo % 2 === 0 || frameNo < 3;
+  /* remote screens: low resolution, one screen per frame */
+  var rp = REMOTE[frameNo % REMOTE.length];
+  renderer.setRenderTarget(rp.rt); renderer.render(rp.rs, rp.rcam);
   renderer.setRenderTarget(null);
   if (composer && !aoFailed) {
     try { composer.render(dt); } catch (e) { aoFailed = true; renderer.render(scene, camera); }
   } else renderer.render(scene, camera);
+  if (focus && !ptile.hidden) {
+    var small = window.innerWidth <= 640;
+    ptile.style.bottom = small && !card.hidden ? (card.offsetHeight + 22) + "px" : "";
+    var pm = MOODS[focus.mood.kind].e + " " + MOODS[focus.mood.kind].label;
+    if (pMood.textContent !== pm) pMood.textContent = pm;
+    renderPortrait();
+  }
 
   /* labels: name only, status on hover or focus; drop the ones that would overlap */
   var w = stage.clientWidth, h = stage.clientHeight, placed = [];
-  var order = ALL.slice().sort(function(a, b){ return (a === focus ? -1 : 0) - (b === focus ? -1 : 0) || (a.remote ? -9 : a.root.position.z) - (b.remote ? -9 : b.root.position.z); });
+  var order = LBL.sort(function(a, b){ return (a === focus ? -1 : 0) - (b === focus ? -1 : 0) || (a.remote ? -9 : a.root.position.z) - (b.remote ? -9 : b.root.position.z); });
   order.forEach(function(p){
     var tag = p.tag;
     p.head.getWorldPosition(tv);
     if (!p.root.visible) tv.copy(EXIT_SPOT).setY(1.6);
     tv.y += p.remote ? 0 : 0.3;
     tv.project(camera);
-    if (tv.z > 1 || tv.x < -1.2 || tv.x > 1.2 || tv.y < -1.2 || tv.y > 1.2 || (!p.root.visible && p !== focus)) { tag.classList.add("off"); showBubble(p, null); return; }
+    p.onScreen = !(tv.z > 1 || tv.x < -1.25 || tv.x > 1.25 || tv.y < -1.25 || tv.y > 1.25);
+    if (!p.onScreen || (!p.root.visible && p !== focus)) { tag.classList.add("off"); showBubble(p, null); return; }
     var x = (tv.x + 1) / 2 * w, y = (1 - tv.y) / 2 * h;
     if (!p.tagW) { p.tagW = tag.offsetWidth || 70; p.tagH = tag.offsetHeight || 24; }
     var rect = { l:x - p.tagW / 2, r:x + p.tagW / 2, t:y - p.tagH - 6, b:y - 6 };
