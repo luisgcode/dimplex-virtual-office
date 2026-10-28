@@ -742,7 +742,8 @@ function desk(p){
   add(G.box, metalDark, 1.56, 0.3, 0.02, 0, 0.52, -1.16, g, false);
   add(G.box, M("#e8e9eb", { roughness:0.5 }), 0.44, 0.016, 0.14, 0, 0.77, -0.56, g, false);
   add(G.box, M("#e8e9eb", { roughness:0.5 }), 0.06, 0.02, 0.1, 0.36, 0.772, -0.54, g, false);
-  add(G.cyl, M(p.side > 0 ? "#ffffff" : "#E31837", { roughness:0.4 }), 0.04, 0.1, 0.04, -0.62, 0.81, -0.5, g);
+  p.cup = add(G.cyl, M(p.side > 0 ? "#ffffff" : "#E31837", { roughness:0.4 }), 0.04, 0.1, 0.04, -0.62, 0.81, -0.5, g);
+  p.cup.userData.dyn = true;
   p.chairG = chair(g, 0, 0.02);
   p.deskGroup = g;
   return g;
@@ -1113,6 +1114,140 @@ function seasonTick(t, dt){
   seasonFx.line = { a:a0, b:b0, text:text, reply:choose(SZ.replies), t1:t + 2.6, t2:t + 2.8, replied:false };
 }
 buildSeason();
+/* ---------- small mishaps: rare, short and harmless ----------
+   Every couple of minutes at most, one of: a cat strolls in front of a remote colleague's camera, a book slides off
+   the wall shelf, a cup tips over on a desk, or someone leans back too far on their chair and catches themselves. */
+var SAYS = [];
+function sayLater(p, text, t0, dur){ SAYS.push({ p:p, text:text, t0:t0, t1:t0 + dur, on:false }); }
+function updateSays(t){
+  for (var i = SAYS.length - 1; i >= 0; i--) {
+    var s = SAYS[i];
+    if (!s.on && t >= s.t0) { if (!s.p.chatWith) showBubble(s.p, s.text); s.on = true; }
+    if (t > s.t1) { if (s.p.bubble.textContent === s.text && !s.p.chatWith) showBubble(s.p, null); SAYS.splice(i, 1); }
+  }
+}
+var MISHAP = { next:0, cur:null, book:null, puddle:null };
+function buildMishaps(){
+  /* a small wall shelf between Debbie's heater and Carla's events calendar */
+  var shelfG = new T.Group(); shelfG.position.set(-2.79, 1.52, 1.72); scene.add(shelfG);
+  add(G.box, oakMat, 0.2, 0.025, 0.5, 0.1, 0, 0, shelfG);
+  add(G.box, metalDark, 0.12, 0.05, 0.015, 0.06, -0.035, -0.2, shelfG, false);
+  add(G.box, metalDark, 0.12, 0.05, 0.015, 0.06, -0.035, 0.2, shelfG, false);
+  [["#3b6ea8", 0.16, -0.19], ["#e2ac2f", 0.14, -0.16], ["#2a9d8f", 0.17, -0.13]].forEach(function(b){ add(G.box, M(b[0], { roughness:0.7 }), 0.12, b[1], 0.026, 0.1, 0.0125 + b[1] / 2, b[2], shelfG, false); });
+  add(G.cyl, M("#f4f2ee", { roughness:0.5 }), 0.035, 0.07, 0.035, 0.1, 0.048, 0.18, shelfG, false);
+  var book = new T.Group(); scene.add(book);
+  add(G.box, M("#b83c4c", { roughness:0.7 }), 0.12, 0.17, 0.028, 0, 0.085, 0, book, false);
+  add(G.box, M("#f4f1ea", { roughness:0.8 }), 0.112, 0.16, 0.02, 0.005, 0.085, 0, book, false);
+  book.traverse(function(o){ o.userData.dyn = true; });
+  MISHAP.book = { g:book, home:new V3(-2.69, 1.5325, 1.77), land:new V3(-1.82, 0.014, 1.7) };
+  book.position.copy(MISHAP.book.home);
+  /* the spill puddle, moved to whichever desk needs it */
+  var pd = new T.Mesh(new T.CircleGeometry(1, 28), new T.MeshStandardMaterial({ color:0x86bde6, roughness:0.05, metalness:0.1, transparent:true, opacity:0.7, depthWrite:false }));
+  pd.rotation.x = -Math.PI / 2; pd.renderOrder = 2; pd.visible = false; pd.userData.dyn = true;
+  MISHAP.puddle = pd;
+}
+function buildCat(rs){
+  var g = new T.Group(), fur = M("#d08a47", { roughness:0.9 }), dark = M("#8a5426", { roughness:0.9 }), eye = M("#20251c", { roughness:0.3 });
+  add(G.sph, fur, 0.17, 0.075, 0.07, 0, 0, 0, g, false);
+  var head = new T.Group(); head.position.set(0.17, 0.06, 0); g.add(head);
+  add(G.sph, fur, 0.065, 0.058, 0.062, 0, 0, 0, head, false);
+  [-1, 1].forEach(function(s){
+    var ear = new T.Mesh(new T.ConeGeometry(0.024, 0.05, 4), dark); ear.position.set(-0.005, 0.06, s * 0.032); ear.rotation.x = s * 0.25; head.add(ear);
+    add(G.sph, eye, 0.009, 0.012, 0.006, 0.054, 0.012, s * 0.024, head, false);
+  });
+  var tail = new T.Group(); tail.position.set(-0.16, 0.02, 0); g.add(tail);
+  add(G.limb, dark, 0.014, 0.2, 0.014, 0, 0, 0, tail, false).rotation.z = -2.5;
+  var legs = [];
+  [[0.1, 1], [0.1, -1], [-0.1, 1], [-0.1, -1]].forEach(function(q){ var l = add(G.limb, fur, 0.02, 0.1, 0.02, q[0], -0.03, q[1] * 0.035, g, false); legs.push(l); });
+  g.visible = false; rs.add(g);
+  return { g:g, head:head, tail:tail, legs:legs };
+}
+function nearestSitter(x, z, not){
+  var best = null, bd = 1e9;
+  PEOPLE.forEach(function(q){ if (q === not || q.state !== "sit" || !q.root.visible || q.chatWith) return; var d = Math.hypot(q.seat.x - x, q.seat.z - z); if (d < bd) { bd = d; best = q; } });
+  return best;
+}
+function startMishap(kind, t){
+  var m = { kind:kind, t0:t };
+  if (kind === "cat") {
+    var rp = REMOTE.filter(function(q){ return !q.camOff; });
+    if (!rp.length) return false;
+    m.p = choose(rp); m.cat = m.p.cat; m.dir = Math.random() < 0.5 ? 1 : -1; m.dur = 4.2;
+    m.cat.g.visible = true;
+    sayLater(m.p, choose(["Sorry, that's my cat!", "Someone wants to join the call.", "Meet my coworker, she runs the place."]), t + 1.6, 3.2);
+  } else if (kind === "book") {
+    if (MISHAP.book.down) return false;
+    m.dur = 1.6; MISHAP.book.down = true;
+    var w = nearestSitter(-2.4, 1.8);
+    if (w) { sayLater(w, choose(["Whoa! The shelf strikes again.", "Was that the shelf? I'll grab it in a sec.", "That book jumped. I saw it."]), t + 1.3, 3); startAct(w, "turn", t + 1.0, 3); }
+  } else if (kind === "spill") {
+    /* left row only: on the right row the cups sit behind the monitors from the usual view */
+    var who = PEOPLE.filter(function(q){ return q.side < 0 && q.state === "sit" && q.root.visible && !q.chatWith && !q.answering && q.cup; });
+    if (!who.length) return false;
+    m.p = choose(who); m.dur = 14; m.cup = m.p.cup;
+    MISHAP.puddle.position.set(-0.5, 0.7635, -0.5); MISHAP.puddle.scale.setScalar(0.001); MISHAP.puddle.visible = true;
+    m.p.deskGroup.add(MISHAP.puddle);
+    sayLater(m.p, "Oops! There goes my " + drinkOf(m.p) + ".", t + 0.7, 3);
+    startAct(m.p, "point", t + 0.5, 2.4);
+  } else if (kind === "chair") {
+    var cand = PEOPLE.filter(function(q){ return q.state === "sit" && q.root.visible && !q.chatWith && !q.answering && !q.act; });
+    if (!cand.length) return false;
+    m.p = choose(cand); m.dur = 2.4;
+    startAct(m.p, "wobble", t, m.dur);
+    sayLater(m.p, choose(["Whoa! Almost lost it there.", "Nope, I'm fine. Totally meant that.", "This chair has opinions."]), t + 0.9, 3);
+    var nb = nearestSitter(m.p.seat.x, m.p.seat.z, m.p);
+    if (nb && Math.abs(nb.z - m.p.z) < 2.2) sayLater(nb, choose(["Careful!", "Smooth.", "Nice save!"]), t + 2.6, 2.4);
+  }
+  MISHAP.cur = m;
+  return true;
+}
+var _cupPivot = new V3();
+function updateMishaps(t, dt){
+  updateSays(t);
+  var m = MISHAP.cur;
+  if (!m) {
+    if (reduceMotion) return;
+    if (!MISHAP.next) MISHAP.next = t + rand(50, 100);
+    if (t > MISHAP.next) {
+      MISHAP.next = t + rand(80, 170);
+      startMishap(choose(["cat", "cat", "book", "spill", "chair", "chair"]), t);
+    }
+    if (MISHAP.book.down && t > MISHAP.book.backAt) { MISHAP.book.down = false; MISHAP.book.g.position.copy(MISHAP.book.home); MISHAP.book.g.rotation.set(0, 0, 0); }
+    return;
+  }
+  var u = t - m.t0, k = clamp(u / m.dur, 0, 1);
+  if (m.kind === "cat") {
+    var c = m.cat;
+    c.g.position.set(m.dir * lerp(-0.55, 0.55, k), 1.1 + 0.012 * Math.abs(Math.sin(u * 9)), 1.0);
+    c.g.rotation.y = m.dir > 0 ? 0 : Math.PI;
+    c.head.rotation.y = -0.9 * bump(k, 0.35, 0.6, 0.08);
+    c.tail.rotation.x = 0.4 * Math.sin(u * 3);
+    for (var i = 0; i < 4; i++) c.legs[i].rotation.z = 0.45 * Math.sin(u * 9 + (i % 2 ? 0 : Math.PI) + (i > 1 ? Math.PI : 0));
+    if (k >= 1) { c.g.visible = false; MISHAP.cur = null; }
+  } else if (m.kind === "book") {
+    var B = MISHAP.book, g = B.g;
+    if (u < 0.5) { g.position.copy(B.home); g.position.x += 0.06 * ease(u / 0.5); g.rotation.z = -0.25 * ease(u / 0.5); }
+    else {
+      var f = clamp((u - 0.5) / 0.75, 0, 1);
+      g.position.lerpVectors(B.home, B.land, f); g.position.x = lerp(B.home.x + 0.06, B.land.x, f);
+      g.position.y = lerp(B.home.y, B.land.y, f * f) + (f >= 1 ? 0.03 * Math.max(0, Math.sin((u - 1.25) * 14)) * Math.exp(-(u - 1.25) * 8) : 0);
+      g.rotation.z = lerp(-0.25, -0.5, ease(f)); g.rotation.x = -Math.PI / 2 * ease(f);
+    }
+    if (k >= 1) { B.backAt = t + 40; MISHAP.cur = null; }
+  } else if (m.kind === "spill") {
+    /* tip over the outer base edge, lie there, then get set back up near the end */
+    var tip = ease(u / 0.45) * (1 - ease((u - (m.dur - 1.2)) / 0.6)), cup = m.cup, ang = tip * Math.PI / 2;
+    _cupPivot.set(-0.58, 0.76, -0.5);
+    cup.rotation.z = -ang;
+    cup.position.set(_cupPivot.x + (-0.04) * Math.cos(ang) + 0.05 * Math.sin(ang), _cupPivot.y + 0.04 * Math.sin(ang) + 0.05 * Math.cos(ang), _cupPivot.z);
+    var pu = MISHAP.puddle, grow = ease((u - 0.3) / 1.6) * (1 - ease((u - (m.dur - 2.5)) / 2.0));
+    pu.position.set(-0.46, 0.7635, -0.49); pu.scale.set(0.001 + 0.16 * grow, 0.001 + 0.11 * grow, 1);
+    if (k >= 1) { cup.rotation.z = 0; cup.position.set(-0.62, 0.81, -0.5); pu.visible = false; MISHAP.cur = null; }
+  } else if (m.kind === "chair") {
+    if (k >= 1) MISHAP.cur = null;
+  }
+}
+buildMishaps();
 
 /* focus ring */
 var ringMat = new T.MeshBasicMaterial({ color:0xe31837, transparent:true, opacity:0.85, toneMapped:false, depthWrite:false });
@@ -1176,6 +1311,7 @@ var ACTS = {
   leanBack:{ Spine1:[0, 1, -0.15], LeftArm:[0.8, 0.55, -0.15], LeftForeArm:[-0.6, 0.45, -0.4], RightArm:[-0.8, 0.55, -0.15], RightForeArm:[0.6, 0.45, -0.4] },
   call:{ RightArm:[-0.55, -0.3, 0.25], RightForeArm:[0.45, 0.9, -0.1], Head:[0, 1, 0.05] },
   checklist:{ LeftArm:[0.15, -0.85, 0.4], LeftForeArm:[-0.3, 0.5, 1], RightArm:[-0.15, -0.85, 0.4], RightForeArm:[0.3, 0.4, 1], Head:[0, 1, 0.45] },
+  wobble:{ Spine1:[0, 1, -0.5], Spine2:[0, 1, -0.4], Head:[0, 1, -0.35], LeftArm:[0.85, 0.8, 0.15], LeftForeArm:[0.3, 1, 0.1], RightArm:[-0.85, 0.8, 0.15], RightForeArm:[-0.3, 1, 0.1] },
   leanFire:{}, turn:{}
 };
 
@@ -1584,6 +1720,7 @@ function hideCovered(p, body){
 var GLTF = null, CLIPS = {};
 function makeRig(p, sc){
   var root = new T.Group();
+  root.rotation.order = "YXZ";
   var model = SkeletonUtils.clone(GLTF.scene);
   p.k = p.id === "debbie" || p.id === "olivia" ? 0.945 : 1;
   model.scale.setScalar(CH_SCALE * p.k);
@@ -1653,6 +1790,10 @@ function updateRig(p, t, dt){
   r.model.position.y = -(p.seatDrop || SEAT_DROP) * sit;
   r.proxy.scale.y = 1 - 0.3 * sit; r.proxy.position.y = 0.9 * (1 - 0.3 * sit);
   r.root.rotation.y = p.heading + p.swivel;
+  /* leaning back too far on the chair: the whole body tips, wobbles and comes back */
+  var tilt = 0;
+  if (p.act && p.act.n === "wobble") { var wu = t - p.act.t0; tilt = -0.2 * bump(wu, 0.05, p.act.dur - 0.5, 0.35) * (1 + 0.35 * Math.sin(wu * 13)); }
+  r.root.rotation.x = tilt;
   r.root.updateMatrixWorld(true);
   _rq.copy(r.root.quaternion);
   var b = r.b, i, n;
@@ -1687,6 +1828,7 @@ function updateRig(p, t, dt){
         n = ORDER[i];
         var dd = set[n];
         if (!dd) continue;
+        if (a.n === "wobble" && (n === "LeftForeArm" || n === "RightForeArm")) dd = v3a(SCR, dd[0] + 0.5 * Math.sin(t * 16 + (n === "LeftForeArm" ? 0 : 1.4)), dd[1], dd[2]);
         if (a.n === "wave" && n === "RightForeArm") dd = v3a(SCR, dd[0] + 0.45 * Math.sin(t * 9), dd[1], dd[2]);
         if ((a.n === "talk" || a.n === "answer") && n === "RightForeArm") dd = v3a(SCR, dd[0] + 0.15 * Math.sin(t * 4.3), dd[1] + 0.2 * Math.sin(t * 3.1), dd[2]);
         aim(b[n], b[CHILD[n]], dd, w, _rq);
@@ -2884,6 +3026,7 @@ REMOTE.forEach(function(p, i){
   back.position.set(0, 1.3, -1.25); rs.add(back);
   add(G.box, M(i ? "#b9936b" : "#d8d2c8", { roughness:0.55 }), 1.5, 0.045, 0.62, 0, 0.74, 0.6, rs, false);
   makeRig(p, rs);
+  p.cat = buildCat(rs);
   var cam = new T.PerspectiveCamera(30, 16 / 9, 0.1, 20);
   cam.position.set(0, 1.3, 1.7); cam.lookAt(0, 1.1, 0);
   var rt = new T.WebGLRenderTarget(384, 216, { samples:2 });
@@ -2957,7 +3100,7 @@ try {
 } catch (e) { composer = null; aoPass = null; }
 loadingEl.hidden = true;
 window.__voReady = true;
-window.__vo = { people:BY, focus:function(id){ focusOn(BY[id]); }, ask:function(id, q){ ask(BY[id], q); }, converse:function(id, q){ return converse(BY[id], q).text; }, goal:goal, view:view, season:function(){ seasonFx.next = 1; return SEASON; } };
+window.__vo = { people:BY, focus:function(id){ focusOn(BY[id]); }, ask:function(id, q){ ask(BY[id], q); }, converse:function(id, q){ return converse(BY[id], q).text; }, goal:goal, view:view, season:function(){ seasonFx.next = 1; return SEASON; }, mishap:function(k){ MISHAP.cur = null; return startMishap(k, clock.elapsedTime); }, mishaps:MISHAP };
 var snapCam = 0;
 /* a link like #p-luis opens that person's card on load */
 function focusFromHash(){ var m = /^#p-([a-z]+)$/.exec(location.hash || ""); if (m && BY[m[1]]) { focusOn(BY[m[1]]); snapCam = 3; } }
@@ -3012,6 +3155,7 @@ function frame(){
     else if (!p.root.visible && frameNo % 3 === 0) { p.rig.mixer.update(p.skipDt); p.skipDt = 0; }
   });
   REMOTE.forEach(function(p){ updateRemote(p, t, dt); });
+  updateMishaps(t, dt);
 
   mark("rigs", m0);
   var busy = false;
