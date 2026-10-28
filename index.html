@@ -2,10 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<style>*,*::before,*::after{box-sizing:border-box}html,body{margin:0;padding:0}</style>
-</head>
-<body>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Dimplex Virtual Office</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -40,6 +37,7 @@
   --bg:#0f1317; --surface:#181d23; --ink:#eef2f5; --muted:#9aa5b1; --line:#2a3139;
   --accent:#f0364f; --shadow:0 12px 32px rgba(0,0,0,.45); color-scheme:dark;
 }
+[hidden],#fallback[hidden]{display:none!important}
 html{height:100%;box-sizing:border-box}
 *,*::before,*::after{box-sizing:border-box}
 body{height:100%;margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);display:flex;flex-direction:column;overflow:hidden}
@@ -105,10 +103,12 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .status{margin:0;display:flex;align-items:center;gap:8px;font-weight:600;font-size:14px}
 .pulse{flex:none;width:9px;height:9px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 0 var(--accent);animation:ring 1.8s infinite}
 @keyframes ring{0%{box-shadow:0 0 0 0 rgba(227,24,55,.5)}70%{box-shadow:0 0 0 8px rgba(227,24,55,0)}100%{box-shadow:0 0 0 0 rgba(227,24,55,0)}}
-.blurb{margin:0;font-size:13px;line-height:1.5;color:var(--muted);max-width:65ch}
+.traits{margin:0;display:grid;gap:8px}
+.traits div{display:grid;gap:2px}
+.traits dt{font-size:10.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.traits dd{margin:0;font-size:13.5px;line-height:1.45;max-width:65ch}
 
 #fallback{position:absolute;inset:0;display:grid;place-items:center;padding:24px;text-align:center;color:#3b434c;font-size:14px}
-#fallback[hidden]{display:none}
 
 @media (max-width:640px){
   header{gap:10px}
@@ -127,7 +127,10 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   .card,.pulse{animation:none}
   .chip,.tag,.bubble{transition:none}
 }
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 </style>
+</head>
+<body>
 
 <header>
   <div class="brand">
@@ -158,7 +161,10 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
       <button class="x" id="cClose" type="button" aria-label="Close card">&times;</button>
     </div>
     <p class="status"><span class="pulse"></span><span id="cStatus"></span></p>
-    <p class="blurb" id="cBlurb"></p>
+    <dl class="traits">
+      <div><dt>Personality</dt><dd id="cPers"></dd></div>
+      <div><dt>Always talking about</dt><dd id="cTopics"></dd></div>
+    </dl>
   </section>
   <p class="hint" id="hint">Drag to rotate. Tap anyone to visit their desk.</p>
   <div id="fallback" hidden>The 3D office needs WebGL. Try a recent version of Chrome, Edge, Safari or Firefox.</div>
@@ -175,21 +181,21 @@ var T = THREE;
 
 /* ---------- team ---------- */
 var PEOPLE = [
-  { id:"erica", name:"Erica", role:"Manager, Marketing", side:1, z:-10, shirt:"#2f5f9e", pants:"#262b35", skin:"#f1c9a8", hair:"#4a2f1f", style:"bob", sleeves:true, screen:"cal",
+  { id:"erica", name:"Erica", role:"Manager, Marketing", side:1, z:-1.05, personality:"One of the bosses. Always heading to the next meeting.", topics:"Meetings, calendars and the next call", shirt:"#2f5f9e", pants:"#262b35", skin:"#f1c9a8", hair:"#4a2f1f", style:"bob", sleeves:true, screen:"cal",
     blurb:"Her calendar has no empty squares. If her chair is empty, check the Meeting Room.",
     walker:{ sit:8, away:9, offset:0, text:{ sit:"Between meetings", out:"Off to another meeting", away:"In a meeting (again)", back:"Back for five minutes" } } },
-  { id:"allyson", name:"Allyson", role:"Manager, Marketing", side:-1, z:-16.5, shirt:"#7a4d9e", pants:"#2b2833", skin:"#f3d2b6", hair:"#c9a05c", style:"long", sleeves:true, screen:"cal2",
+  { id:"allyson", name:"Allyson", role:"Manager, Marketing", side:1, z:0.8, personality:"One of the bosses. Back-to-back meetings, every single day.", topics:"Meetings and quick syncs", shirt:"#7a4d9e", pants:"#2b2833", skin:"#f3d2b6", hair:"#c9a05c", style:"long", sleeves:true, screen:"cal2",
     blurb:"Leaves for one meeting, comes back for a coffee, leaves for the next one.",
     walker:{ sit:6, away:11, offset:14, text:{ sit:"Back-to-back meetings", out:"Running to the next call", away:"Back-to-back meetings", back:"Back-to-back meetings" } } },
-  { id:"stephanie", name:"Stephanie", role:"Flame products", side:-1, z:-10, shirt:"#e0703a", pants:"#33302d", skin:"#e8b892", hair:"#8a3b1e", style:"pony", sleeves:false, screen:"fire",
+  { id:"stephanie", name:"Stephanie", role:"Flame products", side:1, z:2.65, personality:"Always solving fireplace issues.", topics:"Fireplaces and Flame products", shirt:"#e0703a", pants:"#33302d", skin:"#e8b892", hair:"#8a3b1e", style:"pony", sleeves:false, screen:"fire",
     status:"Fixing a fireplace issue", blurb:"Electric fireplaces. If a flame effect looks wrong, she already knows why." },
-  { id:"debbie", name:"Debbie", role:"Heat products", side:-1, z:4, shirt:"#b83c4c", pants:"#2d3138", skin:"#f0c6a2", hair:"#cdb488", style:"short", sleeves:true, screen:"sheet",
+  { id:"debbie", name:"Debbie", role:"Heat products", side:-1, z:0.8, personality:"Keeps every room in the catalog warm.", topics:"Baseboards and Heat products", shirt:"#b83c4c", pants:"#2d3138", skin:"#f0c6a2", hair:"#cdb488", style:"pixie", sleeves:true, screen:"sheet",
     status:"Heat products", blurb:"Baseboards, wall heaters and everything that keeps a room warm in January." },
-  { id:"olivia", name:"Olivia", role:"Designer", side:-1, z:-3, shirt:"#2a9d8f", pants:"#22262c", skin:"#c68b62", hair:"#1d1714", style:"bun", sleeves:false, screen:"swatch", glasses:true,
+  { id:"olivia", name:"Olivia", role:"Designer", side:-1, z:-1.05, personality:"The designer. Notices every pixel.", topics:"Design, images and color", shirt:"#2a9d8f", pants:"#22262c", skin:"#c68b62", hair:"#1d1714", style:"bun", sleeves:false, screen:"swatch", glasses:true,
     status:"Designing", blurb:"Turns product shots and brand colors into pages people actually want to scroll." },
-  { id:"luis", name:"Luis", role:"Web Manager", side:1, z:4, shirt:"#34495e", pants:"#23272e", skin:"#d9a57c", hair:"#231a15", style:"short", sleeves:false, screen:"code", headphones:true,
+  { id:"luis", name:"Luis", role:"Web Manager", side:-1, z:4.5, personality:"Headphones on, building the web.", topics:"The Dimplex, Convectair and Cadet sites", shirt:"#34495e", pants:"#23272e", skin:"#d9a57c", hair:"#231a15", style:"short", sleeves:false, screen:"code", headphones:true,
     status:"Headphones on, building the web", blurb:"Dimplex, Convectair and Cadet sites. Headphones on means deep in a build." },
-  { id:"carla", name:"Carla", role:"Marketing", side:1, z:-3, shirt:"#e2ac2f", pants:"#2a2f3a", skin:"#e6b38c", hair:"#3a2418", style:"long", sleeves:true, screen:"tasks",
+  { id:"carla", name:"Carla", role:"Marketing", side:-1, z:2.65, personality:"Friendly teammate. The answer is always yes.", topics:"Whatever the team needs next", shirt:"#e2ac2f", pants:"#2a2f3a", skin:"#e6b38c", hair:"#3a2418", style:"long", sleeves:true, screen:"tasks",
     status:"On it", blurb:"Ask her for anything and the answer is the same: on it." }
 ];
 var LINES = {
@@ -201,7 +207,7 @@ var LINES = {
   luis:["Headphones on","Pushing to the site","Deploying now","Fixing one more page"],
   carla:["On it!","Coffee anyone?","Sending it over now","Happy Friday, everyone!"]
 };
-var BY = {}; PEOPLE.forEach(function(p, i){ BY[p.id] = p; p.lines = LINES[p.id]; p.talkOffset = i * 1.7; p.lineNow = -1; });
+var BY = {}; PEOPLE.forEach(function(p){ BY[p.id] = p; });
 
 /* ---------- renderer ---------- */
 var renderer;
@@ -229,11 +235,11 @@ var reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-moti
 scene.add(new T.HemisphereLight(0xffffff, 0xc9b49a, 0.62));
 var sun = new T.DirectionalLight(0xfff4e6, 1.0);
 sun.position.set(9, 20, 8);
-sun.target.position.set(0, 0, -6);
+sun.target.position.set(0, 0, -1.5);
 sun.castShadow = true;
 sun.shadow.mapSize.set(1024, 1024);
 var sc = sun.shadow.camera;
-sc.left = -20; sc.right = 20; sc.top = 20; sc.bottom = -20; sc.near = 1; sc.far = 60;
+sc.left = -12; sc.right = 12; sc.top = 12; sc.bottom = -12; sc.near = 1; sc.far = 60;
 sun.shadow.bias = -0.0006;
 sun.shadow.normalBias = 0.02;
 sun.shadow.radius = 3;
@@ -307,7 +313,7 @@ var glassMat = new T.MeshStandardMaterial({ color:0xbfdbe6, roughness:0.05, meta
 var eyeMat = M("#1b1d22", { roughness:0.3 });
 
 /* ---------- floor ---------- */
-/* Hallway: inner walls at x = +-4.5, back wall at z = -24, open at the front. Desk rows sit against both side walls. */
+/* Hallway: inner walls at x = +-4.5, entrance open at z = +6, Dimplex wall at z = -9. Compact desk rows against both side walls. */
 var woodTex = canvasTex(512, 512, function(g, w, h){
   var cols = 8, pw = w / cols, r = seeded(11);
   for (var i = 0; i < cols; i++) {
@@ -330,29 +336,30 @@ var woodTex = canvasTex(512, 512, function(g, w, h){
   }
 });
 woodTex.wrapS = woodTex.wrapT = T.RepeatWrapping;
-woodTex.repeat.set(2.35, 9);
-var floor = new T.Mesh(new T.PlaneGeometry(9.4, 36), new T.MeshStandardMaterial({ map:woodTex, roughness:0.52, metalness:0.02 }));
+woodTex.repeat.set(2.35, 3.75);
+var floor = new T.Mesh(new T.PlaneGeometry(9.4, 15), new T.MeshStandardMaterial({ map:woodTex, roughness:0.52, metalness:0.02 }));
 floor.rotation.x = -Math.PI / 2;
-floor.position.set(0, 0, -6);
+floor.position.set(0, 0, -1.5);
 floor.receiveShadow = true;
 scene.add(floor);
-add(G.box, M("#bfc6cd", { roughness:0.97 }), 2.4, 0.012, 34.5, 0, 0.006, -6.6, scene, false);
-add(G.box, M("#d4d8dd", { roughness:0.9 }), 9.8, 0.3, 36.4, 0, -0.151, -6, scene, false);
+add(G.box, M("#bfc6cd", { roughness:0.97 }), 2.2, 0.012, 14.6, 0, 0.006, -1.5, scene, false);
+add(G.box, M("#d4d8dd", { roughness:0.9 }), 9.8, 0.3, 15.4, 0, -0.151, -1.5, scene, false);
+
+/* entrance mat */
+add(G.box, M("#3a3f47", { roughness:1 }), 1.8, 0.016, 0.9, 0, 0.008, 5.4, scene, false);
 
 /* ---------- walls ---------- */
-/* left wall (full height, faces the camera) with the Meeting Room door opening at z = -20.5 */
-add(G.box, wallMat, 0.2, 3.2, 32.2, -4.6, 1.6, -3.9, scene);
-add(G.box, wallMat, 0.2, 3.2, 3.2, -4.6, 1.6, -22.6, scene);
-add(G.box, wallMat, 0.2, 1.0, 1.0, -4.6, 2.7, -20.5, scene);
+/* left wall (full height, faces the camera). The hallway is a dead end at the logo wall. */
+add(G.box, wallMat, 0.2, 3.2, 15.2, -4.6, 1.6, -1.5, scene);
 /* right wall cut away to a low wall so the right row stays visible */
-add(G.box, wallMat, 0.2, 1.05, 36.2, 4.6, 0.525, -6, scene);
-add(G.box, M("#e2e2dc", { roughness:0.8 }), 0.26, 0.04, 36.2, 4.6, 1.07, -6, scene, false);
-add(G.box, wallMat, 9.4, 3.2, 0.2, 0, 1.6, -24.1, scene);
+add(G.box, wallMat, 0.2, 1.05, 15.2, 4.6, 0.525, -1.5, scene);
+add(G.box, M("#e2e2dc", { roughness:0.8 }), 0.26, 0.04, 15.2, 4.6, 1.07, -1.5, scene, false);
+add(G.box, wallMat, 9.4, 3.2, 0.2, 0, 1.6, -9.1, scene);
 var skirt = M("#dcdcd6", { roughness:0.8 });
-add(G.box, skirt, 0.03, 0.1, 32.2, -4.49, 0.05, -3.9, scene, false);
-add(G.box, skirt, 9, 0.1, 0.03, 0, 0.05, -23.99, scene, false);
+add(G.box, skirt, 0.03, 0.1, 15, -4.49, 0.05, -1.5, scene, false);
+add(G.box, skirt, 9, 0.1, 0.03, 0, 0.05, -8.99, scene, false);
 
-/* windows on the left wall, between the desk pods */
+/* high windows on the left wall, above the monitors */
 var skyTex = canvasTex(256, 256, function(g, w, h){
   var gr = g.createLinearGradient(0, 0, 0, h);
   gr.addColorStop(0, "#b9d7ee"); gr.addColorStop(0.7, "#e4f0f8"); gr.addColorStop(1, "#f4f2ea");
@@ -365,42 +372,28 @@ var skyTex = canvasTex(256, 256, function(g, w, h){
   }
 });
 var winMat = new T.MeshBasicMaterial({ map:skyTex });
-[8, 0.5, -6.5, -13.5].forEach(function(z){
+[[4.5, 1.5], [2.65, 1.5], [-1.05, 1.5], [-4.2, 2.2]].forEach(function(q){
+  var z = q[0], ww = q[1], wy = 2.15, wh = 1.0;
   var win = new T.Mesh(G.plane, winMat);
-  win.scale.set(2.2, 1.4, 1);
-  win.position.set(-4.49, 1.85, z);
+  win.scale.set(ww, wh, 1);
+  win.position.set(-4.49, wy, z);
   win.rotation.y = Math.PI / 2;
   scene.add(win);
-  add(G.box, alu, 0.06, 0.06, 2.3, -4.47, 1.15, z, scene, false);
-  add(G.box, alu, 0.06, 0.06, 2.3, -4.47, 2.55, z, scene, false);
-  add(G.box, alu, 0.06, 1.46, 0.06, -4.47, 1.85, z - 1.12, scene, false);
-  add(G.box, alu, 0.06, 1.46, 0.06, -4.47, 1.85, z + 1.12, scene, false);
-  add(G.box, alu, 0.05, 1.4, 0.04, -4.47, 1.85, z, scene, false);
+  add(G.box, alu, 0.06, 0.05, ww + 0.1, -4.47, wy - wh / 2 - 0.02, z, scene, false);
+  add(G.box, alu, 0.06, 0.05, ww + 0.1, -4.47, wy + wh / 2 + 0.02, z, scene, false);
+  add(G.box, alu, 0.06, wh + 0.06, 0.05, -4.47, wy, z - ww / 2 - 0.02, scene, false);
+  add(G.box, alu, 0.06, wh + 0.06, 0.05, -4.47, wy, z + ww / 2 + 0.02, scene, false);
 });
 
-/* low glass partitions between pods, from each wall to the aisle */
-function glassWall(x1, x2, z){
-  var L = Math.abs(x2 - x1), cx = (x1 + x2) / 2;
-  var g = new T.Mesh(G.box, glassMat);
-  g.scale.set(L, 1.4, 0.03); g.position.set(cx, 0.75, z);
-  g.renderOrder = 2;
-  scene.add(g);
-  add(G.box, alu, L, 0.05, 0.06, cx, 1.47, z, scene, false);
-  add(G.box, alu, L, 0.06, 0.06, cx, 0.03, z, scene, false);
-  var edge = Math.abs(x1) < Math.abs(x2) ? x1 : x2;
-  add(G.box, alu, 0.05, 1.48, 0.06, edge, 0.74, z, scene, false);
-}
-[-1, 1].forEach(function(s){ [0.5, -6.5, -13.5].forEach(function(z){ glassWall(s * 2.75, s * 4.48, z); }); });
-
 /* ---------- back wall: backlit Dimplex panel ---------- */
-add(G.box, M("#2c3138", { roughness:0.85 }), 9.0, 3.2, 0.06, 0, 1.6, -23.97, scene, false);
+add(G.box, M("#2c3138", { roughness:0.85 }), 9.0, 3.2, 0.06, 0, 1.6, -8.97, scene, false);
 var haloTex = canvasTex(256, 128, function(g, w, h){
   var gr = g.createRadialGradient(w / 2, h / 2, 4, w / 2, h / 2, w / 2);
   gr.addColorStop(0, "rgba(255,255,255,0.75)"); gr.addColorStop(0.45, "rgba(255,236,236,0.28)"); gr.addColorStop(1, "rgba(255,255,255,0)");
   g.fillStyle = gr; g.fillRect(0, 0, w, h);
 });
 var halo = new T.Mesh(G.plane, new T.MeshBasicMaterial({ map:haloTex, transparent:true, blending:T.AdditiveBlending, depthWrite:false, toneMapped:false }));
-halo.scale.set(8.8, 3.1, 1); halo.position.set(0, 1.85, -23.92);
+halo.scale.set(8.8, 3.1, 1); halo.position.set(0, 1.85, -8.92);
 scene.add(halo);
 var logoTex = canvasTex(1024, 262, function(g, w, h){
   g.fillStyle = "#ffffff"; g.fillRect(0, 0, w, h);
@@ -412,41 +405,52 @@ var logoTex = canvasTex(1024, 262, function(g, w, h){
   g.textAlign = "center"; g.textBaseline = "middle";
   g.fillText("Dimplex", w / 2, h / 2 + 6);
 });
-add(G.box, new T.MeshBasicMaterial({ color:0xffffff, toneMapped:false }), 6.62, 1.82, 0.12, 0, 1.95, -23.9, scene, false);
+add(G.box, new T.MeshBasicMaterial({ color:0xffffff, toneMapped:false }), 6.62, 1.82, 0.12, 0, 1.95, -8.9, scene, false);
 var logo = new T.Mesh(G.plane, new T.MeshBasicMaterial({ map:logoTex, toneMapped:false }));
-logo.scale.set(6.4, 1.64, 1); logo.position.set(0, 1.95, -23.835);
+logo.scale.set(6.4, 1.64, 1); logo.position.set(0, 1.95, -8.835);
 scene.add(logo);
 var logoLight = new T.PointLight(0xfff0f0, 0.55, 9, 2);
-logoLight.position.set(0, 1.9, -22.6);
+logoLight.position.set(0, 1.9, -7.6);
 scene.add(logoLight);
 
-/* ---------- meeting room door (left wall, near the logo end) ---------- */
-var DOOR = new V3(-4.6, 0, -20.5);
-var roomMat = new T.MeshStandardMaterial({ color:0xd7dde4, roughness:0.9, side:T.BackSide });
-var room = new T.Mesh(G.box, roomMat); room.scale.set(2.6, 3.0, 3.2); room.position.set(-6.0, 1.5, -20.5); scene.add(room);
-add(G.box, M("#e9e4dc"), 1.2, 0.05, 0.8, -6.1, 0.74, -20.5, scene, false);
+/* ---------- entrance (bottom): the only way out, toward the meeting rooms ---------- */
+add(G.box, M("#cfd4d9", { roughness:0.9 }), 3.0, 0.3, 2.4, 0, -0.151, 7.2, scene, false);
+add(G.box, M("#e3e6e9", { roughness:0.85 }), 2.8, 0.02, 2.3, 0, 0.0, 7.2, scene, false);
 var frameMat = M("#3b4048", { roughness:0.4, metalness:0.4 });
-add(G.box, frameMat, 0.26, 2.26, 0.07, -4.6, 1.13, -19.96, scene, false);
-add(G.box, frameMat, 0.26, 2.26, 0.07, -4.6, 1.13, -21.04, scene, false);
-add(G.box, frameMat, 0.26, 0.07, 1.15, -4.6, 2.24, -20.5, scene, false);
-var doorPivot = new T.Group(); doorPivot.position.set(-4.6, 0, -19.99); scene.add(doorPivot);
-add(G.box, M("#b8895a", { roughness:0.55 }), 0.05, 2.18, 0.98, 0, 1.09, -0.49, doorPivot);
-add(G.box, alu, 0.08, 0.03, 0.14, 0.05, 1.05, -0.85, doorPivot, false);
-var signTex = canvasTex(512, 128, function(g, w, h){
-  g.fillStyle = "#2b3038"; rrect(g, 0, 0, w, h, 18); g.fill();
-  g.fillStyle = "#ffffff"; g.font = "700 54px " + FONT; g.textAlign = "left"; g.textBaseline = "middle";
-  g.fillText("Meeting Room", 34, h / 2 + 2);
+[-1, 1].forEach(function(s){
+  add(G.box, frameMat, 0.14, 2.45, 0.14, s * 1.45, 1.225, 6.05, scene);
+  add(G.box, wallMat, 2.98, 1.05, 0.16, s * 2.99, 0.525, 6.05, scene);
+  add(G.box, M("#e2e2dc", { roughness:0.8 }), 2.98, 0.04, 0.22, s * 2.99, 1.07, 6.05, scene, false);
 });
-var sign = new T.Mesh(G.plane, new T.MeshBasicMaterial({ map:signTex, toneMapped:false }));
-sign.scale.set(1.2, 0.3, 1); sign.position.set(-4.485, 2.62, -20.5); sign.rotation.y = Math.PI / 2;
-scene.add(sign);
+add(G.box, frameMat, 3.04, 0.14, 0.14, 0, 2.45, 6.05, scene);
+var signTex = canvasTex(512, 96, function(g, w, h){
+  g.fillStyle = "#2b3038"; rrect(g, 0, 0, w, h, 14); g.fill();
+  g.strokeStyle = "#ffffff"; g.lineWidth = 7; g.lineCap = "round"; g.lineJoin = "round";
+  g.beginPath(); g.moveTo(28, 34); g.lineTo(48, 58); g.lineTo(68, 34); g.stroke();
+  g.fillStyle = "#ffffff"; g.font = "700 40px " + FONT; g.textAlign = "left"; g.textBaseline = "middle";
+  g.fillText("To meeting rooms", 92, h / 2 + 2);
+});
+add(G.box, frameMat, 1.74, 0.34, 0.04, 0, 2.15, 6.05, scene, false);
+[0, Math.PI].forEach(function(r){
+  var sg = new T.Mesh(G.plane, new T.MeshBasicMaterial({ map:signTex, toneMapped:false }));
+  sg.scale.set(1.7, 0.32, 1); sg.rotation.y = r; sg.position.set(0, 2.15, 6.05 + (r ? -0.022 : 0.022));
+  scene.add(sg);
+});
 var roomLampMat = new T.MeshBasicMaterial({ color:0x29c46b, toneMapped:false });
-add(G.sph, roomLampMat, 0.05, 0.05, 0.05, -4.48, 2.62, -21.3, scene, false);
+add(G.sph, roomLampMat, 0.045, 0.045, 0.045, 0.78, 2.15, 6.08, scene, false);
+add(G.sph, roomLampMat, 0.045, 0.045, 0.045, -0.78, 2.15, 6.02, scene, false);
 
 /* ---------- screens ---------- */
 function screenTex(kind){
   return canvasTex(512, 320, function(g, w, h){
     var r = seeded(kind.length * 97 + 13), i, j;
+    if (kind === "off") {
+      var og = g.createLinearGradient(0, 0, w, h);
+      og.addColorStop(0, "#1d2127"); og.addColorStop(0.5, "#14171b"); og.addColorStop(1, "#0f1114");
+      g.fillStyle = og; g.fillRect(0, 0, w, h);
+      g.fillStyle = "rgba(255,255,255,0.05)"; g.beginPath(); g.moveTo(0, 0); g.lineTo(w * 0.45, 0); g.lineTo(w * 0.2, h); g.lineTo(0, h); g.fill();
+      return;
+    }
     if (kind === "code") {
       g.fillStyle = "#1c2128"; g.fillRect(0, 0, w, h);
       g.fillStyle = "#242a32"; g.fillRect(0, 0, 96, h);
@@ -545,19 +549,50 @@ function monitor(parent, x, z, w, h, kind, ry){
   g.add(scr);
   return g;
 }
+/* soft contact shadow decal, shared by chairs and desks */
+var aoTex = canvasTex(128, 128, function(g, w, h){
+  var gr = g.createRadialGradient(w / 2, h / 2, 2, w / 2, h / 2, w / 2);
+  gr.addColorStop(0, "rgba(0,0,0,0.55)"); gr.addColorStop(0.55, "rgba(0,0,0,0.22)"); gr.addColorStop(1, "rgba(0,0,0,0)");
+  g.fillStyle = gr; g.fillRect(0, 0, w, h);
+});
+var aoMat = new T.MeshBasicMaterial({ map:aoTex, transparent:true, depthWrite:false, opacity:0.75 });
+function aoDecal(parent, x, z, sx, sz){
+  var m = new T.Mesh(G.plane, aoMat);
+  m.rotation.x = -Math.PI / 2; m.scale.set(sx, sz, 1); m.position.set(x, 0.004, z);
+  m.renderOrder = 1;
+  parent.add(m);
+  return m;
+}
+
+/* ergonomic office chair: 5-star base with casters, gas lift, cushioned seat, curved backrest, armrests */
+var chairMesh = M("#2f343b", { roughness:0.92 }), chairFrame = M("#1d2025", { roughness:0.45, metalness:0.35 }), chrome = M("#b9bfc6", { roughness:0.25, metalness:0.85 });
 function chair(parent, x, z){
   var g = new T.Group(); g.position.set(x, 0, z); parent.add(g);
+  aoDecal(g, 0, 0.02, 0.85, 0.85);
   for (var i = 0; i < 5; i++) {
-    var leg = add(G.box, metalDark, 0.04, 0.03, 0.3, Math.sin(i * 1.2566) * 0.14, 0.04, Math.cos(i * 1.2566) * 0.14, g, false);
-    leg.rotation.y = i * 1.2566;
+    var a = i * Math.PI * 2 / 5;
+    var leg = add(G.box, chairFrame, 0.045, 0.035, 0.3, Math.sin(a) * 0.15, 0.075, Math.cos(a) * 0.15, g, false);
+    leg.rotation.y = a;
+    add(G.sph, chairFrame, 0.03, 0.03, 0.03, Math.sin(a) * 0.29, 0.03, Math.cos(a) * 0.29, g, false);
   }
-  add(G.cyl, metalDark, 0.025, 0.38, 0.025, 0, 0.24, 0, g, false);
-  add(G.box, fabric, 0.5, 0.08, 0.48, 0, 0.46, 0.04, g);
-  add(G.box, fabric, 0.48, 0.56, 0.06, 0, 0.84, 0.3, g);
+  add(G.cyl, chairFrame, 0.05, 0.06, 0.05, 0, 0.1, 0, g, false);
+  add(G.cyl, chrome, 0.022, 0.26, 0.022, 0, 0.25, 0, g, false);
+  add(G.box, chairFrame, 0.3, 0.04, 0.3, 0, 0.39, 0.02, g, false);
+  add(G.box, chairFrame, 0.46, 0.03, 0.44, 0, 0.42, 0.03, g);
+  add(G.sph, chairMesh, 0.25, 0.05, 0.235, 0, 0.45, 0.03, g);
+  add(G.box, chairFrame, 0.05, 0.36, 0.035, 0, 0.6, 0.29, g, false).rotation.x = -0.12;
+  var back = add(G.sph, chairMesh, 0.235, 0.27, 0.05, 0, 0.86, 0.31, g);
+  back.rotation.x = -0.1;
+  add(G.sph, chairMesh, 0.17, 0.05, 0.035, 0, 0.66, 0.29, g, false);
+  [-1, 1].forEach(function(s){
+    add(G.box, chairFrame, 0.025, 0.2, 0.03, s * 0.25, 0.55, 0.08, g, false);
+    add(G.sph, chairFrame, 0.035, 0.018, 0.13, s * 0.25, 0.66, 0.05, g);
+  });
   return g;
 }
 function plant(x, z, s){
   var g = new T.Group(); g.position.set(x, 0, z); g.scale.setScalar(s || 1); scene.add(g);
+  aoDecal(g, 0, 0, 0.7, 0.7);
   add(G.cyl, M("#ece7df", { roughness:0.8 }), 0.2, 0.42, 0.2, 0, 0.21, 0, g);
   add(G.cyl, M("#4a3a2c"), 0.18, 0.02, 0.18, 0, 0.42, 0, g, false);
   var r = seeded(Math.floor((x + 20) * 31 + (z + 40) * 7)), greens = ["#3f7d4a","#4f9259","#2f6a3c","#5a9e63"];
@@ -570,89 +605,141 @@ function plant(x, z, s){
 }
 function desk(p){
   var g = new T.Group(); g.position.set(p.side * 3.3, 0, p.z); g.rotation.y = -p.side * Math.PI / 2; scene.add(g);
+  aoDecal(g, 0, -0.78, 1.9, 1.0);
   add(G.box, deskTop, 1.7, 0.045, 0.82, 0, 0.74, -0.78, g);
+  add(G.box, M("#d9d6cf", { roughness:0.6 }), 1.7, 0.012, 0.82, 0, 0.712, -0.78, g, false);
   [[-0.8,-0.42],[0.8,-0.42],[-0.8,-1.14],[0.8,-1.14]].forEach(function(q){ add(G.box, metalDark, 0.04, 0.72, 0.04, q[0], 0.36, q[1], g, false); });
   add(G.box, metalDark, 1.56, 0.3, 0.02, 0, 0.52, -1.16, g, false);
   add(G.box, M("#e8e9eb", { roughness:0.5 }), 0.44, 0.016, 0.14, 0, 0.77, -0.56, g, false);
   add(G.box, M("#e8e9eb", { roughness:0.5 }), 0.06, 0.02, 0.1, 0.36, 0.772, -0.54, g, false);
   add(G.cyl, M(p.side > 0 ? "#ffffff" : "#E31837", { roughness:0.4 }), 0.04, 0.1, 0.04, -0.62, 0.81, -0.5, g);
-  chair(g, 0, 0.02);
+  p.chairG = chair(g, 0, 0.02);
   p.deskGroup = g;
   return g;
 }
 
 /* ---------- characters ---------- */
+/* Proportions: about 1.73 m tall, head about 1/7 of height. Limbs are tapered capsules, torso is a lathe with a waist. */
+function taperCap(rt, rb, len){
+  var pts = [], n = 7, i, a;
+  for (i = n; i >= 0; i--) { a = -Math.PI / 2 * i / n; pts.push(new T.Vector2(Math.max(0.0001, rb * Math.cos(a)), -len + rb * Math.sin(a))); }
+  for (i = 0; i <= n; i++) { a = Math.PI / 2 * i / n; pts.push(new T.Vector2(Math.max(0.0001, rt * Math.cos(a)), rt * Math.sin(a))); }
+  return new T.LatheGeometry(pts, 20);
+}
+G.upperArm = taperCap(0.047, 0.04, 0.27);
+G.foreArm = taperCap(0.039, 0.031, 0.24);
+G.thigh = taperCap(0.07, 0.054, 0.42);
+G.shin = taperCap(0.05, 0.039, 0.38);
+G.torso2 = new T.LatheGeometry([[0.0001,0],[0.15,0],[0.162,0.05],[0.152,0.16],[0.145,0.22],[0.158,0.3],[0.178,0.4],[0.186,0.47],[0.18,0.52],[0.15,0.56],[0.09,0.585],[0.0001,0.59]].map(function(q){ return new T.Vector2(q[0], q[1]); }), 28);
+G.hsph = new T.SphereGeometry(1, 32, 22);
+G.hcap2 = new T.SphereGeometry(1, 32, 16, 0, Math.PI * 2, 0, Math.PI * 0.53);
+G.band2 = new T.TorusGeometry(0.122, 0.014, 8, 32, Math.PI);
+
+var fabricTex = canvasTex(128, 128, function(g, w, h){
+  var r = seeded(29);
+  g.fillStyle = "#808080"; g.fillRect(0, 0, w, h);
+  for (var y = 0; y < h; y += 2) { g.fillStyle = "rgba(255,255,255," + (0.06 + r() * 0.08).toFixed(3) + ")"; g.fillRect(0, y, w, 1); }
+  for (var x = 0; x < w; x += 2) { g.fillStyle = "rgba(0,0,0," + (0.05 + r() * 0.07).toFixed(3) + ")"; g.fillRect(x, 0, 1, h); }
+});
+fabricTex.wrapS = fabricTex.wrapT = T.RepeatWrapping;
+fabricTex.repeat.set(6, 6);
+var fabCache = {};
+function Mfab(color, rough){
+  var key = color + rough;
+  if (!fabCache[key]) fabCache[key] = new T.MeshStandardMaterial({ color:color, roughness:rough, metalness:0, bumpMap:fabricTex, bumpScale:0.0025 });
+  return fabCache[key];
+}
+
 function hair(head, style, m){
-  var cap = add(G.hcap, m, 0.137, 0.152, 0.142, 0, 0.004, -0.004, head);
-  cap.rotation.x = -0.45;
-  if (style === "bob") {
-    add(G.sph, m, 0.15, 0.13, 0.11, 0, -0.04, -0.045, head);
+  var cap = add(G.hcap2, m, 0.106, 0.126, 0.118, 0, 0.006, -0.004, head);
+  cap.rotation.x = -0.42;
+  if (style === "short") {
+    add(G.hsph, m, 0.098, 0.045, 0.1, 0, 0.088, 0.012, head);
+  } else if (style === "pixie") {
+    add(G.hsph, m, 0.1, 0.05, 0.104, 0, 0.082, 0.02, head);
+    add(G.hsph, m, 0.108, 0.085, 0.09, 0, -0.005, -0.04, head);
+  } else if (style === "bob") {
+    add(G.hsph, m, 0.12, 0.105, 0.1, 0, -0.035, -0.032, head);
+    add(G.hsph, m, 0.1, 0.04, 0.1, 0, 0.09, 0.015, head);
   } else if (style === "long") {
-    add(G.sph, m, 0.148, 0.13, 0.11, 0, -0.03, -0.045, head);
-    add(G.sph, m, 0.14, 0.25, 0.075, 0, -0.15, -0.075, head);
+    add(G.hsph, m, 0.118, 0.11, 0.1, 0, -0.03, -0.032, head);
+    var back = add(G.hsph, m, 0.112, 0.2, 0.06, 0, -0.14, -0.06, head);
+    back.rotation.x = 0.08;
+    add(G.hsph, m, 0.1, 0.04, 0.1, 0, 0.09, 0.015, head);
   } else if (style === "bun") {
-    add(G.sph, m, 0.068, 0.068, 0.068, 0, 0.1, -0.1, head);
+    add(G.hsph, m, 0.052, 0.048, 0.052, 0, 0.075, -0.1, head);
+    add(G.hsph, m, 0.106, 0.08, 0.1, 0, -0.01, -0.035, head);
   } else if (style === "pony") {
-    var pony = add(G.sph, m, 0.05, 0.14, 0.05, 0, -0.05, -0.16, head);
-    pony.rotation.x = 0.45;
-    add(G.sph, M("#E31837"), 0.03, 0.03, 0.03, 0, 0.05, -0.135, head, false);
+    add(G.hsph, m, 0.106, 0.08, 0.1, 0, -0.01, -0.035, head);
+    var pony = add(G.hsph, m, 0.04, 0.12, 0.042, 0, -0.06, -0.13, head);
+    pony.rotation.x = 0.4;
+    add(G.cyl, M("#E31837", { roughness:0.5 }), 0.026, 0.02, 0.026, 0, 0.03, -0.122, head, false).rotation.x = 1.1;
   }
 }
 function makePerson(p){
   var root = new T.Group(), body = new T.Group();
   root.add(body);
-  var shirt = M(p.shirt, { roughness:0.82 }), pants = M(p.pants, { roughness:0.88 });
-  var skin = M(p.skin, { roughness:0.6 }), hairM = M(p.hair, { roughness:0.7 }), shoe = M("#202328", { roughness:0.45 });
+  var shirt = Mfab(p.shirt, 0.88), pants = Mfab(p.pants, 0.8);
+  var skin = M(p.skin, { roughness:0.55 }), hairM = M(p.hair, { roughness:0.5 });
+  var lip = M(new T.Color(p.skin).lerp(new T.Color("#a0524a"), 0.45).getStyle(), { roughness:0.5 });
+  var shoe = M("#1d1f23", { roughness:0.35 }), sole = M("#3a3c40", { roughness:0.8 });
 
-  add(G.sph, pants, 0.18, 0.12, 0.13, 0, 0.93, 0, body);
-  var torso = add(G.torso, shirt, 1, 1, 0.72, 0, 0.88, 0, body);
-  add(G.sph, shirt, 0.11, 0.035, 0.08, 0, 1.51, 0, body, false);
-  add(G.cyl, skin, 0.05, 0.1, 0.05, 0, 1.54, 0, body);
+  /* hips, belt, torso, collar, neck */
+  add(G.hsph, pants, 0.158, 0.1, 0.112, 0, 0.86, 0, body);
+  add(G.cyl, M("#24262b", { roughness:0.4 }), 0.152, 0.03, 0.108, 0, 0.9, 0, body, false);
+  var torso = add(G.torso2, shirt, 1, 1, 0.64, 0, 0.86, 0, body);
+  add(G.ring, shirt, 0.055, 0.055, 0.12, 0, 1.445, 0.0, body, false).rotation.x = Math.PI / 2;
+  add(G.cyl, skin, 0.042, 0.11, 0.042, 0, 1.48, 0, body);
 
-  var head = new T.Group(); head.position.y = 1.67; body.add(head);
-  add(G.sph, skin, 0.125, 0.14, 0.13, 0, 0, 0, head);
-  add(G.sph, eyeMat, 0.016, 0.021, 0.012, -0.045, 0.005, 0.118, head, false);
-  add(G.sph, eyeMat, 0.016, 0.021, 0.012, 0.045, 0.005, 0.118, head, false);
-  add(G.sph, skin, 0.02, 0.025, 0.02, 0, -0.025, 0.13, head, false);
-  var smile = add(G.smile, eyeMat, 1, 1, 1, 0, -0.052, 0.117, head, false);
-  smile.rotation.z = Math.PI;
-  add(G.sph, skin, 0.022, 0.03, 0.02, -0.124, -0.005, 0, head, false);
-  add(G.sph, skin, 0.022, 0.03, 0.02, 0.124, -0.005, 0, head, false);
+  /* head */
+  var head = new T.Group(); head.position.y = 1.61; body.add(head);
+  add(G.hsph, skin, 0.098, 0.118, 0.108, 0, 0, 0, head);
+  add(G.hsph, skin, 0.08, 0.068, 0.088, 0, -0.045, 0.01, head);
+  [-1, 1].forEach(function(s){
+    add(G.sph, eyeMat, 0.011, 0.013, 0.008, s * 0.034, 0.008, 0.1, head, false);
+    var brow = add(G.box, hairM, 0.03, 0.006, 0.008, s * 0.035, 0.034, 0.101, head, false);
+    brow.rotation.z = -s * 0.12;
+    add(G.sph, skin, 0.012, 0.026, 0.018, s * 0.097, -0.005, 0, head, false);
+  });
+  add(G.sph, skin, 0.014, 0.024, 0.018, 0, -0.012, 0.108, head, false);
+  add(G.sph, lip, 0.024, 0.008, 0.01, 0, -0.052, 0.094, head, false);
   hair(head, p.style, hairM);
 
   if (p.glasses) {
     var fr = M("#1e2126", { roughness:0.3 });
-    [-0.045, 0.045].forEach(function(x){ add(G.ring, fr, 0.032, 0.032, 0.032, x, 0.005, 0.128, head, false); });
-    add(G.box, fr, 0.03, 0.006, 0.006, 0, 0.008, 0.132, head, false);
+    [-0.035, 0.035].forEach(function(x){ add(G.ring, fr, 0.024, 0.024, 0.024, x, 0.008, 0.106, head, false); });
+    add(G.box, fr, 0.022, 0.005, 0.005, 0, 0.01, 0.109, head, false);
   }
   if (p.headphones) {
     var hpDark = M("#1b1e23", { roughness:0.35, metalness:0.3 }), hpRed = M("#E31837", { roughness:0.35 });
-    add(G.band, hpDark, 1, 1, 1.2, 0, 0.0, -0.005, head);
+    add(G.band2, hpDark, 1, 1.05, 1.15, 0, 0.0, -0.006, head);
     [-1, 1].forEach(function(s){
-      var cup = add(G.cyl, hpDark, 0.072, 0.06, 0.072, s * 0.148, -0.012, 0, head);
+      var cup = add(G.cyl, hpDark, 0.056, 0.046, 0.056, s * 0.116, -0.012, 0, head);
       cup.rotation.z = Math.PI / 2;
-      var cap2 = add(G.cyl, hpRed, 0.056, 0.02, 0.056, s * 0.186, -0.012, 0, head, false);
+      var cap2 = add(G.cyl, hpRed, 0.044, 0.016, 0.044, s * 0.144, -0.012, 0, head, false);
       cap2.rotation.z = Math.PI / 2;
     });
   }
 
+  /* arms and legs */
   var arms = [], legs = [];
   [-1, 1].forEach(function(s){
-    var sh = new T.Group(); sh.position.set(s * 0.235, 1.43, 0); body.add(sh);
-    add(G.sph, shirt, 0.072, 0.072, 0.072, 0, 0, 0, sh);
-    add(G.limb, shirt, 0.06, 0.3, 0.06, 0, 0, 0, sh);
-    var el = new T.Group(); el.position.y = -0.29; sh.add(el);
-    add(G.sph, p.sleeves ? shirt : skin, 0.052, 0.052, 0.052, 0, 0, 0, el, false);
-    add(G.limb, p.sleeves ? shirt : skin, 0.048, 0.25, 0.048, 0, 0, 0, el);
-    add(G.sph, skin, 0.05, 0.058, 0.044, 0, -0.285, 0, el);
+    var sh = new T.Group(); sh.position.set(s * 0.19, 1.405, 0); body.add(sh);
+    add(G.hsph, shirt, 0.064, 0.06, 0.062, 0, 0, 0, sh);
+    add(G.upperArm, shirt, 1, 1, 1, 0, 0, 0, sh);
+    var el = new T.Group(); el.position.y = -0.27; sh.add(el);
+    add(G.foreArm, p.sleeves ? shirt : skin, 1, 1, 1, 0, 0, 0, el);
+    if (p.sleeves) add(G.cyl, skin, 0.03, 0.02, 0.03, 0, -0.245, 0, el, false);
+    add(G.hsph, skin, 0.042, 0.05, 0.02, 0, -0.29, 0.004, el);
+    add(G.hsph, skin, 0.012, 0.026, 0.012, -s * 0.034, -0.27, 0.01, el, false).rotation.z = -s * 0.5;
     arms.push({ sh:sh, el:el, s:s });
 
-    var hip = new T.Group(); hip.position.set(s * 0.095, 0.9, 0); body.add(hip);
-    add(G.limb, pants, 0.08, 0.44, 0.08, 0, 0, 0, hip);
-    var kn = new T.Group(); kn.position.y = -0.43; hip.add(kn);
-    add(G.sph, pants, 0.068, 0.068, 0.068, 0, 0, 0, kn, false);
-    add(G.limb, pants, 0.066, 0.41, 0.066, 0, 0, 0, kn);
-    add(G.box, shoe, 0.1, 0.07, 0.24, 0, -0.43, 0.045, kn);
+    var hip = new T.Group(); hip.position.set(s * 0.085, 0.86, 0); body.add(hip);
+    add(G.thigh, pants, 1, 1, 1, 0, 0, 0, hip);
+    var kn = new T.Group(); kn.position.y = -0.42; hip.add(kn);
+    add(G.shin, pants, 1, 1, 1, 0, 0, 0, kn);
+    add(G.hsph, shoe, 0.048, 0.04, 0.115, 0, -0.4, 0.04, kn);
+    add(G.box, sole, 0.094, 0.016, 0.225, 0, -0.43, 0.04, kn, false);
     legs.push({ hip:hip, kn:kn, s:s });
   });
 
@@ -666,18 +753,23 @@ function makePerson(p){
   scene.add(root);
 }
 
+/* s: 0 seated, 1 standing. Seated arms: upper arm forward, elbow bent about 90 deg, hands on the keyboard. */
 function pose(p, s, walk, phase, t, typing){
-  p.body.position.y = -0.4 * (1 - s) + walk * 0.025 * Math.abs(Math.cos(phase));
+  var br = Math.sin(t * 1.7 + p.z * 2) * 0.012;
+  p.body.position.y = -0.36 * (1 - s) + walk * 0.022 * Math.abs(Math.cos(phase));
   p.body.rotation.set(0, 0, 0);
   p.head.rotation.set(0, 0, 0);
+  p.torso.scale.set(1 + br, 1 + br * 0.4, 0.64 * (1 + br * 1.5));
   var sw = Math.sin(phase) * 0.5 * walk;
+  var burst = typing ? p.typeAmp : 0;
   for (var i = 0; i < 2; i++) {
     var L = p.legs[i], A = p.arms[i], sg = L.s;
-    L.hip.rotation.x = lerp(-Math.PI / 2 + 0.06, 0, s) + sw * sg;
-    L.kn.rotation.x = lerp(Math.PI / 2 - 0.06, 0, s) + walk * 0.55 * Math.max(0, sg * Math.cos(phase));
-    var ty = typing ? Math.sin(t * 13 + i * 1.9) * 0.05 : 0;
-    A.sh.rotation.set(lerp(-0.62, 0.05, s) - sw * sg * 0.9 + ty, 0, A.s * lerp(0.12, 0.09, s));
-    A.el.rotation.set(lerp(-0.92, -0.2, s) - ty, 0, 0);
+    L.hip.rotation.set(lerp(-Math.PI / 2 + 0.08, 0, s) + sw * sg, 0, sg * lerp(0.06, 0, s));
+    L.kn.rotation.x = lerp(Math.PI / 2 - 0.12, 0, s) + walk * 0.55 * Math.max(0, sg * Math.cos(phase));
+    var ty = typing ? burst * 0.045 * Math.max(0, Math.sin(t * 12 + i * 2.3 + Math.sin(t * 1.9 + i) * 2)) : 0;
+    A.sh.position.y = 1.405 + br * 0.6;
+    A.sh.rotation.set(lerp(-0.55, 0.05, s) - sw * sg * 0.9 + ty * 0.5, 0, A.s * lerp(0.14, 0.08, s));
+    A.el.rotation.set(lerp(-1.05, -0.18, s) - ty, 0, -A.s * lerp(0.32, 0, s));
   }
 }
 
@@ -686,16 +778,23 @@ PEOPLE.forEach(function(p){ desk(p); makePerson(p); });
 var pickables = [];
 PEOPLE.forEach(function(p){ p.root.traverse(function(o){ if (o.isMesh) pickables.push(o); }); });
 
+/* the empty desk at the entrance, right side */
+var emptyDesk = { side:1, z:4.5 };
+desk(emptyDesk);
+emptyDesk.chairG.rotation.y = 0.45;
+emptyDesk.chairG.position.set(0.15, 0, 0.22);
+
 /* desk props */
 var dg = BY.luis.deskGroup;
 monitor(dg, -0.36, -1.0, 0.6, 0.36, "code", 0.22);
 monitor(dg, 0.36, -1.0, 0.6, 0.36, "web", -0.22);
 monitor(BY.olivia.deskGroup, 0, -1.0, 1.0, 0.56, "swatch", 0);
 add(G.box, M("#26292f", { roughness:0.4 }), 0.34, 0.012, 0.24, 0.5, 0.77, -0.6, BY.olivia.deskGroup, false);
-monitor(BY.stephanie.deskGroup, 0, -1.0, 0.64, 0.38, "fire", 0);
+monitor(BY.stephanie.deskGroup, -0.22, -1.0, 0.64, 0.38, "fire", 0);
 monitor(BY.debbie.deskGroup, 0, -1.0, 0.64, 0.38, "sheet", 0);
 monitor(BY.erica.deskGroup, 0, -1.0, 0.64, 0.38, "cal", 0);
 monitor(BY.allyson.deskGroup, 0, -1.0, 0.64, 0.38, "cal2", 0);
+monitor(emptyDesk.deskGroup, 0, -1.0, 0.64, 0.38, "off", 0);
 (function(){
   var g = new T.Group(); g.position.set(0.05, 0.765, -0.72); BY.carla.deskGroup.add(g);
   add(G.box, alu, 0.4, 0.015, 0.28, 0, 0, 0, g, false);
@@ -708,10 +807,10 @@ monitor(BY.allyson.deskGroup, 0, -1.0, 0.64, 0.38, "cal2", 0);
   for (var i = 0; i < 6; i++) { var lf = add(G.lowSph, M("#4f9259", { flatShading:true }), 0.12, 0.3, 0.06, Math.cos(i) * 0.08, 0.45, Math.sin(i) * 0.08, pl); lf.rotation.set(0.3, i, 0.4); }
 })();
 
-/* Stephanie: electric fireplace */
+/* Stephanie: small electric fireplace on her desk */
 var flames = [], fireLight;
 (function(){
-  var g = new T.Group(); g.position.set(-4.24, 0, -11.9); g.rotation.y = Math.PI / 2; scene.add(g);
+  var g = new T.Group(); g.position.set(0.55, 0.762, -0.85); g.rotation.y = Math.PI / 2; g.scale.setScalar(0.42); BY.stephanie.deskGroup.add(g);
   var white = M("#f4f2ee", { roughness:0.6 });
   add(G.box, white, 1.36, 0.08, 0.42, 0, 0.04, 0, g);
   add(G.box, white, 0.22, 0.86, 0.4, -0.56, 0.47, 0, g);
@@ -732,57 +831,69 @@ var flames = [], fireLight;
   }
   var glass = new T.Mesh(plane1, new T.MeshStandardMaterial({ color:0x222428, roughness:0.05, metalness:0.6, transparent:true, opacity:0.18, depthWrite:false }));
   glass.scale.set(0.9, 0.6, 1); glass.position.set(0, 0.39, 0.155); g.add(glass);
-  fireLight = new T.PointLight(0xff8a3a, 1.1, 4.2, 2);
-  fireLight.position.set(0, 0.45, 0.5); g.add(fireLight);
+  fireLight = new T.PointLight(0xff8a3a, 0.9, 2.6, 2);
+  fireLight.position.set(0, 0.6, 1.2); g.add(fireLight);
 })();
 
-/* Debbie: wall heater and baseboard */
+/* Debbie: wall heater above her desk and a baseboard heater below it */
 var heatStrips = [], heatMotes = [], heatLight;
 (function(){
+  var z0 = BY.debbie.z;
   var white = M("#f7f7f5", { roughness:0.5 }), grille = M("#c7ccd1", { roughness:0.5, metalness:0.3 });
   var glowMat = new T.MeshStandardMaterial({ color:0x7a2a10, emissive:0xff5a1f, emissiveIntensity:1.2, roughness:0.6 });
-  add(G.box, white, 0.07, 0.62, 1.15, -4.465, 1.05, 6.0, scene);
-  for (var i = 0; i < 6; i++) add(G.box, grille, 0.02, 0.025, 0.95, -4.43, 0.85 + i * 0.06, 6.0, scene, false);
-  heatStrips.push(add(G.box, glowMat, 0.02, 0.05, 0.95, -4.43, 1.28, 6.0, scene, false));
-  add(G.box, white, 0.12, 0.2, 2.4, -4.44, 0.12, 6.6, scene);
-  heatStrips.push(add(G.box, glowMat, 0.01, 0.045, 2.2, -4.375, 0.16, 6.6, scene, false));
-  for (var j = 0; j < 5; j++) add(G.box, grille, 0.012, 0.012, 2.2, -4.375, 0.07 + j * 0.022, 6.6, scene, false);
+  add(G.box, white, 0.07, 0.44, 1.1, -4.465, 2.0, z0, scene);
+  for (var i = 0; i < 5; i++) add(G.box, grille, 0.02, 0.022, 0.92, -4.43, 1.87 + i * 0.055, z0, scene, false);
+  heatStrips.push(add(G.box, glowMat, 0.02, 0.045, 0.92, -4.43, 2.17, z0, scene, false));
+  add(G.box, white, 0.12, 0.2, 1.6, -4.44, 0.12, z0, scene);
+  heatStrips.push(add(G.box, glowMat, 0.01, 0.045, 1.45, -4.375, 0.16, z0, scene, false));
+  for (var j = 0; j < 5; j++) add(G.box, grille, 0.012, 0.012, 1.45, -4.375, 0.07 + j * 0.022, z0, scene, false);
   var moteMat = new T.MeshBasicMaterial({ color:0xff8a4a, transparent:true, opacity:0.4, blending:T.AdditiveBlending, depthWrite:false, toneMapped:false });
   for (var k = 0; k < 12; k++) {
-    var m = add(G.lowSph, moteMat, 0.03, 0.03, 0.03, -4.38, 0.3, 5.6 + (k % 6) * 0.38, scene, false);
-    heatMotes.push({ m:m, o:k / 12, z:5.55 + (k * 0.41) % 2.1 });
+    var m = add(G.lowSph, moteMat, 0.03, 0.03, 0.03, -4.38, 2.2, z0, scene, false);
+    heatMotes.push({ m:m, o:k / 12, z:z0 - 0.45 + (k * 0.41) % 0.9 });
   }
-  heatLight = new T.PointLight(0xff9a5a, 0.8, 4, 2);
-  heatLight.position.set(-3.8, 0.7, 6.0); scene.add(heatLight);
+  heatLight = new T.PointLight(0xff9a5a, 0.8, 3.5, 2);
+  heatLight.position.set(-3.9, 1.6, z0); scene.add(heatLight);
 })();
 
 /* coffee point, plants */
 (function(){
-  add(G.box, M("#f4f3f0", { roughness:0.6 }), 0.62, 0.9, 1.8, 4.15, 0.45, -21.4, scene);
-  add(G.box, oakMat, 0.66, 0.05, 1.86, 4.13, 0.925, -21.4, scene);
-  add(G.box, M("#1e2126", { roughness:0.35, metalness:0.4 }), 0.36, 0.48, 0.36, 4.2, 1.19, -21.9, scene);
-  add(G.box, M("#cfd4d9", { roughness:0.3, metalness:0.6 }), 0.04, 0.06, 0.3, 4.01, 1.25, -21.9, scene, false);
-  [-21.3, -21.1, -20.9].forEach(function(z, i){ add(G.cyl, M(i === 1 ? "#E31837" : "#ffffff", { roughness:0.4 }), 0.045, 0.1, 0.045, 4.05, 1.0, z, scene); });
+  add(G.box, M("#f4f3f0", { roughness:0.6 }), 0.62, 0.9, 1.8, 4.15, 0.45, -6.4, scene);
+  add(G.box, oakMat, 0.66, 0.05, 1.86, 4.13, 0.925, -6.4, scene);
+  add(G.box, M("#1e2126", { roughness:0.35, metalness:0.4 }), 0.36, 0.48, 0.36, 4.2, 1.19, -6.9, scene);
+  add(G.box, M("#cfd4d9", { roughness:0.3, metalness:0.6 }), 0.04, 0.06, 0.3, 4.01, 1.25, -6.9, scene, false);
+  [-6.3, -6.1, -5.9].forEach(function(z, i){ add(G.cyl, M(i === 1 ? "#E31837" : "#ffffff", { roughness:0.4 }), 0.045, 0.1, 0.045, 4.05, 1.0, z, scene); });
 })();
-plant(-3.9, 10.2, 1.1); plant(3.9, 10.2, 1.0); plant(-3.9, -23.2, 1.2); plant(3.9, -23.3, 1.0); plant(3.95, -15.5, 0.85);
+plant(-3.95, 5.75, 0.9); plant(3.95, 5.75, 0.9); plant(-3.9, -8.4, 1.15); plant(3.9, -8.4, 1.0); plant(3.95, -3.3, 0.85);
 
 /* focus ring */
 var ringMat = new T.MeshBasicMaterial({ color:0xe31837, transparent:true, opacity:0.85, toneMapped:false, depthWrite:false });
 var focusRing = new T.Mesh(new T.RingGeometry(0.46, 0.54, 48), ringMat);
 focusRing.rotation.x = -Math.PI / 2; focusRing.visible = false; scene.add(focusRing);
 
-/* ---------- walkers ---------- */
+/* ---------- behaviour: everything is randomized per visit (Math.random, no fixed seed) ---------- */
+function rand(a, b){ return a + Math.random() * (b - a); }
+function choose(arr){ return arr[Math.floor(Math.random() * arr.length)]; }
+
+/* walkers: Erica and Allyson leave through the entrance at the bottom for meetings */
 function setupWalker(p){
-  var s = p.seat, hx = p.side * 0.7, dz = DOOR.z;
-  var pts = [s.clone(), new V3(p.side * 2.35, 0, s.z), new V3(hx, 0, s.z - 0.6), new V3(hx, 0, dz + 0.6), new V3(-3.7, 0, dz), new V3(-5.5, 0, dz)];
+  var s = p.seat, hx = p.side * (0.55 + Math.random() * 0.3);
+  var pts = [s.clone(), new V3(p.side * 2.35, 0, s.z), new V3(hx, 0, s.z + 0.6), new V3(hx, 0, 5.9), new V3(hx * 0.6, 0, 7.9)];
   var cum = [0];
   for (var i = 1; i < pts.length; i++) cum.push(cum[i - 1] + pts[i].distanceTo(pts[i - 1]));
-  var L = cum[cum.length - 1], walkT = L / 1.3;
   var w = p.walker;
-  w.pts = pts; w.cum = cum; w.L = L;
-  w.phases = [["sit", w.sit], ["up", 0.8], ["out", walkT], ["away", w.away], ["back", walkT], ["down", 0.8]];
-  w.total = w.phases.reduce(function(a, b){ return a + b[1]; }, 0);
-  w.phase = "sit";
+  w.pts = pts; w.cum = cum; w.L = cum[cum.length - 1]; w.walkT = w.L / 1.3;
+  w.t0 = 0;
+  if (Math.random() < 0.25) { w.phase = "away"; w.dur = rand(2, 10); }
+  else { w.phase = "sit"; w.dur = rand(1.5, 20); }
+}
+var NEXT = { sit:"up", up:"out", out:"away", away:"back", back:"down", down:"sit" };
+function nextPhase(w, t){
+  w.phase = NEXT[w.phase]; w.t0 = t;
+  if (w.phase === "sit") w.dur = Math.random() < 0.3 ? rand(2, 5) : rand(8, 32);
+  else if (w.phase === "away") w.dur = rand(5, 16);
+  else if (w.phase === "up" || w.phase === "down") w.dur = 0.8;
+  else w.dur = w.walkT * rand(0.9, 1.15);
 }
 var tmpPos = new V3();
 function along(w, d){
@@ -803,11 +914,9 @@ function turnTo(p, target, dt){
 }
 
 function updateWalker(p, t, dt){
-  var w = p.walker, u = (t + w.offset) % w.total, ph = "sit", k = 0;
-  for (var i = 0; i < w.phases.length; i++) {
-    if (u < w.phases[i][1]) { ph = w.phases[i][0]; k = u / w.phases[i][1]; break; }
-    u -= w.phases[i][1];
-  }
+  var w = p.walker, guard = 0;
+  while (t - w.t0 >= w.dur && guard++ < 6) nextPhase(w, w.t0 + w.dur);
+  var ph = w.phase, k = clamp((t - w.t0) / w.dur, 0, 1);
   var s = 0, walk = 0, stride = 0, visible = true, heading = p.sitHeading, d;
   if (ph === "sit" || ph === "up" || ph === "down") {
     tmpPos.copy(p.seat);
@@ -819,40 +928,131 @@ function updateWalker(p, t, dt){
   } else {
     tmpPos.copy(w.pts[w.pts.length - 1]); s = 1; visible = false;
   }
-  if (tmpPos.x < -4.7) visible = false;
+  if (tmpPos.z > 7.3) visible = false;
   walk *= ease(Math.min(k * w.L, (1 - k) * w.L) / 0.4 + 0.3);
   p.root.position.copy(tmpPos);
   p.root.visible = visible;
   turnTo(p, heading, dt);
-  pose(p, s, walk, stride, t, ph === "sit");
-  if (ph === "sit") p.head.rotation.y = 0.25 * Math.sin(t * 0.6 + p.z);
-  w.phase = ph;
+  if (ph === "sit") seatedLife(p, t, dt);
+  else { if (p.act) { p.act = null; p.nextAct = t + rand(4, 10); } pose(p, s, walk, stride, t, false); }
   p.statusNow = ph === "sit" ? w.text.sit : (ph === "up" || ph === "out") ? w.text.out : ph === "away" ? w.text.away : w.text.back;
 }
 
-function updateSeated(p, t){
-  pose(p, 0, 0, 0, t, true);
-  if (p.id === "luis") {
-    p.head.rotation.x = 0.07 * Math.max(0, Math.sin(t * 11.9));
-    p.body.rotation.z = 0.015 * Math.sin(t * 5.95);
-  } else if (p.id === "stephanie") {
-    var u = t % 8;
-    p.head.rotation.y = -0.85 * bump(u, 3, 5.2, 0.5);
-    p.head.rotation.x = -0.05 * bump(u, 3, 5.2, 0.5);
-  } else if (p.id === "olivia") {
-    p.head.rotation.z = 0.1 * Math.sin(t * 0.7);
-    p.head.rotation.x = 0.06 + 0.03 * Math.sin(t * 0.9);
-  } else if (p.id === "carla") {
-    var c = (t + 3) % 9, b = bump(c, 0.2, 2.0, 0.35), A = p.arms[0];
-    A.sh.rotation.z = lerp(A.sh.rotation.z, -2.6, b);
-    A.sh.rotation.x = lerp(A.sh.rotation.x, -0.2, b);
-    A.el.rotation.x = lerp(A.el.rotation.x, 0, b);
-    A.el.rotation.z = -b * (0.55 + 0.35 * Math.sin(t * 13));
-    p.head.rotation.y = -0.55 * b;
-  } else if (p.id === "debbie") {
-    p.head.rotation.y = 0.2 * Math.sin(t * 0.45);
+/* seated life: typing bursts and pauses, plus idle actions picked at random from each person's pool */
+var POOLS = {
+  luis:["stretch","headphones","sip","turn","leanBack","headphones"],
+  carla:["sip","turn","phone","stretch","wave"],
+  debbie:["point","sip","turn","phone","point"],
+  olivia:["swatch","stretch","turn","sip","swatch"],
+  stephanie:["leanFire","phone","turn","sip","leanFire"],
+  erica:["phone","sip","turn","phone"],
+  allyson:["phone","sip","turn","phone"]
+};
+PEOPLE.forEach(function(p){
+  p.typeOn = Math.random() < 0.7; p.typeNext = rand(0.5, 5); p.typeAmp = 0;
+  p.act = null; p.nextAct = rand(1.5, 12); p.nod = rand(10.5, 13);
+});
+var lookV = new V3();
+function yawTo(p, q){
+  lookV.copy(q.root.position);
+  p.root.updateMatrixWorld();
+  p.root.worldToLocal(lookV);
+  return Math.atan2(lookV.x, lookV.z);
+}
+function neighbours(p){
+  return PEOPLE.filter(function(q){ return q !== p && Math.abs(q.z - p.z) < 2.0 && q.root.visible && (!q.walker || q.walker.phase === "sit"); });
+}
+function startAct(p, name, t, dur, target){
+  var a = { n:name, t0:t, dur:dur || rand(2.2, 4.2), yaw:0 };
+  if (name === "turn") {
+    var nb = target || (neighbours(p).length ? choose(neighbours(p)) : null);
+    if (!nb) { p.nextAct = t + rand(2, 6); return; }
+    a.yaw = yawTo(p, nb);
   }
+  p.act = a;
+}
+function applyAct(p, a, b, t){
+  var R = p.arms[1], Lf = p.arms[0], H = p.head;
+  function arm(A, x, z, ex, ez){
+    A.sh.rotation.x = lerp(A.sh.rotation.x, x, b); A.sh.rotation.z = lerp(A.sh.rotation.z, A.s * z, b);
+    A.el.rotation.x = lerp(A.el.rotation.x, ex, b); A.el.rotation.z = lerp(A.el.rotation.z, A.s * ez, b);
+  }
+  switch (a.n) {
+    case "stretch": arm(R, -2.9, 0.25, -0.35, 0); arm(Lf, -2.9, 0.25, -0.35, 0); H.rotation.x -= 0.2 * b; break;
+    case "sip": arm(R, -0.55, 0.12, -2.35, -0.4); H.rotation.x -= 0.12 * b; if (p.mug) p.mug.visible = b > 0.3; break;
+    case "turn":
+      var yaw = clamp(a.yaw, -2.4, 2.4);
+      H.rotation.y += clamp(yaw * 0.75, -1.2, 1.2) * b;
+      p.body.rotation.y += clamp(yaw * 0.3, -0.5, 0.5) * b;
+      break;
+    case "leanBack": p.body.rotation.x = -0.07 * b; arm(R, -2.6, 0.75, -2.2, 0); arm(Lf, -2.6, 0.75, -2.2, 0); H.rotation.x -= 0.15 * b; break;
+    case "phone": arm(R, -0.35, 0.1, -1.75, -0.45); arm(Lf, -0.35, 0.1, -1.75, -0.45); H.rotation.x += 0.35 * b; if (p.phone) p.phone.visible = b > 0.3; break;
+    case "headphones": arm(R, -0.25, 1.3, -2.3, 0); H.rotation.z += 0.08 * b; break;
+    case "swatch": arm(R, -1.45, 0.1, -0.55, 0); H.rotation.x -= 0.1 * b; if (p.swatch) p.swatch.visible = b > 0.2; break;
+    case "leanFire": p.body.rotation.y -= 0.35 * b; H.rotation.y -= 0.5 * b; H.rotation.x += 0.12 * b; break;
+    case "point": arm(R, -2.05, 0.05, -0.15, 0); H.rotation.x -= 0.28 * b; break;
+    case "wave": arm(R, -0.2, 2.6, 0, 0.55 + 0.35 * Math.sin(t * 13)); H.rotation.y += 0.55 * b; break;
+  }
+}
+function seatedLife(p, t, dt){
+  if (t > p.typeNext) { p.typeOn = !p.typeOn; p.typeNext = t + (p.typeOn ? rand(2, 7) : rand(0.8, 3.5)); }
+  p.typeAmp = lerp(p.typeAmp, p.typeOn && !p.act ? 1 : 0.15, Math.min(1, dt * 4));
+  pose(p, 0, 0, 0, t, true);
+  if (p.swatch) p.swatch.visible = false;
+  if (p.mug) p.mug.visible = false;
+  if (p.phone) p.phone.visible = false;
+  if (!p.act && t > p.nextAct) startAct(p, choose(POOLS[p.id]), t);
+  if (p.act) {
+    var a = p.act, u = t - a.t0;
+    if (u > a.dur + 0.5) { p.act = null; p.nextAct = t + rand(5, 18); }
+    else applyAct(p, a, bump(u, 0, a.dur, 0.45), t);
+  }
+  if (p.id === "luis") p.head.rotation.x += 0.06 * Math.max(0, Math.sin(t * p.nod)) * (p.act ? 0.3 : 1);
+}
+function updateSeated(p, t, dt){
+  seatedLife(p, t, dt);
   p.statusNow = p.status;
+}
+
+/* small props used by idle actions */
+PEOPLE.forEach(function(p){
+  var hand = p.arms[1].el;
+  p.mug = add(G.cyl, M("#ffffff", { roughness:0.4 }), 0.03, 0.07, 0.03, 0, -0.3, 0.045, hand, false); p.mug.visible = false;
+  p.phone = add(G.box, M("#16181c", { roughness:0.3, metalness:0.4 }), 0.05, 0.1, 0.008, 0, -0.32, 0.03, hand, false); p.phone.visible = false;
+  p.mug.userData.pid = p.phone.userData.pid = p.id;
+});
+BY.olivia.swatch = add(G.box, M("#2fb3a3", { roughness:0.6 }), 0.14, 0.18, 0.004, 0, -0.36, 0.04, BY.olivia.arms[1].el, false);
+BY.olivia.swatch.visible = false;
+
+/* rare chat: now and then two neighbours turn to each other and swap one short line */
+var chat = { next:rand(14, 28), pair:null, t0:0, lines:null };
+function showBubble(p, text){
+  if (text) {
+    if (p.bubble.textContent !== text) p.bubble.textContent = text;
+    if (!p.bubbleOn) { p.bubbleOn = true; p.bubble.classList.add("show"); }
+  } else if (p.bubbleOn) { p.bubbleOn = false; p.bubble.classList.remove("show"); }
+}
+function freeSeated(p){ return p.root.visible && !p.act && (!p.walker || (p.walker.phase === "sit" && p.walker.dur - (clock.elapsedTime - p.walker.t0) > 7)); }
+function updateChat(t){
+  if (chat.pair) {
+    var u = t - chat.t0, A = chat.pair[0], B = chat.pair[1];
+    showBubble(A, u > 0.5 && u < 2.9 && A.root.visible ? chat.lines[0] : null);
+    showBubble(B, u > 3.1 && u < 5.5 && B.root.visible ? chat.lines[1] : null);
+    if (u > 5.8) { showBubble(A, null); showBubble(B, null); chat.pair = null; chat.next = t + rand(25, 55); }
+    return;
+  }
+  if (t < chat.next) return;
+  var cands = PEOPLE.filter(freeSeated).sort(function(){ return Math.random() - 0.5; });
+  for (var i = 0; i < cands.length; i++) {
+    var p = cands[i], nbs = neighbours(p).filter(freeSeated);
+    if (nbs.length) {
+      var q = choose(nbs);
+      startAct(p, "turn", t, 5.6, q); startAct(q, "turn", t, 5.6, p);
+      chat.pair = [p, q]; chat.t0 = t; chat.lines = [choose(LINES[p.id]), choose(LINES[q.id])];
+      return;
+    }
+  }
+  chat.next = t + 4;
 }
 
 /* ---------- camera rig: orthographic isometric ---------- */
@@ -873,7 +1073,7 @@ function defaultGoal(){
   var th = aspect < 0.9 ? 0.42 : ISO_TH, ph = ISO_PH;
   basis(th, ph);
   var u0 = 1e9, u1 = -1e9, v0 = 1e9, v1 = -1e9;
-  [-4.7, 4.7].forEach(function(x){ [0, 3.2].forEach(function(y){ [-24.2, 11.2].forEach(function(z){
+  [-4.7, 4.7].forEach(function(x){ [0, 3.2].forEach(function(y){ [-9.2, 8.3].forEach(function(z){
     corner.set(x, y, z);
     var u = corner.dot(camRight), v = corner.dot(camUp);
     u0 = Math.min(u0, u); u1 = Math.max(u1, u); v0 = Math.min(v0, v); v1 = Math.max(v1, v);
@@ -901,7 +1101,7 @@ view.tx = goal.tx; view.ty = goal.ty; view.tz = goal.tz; view.r = goal.r * 1.25;
 /* ---------- UI ---------- */
 var chipsEl = document.getElementById("chips"), labelsEl = document.getElementById("labels");
 var card = document.getElementById("card"), hint = document.getElementById("hint");
-var cName = document.getElementById("cName"), cRole = document.getElementById("cRole"), cStatus = document.getElementById("cStatus"), cBlurb = document.getElementById("cBlurb"), cAvatar = document.getElementById("cAvatar");
+var cName = document.getElementById("cName"), cRole = document.getElementById("cRole"), cStatus = document.getElementById("cStatus"), cPers = document.getElementById("cPers"), cTopics = document.getElementById("cTopics"), cAvatar = document.getElementById("cAvatar");
 
 PEOPLE.forEach(function(p){
   var b = document.createElement("button");
@@ -924,7 +1124,7 @@ function focusOn(p){
   lastInteract = performance.now() / 1000;
   goal.r = aspect < 0.9 ? Math.max(2.6, 1.9 / aspect) : 2.7;
   PEOPLE.forEach(function(q){ q.chip.setAttribute("aria-pressed", q === p ? "true" : "false"); q.tag.classList.toggle("on", q === p); });
-  cName.textContent = p.name; cRole.textContent = p.role; cBlurb.textContent = p.blurb;
+  cName.textContent = p.name; cRole.textContent = p.role; cPers.textContent = p.personality; cTopics.textContent = p.topics;
   cAvatar.textContent = p.name.charAt(0); cAvatar.style.setProperty("--c", p.shirt);
   cStatus.textContent = p.statusNow || p.status || "";
   card.hidden = false;
@@ -998,17 +1198,13 @@ function frame(){
   requestAnimationFrame(frame);
   var dt = Math.min(clock.getDelta(), 0.05), t = clock.elapsedTime;
 
-  PEOPLE.forEach(function(p){ p.walker ? updateWalker(p, t, dt) : updateSeated(p, t); });
+  PEOPLE.forEach(function(p){ p.walker ? updateWalker(p, t, dt) : updateSeated(p, t, dt); });
+  updateChat(t);
 
-  /* door + room lamp */
-  var near = false, busy = false;
-  PEOPLE.forEach(function(p){
-    if (!p.walker) return;
-    if (p.root.position.distanceTo(DOOR) < 1.7 && p.walker.phase !== "away") near = true;
-    if (p.walker.phase === "away") busy = true;
-  });
-  doorPivot.rotation.y = lerp(doorPivot.rotation.y, near ? 1.25 : 0, Math.min(1, dt * 4));
-  roomLampMat.color.setHex(busy || near ? 0xff2a3d : 0x29c46b);
+  /* entrance lamp: red while someone is out at a meeting */
+  var busy = false;
+  PEOPLE.forEach(function(p){ if (p.walker && p.walker.phase !== "sit" && p.walker.phase !== "up" && p.walker.phase !== "down") busy = true; });
+  roomLampMat.color.setHex(busy ? 0xff2a3d : 0x29c46b);
 
   /* fire + heat */
   flames.forEach(function(f){
@@ -1022,7 +1218,7 @@ function frame(){
   heatLight.intensity = 0.7 + 0.15 * Math.sin(t * 1.4);
   heatMotes.forEach(function(h){
     var f = (t * 0.28 + h.o) % 1;
-    h.m.position.set(-4.38 + f * 0.25, 0.25 + f * 1.3, h.z + Math.sin(t * 2 + h.o * 9) * 0.05);
+    h.m.position.set(-4.38 + f * 0.25, 2.2 + f * 0.8, h.z + Math.sin(t * 2 + h.o * 9) * 0.05);
     h.m.scale.setScalar(0.035 * (1 - f) + 0.004);
   });
 
@@ -1067,16 +1263,10 @@ function frame(){
     tag.style.opacity = p === focus || !focus ? 1 : 0.8;
     tag.style.zIndex = p === focus ? 2000 : String(Math.round((1 - tv.z) * 900));
     if (p.tagText !== p.statusNow) { p.tagText = p.statusNow; p.tagSt.textContent = p.statusNow; }
-    /* speech bubbles: one line every 9 s per person, shown for 4.5 s, staggered */
-    var cyc = (t + p.talkOffset) / 9, idx = Math.floor(cyc) % p.lines.length;
-    var on = (cyc % 1) < 0.5 && p.root.visible;
-    if (idx !== p.lineNow) { p.lineNow = idx; p.bubble.textContent = p.lines[idx]; }
-    if (on !== p.bubbleOn) { p.bubbleOn = on; p.bubble.classList.toggle("show", on); }
   });
 }
 requestAnimationFrame(frame);
 })();
 </script>
-
 </body>
 </html>
