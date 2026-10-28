@@ -414,8 +414,8 @@ logoLight.position.set(0, 1.9, -7.6);
 scene.add(logoLight);
 
 /* ---------- entrance (bottom): the only way out, toward the meeting rooms ---------- */
-add(G.box, M("#cfd4d9", { roughness:0.9 }), 3.0, 0.3, 2.4, 0, -0.151, 7.2, scene, false);
-add(G.box, M("#e3e6e9", { roughness:0.85 }), 2.8, 0.02, 2.3, 0, 0.0, 7.2, scene, false);
+add(G.box, M("#cfd4d9", { roughness:0.9 }), 3.0, 0.3, 3.2, 0, -0.151, 7.6, scene, false);
+add(G.box, M("#e3e6e9", { roughness:0.85 }), 2.8, 0.02, 3.1, 0, 0.0, 7.6, scene, false);
 var frameMat = M("#3b4048", { roughness:0.4, metalness:0.4 });
 [-1, 1].forEach(function(s){
   add(G.box, frameMat, 0.14, 2.45, 0.14, s * 1.45, 1.225, 6.05, scene);
@@ -860,45 +860,69 @@ var heatStrips = [], heatMotes = [], heatLight;
   heatLight.position.set(-3.9, 1.6, z0); scene.add(heatLight);
 })();
 
-/* coffee point, plants */
+/* coffee point just outside the entrance */
 (function(){
-  add(G.box, M("#f4f3f0", { roughness:0.6 }), 0.62, 0.9, 1.8, 4.15, 0.45, -6.4, scene);
-  add(G.box, oakMat, 0.66, 0.05, 1.86, 4.13, 0.925, -6.4, scene);
-  add(G.box, M("#1e2126", { roughness:0.35, metalness:0.4 }), 0.36, 0.48, 0.36, 4.2, 1.19, -6.9, scene);
-  add(G.box, M("#cfd4d9", { roughness:0.3, metalness:0.6 }), 0.04, 0.06, 0.3, 4.01, 1.25, -6.9, scene, false);
-  [-6.3, -6.1, -5.9].forEach(function(z, i){ add(G.cyl, M(i === 1 ? "#E31837" : "#ffffff", { roughness:0.4 }), 0.045, 0.1, 0.045, 4.05, 1.0, z, scene); });
+  aoDecal(scene, -0.75, 8.05, 1.7, 0.9);
+  add(G.box, M("#f4f3f0", { roughness:0.6 }), 1.3, 0.9, 0.5, -0.75, 0.45, 8.1, scene);
+  add(G.box, oakMat, 1.36, 0.05, 0.54, -0.75, 0.925, 8.1, scene);
+  add(G.box, M("#1e2126", { roughness:0.35, metalness:0.4 }), 0.32, 0.45, 0.3, -1.1, 1.175, 8.15, scene);
+  add(G.box, M("#cfd4d9", { roughness:0.3, metalness:0.6 }), 0.22, 0.05, 0.04, -1.1, 1.22, 7.99, scene, false);
+  [-0.6, -0.45, -0.3].forEach(function(x, i){ add(G.cyl, M(i === 1 ? "#E31837" : "#ffffff", { roughness:0.4 }), 0.045, 0.1, 0.045, x, 1.0, 8.0, scene); });
 })();
-plant(-3.95, 5.75, 0.9); plant(3.95, 5.75, 0.9); plant(-3.9, -8.4, 1.15); plant(3.9, -8.4, 1.0); plant(3.95, -3.3, 0.85);
+plant(-3.95, 5.75, 0.9); plant(3.95, 5.75, 0.9); plant(-3.9, -8.4, 1.15); plant(3.9, -8.4, 1.0); plant(3.95, -3.3, 0.85); plant(3.95, -6.4, 0.95);
 
 /* focus ring */
 var ringMat = new T.MeshBasicMaterial({ color:0xe31837, transparent:true, opacity:0.85, toneMapped:false, depthWrite:false });
 var focusRing = new T.Mesh(new T.RingGeometry(0.46, 0.54, 48), ringMat);
 focusRing.rotation.x = -Math.PI / 2; focusRing.visible = false; scene.add(focusRing);
 
-/* ---------- behaviour: everything is randomized per visit (Math.random, no fixed seed) ---------- */
+/* ---------- behaviour: a small needs-based agent per person ----------
+   Every visit starts from fresh random needs (Math.random, no fixed seed). Each person keeps
+   energy, focus, social and coffee needs that drift over time, and every few seconds scores
+   what to do next from those needs, their personality and what the others are doing. */
 function rand(a, b){ return a + Math.random() * (b - a); }
 function choose(arr){ return arr[Math.floor(Math.random() * arr.length)]; }
 
-/* walkers: Erica and Allyson leave through the entrance at the bottom for meetings */
-function setupWalker(p){
-  var s = p.seat, hx = p.side * (0.55 + Math.random() * 0.3);
-  var pts = [s.clone(), new V3(p.side * 2.35, 0, s.z), new V3(hx, 0, s.z + 0.6), new V3(hx, 0, 5.9), new V3(hx * 0.6, 0, 7.9)];
-  var cum = [0];
-  for (var i = 1; i < pts.length; i++) cum.push(cum[i - 1] + pts[i].distanceTo(pts[i - 1]));
-  var w = p.walker;
-  w.pts = pts; w.cum = cum; w.L = cum[cum.length - 1]; w.walkT = w.L / 1.3;
-  w.t0 = 0; w.phase = "sit"; w.dur = rand(20, 60);
-}
-function otherAway(p){ return PEOPLE.some(function(q){ return q !== p && q.walker && q.walker.phase !== "sit"; }); }
-var NEXT = { sit:"up", up:"out", out:"away", away:"back", back:"down", down:"sit" };
-function nextPhase(w, t){
-  w.phase = NEXT[w.phase]; w.t0 = t;
-  if (w.phase === "sit") w.dur = rand(30, 90);
-  else if (w.phase === "away") w.dur = rand(15, 35);
-  else if (w.phase === "up" || w.phase === "down") w.dur = 0.8;
-  else w.dur = w.walkT * rand(0.9, 1.15);
-}
+var PERSONA = {
+  luis:      { focus:1.6, social:0.25, shop:0.2, coffee:0.8, breaky:0.6 },
+  stephanie: { focus:0.9, social:1.0, shop:1.35, coffee:0.9, breaky:0.8 },
+  debbie:    { focus:0.9, social:1.0, shop:1.35, coffee:1.0, breaky:0.8 },
+  olivia:    { focus:1.0, social:0.85, shop:0.7, coffee:0.9, breaky:0.9 },
+  carla:     { focus:0.8, social:1.45, shop:0.9, coffee:1.0, breaky:0.8 },
+  erica:     { focus:0.9, social:0.9, shop:0.6, coffee:1.1, breaky:0.6 },
+  allyson:   { focus:0.9, social:0.9, shop:0.6, coffee:1.1, breaky:0.6 }
+};
+var POOLS = {
+  luis:["stretch","headphones","sip","leanBack","headphones"],
+  carla:["sip","phone","stretch","wave"],
+  debbie:["point","sip","phone","point"],
+  olivia:["swatch","stretch","sip","swatch"],
+  stephanie:["leanFire","phone","sip","leanFire"],
+  erica:["phone","sip","phone"],
+  allyson:["phone","sip","phone"]
+};
+var COFFEE_SPOT = new V3(-0.75, 0, 7.35), EXIT_SPOT = new V3(0.5, 0, 8.9);
+
+PEOPLE.forEach(function(p){
+  p.w = PERSONA[p.id];
+  p.needs = { energy:rand(0.45, 1), focus:rand(0.3, 0.9), social:rand(0, 0.6), coffee:rand(0, 0.55) };
+  p.state = "sit"; p.t0 = 0; p.dur = 0;
+  p.decideAt = rand(2, 7);
+  p.typeOn = Math.random() < 0.7; p.typeNext = rand(0.5, 5); p.typeAmp = 0;
+  p.act = null; p.nod = rand(10.5, 13);
+  p.trip = null; p.chatWith = null;
+  if (p.walker) p.cal = { next:rand(20, 60) };
+});
+
+/* ---------- paths ---------- */
 var tmpPos = new V3();
+function makePath(pts){
+  var clean = [pts[0]];
+  for (var i = 1; i < pts.length; i++) if (pts[i].distanceTo(clean[clean.length - 1]) > 0.01) clean.push(pts[i]);
+  var cum = [0];
+  for (i = 1; i < clean.length; i++) cum.push(cum[i - 1] + clean[i].distanceTo(clean[i - 1]));
+  return { pts:clean, cum:cum, L:cum[cum.length - 1] };
+}
 function along(w, d){
   d = clamp(d, 0, w.L);
   var i = 1;
@@ -907,7 +931,13 @@ function along(w, d){
   tmpPos.lerpVectors(a, b, seg > 0 ? (d - w.cum[i - 1]) / seg : 0);
   return Math.atan2(b.x - a.x, b.z - a.z);
 }
-PEOPLE.forEach(function(p){ if (p.walker) setupWalker(p); });
+function routeFromSeat(p, dest, viaZ){
+  var lane = rand(-0.4, 0.4), s = p.seat;
+  var pts = [s.clone(), new V3(p.side * 2.35, 0, s.z), new V3(lane, 0, s.z + 0.3 * Math.sign(viaZ - s.z || 1)), new V3(lane, 0, viaZ)];
+  pts.push(dest.clone());
+  return makePath(pts);
+}
+function reversePath(path){ return makePath(path.pts.slice().reverse()); }
 
 function turnTo(p, target, dt){
   var d = target - p.heading;
@@ -916,48 +946,7 @@ function turnTo(p, target, dt){
   p.root.rotation.y = p.heading;
 }
 
-function updateWalker(p, t, dt){
-  var w = p.walker, guard = 0;
-  while (t - w.t0 >= w.dur && guard++ < 6) {
-    if (w.phase === "sit" && otherAway(p) && Math.random() < 0.85) { w.dur += rand(10, 25); continue; }
-    nextPhase(w, w.t0 + w.dur);
-  }
-  var ph = w.phase, k = clamp((t - w.t0) / w.dur, 0, 1);
-  var s = 0, walk = 0, stride = 0, visible = true, heading = p.sitHeading, d;
-  if (ph === "sit" || ph === "up" || ph === "down") {
-    tmpPos.copy(p.seat);
-    s = ph === "up" ? ease(k) : ph === "down" ? 1 - ease(k) : 0;
-  } else if (ph === "out") {
-    d = k * w.L; heading = along(w, d); s = 1; walk = 1; stride = d * 4.6;
-  } else if (ph === "back") {
-    d = (1 - k) * w.L; heading = along(w, d) + Math.PI; s = 1; walk = 1; stride = k * w.L * 4.6;
-  } else {
-    tmpPos.copy(w.pts[w.pts.length - 1]); s = 1; visible = false;
-  }
-  if (tmpPos.z > 7.3) visible = false;
-  walk *= ease(Math.min(k * w.L, (1 - k) * w.L) / 0.4 + 0.3);
-  p.root.position.copy(tmpPos);
-  p.root.visible = visible;
-  turnTo(p, heading, dt);
-  if (ph === "sit") seatedLife(p, t, dt);
-  else { if (p.act) { p.act = null; p.nextAct = t + rand(4, 10); } pose(p, s, walk, stride, t, false); }
-  p.statusNow = ph === "sit" ? w.text.sit : (ph === "up" || ph === "out") ? w.text.out : ph === "away" ? w.text.away : w.text.back;
-}
-
-/* seated life: typing bursts and pauses, plus idle actions picked at random from each person's pool */
-var POOLS = {
-  luis:["stretch","headphones","sip","turn","leanBack","headphones"],
-  carla:["sip","turn","phone","stretch","wave"],
-  debbie:["point","sip","turn","phone","point"],
-  olivia:["swatch","stretch","turn","sip","swatch"],
-  stephanie:["leanFire","phone","turn","sip","leanFire"],
-  erica:["phone","sip","turn","phone"],
-  allyson:["phone","sip","turn","phone"]
-};
-PEOPLE.forEach(function(p){
-  p.typeOn = Math.random() < 0.7; p.typeNext = rand(0.5, 5); p.typeAmp = 0;
-  p.act = null; p.nextAct = rand(1.5, 12); p.nod = rand(10.5, 13);
-});
+/* ---------- small acts (stretch, sip, phone, turn ...) ---------- */
 var lookV = new V3();
 function yawTo(p, q){
   lookV.copy(q.root.position);
@@ -965,16 +954,9 @@ function yawTo(p, q){
   p.root.worldToLocal(lookV);
   return Math.atan2(lookV.x, lookV.z);
 }
-function neighbours(p){
-  return PEOPLE.filter(function(q){ return q !== p && Math.abs(q.z - p.z) < 2.0 && q.root.visible && (!q.walker || q.walker.phase === "sit"); });
-}
 function startAct(p, name, t, dur, target){
-  var a = { n:name, t0:t, dur:dur || rand(2.2, 4.2), yaw:0 };
-  if (name === "turn") {
-    var nb = target || (neighbours(p).length ? choose(neighbours(p)) : null);
-    if (!nb) { p.nextAct = t + rand(2, 6); return; }
-    a.yaw = yawTo(p, nb);
-  }
+  var a = { n:name, t0:t, dur:dur || rand(2.2, 4.2), yaw:0, target:target || null };
+  if (name === "turn" && target) a.yaw = yawTo(p, target);
   p.act = a;
 }
 function applyAct(p, a, b, t){
@@ -987,10 +969,12 @@ function applyAct(p, a, b, t){
     case "stretch": arm(R, -2.9, 0.25, -0.35, 0); arm(Lf, -2.9, 0.25, -0.35, 0); H.rotation.x -= 0.2 * b; break;
     case "sip": arm(R, -0.55, 0.12, -2.35, -0.4); H.rotation.x -= 0.12 * b; if (p.mug) p.mug.visible = b > 0.3; break;
     case "turn":
+      if (a.target) a.yaw = lerp(a.yaw, yawTo(p, a.target), 0.1);
       var yaw = clamp(a.yaw, -2.4, 2.4);
       H.rotation.y += clamp(yaw * 0.75, -1.2, 1.2) * b;
       p.body.rotation.y += clamp(yaw * 0.3, -0.5, 0.5) * b;
       break;
+    case "talk": arm(R, -0.5, 0.15, -1.2 + 0.25 * Math.sin(t * 5), -0.3); H.rotation.x += 0.04 * Math.sin(t * 3) * b; break;
     case "leanBack": p.body.rotation.x = -0.07 * b; arm(R, -2.6, 0.75, -2.2, 0); arm(Lf, -2.6, 0.75, -2.2, 0); H.rotation.x -= 0.15 * b; break;
     case "phone": arm(R, -0.35, 0.1, -1.75, -0.45); arm(Lf, -0.35, 0.1, -1.75, -0.45); H.rotation.x += 0.35 * b; if (p.phone) p.phone.visible = b > 0.3; break;
     case "headphones": arm(R, -0.25, 1.3, -2.3, 0); H.rotation.z += 0.08 * b; break;
@@ -1000,66 +984,201 @@ function applyAct(p, a, b, t){
     case "wave": arm(R, -0.2, 2.6, 0, 0.55 + 0.35 * Math.sin(t * 13)); H.rotation.y += 0.55 * b; break;
   }
 }
-function seatedLife(p, t, dt){
-  if (t > p.typeNext) { p.typeOn = !p.typeOn; p.typeNext = t + (p.typeOn ? rand(2, 7) : rand(0.8, 3.5)); }
-  p.typeAmp = lerp(p.typeAmp, p.typeOn && !p.act ? 1 : 0.15, Math.min(1, dt * 4));
-  pose(p, 0, 0, 0, t, true);
+function actLayer(p, t){
   if (p.swatch) p.swatch.visible = false;
   if (p.mug) p.mug.visible = false;
   if (p.phone) p.phone.visible = false;
-  if (!p.act && t > p.nextAct) startAct(p, choose(POOLS[p.id]), t);
-  if (p.act) {
-    var a = p.act, u = t - a.t0;
-    if (u > a.dur + 0.5) { p.act = null; p.nextAct = t + rand(5, 18); }
-    else applyAct(p, a, bump(u, 0, a.dur, 0.45), t);
-  }
-  if (p.id === "luis") p.head.rotation.x += 0.06 * Math.max(0, Math.sin(t * p.nod)) * (p.act ? 0.3 : 1);
-}
-function updateSeated(p, t, dt){
-  seatedLife(p, t, dt);
-  p.statusNow = p.status;
+  if (!p.act) return;
+  var a = p.act, u = t - a.t0;
+  if (u > a.dur + 0.5) { p.act = null; return; }
+  applyAct(p, a, bump(u, 0, a.dur, 0.45), t);
 }
 
-/* small props used by idle actions */
-PEOPLE.forEach(function(p){
-  var hand = p.arms[1].el;
-  p.mug = add(G.cyl, M("#ffffff", { roughness:0.4 }), 0.03, 0.07, 0.03, 0, -0.3, 0.045, hand, false); p.mug.visible = false;
-  p.phone = add(G.box, M("#16181c", { roughness:0.3, metalness:0.4 }), 0.05, 0.1, 0.008, 0, -0.32, 0.03, hand, false); p.phone.visible = false;
-  p.mug.userData.pid = p.phone.userData.pid = p.id;
-});
-BY.olivia.swatch = add(G.box, M("#2fb3a3", { roughness:0.6 }), 0.14, 0.18, 0.004, 0, -0.36, 0.04, BY.olivia.arms[1].el, false);
-BY.olivia.swatch.visible = false;
-
-/* rare chat: now and then two neighbours turn to each other and swap one short line */
-var chat = { next:rand(14, 28), pair:null, t0:0, lines:null };
+/* ---------- chats: short two-person conversations, with a rare small bubble ---------- */
+var chats = [];
 function showBubble(p, text){
   if (text) {
     if (p.bubble.textContent !== text) p.bubble.textContent = text;
     if (!p.bubbleOn) { p.bubbleOn = true; p.bubble.classList.add("show"); }
   } else if (p.bubbleOn) { p.bubbleOn = false; p.bubble.classList.remove("show"); }
 }
-function freeSeated(p){ return p.root.visible && !p.act && (!p.walker || (p.walker.phase === "sit" && p.walker.dur - (clock.elapsedTime - p.walker.t0) > 7)); }
-function updateChat(t){
-  if (chat.pair) {
-    var u = t - chat.t0, A = chat.pair[0], B = chat.pair[1];
-    showBubble(A, u > 0.5 && u < 2.9 && A.root.visible ? chat.lines[0] : null);
-    showBubble(B, u > 3.1 && u < 5.5 && B.root.visible ? chat.lines[1] : null);
-    if (u > 5.8) { showBubble(A, null); showBubble(B, null); chat.pair = null; chat.next = t + rand(25, 55); }
-    return;
+function startChat(a, b, t, dur){
+  var talky = !chats.some(function(c){ return c.bubbles; }) && Math.random() < 0.6;
+  chats.push({ a:a, b:b, t0:t, dur:dur, bubbles:talky, lines:[choose(LINES[a.id]), choose(LINES[b.id])] });
+  a.chatWith = b; b.chatWith = a;
+  a.needs.social = Math.max(0, a.needs.social - 0.7); b.needs.social = Math.max(0, b.needs.social - 0.6);
+  b.needs.focus *= 0.6;
+}
+function updateChats(t){
+  chats = chats.filter(function(c){
+    var u = t - c.t0;
+    if (c.bubbles) {
+      showBubble(c.a, u > 0.6 && u < 3.0 && c.a.root.visible ? c.lines[0] : null);
+      showBubble(c.b, u > 3.2 && u < 5.6 && c.b.root.visible ? c.lines[1] : null);
+    }
+    if (u > c.dur) {
+      showBubble(c.a, null); showBubble(c.b, null);
+      if (c.a.chatWith === c.b) c.a.chatWith = null;
+      if (c.b.chatWith === c.a) c.b.chatWith = null;
+      return false;
+    }
+    return true;
+  });
+}
+
+/* ---------- decisions ---------- */
+function available(q){ return q.state === "sit" && q.root.visible && !q.chatWith && !q.visitor; }
+function neighbours(p){ return PEOPLE.filter(function(q){ return q !== p && Math.abs(q.z - p.z) < 2.0 && available(q); }); }
+function bossAway(p){ return PEOPLE.some(function(q){ return q !== p && q.trip && q.trip.kind === "meeting"; }); }
+function luisDeepWork(q){ return q.id === "luis" && q.typeOn && q.needs.focus > 0.5; }
+
+function decide(p, t){
+  var n = p.needs, w = p.w, opts = [];
+  opts.push({ k:"work", s:0.85 * w.focus * (0.6 + n.energy * 0.6) + n.focus * 0.3 + rand(0, 0.3) });
+  opts.push({ k:"micro", s:(1 - n.energy) * 0.9 * w.breaky + rand(0, 0.6) });
+  var coffeeTaken = PEOPLE.some(function(q){ return q.trip && q.trip.kind === "coffee"; });
+  if (!coffeeTaken) opts.push({ k:"coffee", s:n.coffee * 1.3 * w.coffee + rand(0, 0.25) });
+  var best = null, bs = -1;
+  PEOPLE.forEach(function(q){
+    if (q === p || !available(q)) return;
+    var sc = n.social * w.social * 1.35 + rand(0, 0.3);
+    if (luisDeepWork(q)) sc *= 0.2;
+    if (Math.abs(q.z - p.z) < 2.2) sc *= 1.1;
+    if (q.walker && p.walker) sc *= 0.6;
+    if (sc > bs) { bs = sc; best = q; }
+  });
+  if (best) opts.push({ k:"visit", s:bs, q:best });
+  var nbs = neighbours(p).filter(function(q){ return !luisDeepWork(q); });
+  if (nbs.length) opts.push({ k:"talk", s:n.social * w.shop * 1.1 + rand(0, 0.3), q:choose(nbs) });
+  opts.sort(function(a, b){ return b.s - a.s; });
+  var o = opts[0];
+  if (o.k === "work") { p.typeOn = true; p.typeNext = t + rand(3, 8); n.focus = Math.min(1, n.focus + 0.15); }
+  else if (o.k === "micro") { startAct(p, choose(POOLS[p.id]), t); n.energy = Math.min(1, n.energy + 0.12); }
+  else if (o.k === "coffee") { goTrip(p, t, "coffee", null, routeFromSeat(p, COFFEE_SPOT, 6.6)); }
+  else if (o.k === "visit") {
+    var q = o.q, spot = new V3(q.side * 2.25, 0, q.seat.z + rand(-0.15, 0.15));
+    q.visitor = p;
+    goTrip(p, t, "visit", q, routeFromSeat(p, spot, q.seat.z));
+  } else if (o.k === "talk") {
+    var dur = rand(5.5, 8);
+    startAct(p, "turn", t, dur, o.q); startAct(o.q, "turn", t, dur, p);
+    startChat(p, o.q, t, dur + 0.4);
   }
-  if (t < chat.next) return;
-  var cands = PEOPLE.filter(freeSeated).sort(function(){ return Math.random() - 0.5; });
-  for (var i = 0; i < cands.length; i++) {
-    var p = cands[i], nbs = neighbours(p).filter(freeSeated);
-    if (nbs.length) {
-      var q = choose(nbs);
-      startAct(p, "turn", t, 5.6, q); startAct(q, "turn", t, 5.6, p);
-      chat.pair = [p, q]; chat.t0 = t; chat.lines = [choose(LINES[p.id]), choose(LINES[q.id])];
+}
+function goTrip(p, t, kind, target, path){
+  p.trip = { kind:kind, target:target, path:path };
+  p.act = null; p.typeOn = false;
+  setState(p, "up", t, 0.8);
+}
+function setState(p, st, t, dur){ p.state = st; p.t0 = t; p.dur = dur; }
+
+/* ---------- per-frame update ---------- */
+function updateAgent(p, t, dt){
+  var n = p.needs, w = p.w;
+  n.energy = clamp(n.energy - dt * 0.004 * (p.typeOn ? 1.3 : 0.6), 0, 1);
+  n.coffee = clamp(n.coffee + dt * 0.0055 * w.coffee, 0, 1);
+  n.social = clamp(n.social + dt * 0.0085 * w.social, 0, 1);
+  n.focus = clamp(n.focus + dt * (p.typeOn ? 0.01 : -0.006), 0, 1);
+
+  var k = p.dur > 0 ? clamp((t - p.t0) / p.dur, 0, 1) : 1, done = t - p.t0 >= p.dur;
+  var st = p.state, trip = p.trip, heading = p.sitHeading, s = 0, walk = 0, stride = 0;
+  p.root.visible = st !== "away";
+
+  if (st === "sit") {
+    p.root.position.copy(p.seat);
+    if (p.cal && t >= p.cal.next && !p.act && !p.chatWith) {
+      if (bossAway(p) && Math.random() < 0.85) p.cal.next = t + rand(10, 25);
+      else goTrip(p, t, "meeting", null, routeFromSeat(p, EXIT_SPOT, 6.0));
+    } else if (t >= p.decideAt && !p.act && !p.chatWith && !p.visitor) {
+      p.decideAt = t + rand(3.5, 7);
+      decide(p, t);
+    }
+    if (p.state === "sit") {
+      if (t > p.typeNext) { p.typeOn = !p.typeOn; p.typeNext = t + (p.typeOn ? rand(2, 7) : rand(0.8, 3.5)); }
+      p.typeAmp = lerp(p.typeAmp, p.typeOn && !p.act ? 1 : 0.15, Math.min(1, dt * 4));
+      turnTo(p, heading, dt);
+      pose(p, 0, 0, 0, t, true);
+      actLayer(p, t);
+      if (p.id === "luis") p.head.rotation.x += 0.06 * Math.max(0, Math.sin(t * p.nod)) * (p.act ? 0.3 : 1);
+      p.statusNow = p.chatWith ? "Chatting with " + p.chatWith.name : p.walker ? p.walker.text.sit : p.status;
       return;
     }
+    st = p.state; k = 0; done = false;
   }
-  chat.next = t + 4;
+
+  if (st === "up" || st === "down") {
+    p.root.position.copy(p.seat);
+    s = st === "up" ? ease(k) : 1 - ease(k);
+    turnTo(p, heading, dt);
+    pose(p, s, 0, 0, t, false);
+    actLayer(p, t);
+    if (done) {
+      if (st === "up") { trip.dir = 1; setState(p, "walk", t, trip.path.L / 1.25); }
+      else { p.trip = null; setState(p, "sit", t, 0); p.decideAt = t + rand(3, 8); }
+    }
+  } else if (st === "walk") {
+    var path = trip.path, d = trip.dir > 0 ? k * path.L : (1 - k) * path.L;
+    heading = along(path, d) + (trip.dir > 0 ? 0 : Math.PI);
+    p.root.position.copy(tmpPos);
+    walk = ease(Math.min(k * path.L, (1 - k) * path.L) / 0.4 + 0.3);
+    stride = k * path.L * 4.6;
+    turnTo(p, heading, dt);
+    pose(p, 1, walk, stride, t, false);
+    actLayer(p, t);
+    if (trip.kind === "meeting" && p.root.position.z > 8.4) p.root.visible = false;
+    if (done) {
+      if (trip.dir < 0) { setState(p, "down", t, 0.8); }
+      else if (trip.kind === "meeting") { setState(p, "away", t, rand(15, 35)); }
+      else if (trip.kind === "coffee") { setState(p, "coffee", t, rand(5, 8)); startAct(p, "sip", t + 1, 3); }
+      else {
+        var q = trip.target;
+        if (q.state === "sit" && q.visitor === p) {
+          var cd = rand(6, 10);
+          setState(p, "visit", t, cd);
+          startAct(q, "turn", t, cd - 0.3, p);
+          startAct(p, p.id === "olivia" ? "swatch" : "talk", t + 0.4, cd - 1.2);
+          startChat(p, q, t, cd);
+        } else { setState(p, "visit", t, 1.2); }
+      }
+    }
+  } else if (st === "visit" || st === "coffee") {
+    var spot = trip.path.pts[trip.path.pts.length - 1];
+    p.root.position.copy(spot);
+    if (st === "visit") heading = Math.atan2(trip.target.seat.x - spot.x, trip.target.seat.z - spot.z);
+    else heading = 0;
+    turnTo(p, heading, dt);
+    pose(p, 1, 0, 0, t, false);
+    actLayer(p, t);
+    if (done) {
+      if (st === "coffee") { n.coffee = 0; n.energy = Math.min(1, n.energy + 0.45); }
+      if (st === "visit" && trip.target.visitor === p) trip.target.visitor = null;
+      trip.dir = -1; setState(p, "walk", t, trip.path.L / 1.25);
+    }
+  } else if (st === "away") {
+    p.root.position.copy(EXIT_SPOT);
+    pose(p, 1, 0, 0, t, false);
+    if (done) {
+      n.energy = Math.max(0.2, n.energy - 0.1);
+      p.cal.next = t + trip.path.L / 1.25 + 1.6 + rand(30, 90);
+      trip.dir = -1; setState(p, "walk", t, trip.path.L / 1.25);
+    }
+  }
+
+  /* status line */
+  var kind = p.trip ? p.trip.kind : "";
+  if (kind === "meeting") p.statusNow = p.state === "away" ? p.walker.text.away : (p.trip.dir < 0 ? p.walker.text.back : p.walker.text.out);
+  else if (kind === "coffee") p.statusNow = p.trip.dir < 0 && p.state === "walk" ? "Back with a coffee" : "Getting coffee";
+  else if (kind === "visit") p.statusNow = p.state === "visit" ? "Chatting with " + p.trip.target.name : (p.trip.dir < 0 ? "Heading back to the desk" : "Walking over to " + p.trip.target.name);
 }
+
+/* small props used by the acts */
+PEOPLE.forEach(function(p){
+  var hand = p.arms[1].el;
+  p.mug = add(G.cyl, M("#ffffff", { roughness:0.4 }), 0.03, 0.07, 0.03, 0, -0.3, 0.045, hand, false); p.mug.visible = false;
+  p.phone = add(G.box, M("#16181c", { roughness:0.3, metalness:0.4 }), 0.05, 0.1, 0.008, 0, -0.32, 0.03, hand, false); p.phone.visible = false;
+});
+BY.olivia.swatch = add(G.box, M("#2fb3a3", { roughness:0.6 }), 0.14, 0.18, 0.004, 0, -0.36, 0.04, BY.olivia.arms[1].el, false);
+BY.olivia.swatch.visible = false;
 
 /* ---------- camera rig: orthographic isometric ---------- */
 /* r is the half-height of the orthographic frame; th is yaw around the hallway, ph the angle from vertical.
@@ -1079,7 +1198,7 @@ function defaultGoal(){
   var th = aspect < 0.9 ? 0.42 : ISO_TH, ph = ISO_PH;
   basis(th, ph);
   var u0 = 1e9, u1 = -1e9, v0 = 1e9, v1 = -1e9;
-  [-4.7, 4.7].forEach(function(x){ [0, 3.2].forEach(function(y){ [-9.2, 8.3].forEach(function(z){
+  [-4.7, 4.7].forEach(function(x){ [0, 3.2].forEach(function(y){ [-9.2, 9.2].forEach(function(z){
     corner.set(x, y, z);
     var u = corner.dot(camRight), v = corner.dot(camUp);
     u0 = Math.min(u0, u); u1 = Math.max(u1, u); v0 = Math.min(v0, v); v1 = Math.max(v1, v);
@@ -1204,12 +1323,12 @@ function frame(){
   requestAnimationFrame(frame);
   var dt = Math.min(clock.getDelta(), 0.05), t = clock.elapsedTime;
 
-  PEOPLE.forEach(function(p){ p.walker ? updateWalker(p, t, dt) : updateSeated(p, t, dt); });
-  updateChat(t);
+  PEOPLE.forEach(function(p){ updateAgent(p, t, dt); });
+  updateChats(t);
 
   /* entrance lamp: red while someone is out at a meeting */
   var busy = false;
-  PEOPLE.forEach(function(p){ if (p.walker && p.walker.phase !== "sit" && p.walker.phase !== "up" && p.walker.phase !== "down") busy = true; });
+  PEOPLE.forEach(function(p){ if (p.trip && p.trip.kind === "meeting") busy = true; });
   roomLampMat.color.setHex(busy ? 0xff2a3d : 0x29c46b);
 
   /* fire + heat */
