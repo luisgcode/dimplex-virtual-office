@@ -986,6 +986,7 @@ function colorize(mesh, p, factor){
     var x = Math.abs(pos.getX(i)), y = pos.getY(i), c;
     if (y < 0.115) c = cShoe;
     else if (y > 1.535 && x < 0.2) c = cSkin;
+    else if (p.vneck && pos.getZ(i) > 0.03 && y > 1.34 && x < 0.085 - (1.5 - y) * 0.5) c = cSkin;
     else if (x > sleeve && y > 1.25) c = cSkin;
     else if (y < 0.975 && x < 0.3) c = cPants;
     else if (y < 1.005 && x < 0.3) c = cBelt;
@@ -1003,7 +1004,7 @@ function waveLocks(g, mats, n, o){
     var ang = Math.PI * (0.42 + 1.16 * i / (n - 1)) + (r() - 0.5) * 0.1;
     var sweep = o.sweep && i > n * 0.62, pts = [];
     for (var j = 0; j <= 7; j++) {
-      var k = j / 7, y = 1.76 - k * o.len, rad = 0.106 + k * 0.034;
+      var k = j / 7, y = 1.745 - k * o.len, rad = 0.098 + k * 0.042;
       var w = o.amp * Math.sin(k * o.freq + i * 1.3) * Math.min(1, k * 3);
       var x = Math.sin(ang) * rad + w * Math.cos(ang), z = Math.cos(ang) * rad - 0.022 - w * Math.sin(ang);
       if (sweep) { x += k * 0.06; z += k * 0.09; }
@@ -1025,7 +1026,7 @@ function buildHead(p, model, head){
     var hl = new T.MeshPhysicalMaterial({ color:p.highlight || p.hair, roughness:0.45, sheen:0.7, sheenRoughness:0.45, sheenColor:new T.Color(p.highlight || p.hair).offsetHSL(0, 0, 0.18), envMapIntensity:0.55 });
     var part = p.part || 0;
     add(G.hsph, hm, 0.112, 0.108, 0.13, part * 0.3, 1.69, -0.028, g);
-    add(G.hsph, hm, 0.094, 0.046, 0.12, part, 1.786, 0.008, g);
+    add(G.hsph, hm, 0.106, 0.072, 0.13, part * 0.6, 1.752, -0.004, g);
     if (st === "curly") waveLocks(g, [hm, hl, hm], 20, { len:0.44, amp:0.024, freq:10, thick:0.024, sweep:true, seed:42 });
     else if (st === "softwave") waveLocks(g, [hm, hm, hl], 16, { len:0.32, amp:0.011, freq:5, thick:0.021, sweep:false, seed:17 });
     else waveLocks(g, [hm, hm, hl], 17, { len:0.4, amp:0.0035, freq:2, thick:0.021, sweep:false, seed:23 });
@@ -1034,10 +1035,10 @@ function buildHead(p, model, head){
       var fm = new T.Mesh(new T.TubeGeometry(new T.CatmullRomCurve3(fp), 24, 0.012, 8, false), hm); g.add(fm);
     });
   } else if (st === "short") {
-    add(G.hsph, hm, 0.09, 0.04, 0.12, 0, 1.785, 0.012, g);
+    add(G.hsph, hm, 0.1, 0.064, 0.127, 0, 1.758, 0.004, g);
   } else {
     add(G.hsph, hm, 0.104, 0.1, 0.124, 0, 1.68, -0.03, g);
-    add(G.hsph, hm, 0.09, 0.042, 0.12, 0, 1.785, 0.01, g);
+    add(G.hsph, hm, 0.102, 0.066, 0.128, 0, 1.756, 0.0, g);
     if (st === "pony") {
       var pony = add(G.hsph, hm, 0.042, 0.17, 0.046, 0, 1.6, -0.155, g);
       pony.rotation.x = 0.3;
@@ -1167,9 +1168,15 @@ var GARMENTS = ["shirt", "pants", "shoe", "belt", "trim"];
 var THICK = { shirt:0.022, pants:0.017, shoe:0.016, belt:0.027, trim:0.03 };
 function thickAt(gk, x, y, p){
   x = Math.abs(x);
-  if (gk === "shirt") return (x > 0.2 && y > 1.25 ? (p && p.puff ? 0.034 : 0.02) : 0.022) + (y < 1.1 ? (1.1 - y) * 0.16 : 0);
+  if (gk === "shirt") {
+    /* puffed sleeves: one smooth gathered bulge over the upper arm that eases back down into the cuff */
+    var puff = p && p.puff && y > 1.25 ? 0.026 * ease((x - 0.18) / 0.06) * (1 - ease((x - 0.28) / 0.055)) : 0;
+    /* the shoulder top folds when the arm comes down from the bind pose: a thinner shell there keeps the fold from flaring into flaps */
+    var fold = y > 1.36 ? bump(x, 0.13, 0.25, 0.04) * ease((y - 1.36) / 0.06) : 0;
+    return 0.022 * (1 - 0.6 * fold) + puff + (y < 1.1 ? (1.1 - y) * 0.16 : 0);
+  }
   if (gk === "pants") return 0.017 + (y < 0.35 ? (0.35 - y) * 0.045 : 0);
-  if (gk === "trim") return y > 1.44 ? 0.033 : 0.03;
+  if (gk === "trim") return y > 1.44 ? 0.026 : 0.027;
   return THICK[gk];
 }
 function denimTex(){
@@ -1183,13 +1190,13 @@ function denimTex(){
 }
 var DENIM = null;
 var OUTFIT = {
-  luis:      { shirt:"#3b6ea8", pants:"#26292f", shoe:"#4a2d1a", trim:"#f3f4f6" },
+  luis:      { shirt:"#3b6ea8", pants:"#26292f", shoe:"#4a2d1a", trim:"#2c5688" },
   erica:     { shirt:"#4a4d52", pants:"#1d1f24", shoe:"#141518", trim:"#43464b" },
   allyson:   { shirt:"#7a4d9e", pants:"#2c2a33", shoe:"#5a2830", trim:"#5f3c80" },
   stephanie: { shirt:"#141416", pants:"#1c2333", shoe:"#141518", trim:"#141416" },
   debbie:    { shirt:"#2a2b30", pants:"#17181b", shoe:"#141518", trim:"#1b1c20" },
   olivia:    { shirt:"#b9a07a", pants:"#4a4f58", shoe:"#ecebe6", trim:"#3a3226" },
-  carla:     { shirt:"#e2ac2f", pants:"#1f2c4a", shoe:"#6b4226", trim:"#f6f1e4" },
+  carla:     { shirt:"#e2ac2f", pants:"#1f2c4a", shoe:"#6b4226", trim:"#c58f1f" },
   marissa:   { shirt:"#4f7cc4", pants:"#2a2d35", shoe:"#141518", trim:"#3c64a5" },
   stephanieb:{ shirt:"#151618", pants:"#2b2f36", shoe:"#141518", trim:"#151618" }
 };
@@ -1210,26 +1217,59 @@ function garmentOf(p, x, y, zz){
   if (p.sleeves && y > 1.2 && x > 0.615) return "trim";
   return "shirt";
 }
+function triGarments(reg, idx){
+  var out = new Array(idx.length / 3);
+  for (var k = 0; k < idx.length; k += 3) {
+    var a = reg[idx[k]], b = reg[idx[k + 1]], c = reg[idx[k + 2]];
+    out[k / 3] = a && b && c ? (a === b || a === c ? a : b === c ? b : a) : null;
+  }
+  return out;
+}
+/* trim (collar, cuffs, placket, waistband) is painted on the shirt shell as a soft vertex colour instead of a separate
+   material: following triangle edges it showed as a jagged staircase, sampled as a smooth field it reads as a clean edge */
+function trimWeight(p, x, y, zz){
+  x = Math.abs(x);
+  var w = 0;
+  if (!p.coat && x < 0.3) w = Math.max(w, ease((y - 1.0) / 0.012) * (1 - ease((y - 1.032) / 0.014)));
+  if (!p.sleeves && !p.sleeveless && y > 1.2) w = Math.max(w, ease((x - 0.3) / 0.03));
+  if (p.sleeves && y > 1.2) w = Math.max(w, ease((x - 0.6) / 0.03));
+  if (!p.coat) w = Math.max(w, ease((y - 1.442) / 0.02) * (1 - ease((x - 0.096) / 0.02)));
+  return w;
+}
 function buildClothes(p, body){
   if (!WEAVE) { WEAVE = fabricNormal(false); TWILL = fabricNormal(true); }
   var g = body.geometry, pos = g.attributes.position, nor = g.attributes.normal, uv = g.attributes.uv;
   var si = g.attributes.skinIndex, sw = g.attributes.skinWeight, idx = g.index.array, n = pos.count, i, k;
   var reg = new Array(n);
   for (i = 0; i < n; i++) reg[i] = garmentOf(p, pos.getX(i), pos.getY(i), pos.getZ(i));
-  var P = [], N = [], U = [], SI = [], SW = [], IDX = [], groups = [];
+  /* every covered triangle belongs to exactly one garment (majority vote, so seams between garments leave no gap),
+     and every vertex gets one offset shared by all garments that touch it, so neighbouring shells meet edge to edge */
+  var triG = triGarments(reg, idx), vth = new Float32Array(n), surfN = body.userData.surfN || n;
+  /* the joint rings under the surface get no shell of their own: offset along their own normals they poked out as tufts */
+  for (k = 0; k < idx.length; k += 3) if (idx[k] >= surfN || idx[k + 1] >= surfN || idx[k + 2] >= surfN) triG[k / 3] = null;
+  for (k = 0; k < idx.length; k += 3) {
+    if (!triG[k / 3]) continue;
+    for (var e = 0; e < 3; e++) { var vv = idx[k + e]; vth[vv] = Math.max(vth[vv], thickAt(triG[k / 3], pos.getX(vv), pos.getY(vv), p)); }
+  }
+  var P = [], N = [], U = [], SI = [], SW = [], C = [], IDX = [], groups = [];
+  var o = OUTFIT[p.id] || { shirt:p.shirt, pants:p.pants, shoe:"#141518", trim:p.shirt };
+  var cS = new T.Color(o.shirt), cT = new T.Color(o.trim), cV = new T.Color();
   GARMENTS.forEach(function(gk, gi){
+    if (gk === "trim") return;
     var map = new Map(), start = IDX.length;
     for (k = 0; k < idx.length; k += 3) {
-      var a = idx[k], b = idx[k + 1], c = idx[k + 2];
-      if (reg[a] !== gk || reg[b] !== gk || reg[c] !== gk) continue;
+      var a = idx[k], b = idx[k + 1], c = idx[k + 2], tg = triG[k / 3];
+      if (tg !== gk && !(gk === "shirt" && tg === "trim")) continue;
       [a, b, c].forEach(function(v){
         var ni = map.get(v);
         if (ni === undefined) {
           ni = P.length / 3; map.set(v, ni);
-          var nx = nor.getX(v), ny = nor.getY(v), nz = nor.getZ(v), th = thickAt(gk, pos.getX(v), pos.getY(v), p);
+          var nx = nor.getX(v), ny = nor.getY(v), nz = nor.getZ(v), th = vth[v];
           P.push(pos.getX(v) + nx * th, pos.getY(v) + ny * th, pos.getZ(v) + nz * th);
           N.push(nx, ny, nz); U.push(uv ? uv.getX(v) : 0, uv ? uv.getY(v) : 0);
           SI.push(si.getX(v), si.getY(v), si.getZ(v), si.getW(v)); SW.push(sw.getX(v), sw.getY(v), sw.getZ(v), sw.getW(v));
+          cV.copy(cS).lerp(cT, gk === "shirt" ? trimWeight(p, pos.getX(v), pos.getY(v), pos.getZ(v)) : 0);
+          C.push(cV.r, cV.g, cV.b);
         }
         IDX.push(ni);
       });
@@ -1242,10 +1282,10 @@ function buildClothes(p, body){
   geo.setAttribute("uv", new T.Float32BufferAttribute(U, 2));
   geo.setAttribute("skinIndex", new T.Uint16BufferAttribute(SI, 4));
   geo.setAttribute("skinWeight", new T.Float32BufferAttribute(SW, 4));
+  geo.setAttribute("color", new T.Float32BufferAttribute(C, 3));
   geo.setIndex(IDX);
   groups.forEach(function(gr){ geo.addGroup(gr[0], gr[1], gr[2]); });
-  var o = OUTFIT[p.id] || { shirt:p.shirt, pants:p.pants, shoe:"#141518", trim:p.shirt };
-  var shirtM = new T.MeshStandardMaterial({ color:o.shirt, roughness:0.86, normalMap:WEAVE, normalScale:new T.Vector2(0.6, 0.6), envMapIntensity:0.5 });
+  var shirtM = new T.MeshStandardMaterial({ color:0xffffff, vertexColors:true, roughness:0.86, normalMap:WEAVE, normalScale:new T.Vector2(0.6, 0.6), envMapIntensity:0.5 });
   var mats = [
     shirtM,
     p.id === "olivia"
@@ -1266,10 +1306,10 @@ function hideCovered(p, body){
   var g = body.geometry, pos = g.attributes.position, idx = g.index.array, keep = [];
   var reg = new Array(pos.count);
   for (var i = 0; i < pos.count; i++) reg[i] = garmentOf(p, pos.getX(i), pos.getY(i), pos.getZ(i));
+  var triG = triGarments(reg, idx);
   for (var k = 0; k < idx.length; k += 3) {
-    var a = idx[k], b = idx[k + 1], c = idx[k + 2];
-    if (reg[a] && reg[b] && reg[c] && reg[a] !== "shoe") continue;
-    keep.push(a, b, c);
+    if (triG[k / 3] && triG[k / 3] !== "shoe") continue;
+    keep.push(idx[k], idx[k + 1], idx[k + 2]);
   }
   g.setIndex(keep);
 }
@@ -1293,8 +1333,9 @@ function makeRig(p, sc){
     var jm = null;
     model.traverse(function(o){ if (o.isSkinnedMesh && o !== bodyMesh && o.name.indexOf("Joints") >= 0) jm = o; });
     if (jm) {
+      var surfN = bodyMesh.geometry.attributes.position.count;
       var mg = BufferGeometryUtils.mergeGeometries([bodyMesh.geometry, jm.geometry], false);
-      if (mg) { bodyMesh.geometry = mg; jm.parent.remove(jm); }
+      if (mg) { bodyMesh.geometry = mg; bodyMesh.userData.surfN = surfN; jm.parent.remove(jm); }
     }
     buildClothes(p, bodyMesh);
     hideCovered(p, bodyMesh);
@@ -2337,8 +2378,16 @@ function renderPortrait(){
   if (p.remote) { sc = p.rs; pcam.position.set(0, 1.26, 1.25); pcam.lookAt(0, 1.12, 0); }
   else {
     p.head.getWorldPosition(pHead);
-    pDir.set(camDir.x, 0, camDir.z).normalize();
-    pcam.position.set(pHead.x + pDir.x * 1.15, pHead.y + 0.12, pHead.z + pDir.z * 1.15);
+    /* film the face: from the front when seated (between them and the monitors), otherwise from the viewer's side */
+    var seated = p.state === "sit", dd = seated ? 0.66 : 1.15;
+    if (seated && p.face) {
+      p.face.mouth.getWorldPosition(pDir); pDir.sub(pHead); pDir.y = 0;
+      if (pDir.lengthSq() < 1e-6) pDir.set(camDir.x, 0, camDir.z);
+      pDir.normalize();
+      if (window.__voPYaw) pDir.applyAxisAngle(UP, window.__voPYaw);
+    } else pDir.set(camDir.x, 0, camDir.z).normalize();
+    if (pcam.fov !== (seated ? 42 : 28)) pcam.fov = seated ? 42 : 28;
+    pcam.position.set(pHead.x + pDir.x * dd, pHead.y + 0.12, pHead.z + pDir.z * dd);
     pcam.lookAt(pHead.x, pHead.y - 0.02, pHead.z);
   }
   var x = r.left - c.left, y = c.bottom - r.bottom;
@@ -2634,7 +2683,7 @@ try {
 } catch (e) { composer = null; aoPass = null; }
 loadingEl.hidden = true;
 window.__voReady = true;
-window.__vo = { people:BY, focus:function(id){ focusOn(BY[id]); }, ask:function(id, q){ ask(BY[id], q); }, converse:function(id, q){ return converse(BY[id], q).text; } };
+window.__vo = { people:BY, focus:function(id){ focusOn(BY[id]); }, ask:function(id, q){ ask(BY[id], q); }, converse:function(id, q){ return converse(BY[id], q).text; }, goal:goal, view:view };
 var snapCam = 0;
 /* a link like #p-luis opens that person's card on load */
 function focusFromHash(){ var m = /^#p-([a-z]+)$/.exec(location.hash || ""); if (m && BY[m[1]]) { focusOn(BY[m[1]]); snapCam = 3; } }
