@@ -255,7 +255,7 @@ var PEOPLE = [
     status:"Fixing a fireplace issue", blurb:"Electric fireplaces. If a flame effect looks wrong, she already knows why." },
   { id:"debbie", name:"Debbie", role:"Heat products", side:-1, z:0.8, personality:"Keeps every room in the catalog warm.", topics:"Baseboards and Heat products", shirt:"#b83c4c", pants:"#2d3138", skin:"#f0c6a2", hair:"#2b1d16", style:"long", sleeves:true, screen:"sheet",
     status:"Heat products", blurb:"Baseboards, wall heaters and everything that keeps a room warm in January." },
-  { id:"olivia", name:"Olivia", role:"Designer, web and channel images", side:-1, z:-1.05, personality:"Creates every image for the website and the other channels. Notices every pixel.", topics:"Retouching, lifestyle images, banners and social graphics", shirt:"#2a9d8f", pants:"#22262c", skin:"#c68b62", hair:"#1d1714", style:"halfup", sleeves:false, screen:"swatch", glasses:true,
+  { id:"olivia", name:"Olivia", role:"Designer, web and channel images", side:-1, z:-1.05, personality:"Creates every image for the website and the other channels. Notices every pixel.", topics:"Retouching, lifestyle images, banners and social graphics", shirt:"#2a9d8f", pants:"#22262c", skin:"#c68b62", hair:"#e3c16f", style:"halfup", sleeves:false, screen:"swatch",
     status:"Retouching product shots", blurb:"Turns product shots and brand colors into pages people actually want to scroll." },
   { id:"luis", name:"Luis", role:"Web Manager", side:-1, z:4.5, personality:"Headphones on, building the web.", topics:"The Dimplex, Convectair and Cadet sites", shirt:"#34495e", pants:"#23272e", skin:"#d9a57c", hair:"#0c0c0e", style:"short", sleeves:false, screen:"code", headphones:true,
     status:"Headphones on, building the web", blurb:"Dimplex, Convectair and Cadet sites. Headphones on means deep in a build." },
@@ -270,14 +270,14 @@ var LINES = {
   olivia:["New lifestyle shots are in","Can we make the logo bigger? Kidding","Color profile is sRGB, I promise","Exporting the hero images now"],
   luis:["Headphones on","Pushing to the site","Deploying now","Fixing one more page"],
   carla:["Booth ships Monday!","Who needs a show badge?","Hotel is booked","Which products go to the show?"],
-  marissa:["Can you hear me okay?","You are on mute!","Hi from home!","Let me share my screen"],
-  stephanieb:["Hi everyone!","Sorry, my cat just walked across the keyboard","Can you see my screen?","Wifi is being dramatic today"]
+  marissa:["Can you hear me okay?","You are on mute!","Hi everyone!","Let me share my screen"],
+  stephanieb:["Hi everyone!","Give me a sec, reconnecting","Can you see my screen?","The call is lagging a bit today"]
 };
 var REMOTE = [
-  { id:"marissa", name:"Marissa", fullName:"Marissa", role:"Team member, remote", remote:true, sx:-3.35, shirt:"#4f7cc4", pants:"#2a2d35", skin:"#e9b996", hair:"#5a3a26", style:"wavy", sleeves:true,
-    status:"Online, working from home", personality:"Works from home and is always one message away.", topics:"Whatever the team needs, from her home office" },
+  { id:"marissa", name:"Marissa", fullName:"Marissa", role:"Team member, remote", remote:true, sx:-3.35, shirt:"#4f7cc4", pants:"#2a2d35", skin:"#e9b996", hair:"#5a3a26", style:"wavy", sleeves:true, glasses:true,
+    status:"Online, working remotely", personality:"Works remotely and is always one message away.", topics:"Team updates and shared files" },
   { id:"stephanieb", name:"Stephanie B.", fullName:"Stephanie Benoit", role:"Team member, remote", remote:true, sx:3.35, shirt:"#6f9e55", pants:"#2b2f36", skin:"#f0cfb4", hair:"#d8b878", style:"long", sleeves:false,
-    status:"Online, working from home", personality:"Remote teammate with great energy and an even better video background.", topics:"Team updates, from her home office" }
+    status:"Online, working remotely", personality:"Remote teammate with great energy on every call.", topics:"Team updates and remote collaboration" }
 ];
 var ALL = PEOPLE.concat(REMOTE);
 var BY = {}; ALL.forEach(function(p){ BY[p.id] = p; });
@@ -413,28 +413,28 @@ var woodTex = canvasTex(512, 512, function(g, w, h){
   }
 });
 woodTex.wrapS = woodTex.wrapT = T.RepeatWrapping;
-woodTex.repeat.set(2.35, 3.75);
-var floor = new T.Mesh(new T.PlaneGeometry(9.4, 15), new T.MeshStandardMaterial({ map:woodTex, roughness:0.52, metalness:0.02 }));
+woodTex.repeat.set(2.35, 2.55);
+var floor = new T.Mesh(new T.PlaneGeometry(9.4, 10.2), new T.MeshStandardMaterial({ map:woodTex, roughness:0.52, metalness:0.02 }));
 floor.rotation.x = -Math.PI / 2;
-floor.position.set(0, 0, -1.5);
+floor.position.set(0, 0, 0.9);
 floor.receiveShadow = true;
 scene.add(floor);
-add(G.box, M("#bfc6cd", { roughness:0.97 }), 2.2, 0.012, 14.6, 0, 0.006, -1.5, scene, false);
-add(G.box, M("#d4d8dd", { roughness:0.9 }), 9.8, 0.3, 15.4, 0, -0.151, -1.5, scene, false);
+add(G.box, M("#bfc6cd", { roughness:0.97 }), 2.2, 0.012, 9.8, 0, 0.006, 0.9, scene, false);
+add(G.box, M("#d4d8dd", { roughness:0.9 }), 9.8, 0.3, 10.6, 0, -0.151, 0.9, scene, false);
 
 /* entrance mat */
 add(G.box, M("#3a3f47", { roughness:1 }), 1.8, 0.016, 0.9, 0, 0.008, 5.4, scene, false);
 
 /* ---------- walls ---------- */
 /* left wall (full height, faces the camera). The hallway is a dead end at the logo wall. */
-add(G.box, wallMat, 0.2, 3.2, 15.2, -4.6, 1.6, -1.5, scene);
+add(G.box, wallMat, 0.2, 3.2, 10.4, -4.6, 1.6, 0.9, scene);
 /* right wall cut away to a low wall so the right row stays visible */
-add(G.box, wallMat, 0.2, 1.05, 15.2, 4.6, 0.525, -1.5, scene);
-add(G.box, M("#e2e2dc", { roughness:0.8 }), 0.26, 0.04, 15.2, 4.6, 1.07, -1.5, scene, false);
-add(G.box, wallMat, 9.4, 3.2, 0.2, 0, 1.6, -9.1, scene);
+add(G.box, wallMat, 0.2, 0.8, 10.4, 4.6, 0.4, 0.9, scene);
+add(G.box, M("#e2e2dc", { roughness:0.8 }), 0.26, 0.04, 10.4, 4.6, 0.82, 0.9, scene, false);
+add(G.box, wallMat, 9.4, 3.2, 0.2, 0, 1.6, -4.2, scene);
 var skirt = M("#dcdcd6", { roughness:0.8 });
-add(G.box, skirt, 0.03, 0.1, 15, -4.49, 0.05, -1.5, scene, false);
-add(G.box, skirt, 9, 0.1, 0.03, 0, 0.05, -8.99, scene, false);
+add(G.box, skirt, 0.03, 0.1, 10.2, -4.49, 0.05, 0.9, scene, false);
+add(G.box, skirt, 9, 0.1, 0.03, 0, 0.05, -4.09, scene, false);
 
 /* high windows on the left wall, above the monitors */
 var skyTex = canvasTex(256, 256, function(g, w, h){
@@ -449,7 +449,7 @@ var skyTex = canvasTex(256, 256, function(g, w, h){
   }
 });
 var winMat = new T.MeshBasicMaterial({ map:skyTex });
-[[4.5, 1.5], [-1.05, 1.5], [-4.2, 2.2]].forEach(function(q){
+[[4.5, 1.5], [-1.05, 1.5]].forEach(function(q){
   var z = q[0], ww = q[1], wy = 2.15, wh = 1.0;
   var win = new T.Mesh(G.plane, winMat);
   win.scale.set(ww, wh, 1);
@@ -463,14 +463,14 @@ var winMat = new T.MeshBasicMaterial({ map:skyTex });
 });
 
 /* ---------- back wall: backlit Dimplex panel ---------- */
-add(G.box, M("#2c3138", { roughness:0.85 }), 9.0, 3.2, 0.06, 0, 1.6, -8.97, scene, false);
+add(G.box, M("#2c3138", { roughness:0.85 }), 9.0, 3.2, 0.06, 0, 1.6, -4.07, scene, false);
 var haloTex = canvasTex(256, 128, function(g, w, h){
   var gr = g.createRadialGradient(w / 2, h / 2, 4, w / 2, h / 2, w / 2);
   gr.addColorStop(0, "rgba(255,255,255,0.75)"); gr.addColorStop(0.45, "rgba(255,236,236,0.28)"); gr.addColorStop(1, "rgba(255,255,255,0)");
   g.fillStyle = gr; g.fillRect(0, 0, w, h);
 });
 var halo = new T.Mesh(G.plane, new T.MeshBasicMaterial({ map:haloTex, transparent:true, blending:T.AdditiveBlending, depthWrite:false, toneMapped:false }));
-halo.scale.set(5.6, 2.4, 1); halo.position.set(0, 2.15, -8.92);
+halo.scale.set(5.6, 2.4, 1); halo.position.set(0, 2.15, -4.02);
 scene.add(halo);
 var logoTex = canvasTex(1024, 262, function(g, w, h){
   g.fillStyle = "#ffffff"; g.fillRect(0, 0, w, h);
@@ -482,40 +482,30 @@ var logoTex = canvasTex(1024, 262, function(g, w, h){
   g.textAlign = "center"; g.textBaseline = "middle";
   g.fillText("Dimplex", w / 2, h / 2 + 6);
 });
-add(G.box, new T.MeshBasicMaterial({ color:0xffffff, toneMapped:false }), 4.12, 1.18, 0.12, 0, 2.15, -8.9, scene, false);
+add(G.box, new T.MeshBasicMaterial({ color:0xffffff, toneMapped:false }), 4.12, 1.18, 0.12, 0, 2.15, -4.0, scene, false);
 var logo = new T.Mesh(G.plane, new T.MeshBasicMaterial({ map:logoTex, toneMapped:false }));
-logo.scale.set(3.92, 1.0, 1); logo.position.set(0, 2.15, -8.835);
+logo.scale.set(3.92, 1.0, 1); logo.position.set(0, 2.15, -3.935);
 scene.add(logo);
 var logoLight = new T.PointLight(0xfff0f0, 0.55, 9, 2);
-logoLight.position.set(0, 1.9, -7.6);
+logoLight.position.set(0, 1.9, -2.7);
 scene.add(logoLight);
 
-/* ---------- entrance (bottom): the only way out, toward the meeting rooms ---------- */
+/* ---------- entrance (bottom): open end of the hallway, the only way out ---------- */
 add(G.box, M("#cfd4d9", { roughness:0.9 }), 3.0, 0.3, 3.2, 0, -0.151, 7.6, scene, false);
 add(G.box, M("#e3e6e9", { roughness:0.85 }), 2.8, 0.02, 3.1, 0, 0.0, 7.6, scene, false);
-var frameMat = M("#3b4048", { roughness:0.4, metalness:0.4 });
-[-1, 1].forEach(function(s){
-  add(G.box, frameMat, 0.14, 2.45, 0.14, s * 1.45, 1.225, 6.05, scene);
-  add(G.box, wallMat, 2.98, 1.05, 0.16, s * 2.99, 0.525, 6.05, scene);
-  add(G.box, M("#e2e2dc", { roughness:0.8 }), 2.98, 0.04, 0.22, s * 2.99, 1.07, 6.05, scene, false);
+var signTex = canvasTex(512, 160, function(g, w, h){
+  g.fillStyle = "rgba(43,48,56,0.92)"; rrect(g, 0, 0, w, h, 22); g.fill();
+  g.strokeStyle = "#ffffff"; g.lineWidth = 10; g.lineCap = "round"; g.lineJoin = "round";
+  g.beginPath(); g.moveTo(60, 40); g.lineTo(60, 120); g.moveTo(32, 92); g.lineTo(60, 122); g.lineTo(88, 92); g.stroke();
+  g.fillStyle = "#ffffff"; g.font = "700 46px " + FONT; g.textAlign = "left"; g.textBaseline = "middle";
+  g.fillText("To meeting rooms", 120, h / 2 + 2);
 });
-add(G.box, frameMat, 3.04, 0.14, 0.14, 0, 2.45, 6.05, scene);
-var signTex = canvasTex(512, 96, function(g, w, h){
-  g.fillStyle = "#2b3038"; rrect(g, 0, 0, w, h, 14); g.fill();
-  g.strokeStyle = "#ffffff"; g.lineWidth = 7; g.lineCap = "round"; g.lineJoin = "round";
-  g.beginPath(); g.moveTo(28, 34); g.lineTo(48, 58); g.lineTo(68, 34); g.stroke();
-  g.fillStyle = "#ffffff"; g.font = "700 40px " + FONT; g.textAlign = "left"; g.textBaseline = "middle";
-  g.fillText("To meeting rooms", 92, h / 2 + 2);
-});
-add(G.box, frameMat, 1.74, 0.34, 0.04, 0, 2.15, 6.05, scene, false);
-[0, Math.PI].forEach(function(r){
-  var sg = new T.Mesh(G.plane, new T.MeshBasicMaterial({ map:signTex, toneMapped:false }));
-  sg.scale.set(1.7, 0.32, 1); sg.rotation.y = r; sg.position.set(0, 2.15, 6.05 + (r ? -0.022 : 0.022));
-  scene.add(sg);
-});
+var floorSign = new T.Mesh(G.plane, new T.MeshBasicMaterial({ map:signTex, transparent:true, toneMapped:false, depthWrite:false }));
+floorSign.rotation.x = -Math.PI / 2; floorSign.scale.set(1.6, 0.5, 1); floorSign.position.set(0.35, 0.015, 6.55);
+floorSign.renderOrder = 2; scene.add(floorSign);
 var roomLampMat = new T.MeshBasicMaterial({ color:0x29c46b, toneMapped:false });
-add(G.sph, roomLampMat, 0.045, 0.045, 0.045, 0.78, 2.15, 6.08, scene, false);
-add(G.sph, roomLampMat, 0.045, 0.045, 0.045, -0.78, 2.15, 6.02, scene, false);
+var lampDot = new T.Mesh(new T.CircleGeometry(0.05, 20), roomLampMat);
+lampDot.rotation.x = -Math.PI / 2; lampDot.position.set(1.0, 0.02, 6.55); scene.add(lampDot);
 
 /* ---------- screens ---------- */
 function screenTex(kind){
@@ -710,12 +700,31 @@ emptyDesk.chairG.position.set(0.15, 0, 0.22);
 
 /* desk props */
 var dg = BY.luis.deskGroup;
-monitor(dg, -0.36, -1.0, 0.6, 0.36, "code", 0.22);
-monitor(dg, 0.36, -1.0, 0.6, 0.36, "web", -0.22);
-monitor(BY.olivia.deskGroup, 0, -1.0, 1.0, 0.56, "swatch", 0);
-add(G.box, M("#26292f", { roughness:0.4 }), 0.34, 0.012, 0.24, 0.5, 0.77, -0.6, BY.olivia.deskGroup, false);
-monitor(BY.stephanie.deskGroup, -0.22, -1.0, 0.64, 0.38, "fire", 0);
-monitor(BY.debbie.deskGroup, 0, -1.0, 0.64, 0.38, "sheet", 0);
+function laptop(parent, x, z, kind, ry){
+  var g = new T.Group(); g.position.set(x, 0.765, z); g.rotation.y = ry || 0; parent.add(g);
+  add(G.box, alu, 0.36, 0.014, 0.25, 0, 0, 0, g, false);
+  add(G.box, M("#2a2d33", { roughness:0.6 }), 0.3, 0.002, 0.1, 0, 0.008, 0.03, g, false);
+  var lid = new T.Group(); lid.position.set(0, 0.008, -0.125); lid.rotation.x = -0.28; g.add(lid);
+  add(G.box, alu, 0.36, 0.235, 0.01, 0, 0.117, 0, lid, false);
+  var scr = new T.Mesh(plane1, new T.MeshBasicMaterial({ map:screenTex(kind), toneMapped:false }));
+  scr.scale.set(0.33, 0.205, 1); scr.position.set(0, 0.117, 0.006); lid.add(scr);
+  return g;
+}
+/* Luis: two external monitors and his laptop */
+monitor(dg, -0.5, -1.0, 0.56, 0.34, "code", 0.18);
+monitor(dg, 0.08, -1.0, 0.56, 0.34, "web", -0.12);
+laptop(dg, 0.58, -0.5, "code", -0.25);
+/* Debbie: two external monitors and a laptop */
+monitor(BY.debbie.deskGroup, -0.5, -1.0, 0.56, 0.34, "sheet", 0.18);
+monitor(BY.debbie.deskGroup, 0.08, -1.0, 0.56, 0.34, "web", -0.12);
+laptop(BY.debbie.deskGroup, 0.58, -0.5, "sheet", -0.25);
+/* Stephanie: two external monitors, a laptop and her desk fireplace */
+monitor(BY.stephanie.deskGroup, -0.55, -1.0, 0.52, 0.32, "fire", 0.18);
+monitor(BY.stephanie.deskGroup, 0.0, -1.0, 0.52, 0.32, "web", -0.08);
+laptop(BY.stephanie.deskGroup, 0.5, -0.47, "fire", -0.3);
+/* Olivia: one large monitor and a laptop, both in image editing */
+monitor(BY.olivia.deskGroup, -0.2, -1.0, 0.9, 0.5, "swatch", 0.05);
+laptop(BY.olivia.deskGroup, 0.58, -0.5, "swatch", -0.25);
 monitor(BY.erica.deskGroup, 0, -1.0, 0.64, 0.38, "cal", 0);
 monitor(BY.allyson.deskGroup, 0, -1.0, 0.64, 0.38, "cal2", 0);
 monitor(emptyDesk.deskGroup, 0, -1.0, 0.64, 0.38, "off", 0);
@@ -734,7 +743,7 @@ monitor(emptyDesk.deskGroup, 0, -1.0, 0.64, 0.38, "off", 0);
 /* Stephanie: small electric fireplace on her desk */
 var flames = [], fireLight;
 (function(){
-  var g = new T.Group(); g.position.set(0.5, 0.762, -0.82); g.rotation.y = Math.PI / 2; g.scale.setScalar(0.5); BY.stephanie.deskGroup.add(g);
+  var g = new T.Group(); g.position.set(0.66, 0.762, -0.9); g.rotation.y = Math.PI / 2; g.scale.setScalar(0.4); BY.stephanie.deskGroup.add(g);
   var white = M("#f4f2ee", { roughness:0.6 });
   add(G.box, white, 1.36, 0.08, 0.42, 0, 0.04, 0, g);
   add(G.box, white, 0.22, 0.86, 0.4, -0.56, 0.47, 0, g);
@@ -789,7 +798,7 @@ var heatStrips = [], heatMotes = [], heatLight;
   add(G.box, M("#cfd4d9", { roughness:0.3, metalness:0.6 }), 0.2, 0.05, 0.04, -1.25, 1.22, 7.99, scene, false);
   [-0.95, -0.82, -0.7].forEach(function(x, i){ add(G.cyl, M(i === 1 ? "#E31837" : "#ffffff", { roughness:0.4 }), 0.04, 0.1, 0.04, x, 1.0, 8.0, scene); });
 })();
-plant(-3.95, 5.75, 0.9); plant(3.95, 5.75, 0.9); plant(-2.4, -8.45, 0.95); plant(2.4, -8.45, 0.95); plant(3.95, -3.3, 0.85); plant(-4.0, -6.4, 1.1);
+plant(-3.95, 5.75, 0.9); plant(3.95, 5.75, 0.9); plant(-2.4, -3.6, 0.95); plant(2.4, -3.6, 0.95);
 
 /* Carla: events corner (tabletop roll-up banner, brochure boxes, event calendar on the wall) */
 (function(){
@@ -1122,6 +1131,43 @@ var POOLS = {
   allyson:["phone","sip","phone"]
 };
 var COFFEE_SPOT = new V3(-1.0, 0, 7.35), EXIT_SPOT = new V3(-0.35, 0, 9.1);
+/* the kind of requests Luis gets every day (public product names only) */
+var REQUESTS = {
+  stephanie:[
+    { say:"Hola! New sell sheet for Ignite Quest, can you add it to the PDPs? US, CA and FR!", task:"adding the Ignite Quest sell sheet to the PDPs in all 3 locales" },
+    { say:"The Optimyst Linear sell sheets are ready for the 3 PDPs", task:"uploading the Optimyst Linear sell sheets" },
+    { say:"Storm has a new service manual, gracias!", task:"swapping in the new Storm service manual" },
+    { say:"The manual is not showing on the RGB Cassette PDP", task:"fixing the manual on the RGB Cassette page" },
+    { say:"Can you add the TM after Vital on the Sense and Spark pages?", task:"adding the TM after Vital on the Sense and Spark pages" }
+  ],
+  debbie:[
+    { say:"Can you add the Equinox sell sheet and owners manual to these products?", task:"adding the Equinox sell sheet and owners manual" },
+    { say:"Apéro sell sheets EN and FR, I'll send the list", task:"loading the Apéro sell sheets in EN and FR" },
+    { say:"Owners manual for the SoftHeat baseboards please, gracias!", task:"adding the SoftHeat owners manuals" },
+    { say:"Update the sell sheets for the Bluetooth thermostats", task:"updating the Bluetooth thermostat sell sheets" },
+    { say:"Hola! The Dolce owners manual link goes to the wrong document", task:"fixing the Dolce owners manual link" }
+  ],
+  erica:[
+    { say:"Can we review priorities after my meeting?", task:"getting the priority list ready for Erica" },
+    { say:"Can you send me the status on the PDFs?", task:"putting together the PDF status for Erica" },
+    { say:"Let's put the dashboards on the agenda", task:"prepping the dashboards for the agenda" }
+  ],
+  allyson:[
+    { say:"Can we review priorities after my meeting?", task:"getting the priority list ready for Allyson" },
+    { say:"Can you send me the status on the PDFs?", task:"putting together the PDF status for Allyson" },
+    { say:"Let's put the dashboards on the agenda", task:"prepping the dashboards for the agenda" }
+  ],
+  carla:[ { say:"I need the latest sell sheets for the tradeshow booth", task:"pulling the latest sell sheets for Carla's booth" } ],
+  olivia:[ { say:"New lifestyle images are ready for the PDPs", task:"putting Olivia's new lifestyle images on the PDPs" } ]
+};
+var LUIS_REPLIES = ["On it!", "Done, check it in all 3 locales.", "Send me the PDFs.", "On it, give me ten minutes.", "Got it, adding it now.", "Sure, it'll be live today."];
+function makeRequest(p, t){
+  var req = choose(REQUESTS[p.id]), L = BY.luis;
+  L.lastRequest = { from:p.name, task:req.task, t:t };
+  p.lastReqAt = t;
+  if (luisDeepWork(L)) moodShift(L, -0.04, "requests keep coming in");
+  return [req.say, choose(LUIS_REPLIES)];
+}
 
 ALL.forEach(function(p, i){
   p.idx = i; p.pace = 1; p.nextAct = rand(3, 10);
@@ -1244,6 +1290,12 @@ function decide(p, t){
     if (rq.visitor || rq.chatWith || rq.answering || withdrawn) return;
     opts.push({ k:"visit", s:n.social * w.social * 0.95 * sociable + rand(0, 0.3), q:rq });
   });
+  /* requests for Luis: walk over or ask from the desk */
+  if (REQUESTS[p.id] && available(BY.luis)) {
+    if (p.lastReqAt === undefined) p.lastReqAt = -rand(40, 140);
+    var since = t - p.lastReqAt;
+    opts.push({ k:"request", s:clamp(since / 110, 0, 1.4) + rand(0, 0.3) });
+  }
   opts.sort(function(a, b){ return b.s - a.s; });
   var o = opts[0];
   if (o.k === "work") { p.typeOn = true; p.typeNext = t + rand(3, 8); n.focus = Math.min(1, n.focus + 0.15); }
@@ -1254,6 +1306,17 @@ function decide(p, t){
     q.visitor = p;
     goTrip(p, t, "visit", q, aislePath(p.seat, p.side, spot, 0));
     p.trip.care = !!o.care;
+  } else if (o.k === "request") {
+    var L = BY.luis;
+    if (Math.abs(L.z - p.z) < 2.2 || Math.random() < 0.3) {
+      var rd = rand(5.5, 7.5);
+      startAct(p, "turn", t, rd, L); startAct(L, "turn", t, rd, p);
+      startChat(p, L, t, rd + 0.4, makeRequest(p, t));
+    } else {
+      L.visitor = p;
+      goTrip(p, t, "visit", L, aislePath(p.seat, p.side, new V3(L.side * 2.15, 0, L.seat.z + rand(-0.12, 0.12)), 0));
+      p.trip.request = true;
+    }
   } else if (o.k === "talk") {
     var dur = rand(5.5, 8);
     startAct(p, "turn", t, dur, o.q); startAct(o.q, "turn", t, dur, p);
@@ -1363,7 +1426,8 @@ function updateAgent(p, t, dt){
           setState(p, "visit", t, cd);
           startAct(q, q.remote ? "answer" : "turn", t, cd - 0.3, p);
           startAct(p, p.id === "olivia" && !q.remote ? "swatch" : "talk", t + 0.5, cd - 1.2);
-          if (tr.care) { startChat(p, q, t, cd, ["Hey, everything okay?", "Thanks, Carla. Better now."]); moodShift(q, 0.25, "Carla came by to check on me"); }
+          if (tr.request) startChat(p, q, t, cd, makeRequest(p, t));
+          else if (tr.care) { startChat(p, q, t, cd, ["Hey, everything okay?", "Thanks, Carla. Better now."]); moodShift(q, 0.25, "Carla came by to check on me"); }
           else startChat(p, q, t, cd);
         } else setState(p, "visit", t, 1.2);
       }
@@ -1417,12 +1481,12 @@ function basis(th, ph){
 function fitSize(th){
   basis(th, ISO_PH);
   var u0 = 1e9, u1 = -1e9, v0 = 1e9, v1 = -1e9;
-  [-4.7, 4.7].forEach(function(x){ [0, 3.2].forEach(function(y){ [-9.2, 9.2].forEach(function(z){
+  [-4.6, 4.6].forEach(function(x){ [0, 2.8].forEach(function(y){ [-4.2, 8.6].forEach(function(z){
     corner.set(x, y, z);
     var u = corner.dot(camRight), v = corner.dot(camUp);
     u0 = Math.min(u0, u); u1 = Math.max(u1, u); v0 = Math.min(v0, v); v1 = Math.max(v1, v);
   }); }); });
-  return Math.max((v1 - v0) / (2 * 0.87), (u1 - u0) / (2 * aspect * 0.94));
+  return Math.max((v1 - v0) / (2 * 0.9), (u1 - u0) / (2 * aspect * 0.97));
 }
 function bestPortraitYaw(){
   var best = 0.42, bs = 1e9;
@@ -1434,13 +1498,13 @@ function defaultGoal(){
   var th = aspect < 0.9 ? bestPortraitYaw() : ISO_TH, ph = ISO_PH;
   basis(th, ph);
   var u0 = 1e9, u1 = -1e9, v0 = 1e9, v1 = -1e9;
-  [-4.7, 4.7].forEach(function(x){ [0, 3.2].forEach(function(y){ [-9.2, 9.2].forEach(function(z){
+  [-4.6, 4.6].forEach(function(x){ [0, 2.8].forEach(function(y){ [-4.2, 8.6].forEach(function(z){
     corner.set(x, y, z);
     var u = corner.dot(camRight), v = corner.dot(camUp);
     u0 = Math.min(u0, u); u1 = Math.max(u1, u); v0 = Math.min(v0, v); v1 = Math.max(v1, v);
   }); }); });
   /* top margin 4% of the frame, at least 9% left at the bottom for the entrance and the hint */
-  var rr = Math.max((v1 - v0) / (2 * 0.87), (u1 - u0) / (2 * aspect * 0.94));
+  var rr = Math.max((v1 - v0) / (2 * 0.9), (u1 - u0) / (2 * aspect * 0.97));
   var H2 = 2 * rr, extra = H2 - (v1 - v0), top = Math.max(0.04 * H2, extra / 2 - 0.025 * H2);
   var uc = (u0 + u1) / 2, vc = v1 + top - rr;
   goal.tx = camRight.x * uc + camUp.x * vc;
@@ -1474,7 +1538,7 @@ var MOODS = {
   okay:{ e:"\u{1F610}", label:"Okay", v:0 },
   tired:{ e:"\u{1F971}", label:"Tired", v:-0.3 },
   stressed:{ e:"\u{1F623}", label:"Stressed", v:-0.4 },
-  off:{ e:"\u{1F912}", label:"A bit under the weather", v:-0.5 }
+  off:{ e:"\u{1F636}", label:"Off day", v:-0.5 }
 };
 var PROFILE = {
   luis:{ pron:"he", traits:{ patience:0.5, humour:0.6, chattiness:0.3, stressTol:0.8 },
@@ -1504,13 +1568,13 @@ var PROFILE = {
     work:["Confirming booth shipping for the next show","Booking hotel rooms for the tradeshow","Ordering badges for the team","Planning which products go to the show"] },
   marissa:{ pron:"she", traits:{ patience:0.8, humour:0.7, chattiness:0.7, stressTol:0.7 },
     moodW:{ excited:1, great:2.5, good:3, okay:1.5, tired:1, stressed:0.8, off:0.4 },
-    likes:"a quiet house and a strong coffee", dislikes:"frozen video calls",
-    joke:"My commute is from the kitchen to the desk. Traffic is light.",
+    likes:"a clean shared folder", dislikes:"frozen video calls",
+    joke:"I have said you are on mute more times than hello.",
     work:["Answering messages from the team","Updating a shared document","Working through my task list","Catching up on email"] },
   stephanieb:{ pron:"she", traits:{ patience:0.7, humour:0.85, chattiness:0.8, stressTol:0.7 },
     moodW:{ excited:1.5, great:2.5, good:2.5, okay:1.5, tired:1, stressed:0.8, off:0.4 },
-    likes:"her cat and a good playlist", dislikes:"when the wifi drops mid sentence",
-    joke:"My cat attends more meetings than I do.",
+    likes:"a tidy task list", dislikes:"when the call drops mid sentence",
+    joke:"I have perfected the can you see my screen face.",
     work:["Catching up on team messages","Reviewing a shared file","Preparing an update for the team","Clearing my inbox"] },
   erica:{ pron:"she", traits:{ patience:0.7, humour:0.8, chattiness:0.6, stressTol:0.7 },
     moodW:{ excited:1, great:2, good:2.5, okay:2, tired:1.5, stressed:1.5, off:0.4 },
@@ -1530,7 +1594,7 @@ function rollMood(p){
   for (k in w) { r -= w[k]; if (r <= 0) break; }
   p.mood = { kind:k, base:k, v:MOODS[k].v };
   p.moodWhy = k === "excited" ? (p.id === "stephanie" ? "a new fireplace is about to launch" : "something good is coming this week")
-    : k === "stressed" ? "deadlines everywhere" : k === "tired" ? "I did not sleep much" : k === "off" ? "I think I am catching a cold" : "";
+    : k === "stressed" ? "deadlines everywhere" : k === "tired" ? "it has been a long week of deadlines" : k === "off" ? "it is one of those slow, heavy work days" : "";
 }
 function recomputeMood(p){
   var m = p.mood, v = m.v, prof = PROFILE[p.id];
@@ -1556,6 +1620,7 @@ var KB = {
     { q:"Built-in or wall-mount?", k:["built-in","built in","recess","wall-mount","wall mount","hang","install","insert"], a:"Wall-mount is the quick win: hang it like a TV. Built-in means framing it into the wall for a flush look, more work but very clean. Inserts go into an existing fireplace opening." },
     { q:"Plug-in or hard-wired?", k:["plug","hardwire","hard-wired","hardwired","outlet","electrician","wiring","voltage"], a:"Many units plug into a standard household outlet. Bigger ones can be hard-wired, and that is a job for a licensed electrician. Always check the installation manual for the exact model." },
     { q:"How do I choose a size?", k:["size","how big","width","measure","which size"], a:"Measure the wall first. A fireplace that fills about a third to half of the wall width usually looks balanced, and if a TV goes above, leave room for viewing height." },
+    { q:"Is it safe around kids and pets?", k:["safe","safety","kids","children","pets","touch","hot glass","cool to the touch"], a:"Electric fireplaces are a lot friendlier than a wood fire: no sparks or embers, and the Optimyst flame is just mist and light, so it is cool to the touch. Always follow the clearances in the manual for the exact model." },
     { q:"Can I use the flame without heat?", k:["without heat","no heat","flame only","separately","heat off","summer"], a:"Yes. You can run the flame effect on its own all year and switch the heater on only when you want the warmth." }
   ], fallback:"Hmm, not sure about that one. Ask me about Optimyst, Revillusion, Ignite, sizing or installation and I am all yours." },
   debbie:{ qa:[
@@ -1603,21 +1668,20 @@ var KB = {
     { q:"Which products go to the show?", k:["which products","bring","what goes","lineup","units"], a:"New launches first, then the best sellers people want to see in person. Flame always gets the front of the booth, it pulls people in." },
     { q:"How do I get a show badge?", k:["badge","badges","register","registration","pass"], a:"Send me your name and the days you will be there and I will register you. Badges are usually picked up on site." },
     { q:"Who books the travel?", k:["travel","hotel","flight","booking","trip"], a:"Me! Hotels near the venue go fast, so I book early. Tell me your dates and I will sort it out." },
-    { q:"Who can help with fireplaces?", k:["fireplace","flame","optimyst","ignite","revillusion"], a:"That's Stephanie! Second desk on the right. She knows every flame effect by heart." }
+    { q:"Who can help with fireplaces?", ref:true, k:["fireplace","flame","optimyst","ignite","revillusion"], a:"That's Stephanie! Second desk on the right. She knows every flame effect by heart." }
   ], fallback:"Not sure, but I can find out. On it!" },
   marissa:{ qa:[
-    { q:"Where are you working from?", k:["where are you","working from","home office","remote"], a:"Home! My desk, my plant and the best coffee in town." },
+    { q:"Are you working remotely?", k:["remote","remotely","working from","on the call"], a:"Yes, I work remotely and join the team on calls. Ping me anytime." },
     { q:"Can you hear me?", k:["hear","mute","muted","audio","mic","microphone","sound"], a:"Loud and clear. If I freeze, it is my wifi, not me." },
-    { q:"Do you miss the office?", k:["miss","the office","come in"], a:"I miss the coffee chats. Not the commute." },
+    { q:"How do you stay in the loop?", k:["loop","updates","stay in touch","the office","come in"], a:"Team calls, shared files and a lot of quick messages. I am on every team call." },
     { q:"How do I reach you?", k:["reach","contact","ping","message you","email"], a:"Just message me. Green dot means go." },
     { q:"What are your hours?", k:["time zone","timezone","hours","your schedule"], a:"Same hours as the team, so ping me anytime during the day." }
   ], fallback:"Hmm, you cut out for a second there. Can you say that again?" },
   stephanieb:{ qa:[
-    { q:"Where are you working from?", k:["where are you","working from","home office","remote"], a:"Hi from home! The background is real, I promise." },
-    { q:"Can you see my screen?", k:["screen","share","camera","video"], a:"Yes, I can see it. Unless that was my cat again." },
-    { q:"Is that your cat?", k:["cat","pet","dog"], a:"Yes, and she thinks she runs the meetings. Honestly, she might." },
+    { q:"Are you working remotely?", k:["remote","remotely","working from","on the call"], a:"Yes, I work remotely and I am on the call with the team all day." },
+    { q:"Can you see my screen?", k:["screen","share","camera","video"], a:"Yes, I can see it. Go ahead." },
     { q:"How do I reach you?", k:["reach","contact","ping","message you","email"], a:"Message me anytime. I am always online during the day." },
-    { q:"Do you come to the office?", k:["the office","come in","visit"], a:"Sometimes! But my commute is ten steps and I am not giving that up easily." }
+    { q:"How do we work together?", k:["work together","the office","come in","collaborate"], a:"Send me the file or drop it in the shared folder, and I will pick it up right away." }
   ], fallback:"Sorry, my wifi is being dramatic. What was that?" }
 };
 
@@ -1682,6 +1746,7 @@ var ACT_TEXT = {
 };
 function doingNow(p){
   var tr = p.trip, t = clock.elapsedTime;
+  if (p.id === "luis" && p.lastRequest && t - p.lastRequest.t < 180 && !tr && !p.chatWith) return "Working on " + p.lastRequest.from + "'s request, " + p.lastRequest.task;
   if (tr) {
     if (tr.kind === "coffee") return tr.back ? "Walking back with my " + drinkOf(p) : "Grabbing a " + drinkOf(p) + ", back in a sec";
     if (tr.kind === "visit") return tr.back ? "Heading back to my desk" : (p.state === "visit" ? "Chatting with " + tr.target.name : "On my way to see " + tr.target.name);
@@ -1698,7 +1763,7 @@ function doingNow(p){
 }
 function locate(q){
   var P = pr(q), tr = q.trip;
-  if (q.remote) return (q.chatWith ? cap(P) + " is on the big screen by the logo, on a call with " + q.chatWith.name : cap(P) + " is on the big screen by the logo, working from home") + ". " + doingNow(q) + ".";
+  if (q.remote) return (q.chatWith ? cap(P) + " is on the big screen by the logo, on a call with " + q.chatWith.name : cap(P) + " is on the big screen by the logo, working remotely") + ". " + doingNow(q) + ".";
   if (q.state === "away") return cap(P) + " is in a meeting. Should be back soon.";
   if (tr && tr.kind === "meeting") return tr.back ? cap(P) + " is walking back from a meeting." : cap(P) + " is heading out to a meeting.";
   if (tr && tr.kind === "coffee") return cap(P) + " is getting coffee by the entrance.";
@@ -1713,7 +1778,7 @@ var OPEN = {
   okay:["Okay, I guess.","Fine. Just one of those days.","Can't complain. Well, I could."],
   tired:["A bit tired, honestly.","Running low on energy.","Tired. Very tired."],
   stressed:["Honestly, not my best day.","Stressed, if I'm honest.","Juggling too many things right now."],
-  off:["A bit under the weather today.","Not feeling a hundred percent.","Hanging in there, a little sick."]
+  off:["Bit of an off day, work-wise.","Slow day, honestly. Lots on my plate.","Hanging in there, busy day."]
 };
 function howReply(p){
   var n = p.needs, m = p.mood.kind, prof = PROFILE[p.id], bits = [fresh(p, OPEN[m])], why = p.moodWhy;
@@ -1733,9 +1798,10 @@ var SMALL = {
     _:["Haven't looked outside in hours, honestly.","Grey out there, but it's warm in here.","Nice enough. I'll see it at lunch, maybe."]
   },
   weekend:{
-    erica:["Weekend? Let me check my calendar. Kidding. Mostly.","Something without a single meeting invite, I hope."],
-    luis:["Probably something away from a screen. Probably.","No deploys. That's the plan."],
-    _:["Nothing big, just recharging.","A bit of rest, a bit of family time.","Still deciding. Any ideas?"]
+    erica:["Let's focus on this week. My calendar already has plenty to say.","This week is all about the launch pages."],
+    luis:["This week? Pushing product pages, as always.","Let's talk about this week: more pages going live."],
+    carla:["This week is all about the next tradeshow.","Next up for me is the next show on the calendar."],
+    _:["Let's stick to this week, there is plenty going on.","This week is busy enough, honestly.","Plenty on the list this week."]
   },
   lunch:{
     carla:["I'm going in a bit, want me to grab you something?","Lunch sounds great, I'll ask around who's in."],
@@ -1752,8 +1818,47 @@ function moodTone(p, text){
   if ((m === "great" || m === "excited") && prof.traits.humour > 0.65 && Math.random() < 0.25) return text + " " + prof.joke;
   return text;
 }
+/* guardrail: avatars talk about work only. Personal topics get a polite, in-character redirect. */
+var PRIVATE = [
+  "salary","salaries","paycheck","paycheque","payroll","wage","wages","your pay","pay you","get paid","you paid","how much do you make","how much do you earn","how much money","bonus","bonuses","pay raise","get a raise","income","compensation","pension","401k",
+  "your family","your kids","your kid","your children","your child","have kids","have children","any kids","your son","your daughter","your baby","pregnant","pregnancy","your husband","your wife","your spouse","your partner","boyfriend","girlfriend","married","marriage","marry","wedding","divorce","divorced","are you single","dating","relationship","relationships","crush","your mom","your dad","your mother","your father","your parents","your sister","your brother","siblings","in-laws",
+  "your age","how old","old are you","birthday","were you born","year of birth",
+  "your health","are you sick","you sick","you ill","illness","disease","doctor","hospital","medical","medication","medicine","therapy","therapist","mental health","diagnosis","injury","surgery","covid","vaccine","vaccinated",
+  "your address","home address","where do you live","where you live","do you live","your house","your apartment","neighborhood","neighbourhood","phone number","cell number","personal email","where are you from","hometown","what city are you","which city are you","what country are you",
+  "religion","religious","church","mosque","synagogue","god","pray","faith","christian","muslim","jewish","catholic","atheist",
+  "politics","political","vote","voting","voted","election","president","prime minister","political party","democrat","republican","liberal","conservative","left wing","right wing","trump","biden","trudeau",
+  "immigration","immigrant","visa","citizen","citizenship","green card","passport","work permit","deport",
+  "lawyer","lawsuit","sue","hr","human resources","fired","get fired","quit","quitting","resign","resignation","disciplinary","layoff","layoffs","laid off","performance review","harassment",
+  "gossip","rumor","rumors","rumour","rumours","drama","think of your boss","think about your boss","your boss like","is your boss","bosses like","who is the worst","best friend","your opinion of","opinion about",
+  "weekend plans","vacation","holiday plans","your pet","your pets","your dog","your cat","have a cat","have a dog","have pets","have a pet","any pets","hobby","hobbies","sexual","sex","drunk","alcohol","beer","wine","party tonight","your social media","your instagram","your facebook","tiktok","personal life","private life","your life"
+];
+var FUZZY_PRIVATE = ["salary","salaries","paycheck","married","divorced","religion","politics","pregnant","boyfriend","girlfriend","birthday","immigration","citizenship","hospital","medication","lawsuit","harassment","resignation","gossip"];
+var WORK_NUDGE = {
+  luis:"Ask me about the website, manuals or finding a dealer.",
+  stephanie:"Ask me about fireplaces instead.",
+  debbie:"Ask me about baseboards.",
+  olivia:"Ask me about images, banners or colour profiles.",
+  carla:"Ask me about the next tradeshow.",
+  erica:"Ask me about this week's priorities.",
+  allyson:"Ask me about the plan for this quarter.",
+  marissa:"Ask me about team updates or shared files.",
+  stephanieb:"Ask me about team updates or what I am working on."
+};
+function isPrivate(s, words){
+  for (var i = 0; i < PRIVATE.length; i++) {
+    var kw = PRIVATE[i];
+    if (s.indexOf(" " + kw + " ") >= 0) return true;
+    if (FUZZY_PRIVATE.indexOf(kw) >= 0) { for (var j = 0; j < words.length; j++) if (words[j].length >= 6 && lev(words[j], kw) <= 1) return true; }
+  }
+  /* opinions about a named colleague */
+  if (personIn(s) && / (think|like|feel|opinion|nice|mean|good boss|bad boss|annoying|lazy|rude|friendly with|get along) /.test(s)) return true;
+  return false;
+}
 function converse(p, raw){
   var s = norm(raw), words = s.trim().split(" "), t = clock.elapsedTime, prof = PROFILE[p.id];
+  if (isPrivate(s, words)) {
+    return { text:fresh(p, ["Let's keep it to work stuff! ", "I keep personal things out of the office. ", "That's not something I talk about at work. ", "Ha, let's stick to work. "]) + WORK_NUDGE[p.id], intent:"private", reason:"I keep chats here about work" };
+  }
   var last = p.mem[p.mem.length - 1];
   var name = p.name, P = prof.pron;
 
@@ -1789,7 +1894,7 @@ function converse(p, raw){
   var other = null, os = 0;
   ALL.forEach(function(q){
     if (q === p || q.remote || q.walker) return;
-    KB[q.id].qa.forEach(function(e){ var sc = 0; e.k.forEach(function(kw){ sc += phraseScore(s, words, kw); }); if (sc > os) { os = sc; other = q; } });
+    KB[q.id].qa.forEach(function(e){ if (e.ref) return; var sc = 0; e.k.forEach(function(kw){ sc += phraseScore(s, words, kw); }); if (sc > os) { os = sc; other = q; } });
   });
   if (other && os >= 2 && os > ts && os >= best.s && !(p.id === "carla" && ts > 0)) {
     var side = other.side < 0 ? "left" : "right";
@@ -1806,7 +1911,7 @@ function converse(p, raw){
   var r;
   switch (best.id) {
     case "greet":
-      if (p.remote) return { text:fresh(p, ["Hi from home!","Hey! Can you hear me okay?","Hi! Waving at you through the screen."]), intent:"greet", reason:"" };
+      if (p.remote) return { text:fresh(p, ["Hi everyone!","Hey! Can you hear me okay?","Hi! Waving at you through the screen."]), intent:"greet", reason:"" };
       return { text:pre + fresh(p, [
         p.mood.v > 0.3 ? "Hey! Good to see you." : "Hi.",
         "Hi there! " + (p.mood.v > 0 ? "What's up?" : "What do you need?"),
@@ -1830,8 +1935,8 @@ function converse(p, raw){
       var n = p.needs;
       if (p.id === "debbie") return { text:fresh(p, ["Thanks, but I don't drink coffee. Water for me!","Not a coffee person, honestly. I'll stick to water.","No coffee for me, thanks. A glass of water and I'm good."]), intent:"coffee", reason:"I never really liked coffee" };
       if (p.id === "olivia" && !(p.trip && p.trip.kind === "coffee")) {
-        if (n.coffee > 0.45 && p.state === "sit" && !p.chatWith && !PEOPLE.some(function(q){ return q.trip && q.trip.kind === "coffee"; })) { p.pendingCoffee = t + 2.5; return { text:fresh(p, ["Only if it's tea! I'll go make one.","Tea, please. Actually, I'll go make it myself.","A tea sounds perfect, heading there now."]), intent:"coffee", reason:"tea is my thing" }; }
-        return { text:fresh(p, ["I'm a tea person, but thank you!","Just had a tea, thanks.","No coffee for me, tea all day."]), intent:"coffee", reason:"tea is my thing" };
+        if (n.coffee > 0.45 && p.state === "sit" && !p.chatWith && !PEOPLE.some(function(q){ return q.trip && q.trip.kind === "coffee"; })) { p.pendingCoffee = t + 2.5; return { text:fresh(p, ["No coffee for me, I'm a tea person. I'll go make a tea now.","No coffee for me, I'm a tea person. A tea sounds perfect, heading there now."]), intent:"coffee", reason:"tea is my thing" }; }
+        return { text:fresh(p, ["No coffee for me, I'm a tea person. I'll grab a tea later.","No coffee for me, I'm a tea person. Thanks though!"]), intent:"coffee", reason:"tea is my thing" };
       }
       if (p.trip && p.trip.kind === "coffee") return { text:"Already on it, I'm getting one right now.", intent:"coffee", reason:"I needed it" };
       if (n.coffee > 0.5 || p.mood.kind === "tired") {
@@ -2071,7 +2176,7 @@ REMOTE.forEach(function(p, i){
   var rt = new T.WebGLRenderTarget(512, 288, { samples:4 });
   p.rs = rs; p.rcam = cam; p.rt = rt;
 
-  var g = new T.Group(); g.position.set(p.sx, 1.78, -8.9); scene.add(g);
+  var g = new T.Group(); g.position.set(p.sx, 1.78, -4.0); scene.add(g);
   add(G.box, M("#121418", { roughness:0.35, metalness:0.4 }), 2.0, 1.16, 0.07, 0, 0, 0, g);
   var glowM = new T.MeshBasicMaterial({ color:0x8fc0ff, transparent:true, opacity:0.32, blending:T.AdditiveBlending, depthWrite:false });
   var glow = new T.Mesh(G.plane, glowM); glow.scale.set(2.2, 1.36, 1); glow.position.z = -0.03; g.add(glow);
@@ -2082,8 +2187,8 @@ REMOTE.forEach(function(p, i){
   capM.scale.set(1.5, 0.1875, 1); capM.position.set(0, -0.43, 0.04); g.add(capM);
   var anchor = new T.Object3D(); anchor.position.set(0, 0.74, 0.05); g.add(anchor);
   p.head = anchor; p.screenG = g; p.glowM = glowM;
-  p.spot = new V3(p.sx, 0, -8.05);
-  p.seat = new V3(p.sx, 0, -9.0);
+  p.spot = new V3(p.sx, 0, -3.15);
+  p.seat = new V3(p.sx, 0, -4.1);
 });
 function updateRemote(p, t, dt){
   var r = p.rig;
@@ -2122,7 +2227,7 @@ try {
 } catch (e) { composer = null; aoPass = null; }
 loadingEl.hidden = true;
 window.__voReady = true;
-window.__vo = { people:BY, focus:function(id){ focusOn(BY[id]); }, ask:function(id, q){ ask(BY[id], q); } };
+window.__vo = { people:BY, focus:function(id){ focusOn(BY[id]); }, ask:function(id, q){ ask(BY[id], q); }, converse:function(id, q){ return converse(BY[id], q).text; } };
 var snapCam = 0;
 /* a link like #p-luis opens that person's card on load */
 function focusFromHash(){ var m = /^#p-([a-z]+)$/.exec(location.hash || ""); if (m && BY[m[1]]) { focusOn(BY[m[1]]); snapCam = 3; } }
