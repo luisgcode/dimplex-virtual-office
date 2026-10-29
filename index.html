@@ -903,7 +903,7 @@ var SEASONS = {
     banner:"HAPPY HALLOWEEN", pennants:["#e8731c", "#2a2230", "#7a4bb0"], bulbs:["#ff8a1f", "#9b5cff"],
     says:["Trick or treat?", "Trick or treat?", "Trick or treat?", "Who carved the pumpkins?"],
     replies:["Candy is on the empty desk!", "Treat, obviously.", "Only if it's chocolate.", "Nice costume!"],
-    costume:{ carla:"witch", marissa:"witch", olivia:"cat", stephanieb:"cat" }
+    costume:{ carla:"witch", marissa:"witch", olivia:"cat", stephanieb:"cat", stephanie:"badbunny" }
   },
   christmas:{
     banner:"HAPPY HOLIDAYS", pennants:["#c8202f", "#1f7a45", "#f2efe8"], bulbs:["#ff4d4d", "#ffd36b", "#4dd47e"],
@@ -940,6 +940,50 @@ function costume(p, g){
       var c2 = new T.Mesh(new T.ConeGeometry(0.018, 0.036, 4), pink); c2.position.set(0, -0.006, 0.008); c2.rotation.y = Math.PI / 4; c2.scale.z = 0.3; eg.add(c2);
     });
   }
+  /* badbunny has nothing on the head: the whole look is on the torso, see costumeBody */
+}
+/* Bad Bunny's Super Bowl LX look: all cream, a collared shirt and tie under an "OCASIO 64" jersey.
+   The clothes turn cream through OUTFIT; the collar, the tie and the lettering sit on the chest and follow Spine2 */
+var COSTUME_OUTFIT = { badbunny:{ shirt:"#ece3cf", pants:"#e3d8c1", shoe:"#f3f0e8", trim:"#d6c7a8" } };
+function jerseyTex(){
+  return canvasTex(256, 256, function(g, w, h){
+    g.fillStyle = "#6a4f33"; g.textAlign = "center"; g.textBaseline = "alphabetic";
+    g.font = "800 40px " + FONT; g.fillText("OCASIO", w / 2, 58);
+    g.font = "900 150px " + FONT; g.lineWidth = 6; g.strokeStyle = "#b89a6a"; g.strokeText("64", w / 2, 210); g.fillText("64", w / 2, 210);
+  });
+}
+function costumeBody(p, model, body){
+  var kind = SZ && SZ.costume[p.id];
+  if (kind !== "badbunny") return;
+  /* front and back of the chest along the centre line, measured on the bind-pose body like the trench belt */
+  var pos = body.geometry.attributes.position, n = body.userData.surfN || pos.count;
+  function depth(Y, front){
+    var z = front ? -1 : 1;
+    for (var i = 0; i < n; i++) {
+      if (Math.abs(pos.getY(i) - Y) > 0.012 || Math.abs(pos.getX(i)) > 0.05) continue;
+      z = front ? Math.max(z, pos.getZ(i)) : Math.min(z, pos.getZ(i));
+    }
+    return z;
+  }
+  var zNeck = depth(1.44, true), zTie = depth(1.37, true), zChest = depth(1.27, true), zBack = depth(1.24, false);
+  if (zNeck < 0 || zChest < 0 || zBack > 0) return;
+  var g = new T.Group(); model.add(g);
+  var collar = M("#ffffff", { roughness:0.75 }), tie = M("#a8865a", { roughness:0.55 });
+  /* shirt collar points either side of the knot */
+  [-1, 1].forEach(function(s){
+    var cp = add(G.box, collar, 0.05, 0.03, 0.008, s * 0.026, 1.442, zNeck + 0.03, g, false);
+    cp.rotation.set(-0.2, 0, s * 0.55);
+  });
+  /* tie: a knot at the collar and a short blade that tucks under the jersey */
+  add(G.box, tie, 0.022, 0.02, 0.012, 0, 1.43, zNeck + 0.032, g, false);
+  var blade = add(G.box, tie, 0.026, 0.07, 0.006, 0, 1.39, (zNeck + zTie) / 2 + 0.03, g, false);
+  blade.rotation.x = Math.atan2(zNeck - zTie, 0.07);
+  /* jersey lettering on both sides */
+  var lm = new T.MeshStandardMaterial({ map:jerseyTex(), transparent:true, roughness:0.7, depthWrite:false, polygonOffset:true, polygonOffsetFactor:-2, polygonOffsetUnits:-2 });
+  var front = new T.Mesh(G.plane, lm); front.scale.set(0.15, 0.15, 1); front.position.set(0, 1.27, zChest + 0.028); g.add(front);
+  var back = new T.Mesh(G.plane, lm); back.scale.set(0.17, 0.17, 1); back.position.set(0, 1.24, zBack - 0.028); back.rotation.y = Math.PI; g.add(back);
+  model.updateMatrixWorld(true);
+  model.getObjectByName("mixamorigSpine2").attach(g);
 }
 
 function pumpkin(parent, x, y, z, s, lit, ry){
@@ -1567,6 +1611,8 @@ var OUTFIT = {
   marissa:   { shirt:"#4f7cc4", pants:"#2a2d35", shoe:"#141518", trim:"#3c64a5" },
   stephanieb:{ shirt:"#151618", pants:"#2b2f36", shoe:"#141518", trim:"#151618" }
 };
+/* a costume that is a whole outfit swaps the clothes colours for the season */
+if (SZ) Object.keys(SZ.costume).forEach(function(id){ var c = COSTUME_OUTFIT[SZ.costume[id]]; if (c) OUTFIT[id] = c; });
 function garmentOf(p, x, y, zz){
   x = Math.abs(x);
   if (y < 0.12) return "shoe";
@@ -1747,6 +1793,7 @@ function makeRig(p, sc){
     buildClothes(p, bodyMesh);
     if (p.coat) trenchBelt(p, model, bodyMesh);
     hideCovered(p, bodyMesh);
+    costumeBody(p, model, bodyMesh);
   }
   var b = {};
   BONE_NAMES.forEach(function(n){ b[n] = model.getObjectByName("mixamorig" + n); });
