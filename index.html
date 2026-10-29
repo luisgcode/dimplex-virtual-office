@@ -1664,17 +1664,90 @@ function buildClothes(p, body){
   var cS = new T.Color(o.shirt), cT = new T.Color(o.trim), cV = new T.Color();
   var lowY = { shoe:-1, pants:0.12, shirt:WY };
   var BELT = p.coat ? [0.985, 1.035] : [0.975, 1.008];
+  /* The body has no skin between the pelvis and the chest, only the ball joints of the spine, and those get no shell:
+     the top showed a hole all round the waist. A band lofted from the pelvis rim up to the chest rim closes it.
+     Both rims curl inwards, so offset along their normals the shells rose into teeth there: near a rim the shells are
+     cut on the smoothed rim line (L below, H above, per slice of the waist) and pushed out level, and the band runs
+     from just under L to just over H */
+  var NB = 48, WB = { lo:[], hi:[], L:[], H:[], cz:0 }, b, zl = 1, zh = -1, edges = new Map();
+  for (i = 0; i < surfN; i++) if (Math.abs(pos.getX(i)) < 0.3 && pos.getY(i) > 1 && pos.getY(i) < 1.3) { zl = Math.min(zl, pos.getZ(i)); zh = Math.max(zh, pos.getZ(i)); }
+  WB.cz = (zl + zh) / 2;
+  function sliceOf(x, z){ return Math.floor((Math.atan2(x, z - WB.cz) / (2 * Math.PI) + 1) * NB) % NB; }
+  for (k = 0; k < idx.length; k += 3) {
+    if (idx[k] >= surfN || idx[k + 1] >= surfN || idx[k + 2] >= surfN) continue;
+    for (var e0 = 0; e0 < 3; e0++) { var ea = idx[k + e0], eb = idx[k + (e0 + 1) % 3], ek = Math.min(ea, eb) * n + Math.max(ea, eb); edges.set(ek, (edges.get(ek) || 0) + 1); }
+  }
+  /* the rims are the open edges: per slice the highest open vertex of the pelvis and the lowest of the chest */
+  edges.forEach(function(cnt, ek){
+    if (cnt !== 1) return;
+    [Math.floor(ek / n), ek % n].forEach(function(v){
+      var x = pos.getX(v), y = pos.getY(v);
+      if (Math.abs(x) > 0.3 || y < 0.95 || y > 1.35) return;
+      var s = sliceOf(x, pos.getZ(v));
+      if (y < 1.15) { if (WB.lo[s] === undefined || y > pos.getY(WB.lo[s])) WB.lo[s] = v; }
+      else if (WB.hi[s] === undefined || y < pos.getY(WB.hi[s])) WB.hi[s] = v;
+    });
+  });
+  /* a slice the rim happens to skip borrows the nearest one */
+  var WOK = WB.lo.some(function(v){ return v !== undefined; }) && WB.hi.some(function(v){ return v !== undefined; });
+  if (WOK) [WB.lo, WB.hi].forEach(function(arr){
+    var src = arr.slice();
+    for (b = 0; b < NB; b++) for (var d = 0; arr[b] === undefined; d++)
+      [b + d, b - d].some(function(j){ j = (j + NB) % NB; if (src[j] === undefined) return false; arr[b] = src[j]; return true; });
+  });
+  if (WOK) for (b = 0; b < NB; b++) {
+    var sl = 0, sh = 0;
+    for (k = -2; k <= 2; k++) { sl += pos.getY(WB.lo[(b + k + NB) % NB]); sh += pos.getY(WB.hi[(b + k + NB) % NB]); }
+    WB.L[b] = sl / 5; WB.H[b] = sh / 5;
+  }
+  /* the cut height for a vertex near a rim, or null */
+  function waistCut(v, y){
+    if (!WOK || v >= surfN || y < 0.95 || y > 1.35 || Math.abs(pos.getX(v)) > 0.3) return null;
+    var s = sliceOf(pos.getX(v), pos.getZ(v));
+    if (y < 1.15) return y > WB.L[s] - 0.02 ? Math.min(y, WB.L[s]) : null;
+    return y < WB.H[s] + 0.02 ? Math.max(y, WB.H[s]) : null;
+  }
   function vert(map, v, gk, px, py, th){
-    var key = v * 4 + (py === pos.getY(v) && px === pos.getX(v) ? 0 : 1), ni = map.get(key);
+    var cut = waistCut(v, py), key = v * 4 + (cut === null && py === pos.getY(v) && px === pos.getX(v) ? 0 : 1), ni = map.get(key);
     if (ni !== undefined) return ni;
     ni = P.length / 3; map.set(key, ni);
     var nx = nor.getX(v), ny = nor.getY(v), nz = nor.getZ(v);
+    if (cut !== null) { nx = px; nz = pos.getZ(v) - WB.cz; var nl = Math.hypot(nx, nz) || 1; nx /= nl; nz /= nl; ny = 0; py = cut; }
     P.push(px + nx * th, py + ny * th, pos.getZ(v) + nz * th);
     N.push(nx, ny, nz); U.push(uv ? uv.getX(v) : 0, uv ? uv.getY(v) : 0);
     SI.push(si.getX(v), si.getY(v), si.getZ(v), si.getW(v)); SW.push(sw.getX(v), sw.getY(v), sw.getZ(v), sw.getW(v));
     cV.copy(cS).lerp(cT, gk === "shirt" ? trimWeight(p, px, py, pos.getZ(v)) : 0);
     C.push(cV.r, cV.g, cV.b);
     return ni;
+  }
+  /* each column of the band joins the pelvis edge to the chest edge of its slice and is skinned as a blend of the two,
+     so it bends with the spine when walking or seated; the weave is mapped at the body's own uv density */
+  function waistBand(){
+    if (!WOK) return;
+    var ROWS = 8, base = P.length / 3, c, r;
+    for (b = 0; b < NB; b++) {
+      var a = WB.lo[b], h = WB.hi[b], ya = pos.getY(a), dy = pos.getY(h) - ya, ang = (b + 0.5) / NB * 2 * Math.PI;
+      for (r = 0; r <= ROWS; r++) {
+        var y = lerp(WB.L[b] - 0.012, WB.H[b] + 0.012, r / ROWS), t = (y - ya) / dy;
+        var x = lerp(pos.getX(a), pos.getX(h), t), z = lerp(pos.getZ(a), pos.getZ(h), t);
+        var nx = Math.sin(ang), nz = Math.cos(ang), rad = Math.hypot(x, z - WB.cz), th = thickAt("shirt", x, y, p) - 0.003;
+        P.push(nx * (rad + th), y, WB.cz + nz * (rad + th)); N.push(nx, 0, nz);
+        U.push(ang * 0.12 * 0.87, y * 0.87);
+        cV.copy(cS).lerp(cT, trimWeight(p, nx * rad, y, WB.cz + nz * rad)); C.push(cV.r, cV.g, cV.b);
+        var w = {}, s = clamp(t, 0, 1);
+        [[a, 1 - s], [h, s]].forEach(function(qq){
+          var js = [si.getX(qq[0]), si.getY(qq[0]), si.getZ(qq[0]), si.getW(qq[0])], ws = [sw.getX(qq[0]), sw.getY(qq[0]), sw.getZ(qq[0]), sw.getW(qq[0])];
+          for (c = 0; c < 4; c++) if (ws[c]) w[js[c]] = (w[js[c]] || 0) + ws[c] * qq[1];
+        });
+        var ks = Object.keys(w).sort(function(m1, m2){ return w[m2] - w[m1]; }).slice(0, 4), tot = 0;
+        ks.forEach(function(j){ tot += w[j]; });
+        for (c = 0; c < 4; c++) { SI.push(ks[c] ? +ks[c] : 0); SW.push(ks[c] ? w[ks[c]] / tot : 0); }
+      }
+    }
+    for (b = 0; b < NB; b++) {
+      var c0 = base + b * (ROWS + 1), c1 = base + ((b + 1) % NB) * (ROWS + 1);
+      for (r = 0; r < ROWS; r++) IDX.push(c0 + r, c1 + r, c1 + r + 1, c0 + r, c1 + r + 1, c0 + r + 1);
+    }
   }
   ["shirt", "pants", "shoe", "belt"].forEach(function(gk){
     var gi = GARMENTS.indexOf(gk), map = new Map(), start = IDX.length;
@@ -1704,6 +1777,7 @@ function buildClothes(p, body){
       }
       if (out && !(bare && gk !== "shirt")) IDX.push(out[0], out[1], out[2]);
     }
+    if (gk === "shirt") waistBand();
     if (IDX.length > start) groups.push([start, IDX.length - start, gi]);
   });
   var geo = new T.BufferGeometry();
