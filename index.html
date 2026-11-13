@@ -1314,7 +1314,7 @@ var SEASONS = {
     banner:"HAPPY HOLIDAYS", pennants:["#c8202f", "#1f7a45", "#f2efe8"], bulbs:["#ff4d4d", "#ffd36b", "#4dd47e"],
     says:["Happy holidays!", "Who is bringing cookies?", "Is it snowing again?", "Who put up the stockings?", "Hot chocolate, anyone?"],
     replies:["Happy holidays!", "Me, obviously.", "Cookies are on the empty desk!", "Love the decorations!", "Yes please!"],
-    costume:{ carla:"santa", marissa:"santa", debbie:"santa", erica:"santa", stephanieb:"santa", olivia:"santa", allyson:"santa", stephanie:"santa", luis:"santa" }
+    costume:{ carla:"santa", marissa:"santa", debbie:"santa", erica:"santa", stephanieb:"santa", olivia:"santa", allyson:"santa", stephanie:"santa", luis:"santa", nolan:"santa", elena:"santa", tessa:"santa", grant:"santa", hana:"santa" }
   }
 };
 var SZ = SEASONS[SEASON] || null;
@@ -4167,7 +4167,7 @@ function realHair(p, model, head, top){
     var before = g.children.length;
     costume(p, g);
     /* the hat sits down over the crown on a real head */
-    g.children.slice(before).forEach(function(c){ c.position.y -= cfg.hatDrop || 0.05; c.position.z += 0.012; c.scale.multiplyScalar(cfg.hatScale || 1.15); });
+    g.children.slice(before).forEach(function(c){ c.position.y -= cfg.hatDrop || 0.07; c.position.z += 0.01; c.scale.multiplyScalar(cfg.hatScale || 1.24); });
   }
   /* on a real head the mannequin cap reads as a helmet: drop the round shells, keep the strands, and lay a thin scalp
      that hugs the skull instead, open over the forehead */
