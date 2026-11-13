@@ -4017,6 +4017,18 @@ function realHair(p, model, head, top){
     g.scale.set(k * hs[0], k * hs[1], k * hs[2]);
     g.position.set(h.x, h.y, h.z).sub(new V3(0, 1.596, -0.01).multiply(g.scale));
   }
+  /* on a real head the mannequin cap reads as a helmet: drop the round shells, keep the strands, and lay a thin scalp
+     that hugs the skull instead, open over the forehead */
+  if (RB) {
+    g.children.slice().forEach(function(c){ if (c.geometry === G.hcap2 || c.geometry === G.hsph) g.remove(c); });
+    var rs2 = RB.getSize(new V3()), rc2 = RB.getCenter(new V3());
+    var scalp = new T.Mesh(new T.SphereGeometry(1, 40, 22, 0, Math.PI * 2, 0, Math.PI * 0.58), hm);
+    scalp.scale.set(rs2.x * 0.535, rs2.y * 0.5, rs2.z * 0.545);
+    scalp.position.set(rc2.x, rc2.y + rs2.y * 0.07, rc2.z - rs2.z * 0.035);
+    scalp.rotation.x = -0.5;
+    scalp.castShadow = true; model.add(scalp);
+    model.updateMatrixWorld(true); head.attach(scalp);
+  }
   model.updateMatrixWorld(true);
   head.attach(g);
 }
