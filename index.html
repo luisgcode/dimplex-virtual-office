@@ -334,15 +334,15 @@ var LINES = {
   luis:["Headphones on","Pushing to the site","Deploying now","Fixing one more page"],
   carla:["Booth ships Monday!","Who needs a show badge?","Hotel is booked","Which products go to the show?"],
   marissa:["Can you hear me okay?","You are on mute!","Hi everyone!","Let me share my screen"],
-  stephanieb:["Hi everyone!","Give me a sec, reconnecting","Can you see my screen?","The call is lagging a bit today"],
+  stephanieb:["Love the new banners!","Can we try it with more white space?","Brand colors only, please","Let's review the designs at 3"],
   nolan:["A dealer called about the Ignite again","Do we have stock of the Revillusion?"], elena:["Customers keep asking for the manual","Another call about the Optimyst water"],
   tessa:["Specs for the new unit are almost final","Launch date might move"], grant:["Truck comes Thursday","Stock is looking good"], hana:["Approved, you're welcome","I brought cookies"]
 };
 var REMOTE = [
-  { id:"marissa", name:"Marissa", fullName:"Marissa", role:"Team member, remote", remote:true, sx:-1.95, shirt:"#4f7cc4", pants:"#2a2d35", skin:"#e9b996", hair:"#5a3a26", style:"wavy", sleeves:true, glasses:true,
+  { id:"marissa", name:"Marissa", fullName:"Marissa", role:"Designer, remote", remote:true, sx:-1.95, shirt:"#4f7cc4", pants:"#2a2d35", skin:"#e9b996", hair:"#5a3a26", style:"wavy", sleeves:true, glasses:true,
     status:"Online, working remotely", personality:"Works remotely and is always one message away.", topics:"Team updates and shared files" },
-  { id:"stephanieb", name:"Stephanie B.", fullName:"Stephanie Benoit", role:"Team member, remote", remote:true, sx:1.95, shirt:"#151618", dot:"#b5543a", pants:"#2b2f36", skin:"#f1d3c2", hair:"#7a3b22", highlight:"#a5583a", style:"curly", sleeves:false, sleeveless:true, lips:"#b3122a", earrings:true, alwaysSmile:true,
-    status:"Online, working remotely", personality:"Remote teammate with great energy on every call.", topics:"Team updates and remote collaboration" }
+  { id:"stephanieb", name:"Stephanie B.", model:"stephanieb", fullName:"Stephanie Benoit", role:"Design Lead, remote", remote:true, sx:1.95, shirt:"#151618", dot:"#b5543a", pants:"#2b2f36", skin:"#f1d3c2", hair:"#7a3b22", highlight:"#a5583a", style:"curly", sleeves:false, sleeveless:true, lips:"#b3122a", earrings:true, alwaysSmile:true,
+    status:"Reviewing the team's designs", personality:"Designer and coordinator of the design team. Olivia and Marissa report to her.", topics:"Design reviews, priorities for the designers and brand look" }
 ];
 var ALL = PEOPLE.concat(REMOTE);
 var BY = {}; ALL.forEach(function(p){ BY[p.id] = p; });
@@ -1503,7 +1503,8 @@ var MODEL_URL = "https://cdn.jsdelivr.net/gh/mrdoob/three.js@r160/examples/model
 /* pilot: real character models with hair and clothes, same Mixamo skeleton, so the same animations play on them */
 var REAL_MODELS = {
   /* each person: an artist-made character, recoloured per garment to match how they dress */
-  stephanie:{ url:"models/stephanie.glb", height:1.66, tint:{ Coat:"#2a2a2e", Shirt:"#1d1d20", Pants:"#26304a", Shoe:"#3a3a3a" }, glasses:true, ownHair:true, hairScale:[1.0, 0.86, 1.0], hairY:0.13, hairZ:-0.02 }
+  stephanie:{ url:"models/stephanie.glb", height:1.66, tint:{ Coat:"#2a2a2e", Shirt:"#1d1d20", Pants:"#26304a", Shoe:"#3a3a3a" }, glasses:true, ownHair:true, hairScale:[1.0, 0.86, 1.0], hairY:0.13, hairZ:-0.02 },
+  stephanieb:{ url:"models/stephanieb.glb", height:1.66, tint:{ Shirt:"#17181b", Pants:"#2b2f36", Sneakers:"#d9d4ca" }, ownHair:true, hairScale:[1.02, 0.88, 1.02], hairY:0.12, hairZ:-0.02, earrings:"#d4af5a" }
 };
 var REAL = {}, CLIPS_R = {};
 var CH_SCALE = 1.70 / 1.806;
@@ -2260,6 +2261,7 @@ function makeRig(p, sc){
   else {
     if (REAL_MODELS[p.model].ownHair) realHair(p, model, b.Head, b.HeadTop_End);
     if (REAL_MODELS[p.model].glasses) realGlasses(model, b.Head, b.HeadTop_End);
+    if (REAL_MODELS[p.model].earrings) realEarrings(p, model, b.Head);
   }
   buildProps(p, model, b.RightHand);
   var mixer = new T.AnimationMixer(model), CL = real ? CLIPS_R : CLIPS;
@@ -2591,6 +2593,8 @@ var TEAM_TOPICS = [
   { own:"debbie", mode:"tell", L:["The FOR heaters finally have matching bullets.", "In English and French?", "Both. Live on the site."] },
   { own:"debbie", mode:"ask", L:["Convectair or Cadet for a bathroom?", "Depends on the space. Fan-forced heats it fastest.", "Good to know."] },
   { own:"olivia", mode:"ask", L:["Are the new lifestyle shots in?", "Uploading them now.", "Can't wait to see them."] },
+  { own:"stephanieb", mode:"tell", L:["Design review at 3, bring the banners.", "On it. Two versions ready.", "Perfect, we'll pick one together."] },
+  { own:"stephanieb", mode:"ask", L:["Can the design team fit one more banner this week?", "Let me check with Olivia and Marissa.", "Thanks, no rush."] },
   { own:"olivia", mode:"tell", L:["I'm thinking of a Get Inspired gallery for the fireplaces.", "Real rooms, real installs?", "Exactly. I'll pull the best shots."] },
   { own:"olivia", mode:"tell", L:["The holiday banners are done.", "Already? They look great.", "Red and green everywhere."] },
   { own:"carla", mode:"tell", L:["The booth for the next show is booked.", "Already? That's fast.", "Crates ship in two weeks."] },
@@ -2810,7 +2814,7 @@ function updateChats(t){
 
 /* ---------- who chats with whom ----------
    Carla, Stephanie and Debbie talk the most, Olivia and Erica get along, the two managers work as a pair, Luis keeps to himself. */
-var AFF = { "carla|stephanie":3, "carla|debbie":3, "debbie|stephanie":3, "erica|olivia":2.6, "allyson|erica":2.4 };
+var AFF = { "carla|stephanie":3, "carla|debbie":3, "debbie|stephanie":3, "erica|olivia":2.6, "allyson|erica":2.4, "olivia|stephanieb":2.6, "marissa|stephanieb":2.2 };
 function aff(a, b){ var k = a.id < b.id ? a.id + "|" + b.id : b.id + "|" + a.id; var v = AFF[k] || 1; if (a.id === "luis" || b.id === "luis") v *= 0.25; return v; }
 function pickByAff(p, list){ var tot = 0; list.forEach(function(q){ tot += aff(p, q); }); var r = Math.random() * tot; for (var i = 0; i < list.length; i++) { r -= aff(p, list[i]); if (r <= 0) return list[i]; } return list[0]; }
 
@@ -3253,9 +3257,9 @@ var PROFILE = {
     work:["Answering messages from the team","Updating a shared document","Working through my task list","Catching up on email"] },
   stephanieb:{ pron:"she", traits:{ patience:0.7, humour:0.85, chattiness:0.8, stressTol:0.7 },
     moodW:{ excited:1.5, great:2.5, good:2.5, okay:1.5, tired:1, stressed:0.8, off:0.4 },
-    likes:"a tidy task list", dislikes:"when the call drops mid sentence",
-    joke:"I have perfected the can you see my screen face.",
-    work:["Catching up on team messages","Reviewing a shared file","Preparing an update for the team","Clearing my inbox"] },
+    likes:"a design that needs zero revisions", dislikes:"logos stretched to fit",
+    joke:"I have perfected the can you see my screen face. And the can you move it two pixels left face.",
+    work:["Reviewing Olivia's banners","Giving feedback on a layout","Planning the design team's week","Checking a campaign against the brand guide"] },
   erica:{ pron:"she", traits:{ patience:0.7, humour:0.8, chattiness:0.6, stressTol:0.7 },
     moodW:{ excited:1, great:2, good:2.5, okay:2, tired:1.5, stressed:1.5, off:0.4 },
     likes:"a meeting that ends early", dislikes:"meetings that could have been an email",
@@ -3406,6 +3410,8 @@ var KB = {
     { q:"What are your hours?", k:["time zone","timezone","hours","your schedule"], a:"Same hours as the team, so ping me anytime during the day." }
   ], fallback:"Hmm, you cut out for a second there. Can you say that again?" },
   stephanieb:{ qa:[
+    { q:"What is the design team working on?", k:["design team","designers","designs","working on","priorities","projects"], a:"Holiday campaign banners, new product shots for the site and social graphics. Olivia and Marissa are on it, I review and keep us on brand." },
+    { q:"Can you review my design?", k:["review","feedback","look at","check my","approve"], a:"Send it over. I will look at hierarchy, spacing and brand colors and get back to you today." },
     { q:"Are you working remotely?", k:["remote","remotely","working from","on the call"], a:"Yes, I work remotely and I am on the call with the team all day." },
     { q:"Can you see my screen?", k:["screen","share","camera","video"], a:"Yes, I can see it. Go ahead." },
     { q:"How do I reach you?", k:["reach","contact","ping","message you","email"], a:"Message me anytime. I am always online during the day." },
@@ -3582,7 +3588,7 @@ var WORK_NUDGE = {
   erica:"Ask me about this week's priorities.",
   allyson:"Ask me about the plan for this quarter.",
   marissa:"Ask me about team updates or shared files.",
-  stephanieb:"Ask me about team updates or what I am working on."
+  stephanieb:"Ask me about design, the brand look or what the design team is working on."
 };
 function isPrivate(s, words){
   for (var i = 0; i < PRIVATE.length; i++) {
@@ -4048,6 +4054,16 @@ function headBoxOf(root){
 }
 var _xbHead = null;
 function xbotHeadBox(){ return _xbHead || (_xbHead = headBoxOf(GLTF.scene) || new T.Box3(new V3(-0.09, 1.55, -0.1), new V3(0.09, 1.78, 0.11))); }
+/* small hoop earrings at the sides of the real skull */
+function realEarrings(p, model, head){
+  var RB = REAL[p.model].headBox; if (!RB) return;
+  var rs = RB.getSize(new V3()), rc = RB.getCenter(new V3()), m = new T.MeshStandardMaterial({ color:REAL_MODELS[p.model].earrings, roughness:0.25, metalness:0.9 });
+  [-1, 1].forEach(function(s){
+    var e = new T.Mesh(new T.TorusGeometry(rs.x * 0.06, rs.x * 0.012, 8, 20), m);
+    e.position.set(rc.x + s * rs.x * 0.47, rc.y - rs.y * 0.17, rc.z - rs.z * 0.06); e.rotation.y = Math.PI / 2;
+    model.add(e); model.updateMatrixWorld(true); head.attach(e);
+  });
+}
 function realGlasses(model, head, top){
   model.updateMatrixWorld(true);
   var h = model.worldToLocal(head.getWorldPosition(new V3())), tp = model.worldToLocal(top.getWorldPosition(new V3()));
