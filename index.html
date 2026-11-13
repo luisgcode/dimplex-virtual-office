@@ -311,7 +311,7 @@ var PEOPLE = [
     status:"Retouching product shots", blurb:"Turns product shots and brand colors into pages people actually want to scroll." },
   { id:"luis", name:"Luis", role:"Web Manager", side:-1, z:4.5, personality:"Headphones on, building the web.", topics:"The Dimplex, Convectair and Cadet sites", shirt:"#34495e", pants:"#23272e", skin:"#b98a68", hair:"#0c0c0e", style:"short", sleeves:false, screen:"code", headphones:true,
     status:"Headphones on, building the web", blurb:"Dimplex, Convectair and Cadet sites. Headphones on means deep in a build." },
-  { id:"carla", name:"Carla", role:"Events and tradeshows", side:-1, z:2.65, personality:"Friendly organiser. Runs every tradeshow, booth and event trip.", topics:"Tradeshows, booths and event logistics", shirt:"#e2ac2f", pants:"#2a2f3a", skin:"#e6b38c", hair:"#3a2418", style:"wavy", sleeves:true, screen:"tasks",
+  { id:"carla", name:"Carla", model:"michelle", role:"Events and tradeshows", side:-1, z:2.65, personality:"Friendly organiser. Runs every tradeshow, booth and event trip.", topics:"Tradeshows, booths and event logistics", shirt:"#e2ac2f", pants:"#2a2f3a", skin:"#e6b38c", hair:"#3a2418", style:"wavy", sleeves:true, screen:"tasks",
     status:"Planning the next show", blurb:"Ask her for anything and the answer is the same: on it." },
   /* visitors from other teams: no desk here, they walk in now and then, talk to someone and leave */
   { id:"nolan", name:"Nolan", role:"Marketing Director", guest:true, freq:3, hosts:["erica","allyson"], side:1, z:0, personality:"Erica and Allyson's boss. Drops by to talk plans, events and priorities.", topics:"Plans, events and priorities", shirt:"#2f5d8a", pants:"#2b2f36", skin:"#e8bf9e", hair:"#4a3020", style:"short", sleeves:true,
@@ -992,7 +992,8 @@ function cardFor(p, kind){
     if (p.cardMat.map !== meetCardTex) p.cardMat.map = meetCardTex;
   } else if (p.cardMat.map !== lunchCardTex) p.cardMat.map = lunchCardTex;
 }
-function lunchNow(p){ var L = LUNCH[p.id]; return L && DAY.h >= L[0] && DAY.h < L[1] && DAY.wd > 0 && DAY.wd < 6 ? L[2] : ""; }
+var NO_LUNCH = /[?&]lunch=off/.test(location.search || "");
+function lunchNow(p){ if (NO_LUNCH) return ""; var L = LUNCH[p.id]; return L && DAY.h >= L[0] && DAY.h < L[1] && DAY.wd > 0 && DAY.wd < 6 ? L[2] : ""; }
 
 /* ---------- seasonal themes ----------
    Halloween runs from Oct 15 to Nov 1 and Christmas from Nov 12 (after Remembrance Day) to Jan 6, picked from today's date, then the office
@@ -1499,6 +1500,9 @@ focusRing.userData.dyn = true;
 
 /* ---------- characters: rigged, skinned mannequin with skeletal animation ---------- */
 var MODEL_URL = "https://cdn.jsdelivr.net/gh/mrdoob/three.js@r160/examples/models/gltf/Xbot.glb";
+/* pilot: real character models with hair and clothes, same Mixamo skeleton, so the same animations play on them */
+var REAL_MODELS = { michelle:{ url:"https://cdn.jsdelivr.net/gh/mrdoob/three.js@r160/examples/models/gltf/Michelle.glb", height:1.64 } };
+var REAL = {}, CLIPS_R = {};
 var CH_SCALE = 1.70 / 1.806;
 var WALK_V = 1.26;      /* metres per second that match the walk clip at this scale, so feet do not slide */
 var SEAT_DROP = 0.45;   /* hips drop from standing to the chair seat */
@@ -2013,15 +2017,17 @@ var GLTF = null, CLIPS = {};
 function makeRig(p, sc){
   var root = new T.Group();
   root.rotation.order = "YXZ";
-  var model = SkeletonUtils.clone(GLTF.scene);
+  var real = p.model && REAL[p.model];
+  var model = SkeletonUtils.clone(real ? real.scene : GLTF.scene);
   p.k = p.id === "debbie" || p.id === "olivia" ? 0.945 : 1;
-  model.scale.setScalar(CH_SCALE * p.k);
+  model.scale.setScalar(real ? real.scale : CH_SCALE * p.k);
   /* Olivia is slim: a narrower frame under the tailored trench */
   if (p.slim) { model.scale.x *= p.slim; model.scale.z *= p.slim; }
   p.seatDrop = 1.04 * CH_SCALE * p.k - 0.53;
   root.add(model);
   var bodyMesh = null;
   model.traverse(function(o){
+    if (o.isSkinnedMesh && real) { o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; return; }
     if (o.isSkinnedMesh) {
       colorize(o, p, 1);
       o.castShadow = o.name.indexOf("Joints") < 0; o.receiveShadow = true; o.frustumCulled = false;
@@ -2044,10 +2050,10 @@ function makeRig(p, sc){
   var b = {};
   BONE_NAMES.forEach(function(n){ b[n] = model.getObjectByName("mixamorig" + n); });
   root.updateMatrixWorld(true);
-  buildHead(p, model, b.Head);
+  if (!real) buildHead(p, model, b.Head);
   buildProps(p, model, b.RightHand);
-  var mixer = new T.AnimationMixer(model);
-  var idle = mixer.clipAction(CLIPS.idle), walk = mixer.clipAction(CLIPS.walk), nod = mixer.clipAction(CLIPS.agree);
+  var mixer = new T.AnimationMixer(model), CL = real ? CLIPS_R : CLIPS;
+  var idle = mixer.clipAction(CL.idle), walk = mixer.clipAction(CL.walk), nod = mixer.clipAction(CL.agree);
   idle.play(); walk.play(); nod.play();
   idle.time = Math.random() * CLIPS.idle.duration; walk.time = Math.random() * CLIPS.walk.duration;
   idle.timeScale = rand(0.85, 1.1);
@@ -2659,10 +2665,12 @@ function decide(p, t){
     /* close friends drift into casual talk and turn their chairs round */
     var cas = aff(p, o.q) >= 2 && Math.random() < 0.65;
     var lines = chatter(p, o.q, t, cas);
-    var dur = Math.max(10, 0.9 + lines.length * LINE_GAP);
+    var roll = !p.walker && !o.q.walker && Math.random() < 0.5 && !p.roll;
+    var dur = Math.max(10, 0.9 + lines.length * LINE_GAP) + (roll ? 3 : 0);
+    if (roll) { rollOver(p, o.q); p.rollEnd = t + dur - 1.5; }
     startAct(p, "turn", t, dur, o.q); startAct(o.q, "turn", t, dur, p);
-    p.act.casual = o.q.act.casual = !!lines.casual;
-    startChat(p, o.q, t, dur + 0.4, lines);
+    p.act.casual = o.q.act.casual = !!lines.casual || roll;
+    startChat(p, o.q, t + (roll ? 2.5 : 0), dur + 0.4 - (roll ? 2.5 : 0), lines);
   }
 }
 function goTrip(p, t, kind, target, path){
@@ -2690,16 +2698,17 @@ function huddleTick(t, dt){
   var H = HUDDLE.on;
   if (!H) {
     if (!HUDDLE.next) HUDDLE.next = t + rand(90, 200);
-    if (t < HUDDLE.next) { rollTo(A, 0, dt); return; }
+    if (t < HUDDLE.next) return;
     HUDDLE.next = t + rand(240, 540);
     if (!available(A) || !available(E) || A.act || E.act || lunchNow(A) || lunchNow(E)) return;
     var lines = choose(BOSS_LINES), dur = 3.5 + lines.length * LINE_GAP + 2;
     HUDDLE.on = H = { t0:t, dur:dur, lines:lines, talk:false };
+    A.rollTo = new V3(E.seat.x, 0, E.seat.z + 0.62); A.rollOn = true;
     A.decideAt = E.decideAt = t + dur + 3;
     A.cal.next = Math.max(A.cal.next, t + dur + 5); E.cal.next = Math.max(E.cal.next, t + dur + 5);
   }
-  var u = t - H.t0, rolling = u < H.dur - 2.5;
-  rollTo(A, rolling ? 1 : 0, dt);
+  var u = t - H.t0;
+  if (u > H.dur - 2.5) A.rollOn = false;
   if (!H.talk && u > 2.6) {
     H.talk = true;
     var scr = E.deskGroup.localToWorld(new V3(0, 1.0, -1.0));
@@ -2709,15 +2718,24 @@ function huddleTick(t, dt){
   }
   if (u > H.dur) HUDDLE.on = null;
 }
-/* roll Allyson and her chair toward Erica's desk (k = 1) or back home (k = 0) */
-var _rollW = new V3();
-function rollTo(p, k, dt){
-  p.roll = lerp(p.roll || 0, k, 1 - Math.exp(-dt * 1.6));
-  if (p.roll < 0.001 && k === 0) { p.roll = 0; }
-  var E = BY.erica, dz = (E.seat.z + 0.62 - p.seat.z) * p.roll;
-  p.rollOff = p.rollOff || new V3(); p.rollOff.set(0, 0, dz);
-  _rollW.copy(p.deskGroup.localToWorld(p.chairBase.clone())); _rollW.z += dz;
+/* chairs roll: a person can roll over to someone else's spot (p.rollTo = world point) and roll back home */
+var _rollW = new V3(), _rollS = new V3();
+function rollUpdate(p, dt){
+  if (!p.chairG || !p.chairBase) return;
+  var want = p.rollTo && p.rollOn ? 1 : 0;
+  if (!p.roll && !want) return;
+  p.roll = lerp(p.roll || 0, want, 1 - Math.exp(-dt * 1.6));
+  if (p.roll < 0.002 && !want) { p.roll = 0; p.rollTo = null; }
+  p.rollOff = p.rollOff || new V3();
+  if (p.rollTo) p.rollOff.set(p.rollTo.x - p.seat.x, 0, p.rollTo.z - p.seat.z).multiplyScalar(p.roll);
+  else p.rollOff.set(0, 0, 0);
+  _rollW.copy(p.deskGroup.localToWorld(_rollS.copy(p.chairBase))).add(p.rollOff);
   p.chairG.position.copy(p.deskGroup.worldToLocal(_rollW));
+}
+function rollOver(p, q, gap){
+  var d = new V3(p.seat.x - q.seat.x, 0, p.seat.z - q.seat.z), L = d.length() || 1;
+  p.rollTo = q.seat.clone().add(d.multiplyScalar((gap || 0.68) / L));
+  p.rollOn = true;
 }
 
 /* ---------- visitors: one at a time, Nolan and Elena come by the most ---------- */
@@ -2772,6 +2790,8 @@ function updateAgent(p, t, dt){
   if (st === "sit") {
     p.root.position.copy(p.seat);
     if (p.rollOff) p.root.position.add(p.rollOff);
+    if (p.rollEnd && t > p.rollEnd) { p.rollEnd = 0; p.rollOn = false; }
+    if (p.roll > 0.01) p.decideAt = Math.max(p.decideAt, t + 2);
     r.sit = 1;
     var ln = lunchNow(p);
     if (p.lunchBox) p.lunchBox.visible = ln === "desk";
@@ -3723,7 +3743,20 @@ try {
   GLTF = await new GLTFLoader().loadAsync(MODEL_URL);
 } catch (e) { fail("Could not load the 3D people. Check your connection and reload the page."); return; }
 GLTF.animations.forEach(function(c){ CLIPS[c.name] = c; });
+/* the real models get the same clips without position tracks (their rest pose is in different units) */
+["idle", "walk", "agree"].forEach(function(n){ var c = CLIPS[n].clone(); c.tracks = c.tracks.filter(function(tk){ return !/\.position$/.test(tk.name) && tk.name !== "mixamorigHips.quaternion"; }); CLIPS_R[n] = c; });
 T.AnimationUtils.makeClipAdditive(CLIPS.agree);
+T.AnimationUtils.makeClipAdditive(CLIPS_R.agree);
+await Promise.all(Object.keys(REAL_MODELS).map(function(k){
+  return new GLTFLoader().loadAsync(REAL_MODELS[k].url).then(function(g){
+    /* match the Xbot by skeleton height: head top over the hips line, measured on both rigs */
+    function topY(sc){ sc.updateMatrixWorld(true); var o = sc.getObjectByName("mixamorigHeadTop_End") || sc.getObjectByName("mixamorigHead"), v = new V3(); o.getWorldPosition(v); return v.y; }
+    var hx = topY(GLTF.scene), hm = topY(g.scene) || 1;
+    REAL[k] = { scene:g.scene, scale:CH_SCALE * (hx / hm) * (REAL_MODELS[k].height / 1.70) };
+    g.scene.traverse(function(o){ if (o.isMesh && o.material) { o.material.envMapIntensity = 0.6; } });
+  }).catch(function(){ /* if the model fails, that person keeps the current look */ });
+}));
+PEOPLE.forEach(function(p){ if (p.model && !REAL[p.model]) p.model = null; });
 PEOPLE.forEach(function(p){ makeRig(p); });
 PEOPLE.forEach(function(g){
   if (!g.guest) return;
@@ -3912,6 +3945,7 @@ function frame(){
   updateMishaps(t, dt);
   guestTick(t);
   huddleTick(t, dt);
+  PEOPLE.forEach(function(p){ rollUpdate(p, dt); });
   if (!(t - (window.__dayT || -9) < 1)) { window.__dayT = t; dayTick(); clockTick(); }
   wallClockTick();
 
