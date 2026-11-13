@@ -314,15 +314,15 @@ var PEOPLE = [
   { id:"carla", name:"Carla", role:"Events and tradeshows", side:-1, z:2.65, personality:"Friendly organiser. Runs every tradeshow, booth and event trip.", topics:"Tradeshows, booths and event logistics", shirt:"#e2ac2f", pants:"#2a2f3a", skin:"#e6b38c", hair:"#3a2418", style:"wavy", sleeves:true, screen:"tasks",
     status:"Planning the next show", blurb:"Ask her for anything and the answer is the same: on it." },
   /* visitors from other teams: no desk here, they walk in now and then, talk to someone and leave */
-  { id:"nolan", name:"Nolan", role:"Sales, visiting from upstairs", guest:true, freq:3, side:1, z:0, personality:"Always has a customer story and a question about stock.", topics:"Customers, dealers and what is selling", shirt:"#2f5d8a", pants:"#2b2f36", skin:"#e8bf9e", hair:"#4a3020", style:"short", sleeves:true,
-    status:"Visiting the marketing floor", blurb:"Drops by with a customer story and leaves with a sell sheet." },
-  { id:"elena", name:"Elena", role:"Customer care, visiting", guest:true, freq:3, side:1, z:0, personality:"Hears every customer question first and brings the good ones upstairs.", topics:"Customer questions, manuals and returns", shirt:"#b0476b", pants:"#262a31", skin:"#d9a27c", hair:"#2b1a12", style:"wavy", sleeves:true, earrings:"small",
-    status:"Visiting the marketing floor", blurb:"If customers keep asking it, she knows about it." },
-  { id:"tessa", name:"Tessa", role:"Product team, visiting", guest:true, freq:1, side:1, z:0, personality:"Knows what is launching next and never says it out loud.", topics:"Launches and product specs", shirt:"#3e8e6a", pants:"#2a2d35", skin:"#f2d2bf", hair:"#b5733f", style:"straight", sleeves:true,
-    status:"Visiting the marketing floor", blurb:"Has the launch calendar in her head." },
-  { id:"grant", name:"Grant", role:"Operations, visiting", guest:true, freq:1, side:1, z:0, personality:"Calm, practical, always checking when things ship.", topics:"Shipping, stock and warehouses", shirt:"#6b6f76", pants:"#23272e", skin:"#c99673", hair:"#18120e", style:"short", sleeves:true, glasses:true,
+  { id:"nolan", name:"Nolan", role:"Marketing Director", guest:true, freq:3, hosts:["erica","allyson"], side:1, z:0, personality:"Erica and Allyson's boss. Drops by to talk plans, events and priorities.", topics:"Plans, events and priorities", shirt:"#2f5d8a", pants:"#2b2f36", skin:"#e8bf9e", hair:"#4a3020", style:"short", sleeves:true,
+    status:"Visiting the managers", blurb:"Comes down to catch up with Erica and Allyson on plans and events." },
+  { id:"elena", name:"Elena", role:"Product Manager, Flame", guest:true, freq:3, hosts:["stephanie","luis"], side:1, z:0, personality:"Owns the fireplace lineup. Comes by to work with Stephanie and Luis.", topics:"Fireplace launches, specs and product pages", shirt:"#b0476b", pants:"#262a31", skin:"#d9a27c", hair:"#2b1a12", style:"wavy", sleeves:true, earrings:"small",
+    status:"Visiting about fireplaces", blurb:"If a fireplace is launching, she was there first." },
+  { id:"tessa", name:"Tessa", role:"Product Manager, Heat", guest:true, freq:0.5, hosts:["erica","luis"], side:1, z:0, personality:"Owns the heating lineup. Comes by now and then to see Erica and Luis.", topics:"Heaters, baseboards and heat launches", shirt:"#3e8e6a", pants:"#2a2d35", skin:"#f2d2bf", hair:"#b5733f", style:"straight", sleeves:true,
+    status:"Visiting about heat products", blurb:"Baseboards, wall heaters and everything in between." },
+  { id:"grant", name:"Grant", role:"Operations, visiting", guest:true, freq:0.8, side:1, z:0, personality:"Calm, practical, always checking when things ship.", topics:"Shipping, stock and warehouses", shirt:"#6b6f76", pants:"#23272e", skin:"#c99673", hair:"#18120e", style:"short", sleeves:true, glasses:true,
     status:"Visiting the marketing floor", blurb:"If it ships, he knows when." },
-  { id:"hana", name:"Hana", role:"Finance, visiting", guest:true, freq:1, side:1, z:0, personality:"Friendly, precise, and somehow always has snacks.", topics:"Budgets, invoices and approvals", shirt:"#d9d4c7", pants:"#2c3038", skin:"#f0d0b4", hair:"#0f0d0c", style:"straight", sleeves:true, earrings:"small",
+  { id:"hana", name:"Hana", role:"Visiting the managers", guest:true, freq:1, hosts:["erica","allyson"], side:1, z:0, personality:"Friendly, precise, and somehow always has snacks.", topics:"Budgets, invoices and approvals", shirt:"#d9d4c7", pants:"#2c3038", skin:"#f0d0b4", hair:"#0f0d0c", style:"straight", sleeves:true, earrings:"small",
     status:"Visiting the marketing floor", blurb:"Brings snacks and a budget question, in that order." }
 ];
 var LINES = {
@@ -2396,13 +2396,22 @@ function chatter(a, b, t, casualOnly){
 
   /* 0. a visitor always comes with a reason */
   var GV = {
-    nolan:[["Hey! Got a minute?", "For you, always. What's up?", "A dealer wants new sell sheets. Who do I ask?"], ["Quick one. Do we have photos of the new Ignite?", "Olivia has all of them.", "Perfect, I owe you a coffee."], ["Guess who just closed a big order.", "No way! Congrats!", "Fireplace season, baby."]],
-    elena:[["Hi! Customers keep asking for the Optimyst manual.", "Is it not on the page?", "It is. They just can't find it."], ["Got a sec? A customer can't find their model number.", "Is it on the label inside?", "That's what I told them. Thanks!"], ["Just came up to say hi.", "Hi! How's it going downstairs?", "Phones are busy. Winter is coming."]],
-    tessa:[["Hey, can I steal you for a sec?", "Sure. What's up?", "New specs coming. Don't publish the old ones yet."], ["Do you have five minutes later?", "For a launch? Of course.", "I'll book it. Bring coffee."]],
-    grant:[["Hey. The truck comes Thursday.", "Good to know, thanks.", "Thought you'd want to hear it from me."], ["Quick heads up, stock is looking good.", "That's the best news all week.", "Don't jinx it."]],
-    hana:[["Hi! I brought cookies.", "You're my favorite person today.", "Also, I need one receipt from you."], ["Got a minute for a quick budget question?", "Sure, what's up?", "Nothing scary, I promise."]]
+    nolan:[["Got a minute? Let's talk about the next event.", "Sure. Booth is booked, Carla is on it.", "Great. What's the plan for the launch?"],
+      ["How are we looking for this quarter?", "Good. Fireplaces are carrying us.", "Love to hear it. Keep it going."],
+      ["Quick check in on priorities.", "Pull up a chair.", "Two things this week, then we talk next week."]],
+    elena:{ stephanie:[["The new specs for the Ignite are final.", "Finally! Send them over.", "In your inbox now."],
+        ["Dealers keep asking about the Optimyst water again.", "Distilled, always distilled.", "Let's put it on the page, big."],
+        ["Can you check the flame photos with me?", "Sure, which ones?", "The new Revillusion set."]],
+      luis:[["Can we update the Optimyst page this week?", "Send me the changes and I'll push them.", "You're the best."],
+        ["The new fireplace needs a product page.", "Specs and photos and I'm on it.", "Coming today."],
+        ["Is the spec table right on the Ignite page?", "Let me check. Which size?", "The 60 inch."]] },
+    tessa:{ erica:[["Got a minute for the heating plan?", "Always. Sit down.", "Baseboards are ahead this year."]],
+      luis:[["A heater page shows the wrong wattage.", "Which one? I'll fix it now.", "The 1500 watt baseboard."],
+        ["Can we add the new heat specs to the site?", "Send them over, I'll load them.", "Thanks, that was fast."]] },
+    hana:[["Hi! Quick sync?", "Sure, what's up?", "Just two things, I promise."], ["Do you have five minutes?", "For you, yes.", "I'll be quick."]],
+    grant:[["Hey. The truck comes Thursday.", "Good to know, thanks.", "Thought you'd want to hear it from me."], ["Quick heads up, stock is looking good.", "That's the best news all week.", "Don't jinx it."]]
   };
-  if (GV[a.id]) { var gl = choose(GV[a.id]); CHAT_RECENT.push("g" + a.id); if (CHAT_RECENT.length > 14) CHAT_RECENT.shift(); return gl.slice(); }
+  if (GV[a.id]) { var gs = GV[a.id], gl = choose(Array.isArray(gs) ? gs : (gs[b.id] || gs[Object.keys(gs)[0]])); CHAT_RECENT.push("g" + a.id); if (CHAT_RECENT.length > 14) CHAT_RECENT.shift(); return gl.slice(); }
 
   /* 1. things that just happened */
   OFFICE_EV.forEach(function(e, i){
@@ -2710,12 +2719,13 @@ function guestTick(t){
   if (t < GUESTS.next) return;
   GUESTS.next = t + rand(30, 60);
   if (DAY.h < 8.5 || DAY.h > 18) return;
-  var pool = PEOPLE.filter(function(g){ return g.guest && g.state === "gone"; });
-  var hosts = PEOPLE.filter(function(q){ return !q.guest && available(q) && !q.visitor && !luisDeepWork(q); });
-  if (!pool.length || !hosts.length) return;
+  function okHost(q){ return !q.guest && available(q) && !q.visitor && !lunchNow(q); }
+  var pool = PEOPLE.filter(function(g){ return g.guest && g.state === "gone" && PEOPLE.some(function(q){ return okHost(q) && (!g.hosts || g.hosts.indexOf(q.id) >= 0); }); });
+  if (!pool.length) return;
   var tot = 0; pool.forEach(function(g){ tot += g.freq; });
   var r = Math.random() * tot, g = pool[0];
   for (var i = 0; i < pool.length; i++) { r -= pool[i].freq; if (r <= 0) { g = pool[i]; break; } }
+  var hosts = PEOPLE.filter(function(q){ return okHost(q) && (!g.hosts || g.hosts.indexOf(q.id) >= 0); });
   var q = choose(hosts), spot = new V3(q.side * 0.95, 0, q.seat.z + rand(-0.12, 0.12));
   q.visitor = g;
   g.trip = { kind:"visit", target:q, path:aislePath(EXIT_SPOT, 0, spot, 0), d:0, back:false };
@@ -3012,19 +3022,19 @@ var PROFILE = {
     work:["Reviewing priorities between calls","Signing off a few decisions","Catching up on the campaign plan","Writing notes from my last meeting"] },
   nolan:{ pron:"he", traits:{ patience:0.7, humour:0.8, chattiness:0.9, stressTol:0.7 },
     moodW:{ excited:1.5, great:3, good:3, okay:1, tired:0.8, stressed:0.6, off:0.2 },
-    likes:"a dealer who reorders", dislikes:"out of stock emails",
-    joke:"I don't sell fireplaces. I sell cozy.",
-    work:["Visiting the marketing floor","Chasing a dealer question","Picking up sell sheets"] },
+    likes:"a plan everyone agrees on", dislikes:"surprises in the budget",
+    joke:"My door is always open. I'm just never behind it.",
+    work:["Catching up with the managers","Talking about the next event","Checking priorities"] },
   elena:{ pron:"she", traits:{ patience:0.95, humour:0.7, chattiness:0.85, stressTol:0.8 },
     moodW:{ excited:1, great:2.5, good:3, okay:1.5, tired:1, stressed:0.8, off:0.3 },
-    likes:"a customer who reads the manual", dislikes:"a question with no model number",
-    joke:"Have you tried turning it off and on again? Works on fireplaces too.",
-    work:["Bringing customer questions upstairs","Checking a manual link","Following up on a return"] },
+    likes:"a launch that ships on time", dislikes:"specs that change after the photo shoot",
+    joke:"I can't tell you what's launching. But it's warm.",
+    work:["Going over fireplace specs","Checking a product page","Planning a launch"] },
   tessa:{ pron:"she", traits:{ patience:0.7, humour:0.6, chattiness:0.6, stressTol:0.7 },
     moodW:{ excited:2.5, great:2, good:2.5, okay:1.5, tired:1, stressed:1, off:0.3 },
-    likes:"final specs", dislikes:"specs that change after the photo shoot",
-    joke:"I can't tell you what's launching. But it's good.",
-    work:["Checking specs with the team","Lining up a launch","Reviewing product copy"] },
+    likes:"a cold winter", dislikes:"a heater page with the wrong wattage",
+    joke:"Every room is a baseboard opportunity.",
+    work:["Going over heater specs","Checking a heat product page","Planning the heating season"] },
   grant:{ pron:"he", traits:{ patience:0.85, humour:0.6, chattiness:0.5, stressTol:0.9 },
     moodW:{ excited:0.8, great:2, good:3, okay:2.5, tired:1, stressed:0.6, off:0.3 },
     likes:"a truck that shows up on time", dislikes:"pallets with no labels",
@@ -3080,11 +3090,11 @@ function moodShift(p, dv, why){
 
 /* ---------- topic knowledge (public, generic) ---------- */
 var KB = {
-  nolan:{ qa:[{ q:"What is selling?", k:["selling","sales","best seller","popular","dealers","stock"], a:"Fireplaces are flying this time of year. Ignite and Revillusion lead, and baseboards pick up as soon as it gets cold." }], fallback:"I'm just visiting! Ask me about dealers or what is selling." },
-  elena:{ qa:[{ q:"What do customers ask?", k:["customers","customer","calls","questions","returns","manual"], a:"Most calls are about manuals, model numbers and Optimyst water. If a page answers those clearly, my phone rings a lot less." }], fallback:"I'm just visiting! Ask me what customers are asking about." },
-  tessa:{ qa:[{ q:"What is launching?", k:["launch","launching","new product","next","coming","specs"], a:"Something good is coming. That's all I can say. Specs are almost final, I promise." }], fallback:"I'm just visiting! Ask me about launches, I might even answer." },
+  nolan:{ qa:[{ q:"What's the plan?", k:["plan","plans","priorities","events","event","show","budget","quarter","strategy"], a:"Big picture: strong fireplace season, the next show, and a clean launch calendar. Erica and Allyson have the details." }], fallback:"I'm just here to catch up with Erica and Allyson. Ask me about plans or events." },
+  elena:{ qa:[{ q:"What's launching in fireplaces?", k:["fireplace","fireplaces","flame","launch","new","ignite","optimyst","revillusion","specs"], a:"A couple of nice fireplace updates are coming. Specs first, then photos, then Luis puts them on the site." }], fallback:"I'm here to see Stephanie and Luis about fireplaces. Ask me about the lineup." },
+  tessa:{ qa:[{ q:"What's new in heat?", k:["heat","heater","heaters","baseboard","baseboards","convectair","cadet","launch","specs"], a:"Heating season is here. Baseboards and fan heaters are moving, and a few specs are getting updated on the site." }], fallback:"I'm here to see Erica and Luis. Ask me about heaters." },
   grant:{ qa:[{ q:"When does it ship?", k:["ship","shipping","delivery","truck","stock","warehouse"], a:"Most orders go out in a couple of days. The big trucks come Thursdays." }], fallback:"I'm just visiting! Ask me about shipping or stock." },
-  hana:{ qa:[{ q:"Is it approved?", k:["budget","invoice","approve","approved","money","receipt","po"], a:"Send me the PO and the invoice and it's approved by Friday. Missing receipts, not so fast." }], fallback:"I'm just visiting! Ask me about budgets, or about the cookies." },
+  hana:{ qa:[{ q:"Why are you here?", k:["why","here","visit","visiting","meeting"], a:"Just catching up with Erica and Allyson. Quick sync, then I'm out." }], fallback:"I'm just here to see Erica and Allyson." },
   stephanie:{ qa:[
     { q:"What is Optimyst?", k:["optimyst","water vapour","water vapor","vapour","vapor","mist","steam","smoke"], a:"Optimyst uses ultrasonic water vapour lit by LEDs, so the flames and smoke look real and you can put your hand right through them. You just top up the water tank now and then." },
     { q:"What is Revillusion?", k:["revillusion","firebox","log set","logs","brick"], a:"Revillusion is the built-in firebox line. It layers a realistic flame over a detailed log set and a brick-look interior, so it reads like a real wood fire from across the room." },
