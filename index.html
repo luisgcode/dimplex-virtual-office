@@ -2615,6 +2615,7 @@ function decide(p, t){
     if (Math.abs(q.z - p.z) < 2.2) sc *= 1.1;
     if (q.walker && p.walker) sc *= 0.6;
     sc *= 0.6 + 0.4 * aff(p, q);
+    if (q.id === "luis" && p.walker) sc *= 0.12; /* the managers talk to Luis on Teams, they almost never walk over */
     if (sc > bs) { bs = sc; best = q; }
   });
   if (best && !withdrawn) opts.push({ k:"visit", s:bs, q:best });
@@ -2631,7 +2632,7 @@ function decide(p, t){
   if (REQUESTS[p.id] && available(BY.luis)) {
     if (p.lastReqAt === undefined) p.lastReqAt = -rand(40, 140);
     var since = t - p.lastReqAt;
-    opts.push({ k:"request", s:clamp(since / 110, 0, 1.4) + rand(0, 0.3) });
+    opts.push({ k:"request", s:(clamp(since / 110, 0, 1.4) + rand(0, 0.3)) * (p.walker ? 0.15 : 1) });
   }
   opts.sort(function(a, b){ return b.s - a.s; });
   var o = opts[0];
