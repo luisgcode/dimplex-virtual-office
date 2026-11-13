@@ -2493,6 +2493,15 @@ function chatter(a, b, t, casualOnly){
   var met = (a.met && a.met[b.id]) || 0;
   if (met >= 2) add(1.6, "again" + a.id + b.id, ["Back again?", "Your desk has the better view.", "Fair point."]);
 
+  /* 6b. pets: Carla and Erica have two dogs each, Stephanie and Debbie have a cat */
+  var PETS = { carla:"dogs", erica:"dogs", stephanie:"cat", debbie:"cat" }, pa = PETS[a.id], pb = PETS[b.id];
+  if (pb === "dogs") { add(2.0, "pd1" + b.id, ["How are the dogs?", "Chaos, as always. One ate a sock.", "Classic dog move."]); add(1.6, "pd2" + b.id, ["Did the dogs let you sleep last night?", "Both on the bed. Again.", "So, no."]); add(1.4, "pd3" + b.id, ["Any new photos of the dogs?", "Look at this one.", "Oh my, those faces!"]); }
+  if (pb === "cat") { add(2.0, "pc1" + b.id, ["How's your cat doing?", "Knocked a glass off the table this morning.", "Of course she did."]); add(1.6, "pc2" + b.id, ["Did the cat wake you up again?", "4 am. Breakfast demands.", "Cats are bosses."]); }
+  if (pa === "cat" && pb === "cat") add(2.6, "pcc", ["My cat sat on my laptop all weekend.", "Mine sleeps on my keyboard.", "They just want attention."]);
+  if (pa === "dogs" && pb === "dogs") add(2.6, "pdd", ["We should do a dog playdate.", "Four dogs in one park? Brave.", "Saturday morning?"]);
+  if (pa === "dogs" && pb === "cat") add(1.8, "pdc" + a.id, ["My dogs would love your cat.", "My cat would not love your dogs.", "Fair."]);
+  if (pa === "cat" && pb === "dogs") add(1.8, "pcd" + a.id, ["Two dogs? How do you get anything done?", "Long walks and lots of coffee.", "Respect."]);
+
   /* 7. everyday life */
   if (aff(a, b) >= 2) {
     add(1.6, "f1", ["Okay, I need to tell you what happened last night.", "Oh no. Or oh yes?", "Oh yes. Coffee later, full story."]);
