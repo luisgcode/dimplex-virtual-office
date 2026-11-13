@@ -800,6 +800,115 @@ function photoScreen(){
   L.draw();
   return L;
 }
+/* a screen that switches between real looking activities: inbox, spreadsheet, video call, slides, web page, chat */
+var ACT_POOLS = {
+  erica:["call", "mail", "slides", "call"], allyson:["call", "slides", "mail", "sheet"],
+  stephanie:["web", "mail", "sheet", "chat"], debbie:["sheet", "mail", "web", "sheet"],
+  olivia:["slides", "web", "mail"], carla:["sheet", "mail", "call", "web"], luis:["web", "mail"],
+  _:["mail", "web", "sheet"]
+};
+function activityScreen(pool, seed, baseImg){
+  var L = liveCanvas(512, 320), r = seeded(seed), W = 512, H = 320;
+  L.mode = pool[Math.floor(r() * pool.length)]; L.t0 = 0; L.next = 0; L.k = 0;
+  L.rows = Array.from({ length:12 }, function(){ return { w:120 + r() * 220, s:60 + r() * 110, unread:r() < 0.4 }; });
+  L.cells = Array.from({ length:60 }, function(){ return r() < 0.55; });
+  L.slide = 0; L.scroll = 0; L.msgs = []; L.baseImg = baseImg || null;
+  function bar(g, x, y, w, c){ g.fillStyle = c; g.fillRect(x, y, w, 6); }
+  var DRAW = {
+    mail:function(g, t){
+      g.fillStyle = "#ffffff"; g.fillRect(0, 0, W, H);
+      g.fillStyle = "#0f6cbd"; g.fillRect(0, 0, W, 26); bar(g, 12, 10, 60, "#cfe4fa");
+      g.fillStyle = "#f3f2f1"; g.fillRect(0, 26, 110, H);
+      for (var i = 0; i < 7; i++) bar(g, 14, 44 + i * 22, 70 - (i % 3) * 12, i === 0 ? "#0f6cbd" : "#a19f9d");
+      var off = (L.k % 1) * 26;
+      for (i = 0; i < 10; i++) {
+        var row = L.rows[(i + Math.floor(L.k)) % L.rows.length], y = 34 + i * 28 - off + 26;
+        if (y < 30 || y > H) continue;
+        g.fillStyle = i === 0 ? "#deecf9" : "#ffffff"; g.fillRect(112, y - 4, W - 112, 27);
+        if (row.unread) { g.fillStyle = "#0f6cbd"; g.fillRect(112, y - 4, 3, 27); }
+        bar(g, 124, y, row.s, row.unread ? "#323130" : "#605e5c"); bar(g, 124, y + 11, row.w, "#c8c6c4");
+        g.fillStyle = "#e1dfdd"; g.fillRect(112, y + 22, W - 112, 1);
+      }
+    },
+    sheet:function(g, t){
+      g.fillStyle = "#ffffff"; g.fillRect(0, 0, W, H);
+      g.fillStyle = "#107c41"; g.fillRect(0, 0, W, 24); bar(g, 12, 9, 70, "#c6efce");
+      g.fillStyle = "#f3f3f3"; g.fillRect(0, 24, W, 18); g.fillRect(0, 24, 26, H);
+      g.strokeStyle = "#e1e1e1"; g.lineWidth = 1;
+      for (var c = 0; c <= 6; c++) { g.beginPath(); g.moveTo(26 + c * 81, 42); g.lineTo(26 + c * 81, H); g.stroke(); }
+      for (var rr = 0; rr <= 13; rr++) { g.beginPath(); g.moveTo(0, 42 + rr * 21); g.lineTo(W, 42 + rr * 21); g.stroke(); }
+      var filled = Math.floor(L.k * 3) % 60;
+      for (var i = 0; i < 60; i++) {
+        if (!L.cells[i] && i > filled) continue;
+        var cx = 30 + (i % 6) * 81, cy = 48 + Math.floor(i / 6) * 21;
+        if (cy > H - 10) continue;
+        bar(g, cx + 4, cy + 2, 30 + ((i * 37) % 40), i % 6 === 0 ? "#323130" : "#8a8886");
+      }
+      var sel = filled % 60; g.strokeStyle = "#107c41"; g.lineWidth = 2; g.strokeRect(26 + (sel % 6) * 81, 42 + Math.floor(sel / 6) * 21, 81, 21);
+    },
+    call:function(g, t){
+      g.fillStyle = "#1f1f1f"; g.fillRect(0, 0, W, H);
+      var tiles = [["#5b6b8c", "#e9b996"], ["#7a5a4a", "#f1d3c2"], ["#4c6a5a", "#d9a27c"], ["#6a4c6a", "#efcfbd"]];
+      var speak = Math.floor(t / 3) % 4;
+      tiles.forEach(function(tl, i){
+        var x = 10 + (i % 2) * 248, y = 10 + Math.floor(i / 2) * 140;
+        g.fillStyle = tl[0]; rrect(g, x, y, 240, 130, 8); g.fill();
+        g.fillStyle = tl[1]; g.beginPath(); g.arc(x + 120, y + 58, 26, 0, 7); g.fill();
+        g.fillStyle = "rgba(0,0,0,0.25)"; rrect(g, x + 70, y + 88, 100, 50, 20); g.fill();
+        if (i === speak) { g.strokeStyle = "#7f85f5"; g.lineWidth = 3; rrect(g, x + 1, y + 1, 238, 128, 8); g.stroke(); }
+      });
+      g.fillStyle = "#c4314b"; rrect(g, W / 2 - 22, H - 26, 44, 18, 9); g.fill();
+    },
+    slides:function(g, t){
+      g.fillStyle = "#e9e9e9"; g.fillRect(0, 0, W, H);
+      g.fillStyle = "#c43e1c"; g.fillRect(0, 0, W, 22);
+      var cur = Math.floor(L.k) % 5, cols = ["#E31837", "#2b3038", "#3b6fd8", "#e2ac2f", "#2fb3a3"];
+      for (var i = 0; i < 5; i++) {
+        var y = 32 + i * 56; g.fillStyle = "#ffffff"; g.fillRect(10, y, 84, 48);
+        g.fillStyle = cols[i]; g.fillRect(14, y + 4, 76, 12);
+        if (i === cur) { g.strokeStyle = "#c43e1c"; g.lineWidth = 2; g.strokeRect(9, y - 1, 86, 50); }
+      }
+      g.fillStyle = "#ffffff"; g.fillRect(110, 34, 390, 270);
+      g.fillStyle = cols[cur]; g.fillRect(110, 34, 390, 70);
+      bar(g, 130, 56, 200, "#ffffff"); bar(g, 130, 72, 120, "rgba(255,255,255,0.7)");
+      for (i = 0; i < 4; i++) bar(g, 140, 130 + i * 26, 220 - i * 30, "#b0b0b0");
+      g.fillStyle = cols[(cur + 2) % 5]; g.fillRect(390, 130, 90, 90);
+    },
+    web:function(g, t){
+      var img = L.webImg || (L.webImg = screenTex("web").image);
+      g.fillStyle = "#ffffff"; g.fillRect(0, 0, W, H);
+      var sy = (Math.sin(t * 0.3) * 0.5 + 0.5) * 60;
+      g.drawImage(img, 0, sy, 512, 320 - sy, 0, 0, 512, 320 - sy);
+      g.drawImage(img, 0, 190, 512, 130, 0, 320 - sy, 512, 130);
+      g.fillStyle = "#1d1d1d"; g.beginPath(); var mx = 200 + Math.sin(t * 0.7) * 120, my = 160 + Math.cos(t * 0.5) * 80; g.moveTo(mx, my); g.lineTo(mx + 10, my + 14); g.lineTo(mx + 3, my + 13); g.closePath(); g.fill();
+    },
+    base:function(g, t){
+      var img = L.baseImg; if (!img) return DRAW.mail(g, t);
+      var sy = (Math.sin(t * 0.25) * 0.5 + 0.5) * 40;
+      g.drawImage(img, 0, sy, 512, 320 - sy, 0, 0, 512, 320 - sy); g.drawImage(img, 0, 0, 512, sy, 0, 320 - sy, 512, sy);
+    },
+    chat:function(g, t){
+      g.fillStyle = "#f5f5f5"; g.fillRect(0, 0, W, H);
+      g.fillStyle = "#464775"; g.fillRect(0, 0, 60, H); g.fillStyle = "#ffffff"; g.fillRect(60, 0, 140, H);
+      for (var i = 0; i < 8; i++) { g.fillStyle = "#c8c6c4"; g.beginPath(); g.arc(80, 24 + i * 34, 10, 0, 7); g.fill(); bar(g, 96, 20 + i * 34, 80, i === 1 ? "#323130" : "#a19f9d"); }
+      var n = 3 + (Math.floor(L.k) % 5);
+      for (i = 0; i < n; i++) {
+        var me = i % 2 === 1, y = 30 + i * 42, w = 120 + ((i * 53) % 150);
+        g.fillStyle = me ? "#e8ebfa" : "#ffffff"; rrect(g, me ? W - 20 - w : 214, y, w, 30, 8); g.fill();
+        bar(g, (me ? W - 10 - w : 224), y + 12, w - 22, "#8a8886");
+      }
+    }
+  };
+  L.tick = function(t, dt){
+    if (!L.next) L.next = t + rand(10, 28);
+    if (t > L.next) { var m = pool[Math.floor(Math.random() * pool.length)]; if (m === L.mode) m = pool[(pool.indexOf(m) + 1) % pool.length]; L.mode = m; L.next = t + rand(12, 32); L.k = 0; }
+    L.k += dt * (L.mode === "mail" ? 0.35 : L.mode === "slides" ? 0.12 : 0.5);
+    (DRAW[L.mode] || DRAW.mail)(L.g, t);
+    L.tex.needsUpdate = true;
+  };
+  L.tick(0, 0);
+  return L;
+}
 function registerScreen(scr, kind, parent){ scr.userData.kind = kind; LIVE_SCREENS.push({ m:scr, kind:kind, desk:parent, base:scr.material.map }); }
 function screensTick(t, dt){
   if (!screensTick.ready) {
@@ -810,9 +919,10 @@ function screensTick(t, dt){
       else if (s.kind === "chat") { s.live = chatScreen(); s.m.material.map = s.live.tex; }
       else if (s.kind === "swatch" && s.owner && s.owner.id === "olivia") { s.live = photoScreen(); s.m.material.map = s.live.tex; }
       else if (s.kind !== "off") {
-        s.alts = [s.base, screenTex(s.kind === "web" ? "sheet" : "web")];
-        s.alts.forEach(function(tx){ tx.repeat.set(1, 0.86); tx.offset.set(0, 0.14); });
-        s.next = rand(15, 40); s.cur = 0;
+        var pool = (ACT_POOLS[s.owner ? s.owner.id : "_"] || ACT_POOLS._).slice();
+        if (s.kind !== "web" && s.kind !== "chat") pool.push("base", "base");
+        s.live = activityScreen(pool, LIVE_SCREENS.indexOf(s) * 31 + 7, s.base && s.base.image);
+        s.m.material.map = s.live.tex;
       }
       s.m.material.needsUpdate = true;
     });
