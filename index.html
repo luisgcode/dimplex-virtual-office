@@ -1074,8 +1074,12 @@ function deskKeyboard(g, x, z){
 function deskMouse(g, x, z){
   var P = kbParts();
   add(G.box, P.pad, 0.15, 0.003, 0.17, x, 0.7635, z, g, false);
-  add(G.hcap2, P.mouse, 0.032, 0.022, 0.052, x, 0.765, z + 0.005, g, false);
-  add(G.box, P.btn, 0.002, 0.004, 0.025, x, 0.785, z - 0.02, g, false);
+  var m = new T.Group(); m.position.set(x, 0.765, z + 0.005); g.add(m);
+  add(G.hcap2, P.mouse, 0.032, 0.022, 0.052, 0, 0, 0, m, false);
+  add(G.box, P.btn, 0.002, 0.004, 0.025, 0, 0.02, -0.025, m, false);
+  m.traverse(function(o){ o.userData.dyn = true; });
+  m.userData.base = m.position.clone();
+  return m;
 }
 function desk(p){
   var g = new T.Group(); g.position.set(p.side * 1.6, 0, p.z); g.rotation.y = -p.side * Math.PI / 2; scene.add(g);
@@ -1086,7 +1090,7 @@ function desk(p){
   add(G.box, metalDark, 1.56, 0.3, 0.02, 0, 0.52, -1.16, g, false);
   /* Luis types on the laptop itself (no separate keyboard), mouse to its right */
   if (p.id !== "luis") deskKeyboard(g, 0, -0.56);
-  deskMouse(g, p.id === "luis" ? 0.3 : 0.32, -0.55);
+  p.mouseM = deskMouse(g, p.id === "luis" ? 0.3 : 0.32, -0.55);
   p.cup = add(G.cyl, M(p.side > 0 ? "#ffffff" : "#E31837", { roughness:0.4 }), 0.04, 0.1, 0.04, -0.62, 0.81, -0.5, g);
   lunchProps(p, g);
   p.cup.userData.dyn = true;
@@ -1919,6 +1923,8 @@ var ACTS = {
 
 var _a = new V3(), _b = new V3(), _d = new V3(), _t = new V3(), _q = new T.Quaternion(), _wq = new T.Quaternion(), _pq = new T.Quaternion(), _rq = new T.Quaternion(), UP = new V3(0, 1, 0);
 var SCR = [0, 0, 0];
+/* right hand on the mouse, to the right of the keyboard */
+var MOUSE_POSE = { RightArm:[-0.32, -0.62, 0.7], RightForeArm:[-0.22, 0.02, 1], RightHand:[-0.08, -0.2, 1] };
 function v3a(a, x, y, z){ a[0] = x; a[1] = y; a[2] = z; return a; }
 function aim(bone, child, dir, w, rq){
   if (w <= 0.001 || !bone || !child) return;
@@ -2498,7 +2504,16 @@ function updateRig(p, t, dt){
   var slump = clamp(-p.mood.v, 0, 1) * 0.6 + (1 - p.needs.energy) * 0.25 - clamp(p.mood.v, 0, 1) * 0.1;
   var tempo = 8 + 5 * p.needs.energy + 2 * Math.max(0, p.mood.v);
   if (sit > 0.001) {
-    var ty = p.typeAmp || 0;
+    var ty = p.typeAmp || 0, ma = p.mouseAmp || 0;
+    /* mouse work: slow drifts, quick drags now and then, and short clicks */
+    var mDx = 0.07 * Math.sin(t * 0.9 + (p.mSeed || (p.mSeed = Math.random() * 6.28))) + 0.05 * Math.sin(t * 2.3) * Math.max(0, Math.sin(t * 0.37 + (p.mSeed || (p.mSeed = Math.random() * 6.28))));
+    var mDz = 0.05 * Math.sin(t * 0.7 + 1.3 + (p.mSeed || (p.mSeed = Math.random() * 6.28)));
+    var mClick = Math.max(0, Math.sin(t * 5.1 + (p.mSeed || (p.mSeed = Math.random() * 6.28)))) > 0.97 ? 0.12 : 0;
+    if (p.mouseM) {
+      var mb = p.mouseM.userData.base;
+      p.mouseM.position.set(mb.x - mDx * 0.25 * ma, mb.y, mb.z - mDz * 0.25 * ma);
+      p.mouseM.rotation.y = -mDx * 0.6 * ma;
+    }
     for (i = 0; i < ORDER.length; i++) {
       n = ORDER[i];
       var d = SEATED[n];
@@ -2509,6 +2524,10 @@ function updateRig(p, t, dt){
         d = v3a(SCR, d[0], d[1] + ty * 0.22 * Math.max(0, Math.sin(t * tempo + ph + Math.sin(t * 1.7 + ph) * 2)), d[2]);
       }
       if (ty > 0.02 && (n === "LeftForeArm" || n === "RightForeArm")) d = v3a(SCR, d[0], d[1] + ty * 0.03 * Math.sin(t * 7 + (n === "LeftForeArm" ? 0 : 2)), d[2]);
+      if (ma > 0.02 && MOUSE_POSE[n]) {
+        var mp = MOUSE_POSE[n], mx = n === "RightForeArm" ? mDx : 0, my = n === "RightHand" ? -mClick : 0;
+        d = v3a(SCR, lerp(d[0], mp[0] + mx, ma), lerp(d[1], mp[1] + my, ma), lerp(d[2], mp[2] + (n === "RightForeArm" ? mDz : 0), ma));
+      }
       aim(b[n], b[CHILD[n]], d, n === "Head" ? sit * 0.6 : sit, _rq);
     }
   }
@@ -3242,8 +3261,14 @@ function updateAgent(p, t, dt){
         p.messages = [];
         if (focus === p) renderLog(p);
       }
-      if (t > p.typeNext) { p.typeOn = !p.typeOn; p.typeNext = t + (p.typeOn ? rand(2, 7) : rand(0.8, 3.5)); }
-      p.typeAmp = lerp(p.typeAmp, p.typeOn && !p.act ? 1 : 0, 1 - Math.exp(-dt * 4));
+      if (t > p.typeNext) {
+        /* work is a mix: typing, and stretches of mouse work (clicking, dragging things around) */
+        if (!p.typeOn && Math.random() < 0.4) { p.mouseOn = true; p.typeNext = t + rand(3, 9); }
+        else if (p.mouseOn) { p.mouseOn = false; p.typeOn = Math.random() < 0.6; p.typeNext = t + (p.typeOn ? rand(2, 7) : rand(0.8, 3)); }
+        else { p.typeOn = !p.typeOn; p.typeNext = t + (p.typeOn ? rand(2, 7) : rand(0.8, 3.5)); }
+      }
+      p.typeAmp = lerp(p.typeAmp, p.typeOn && !p.mouseOn && !p.act ? 1 : 0, 1 - Math.exp(-dt * 4));
+      p.mouseAmp = lerp(p.mouseAmp || 0, p.mouseOn && !p.act && !(p.roll > 0.01) ? 1 : 0, 1 - Math.exp(-dt * 3));
       smoothTurn(p, p.sitHeading, dt);
       if (p.act && (p.act.n === "turn" || p.act.n === "answer")) {
         var yaw = p.act.n === "answer" ? camYaw(p) + p.swivel : (p.act.target ? yawTo(p, p.act.target) + p.swivel : 0);
@@ -3263,6 +3288,7 @@ function updateAgent(p, t, dt){
     st = p.state; k = 0; tr = p.trip;
   }
   p.typeAmp = lerp(p.typeAmp, 0, 1 - Math.exp(-dt * 6));
+  p.mouseOn = false; p.mouseAmp = lerp(p.mouseAmp || 0, 0, 1 - Math.exp(-dt * 6));
   p.swivel = lerp(p.swivel, 0, 1 - Math.exp(-dt * 5));
 
   if (st === "up" || st === "down") {
