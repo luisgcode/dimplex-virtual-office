@@ -520,6 +520,52 @@ var skyTex = canvasTex(256, 256, function(g, w, h){
   }
 });
 var winMat = new T.MeshBasicMaterial({ map:skyTex });
+/* ---------- real weather outside the windows ----------
+   The windows follow the actual weather in Cambridge, Ontario (Open-Meteo, free, no key), refreshed every 15 minutes:
+   clear, cloudy, rain or snow, and dark when the sun is down. ?wx=snow|rain|cloud|clear forces one, for checking. */
+var WX = { kind:"clear", temp:null, isDay:null, text:"", at:0, rain:[] };
+var WX_FORCE = (/[?&]wx=(snow|rain|cloud|clear)\b/.exec(location.search || "") || [])[1];
+function wxKind(code){
+  if (code >= 71 && code <= 77 || code === 85 || code === 86) return "snow";
+  if (code >= 51 && code <= 67 || code >= 80 && code <= 82 || code >= 95) return "rain";
+  if (code >= 2) return "cloud";
+  return "clear";
+}
+var WX_TEXT = { snow:"Snow", rain:"Rain", cloud:"Cloudy", clear:"Clear" };
+function wxFetch(){
+  fetch("https://api.open-meteo.com/v1/forecast?latitude=43.36&longitude=-80.31&current=temperature_2m,weather_code,is_day&timezone=America%2FToronto")
+    .then(function(r){ return r.json(); })
+    .then(function(j){
+      var c = j && j.current; if (!c) return;
+      WX.kind = wxKind(c.weather_code); WX.temp = Math.round(c.temperature_2m); WX.isDay = c.is_day === 1;
+    }).catch(function(){});
+}
+wxFetch(); setInterval(wxFetch, 15 * 60 * 1000);
+/* rain streaks past the windows (snow uses the falling flakes already there) */
+(function(){
+  var rt = canvasTex(128, 256, function(g, w, h){
+    var r = seeded(57); g.strokeStyle = "rgba(210,225,240,0.75)"; g.lineWidth = 1.2;
+    for (var i = 0; i < 60; i++) { var x = r() * w, y = r() * h, l = 10 + r() * 16; g.beginPath(); g.moveTo(x, y); g.lineTo(x - 2, y + l); g.stroke(); }
+  });
+  rt.wrapS = rt.wrapT = T.RepeatWrapping;
+  [[4.5, 1.5], [-1.05, 1.5]].forEach(function(q, k){
+    var tex = rt.clone(); tex.needsUpdate = true; tex.repeat.set(q[1] / 0.6, 1.0 / 0.6);
+    var m = new T.Mesh(G.plane, new T.MeshBasicMaterial({ map:tex, transparent:true, depthWrite:false, toneMapped:false }));
+    m.scale.set(q[1], 1.0, 1); m.position.set(-2.784, 2.15, q[0]); m.rotation.y = Math.PI / 2; m.renderOrder = 2; m.userData.dyn = true; m.visible = false; scene.add(m);
+    WX.rain.push({ m:m, tex:tex, ph:k * 0.41 });
+  });
+})();
+function weatherTick(t){
+  var kind = WX_FORCE || WX.kind;
+  var day = WX.isDay !== null ? WX.isDay : (DAY.h >= 7 && DAY.h < 17);
+  /* window colour: daylight tinted by the clouds, deep blue at night */
+  var tint = kind === "clear" ? 1 : kind === "cloud" ? 0.82 : 0.7;
+  var target = day ? new T.Color(tint, tint, tint * 1.02) : new T.Color(0.13, 0.16, 0.24);
+  winMat.color.lerp(target, 0.03);
+  WX.rain.forEach(function(r){ r.m.visible = kind === "rain"; if (r.m.visible) { r.tex.offset.y = (t * 0.9 + r.ph) % 1; r.tex.offset.x = (t * 0.05) % 1; } });
+  seasonFx.snow.forEach(function(sn){ if (sn.m) sn.m.visible = kind === "snow"; });
+  WX.text = (WX.temp !== null ? WX.temp + "\u00b0C " : "") + WX_TEXT[kind];
+}
 [[4.5, 1.5], [-1.05, 1.5]].forEach(function(q){
   var z = q[0], ww = q[1], wy = 2.15, wh = 1.0;
   var win = new T.Mesh(G.plane, winMat);
@@ -1198,15 +1244,13 @@ var flames = [], fireLight;
   fireLight.position.set(0, 0.6, 1.2); g.add(fireLight);
 })();
 
-/* Debbie: wall heater above her desk and a baseboard heater below it */
+/* Debbie: a baseboard heater along the wall below her desk */
 var heatStrips = [], heatMotes = [], heatLight;
 (function(){
   var z0 = BY.debbie.z;
   var white = M("#f7f7f5", { roughness:0.5 }), grille = M("#c7ccd1", { roughness:0.5, metalness:0.3 });
   var glowMat = new T.MeshStandardMaterial({ color:0x7a2a10, emissive:0xff5a1f, emissiveIntensity:1.2, roughness:0.6 });
-  add(G.box, white, 0.07, 0.44, 1.1, -2.765, 2.0, z0, scene);
-  for (var i = 0; i < 5; i++) add(G.box, grille, 0.02, 0.022, 0.92, -2.73, 1.87 + i * 0.055, z0, scene, false);
-  heatStrips.push(add(G.box, glowMat, 0.02, 0.045, 0.92, -2.73, 2.17, z0, scene, false));
+  /* (the wall heater that hung here made room for the pumpkin trophy) */
   add(G.box, white, 0.12, 0.2, 1.6, -2.74, 0.12, z0, scene);
   heatStrips.push(add(G.box, glowMat, 0.01, 0.045, 1.45, -2.675, 0.16, z0, scene, false));
   for (var j = 0; j < 5; j++) add(G.box, grille, 0.012, 0.012, 1.45, -2.675, 0.07 + j * 0.022, z0, scene, false);
@@ -1289,7 +1333,7 @@ function clockTick(){
   var d = DAY.d, hh = d.getHours(), mm = d.getMinutes(), h12 = hh % 12 || 12;
   var txt = h12 + ":" + (mm < 10 ? "0" : "") + mm + (hh < 12 ? " am" : " pm");
   if (clkTime.textContent !== txt) clkTime.textContent = txt;
-  var sub = DAY.wdName + " \u00b7 " + DAY.label;
+  var sub = DAY.wdName + " \u00b7 " + DAY.label + (WX.text ? " \u00b7 " + WX.text : "");
   if (clkDay.textContent !== sub) clkDay.textContent = sub;
 }
 
@@ -1364,6 +1408,7 @@ function officeHours(t, dt){
     else if (hh < 8) dark = 1;
   }
   OFFICE_DARK = lerp(OFFICE_DARK, dark, 1 - Math.exp(-dt * 2.2));
+  weatherTick(t);
   if (TROPHY) TROPHY.spin.rotation.y += dt * 0.6;
   /* the sky outside the office goes dark too */
   if (!officeHours.bg) officeHours.bg = { day:scene.background.clone(), night:new T.Color(0x0b0f17) };
@@ -1639,7 +1684,7 @@ function buildSeason(){
       var tex = snowTex.clone(); tex.needsUpdate = true; tex.repeat.set(q[1] / 0.6, 1.0 / 0.6);
       var sm = new T.Mesh(G.plane, new T.MeshBasicMaterial({ map:tex, transparent:true, depthWrite:false, toneMapped:false }));
       sm.scale.set(q[1], 1.0, 1); sm.position.set(-2.785, 2.15, q[0]); sm.rotation.y = Math.PI / 2; sm.renderOrder = 2; sm.userData.dyn = true; scene.add(sm);
-      seasonFx.snow.push({ tex:tex, ph:k * 0.37 });
+      seasonFx.snow.push({ tex:tex, ph:k * 0.37, m:sm });
       /* a little snow piled on the sill */
       add(G.box, M("#ffffff", { roughness:0.9 }), 0.07, 0.025, q[1], -2.76, 2.15 - 0.5 - 0.035, q[0], scene, false);
     });
@@ -1775,11 +1820,11 @@ var MISHAP = { next:0, cur:null, book:null, puddle:null };
    and little ghosts spinning around the pole, on a wall shelf with a gold "1st place" plaque */
 var TROPHY = null;
 function buildPumpkinTrophy(){
-  var sh = new T.Group(); sh.position.set(-2.79, 1.6, 0.55); scene.add(sh);
+  var sh = new T.Group(); sh.position.set(-2.79, 1.82, 0.55); scene.add(sh);
   add(G.box, M("#2b2420", { roughness:0.5 }), 0.3, 0.03, 0.62, 0.15, 0, 0, sh);
   add(G.box, metalDark, 0.16, 0.06, 0.015, 0.08, -0.045, -0.24, sh, false);
   add(G.box, metalDark, 0.16, 0.06, 0.015, 0.08, -0.045, 0.24, sh, false);
-  var tg = new T.Group(); tg.position.set(0.15, 0.015, 0); tg.rotation.y = Math.PI / 2; sh.add(tg);
+  var tg = new T.Group(); tg.position.set(0.15, 0.015, 0); tg.rotation.y = Math.PI / 2; tg.scale.setScalar(1.25); sh.add(tg);
   /* striped skin shared by the roof and the base */
   var stripes = canvasTex(256, 64, function(g, w, h){
     var n = 12, sw = w / n;
@@ -3058,10 +3103,17 @@ function chatter(a, b, t, casualOnly){
   if (SEASON === "christmas") {
     add(2.2, "x1", ["Did you finish your holiday shopping?", "I haven't even started.", "Same. Every year."]);
     add(2.0, "x2", ["Are we doing secret Santa this year?", "Count me in!", "I'm making a list."]);
-    add(1.8, "x3", ["The tree looks great this year.", "Now we just need snow outside.", "Look out the window."]);
+    add(1.8, "x3", (WX_FORCE || WX.kind) === "snow" ? ["The tree looks great this year.", "And it's snowing outside. Perfect.", "Feels like Christmas now."] : ["The tree looks great this year.", "Now we just need snow outside.", "Give it a few weeks."]);
     add(1.6, "x4", ["Who keeps playing Christmas music?", "Not me. But don't stop.", "It's officially the season."]);
     add(1.5, "x5", ["Ugly sweater day is coming up.", "I've been ready since July.", "Of course you have."]);
   }
+  /* what is really happening outside right now */
+  var wk = WX_FORCE || WX.kind, tc = WX.temp;
+  if (wk === "snow") add(2.4, "wr1", ["Is that snow? Look out the window.", "Oh no, the drive home is going to be fun.", "Good thing we sell heaters."]);
+  if (wk === "rain") add(2.2, "wr2", ["It's pouring out there.", "And I left my umbrella in the car.", "Classic."]);
+  if (tc !== null && tc <= -5) add(2.2, "wr3", ["Did you see it's " + tc + " out there?", "My car barely started this morning.", "Fireplace weather for sure."]);
+  if (tc !== null && tc >= 27) add(2.0, "wr4", ["It's " + tc + " degrees outside.", "Too hot to think.", "AC, please."]);
+  if (wk === "clear" && WX.isDay) add(1.2, "wr5", ["Sun's out today.", "Finally. I'll take it.", "Lunch outside, maybe?"]);
   var mo = DAY.d.getMonth();
   if (mo >= 10 || mo <= 2) add(1.5, "w1", ["It's freezing out there today.", "Good thing we sell heaters.", "Perks of the job."]);
   else if (mo >= 5 && mo <= 7) add(1.5, "w2", ["It's so nice out today.", "And we're stuck inside.", "Lunch outside, then?"]);
@@ -4099,7 +4151,10 @@ function converseCore(p, raw){
     case "why":
       if (last && last.reason) return { text:fresh(p, ["Well, ","Honestly, ","Mostly because "]) + last.reason + ".", intent:"why", reason:"" };
       return { text:"Why what? Ask me anything.", intent:"why", reason:"" };
-    case "weather": case "weekend": case "lunch":
+    case "weather":
+      var wnow = WX.text ? "Right now it's " + WX.text.toLowerCase().replace("clear", "clear skies") + " out there. " : "";
+      return { text:wnow + moodTone(p, smallTalk(p, best.id)), intent:best.id, reason:"" };
+    case "weekend": case "lunch":
       return { text:moodTone(p, smallTalk(p, best.id)), intent:best.id, reason:"" };
     case "joke": return { text:prof.joke, intent:"joke", reason:"it is the running joke around here" };
     case "time":
