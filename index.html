@@ -1793,8 +1793,8 @@ function smoothBody(p, model, body){
       var rx = a[0] + (b[0] - a[0]) * e, rz = a[1] + (b[1] - a[1]) * e;
       if (o.bulge) { var bl = o.bulge(r.i, r.u); rx *= bl; rz *= bl; }
       var nA = bones[r.i], nB = r.i + 1 < bones.length ? bones[r.i + 1] : null, nP = r.i > 0 ? bones[r.i - 1] : null;
-      var wB = nB && nB !== nA && (r.i < pts.length - 2 || o.blendEnd) ? ss(0.55, 1, r.u) * 0.5 : 0;
-      var wP = nP && nP !== nA ? (1 - ss(0, 0.45, r.u)) * 0.5 : 0;
+      var wB = nB && nB !== nA && (r.i < pts.length - 2 || o.blendEnd) ? ss(0.72, 1, r.u) * 0.5 : 0;
+      var wP = nP && nP !== nA ? (1 - ss(0, 0.28, r.u)) * 0.5 : 0;
       ringAt(C[n], tng, rx, rz, [[nA, 1 - wB - wP], [nB, wB], [nP, wP]]);
     });
     /* rounded caps */
@@ -1814,6 +1814,7 @@ function smoothBody(p, model, body){
       if (n) L += R.c.distanceTo(out[n - 1].c);
       for (var s2 = 0; s2 <= sides; s2++) {
         var ang = s2 / sides * Math.PI * 2, ca = Math.cos(ang), sa = Math.sin(ang);
+        if (o.sq) { var ex = 2 / o.sq; ca = Math.sign(ca) * Math.pow(Math.abs(ca), ex); sa = Math.sign(sa) * Math.pow(Math.abs(sa), ex); }
         var pp = R.c.clone().addScaledVector(R.B, ca * R.rx).addScaledVector(R.A, sa * R.rz);
         G.P.push(pp.x, pp.y, pp.z); G.U.push(s2 / sides * 3, L * 6);
         var ww = R.w.filter(function(x){ return x[0] && x[1] > 0.001; }), tot = 0;
@@ -1825,6 +1826,15 @@ function smoothBody(p, model, body){
       var a0 = base + n2 * (sides + 1) + s3, a1 = a0 + sides + 1;
       G.IDX.push(a0, a0 + 1, a1, a0 + 1, a1 + 1, a1);
     }
+  }
+  /* a small rounded form (deltoid, elbow) skinned to a mix of bones */
+  function blob(G, c, r, ws){
+    var sg = new T.SphereGeometry(1, 16, 12), sp = sg.attributes.position, uv = sg.attributes.uv, base = G.P.length / 3;
+    for (var i2 = 0; i2 < sp.count; i2++) {
+      G.P.push(c.x + sp.getX(i2) * r.x, c.y + sp.getY(i2) * r.y, c.z + sp.getZ(i2) * r.z); G.U.push(uv.getX(i2), uv.getY(i2));
+      for (var q = 0; q < 4; q++) { G.SI.push(ws[q] ? bi[ws[q][0]] || 0 : 0); G.SW.push(ws[q] ? ws[q][1] : 0); }
+    }
+    var ix = sg.index.array; for (var j2 = 0; j2 < ix.length; j2++) G.IDX.push(base + ix[j2]);
   }
   function ellipsoid(G, c, r, bone){
     var sg = new T.SphereGeometry(1, 28, 20), sp = sg.attributes.position, uv = sg.attributes.uv, base = G.P.length / 3;
@@ -1851,49 +1861,79 @@ function smoothBody(p, model, body){
   }
 
   var o = OUTFIT[p.id] || {}, top = piece(o.shirt || p.shirt, WEAVE), pants = piece(o.pants || p.pants, TWILL, 0.85);
-  var skin = piece(p.skin, null, 0.55), shoes = piece(o.shoe || "#17181b", null, 0.45);
+  var skin = piece(p.skin, null, 0.55), shoes = piece(o.shoe || "#17181b", null, 0.42), soles = piece("#d8d2c6", null, 0.8);
   var hips = P("Hips"), sp0 = P("Spine"), sp1 = P("Spine1"), sp2 = P("Spine2"), neck = P("Neck"), head = P("Head");
   var fem = p.k < 1 || /she/.test((PROFILE[p.id] || {}).pron || "");
 
-  /* trousers: a seat that the top hangs over, then both legs down to the ankle */
-  tube(pants, [new V3(0, hips.y - 0.17, hips.z - 0.005), new V3(0, hips.y - 0.08, hips.z), new V3(0, hips.y + 0.03, hips.z)],
-    [[0.14, 0.098], [fem ? 0.162 : 0.155, 0.108], [0.148, 0.1]], ["Hips", "Hips", "Hips"], { ref:new V3(0, 0, 1) });
+  /* ---- anatomy: shapes follow real proportions, joints are firm so knees and elbows bend in one place ---- */
+  function L(a, b, t){ return new V3().lerpVectors(a, b, t); }
+  function up(v, dy, dz){ return new V3(v.x, v.y + dy, v.z + (dz || 0)); }
+  var F = fem ? 1 : 0;
+  function fm(f, m){ return F ? f : m; }
+
+  /* trousers: seat with a bit of shape at the back, then legs with thigh, knee and calf */
+  tube(pants, [up(hips, -0.17, -0.004), up(hips, -0.1, -0.008), up(hips, -0.02, -0.006), up(hips, 0.04, 0)],
+    [[fm(0.142, 0.138), 0.1], [fm(0.168, 0.158), 0.116], [fm(0.164, 0.156), 0.112], [fm(0.142, 0.15), 0.1]], ["Hips", "Hips", "Hips", "Hips"], { sq:2.6 });
   [["Left", 1], ["Right", -1]].forEach(function(sd){
-    var S = sd[0], up = P(S + "UpLeg"), kn = P(S + "Leg"), an = P(S + "Foot");
-    tube(pants, [new V3(up.x * 0.9, up.y + 0.04, up.z - 0.005), up, kn, new V3(an.x, an.y - 0.01, an.z)],
-      [[0.086, 0.092], [0.084, 0.09], [0.056, 0.06], [0.05, 0.052]], [S + "UpLeg", S + "UpLeg", S + "Leg", S + "Foot"], { blendEnd:false, capEnd:false });
-    /* shoes: heel to toe */
-    var tb = P(S + "ToeBase"), te = P(S + "Toe_End") || tb.clone().add(new V3(0, 0, 0.09));
-    tube(shoes, [new V3(an.x, 0.045, an.z - 0.05), new V3(tb.x, 0.042, tb.z), new V3(te.x, 0.032, te.z - 0.005)],
-      [[0.043, 0.046], [0.047, 0.04], [0.036, 0.026]], [S + "Foot", S + "Foot", S + "ToeBase"], { ref:new V3(0, 1, 0), seg:5 });
-    /* arms: skin from the shoulder to the wrist, then a hand */
+    var S = sd[0], hp = P(S + "UpLeg"), kn = P(S + "Leg"), an = P(S + "Foot");
+    tube(pants, [new V3(hp.x * 0.85, hp.y + 0.05, hp.z - 0.005), hp, L(hp, kn, 0.35), L(hp, kn, 0.8), kn, L(kn, an, 0.28), L(kn, an, 0.72), up(an, 0.005)],
+      [[fm(0.09, 0.092), 0.096], [fm(0.089, 0.09), 0.094], [fm(0.08, 0.082), 0.085], [0.062, 0.066], [0.056, 0.06], [0.06, 0.064], [0.05, 0.052], [0.048, 0.05]],
+      [S + "UpLeg", S + "UpLeg", S + "UpLeg", S + "UpLeg", S + "Leg", S + "Leg", S + "Leg", S + "Foot"], { capEnd:false, seg:5 });
+
+    /* shoes: a real sole, a heel, a rounded toe box and a collar at the ankle */
+    var tb = P(S + "ToeBase"), te = P(S + "Toe_End") || tb.clone().add(new V3(0, 0, 0.09)), x = an.x;
+    tube(shoes, [new V3(x, 0.058, an.z - 0.062), new V3(x, 0.07, an.z - 0.02), new V3(x, 0.056, tb.z - 0.02), new V3(x, 0.038, tb.z + 0.03), new V3(x, 0.03, te.z - 0.004)],
+      [[0.04, 0.045], [0.042, 0.05], [0.046, 0.04], [0.044, 0.03], [0.034, 0.022]], [S + "Foot", S + "Foot", S + "Foot", S + "ToeBase", S + "ToeBase"], { ref:new V3(0, 1, 0), seg:4, sq:2.4 });
+    tube(soles, [new V3(x, 0.012, an.z - 0.07), new V3(x, 0.012, tb.z - 0.02), new V3(x, 0.01, te.z + 0.002)],
+      [[0.041, 0.012], [0.047, 0.012], [0.037, 0.01]], [S + "Foot", S + "Foot", S + "ToeBase"], { ref:new V3(0, 1, 0), seg:4, sq:3.5 });
+    tube(shoes, [new V3(x, 0.07, an.z - 0.03), up(an, 0.03, -0.01)], [[0.047, 0.05], [0.045, 0.047]], [S + "Foot", S + "Foot"], { capEnd:false, seg:3 });
+
+    /* arms: shoulder, upper arm with a biceps, a narrow elbow, a forearm that tapers to the wrist */
     var sh = P(S + "Shoulder"), ar = P(S + "Arm"), fa = P(S + "ForeArm"), ha = P(S + "Hand"), mid = P(S + "HandMiddle1"), mend = P(S + "HandMiddle4") || mid.clone().add(new V3(sd[1] * 0.09, 0, 0));
-    tube(skin, [new V3(sh.x + sd[1] * 0.02, sh.y - 0.005, sh.z - 0.01), ar, fa, ha],
-      [[fem ? 0.044 : 0.05, 0.046], [fem ? 0.042 : 0.048, 0.044], [0.036, 0.034], [0.027, 0.023]], [S + "Shoulder", S + "Arm", S + "ForeArm", S + "Hand"], { capStart:false, ref:new V3(0, 0, 1) });
-    /* hand: a soft mitten, flat across the palm, plus a thumb */
-    tube(skin, [ha, new V3().lerpVectors(ha, mid, 0.55), mid, new V3().lerpVectors(mid, mend, 0.7)],
-      [[0.017, 0.026], [0.016, 0.038], [0.015, 0.037], [0.012, 0.028]], [S + "Hand", S + "Hand", S + "HandMiddle1", S + "HandMiddle1"], { ref:new V3(0, 0, 1), seg:4, sides:16 });
-    var t1 = P(S + "HandThumb1"), t3 = P(S + "HandThumb3");
-    if (t1 && t3) tube(skin, [t1, t3], [[0.012, 0.012], [0.009, 0.009]], [S + "HandThumb1", S + "HandThumb2"], { seg:4, sides:12, ref:new V3(0, 1, 0) });
-    /* sleeves: long, short, or a little puff at the shoulder */
     var sl = p.sleeves === true ? 1 : p.sleeves === "short" ? 0.35 : p.puff ? 0.16 : 0;
+    tube(skin, [new V3(sh.x + sd[1] * 0.03, sh.y - 0.01, sh.z - 0.012), ar, L(ar, fa, 0.38), L(ar, fa, 0.82), fa, L(fa, ha, 0.25), L(fa, ha, 0.75), ha],
+      [[fm(0.045, 0.052), 0.047], [fm(0.043, 0.05), 0.045], [fm(0.04, 0.047), fm(0.042, 0.049)], [fm(0.031, 0.036), fm(0.032, 0.037)], [0.029, 0.031], [fm(0.032, 0.037), fm(0.031, 0.035)], [fm(0.024, 0.028), fm(0.021, 0.024)], [fm(0.021, 0.024), 0.017]],
+      [S + "Shoulder", S + "Arm", S + "Arm", S + "Arm", S + "ForeArm", S + "ForeArm", S + "ForeArm", S + "Hand"], { capStart:false, seg:5, ref:new V3(0, 0, 1) });
+    /* elbow point: a small bone bump at the back of the joint */
+    blob(skin, new V3(fa.x, fa.y, fa.z - 0.024), new V3(0.016, 0.016, 0.012), [[S + "ForeArm", 0.6], [S + "Arm", 0.4]]);
+    /* deltoid: the round of the shoulder, in the top's colour when the top covers it */
+    blob(sl > 0 ? top : skin, new V3(ar.x - sd[1] * 0.01, ar.y + 0.012, ar.z), new V3(0.05, fm(0.048, 0.054), 0.05), [[S + "Arm", 0.65], [S + "Shoulder", 0.35]]);
+    /* hand: a palm up to the knuckles, then four fingers with their joints, and a thumb */
+    tube(skin, [ha, L(ha, mid, 0.5), L(ha, mid, 0.96)],
+      [[0.016, 0.026], [0.017, 0.036], [0.014, 0.037]], [S + "Hand", S + "Hand", S + "Hand"], { ref:new V3(0, 0, 1), seg:3, sides:16, sq:2.3 });
+    ["Index", "Middle", "Ring", "Pinky", "Thumb"].forEach(function(fn){
+      var j = [1, 2, 3, 4].map(function(n){ return P(S + "Hand" + fn + n); });
+      if (!j[0] || !j[3]) return;
+      var r0 = fn === "Thumb" ? 0.0105 : fn === "Pinky" ? 0.0072 : 0.0085, k = fm(0.92, 1);
+      var tip = L(j[2], j[3], 0.85);
+      tube(skin, [fn === "Thumb" ? L(ha, j[0], 0.55) : j[0], j[1], j[2], tip], [[r0 * k, r0 * k], [r0 * 0.93 * k, r0 * 0.93 * k], [r0 * 0.85 * k, r0 * 0.85 * k], [r0 * 0.75 * k, r0 * 0.75 * k]],
+        [S + "Hand" + fn + "1", S + "Hand" + fn + "1", S + "Hand" + fn + "2", S + "Hand" + fn + "3"], { seg:3, sides:10, ref:new V3(0, 1, 0), capK:1, blendEnd:false });
+    });
     if (sl > 0) {
-      var endP = sl >= 1 ? new V3().lerpVectors(fa, ha, 0.92) : new V3().lerpVectors(ar, fa, sl * 2.4);
-      var sp2s = sl >= 1 ? [new V3(sh.x, sh.y, sh.z - 0.01), ar, fa, endP] : [new V3(sh.x, sh.y, sh.z - 0.01), ar, endP];
-      var rr = sl >= 1 ? [[0.056, 0.054], [0.055, 0.053], [0.045, 0.043], [0.038, 0.036]] : p.puff && sl < 0.3 ? [[0.062, 0.06], [0.07, 0.068], [0.056, 0.055]] : [[0.058, 0.056], [0.057, 0.055], [0.052, 0.05]];
-      var bb = sl >= 1 ? [S + "Shoulder", S + "Arm", S + "ForeArm", S + "ForeArm"] : [S + "Shoulder", S + "Arm", S + "Arm"];
-      tube(top, sp2s, rr, bb, { capStart:false, capEnd:false });
+      var endP = sl >= 1 ? L(fa, ha, 0.9) : L(ar, fa, sl * 2.2);
+      var pts2 = sl >= 1 ? [new V3(sh.x + sd[1] * 0.03, sh.y - 0.01, sh.z - 0.012), ar, L(ar, fa, 0.5), fa, endP] : [new V3(sh.x + sd[1] * 0.03, sh.y - 0.01, sh.z - 0.012), ar, endP];
+      var rr = sl >= 1 ? [[0.056, 0.054], [0.055, 0.053], [0.05, 0.05], [0.042, 0.042], [0.034, 0.032]] : p.puff && sl < 0.3 ? [[0.058, 0.056], [0.066, 0.064], [0.056, 0.055]] : [[0.058, 0.056], [0.057, 0.055], [0.053, 0.051]];
+      var bb = sl >= 1 ? [S + "Shoulder", S + "Arm", S + "Arm", S + "ForeArm", S + "ForeArm"] : [S + "Shoulder", S + "Arm", S + "Arm"];
+      tube(top, pts2, rr, bb, { capStart:false, capEnd:false, seg:4 });
     }
   });
-  /* the top: from the hem over the trousers up to the shoulders and the neckline */
-  tube(top, [new V3(0, hips.y - 0.1, hips.z + 0.002), new V3(0, sp0.y, sp0.z + 0.004), sp1, sp2, new V3(0, sp2.y + 0.085, sp2.z - 0.012), new V3(0, neck.y - 0.03, neck.z)],
-    [[fem ? 0.166 : 0.16, 0.114], [fem ? 0.136 : 0.145, 0.1], [fem ? 0.146 : 0.152, fem ? 0.112 : 0.104], [fem ? 0.158 : 0.168, fem ? 0.108 : 0.104], [fem ? 0.16 : 0.178, 0.086], [0.07, 0.062]],
-    ["Hips", "Spine", "Spine1", "Spine2", "Spine2", "Neck"], { capEnd:false, capK:0.4 });
+
+  /* the top: hem, hips, a real waist, chest, a broad flat shoulder line and the slope of the trapezius to the neck */
+  var ar0 = P("LeftArm");
+  tube(top, [up(hips, -0.1, 0.003), up(hips, 0, 0.002), up(sp0, 0.02, 0.006), sp1, up(L(sp1, sp2, 0.6), 0, F ? 0.014 : 0.004), up(sp2, 0.035, -0.004), new V3(0, ar0.y - 0.006, -0.018), new V3(0, ar0.y + 0.034, -0.022), up(neck, -0.018, 0.002)],
+    [[fm(0.168, 0.162), 0.116], [fm(0.166, 0.158), 0.114], [fm(0.128, 0.142), fm(0.094, 0.1)], [fm(0.138, 0.152), fm(0.1, 0.106)], [fm(0.146, 0.16), fm(0.12, 0.108)], [fm(0.152, 0.17), 0.102], [fm(0.162, 0.18), 0.086], [fm(0.104, 0.112), 0.07], [0.062, 0.058]],
+    ["Hips", "Hips", "Spine", "Spine1", "Spine1", "Spine2", "Spine2", "Spine2", "Neck"], { capEnd:false, capK:0.4, sq:2.7, seg:5 });
+  /* bust: two soft forms under the top, on the chest bones */
+  if (F) [-1, 1].forEach(function(s){
+    var c = L(sp1, sp2, 0.62); c.x = s * 0.056; c.y -= 0.006; c.z += 0.09;
+    blob(top, c, new V3(0.054, 0.05, 0.046), [["Spine2", 0.7], ["Spine1", 0.3]]);
+  });
   /* neck and head */
-  tube(skin, [new V3(0, sp2.y + 0.05, sp2.z - 0.01), neck, new V3().lerpVectors(neck, head, 0.9)], [[0.046, 0.046], [0.043, 0.043], [0.044, 0.046]], ["Spine2", "Neck", "Head"], { capStart:false, capEnd:false });
+  tube(skin, [up(sp2, 0.06, -0.012), neck, L(neck, head, 0.9)], [[0.044, 0.043], [0.04, 0.04], [0.042, 0.044]], ["Spine2", "Neck", "Head"], { capStart:false, capEnd:false });
   ellipsoid(skin, hc, hs, "Head");
 
-  [top, pants, skin, shoes].forEach(build);
+  [top, pants, skin, shoes, soles].forEach(build);
+
   /* a neckline rim so the top reads as a garment, not paint */
   var rim = new T.Mesh(new T.TorusGeometry(0.066, 0.009, 8, 28), top.mat);
   rim.rotation.x = Math.PI / 2 - 0.25; rim.position.set(0, neck.y - 0.032, neck.z + 0.004); model.add(rim);
