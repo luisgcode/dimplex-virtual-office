@@ -1810,6 +1810,8 @@ var SEATED = {
   RightArm:[-0.13, -0.6, 0.75], RightForeArm:[0.25, 0.1, 1], RightHand:[0.06, -0.15, 1]
 };
 var ACTS = {
+  /* hands resting on the armrests, for rolling the chair around */
+  armrest:{ LeftArm:[0.14, -1, 0.12], LeftForeArm:[0.12, -0.12, 1], RightArm:[-0.14, -1, 0.12], RightForeArm:[-0.12, -0.12, 1], Head:[0, 1, 0.08] },
   stretch:{ LeftArm:[0.25, 1, -0.05], LeftForeArm:[0.1, 1, 0], RightArm:[-0.25, 1, -0.05], RightForeArm:[-0.1, 1, 0], Head:[0, 1, -0.25] },
   sip:{ RightArm:[-0.3, -0.5, 0.6], RightForeArm:[0.3, 0.9, 0.25], Head:[0, 1, -0.05] },
   phone:{ LeftArm:[0.15, -0.85, 0.4], LeftForeArm:[-0.3, 0.45, 1], RightArm:[-0.15, -0.85, 0.4], RightForeArm:[0.3, 0.45, 1], Head:[0, 1, 0.5] },
@@ -2620,6 +2622,11 @@ function updateRig(p, t, dt){
     aim(b.Spine1, b.Spine2, [0, 1, 0.04 + slump * 0.2], (1 - sit) * 0.7, _rq);
     aim(b.Head, b.HeadTop_End, [0, 1, 0.1 + slump * 0.28], (1 - sit) * 0.35, _rq);
   }
+  /* rolling over in the chair: hands go to the armrests instead of staying on the keyboard */
+  if (p.roll > 0.01 && !p.remote) {
+    var wr = clamp(p.roll * 3, 0, 1) * sit;
+    for (i = 0; i < ORDER.length; i++) { n = ORDER[i]; var dr = ACTS.armrest[n]; if (dr) aim(b[n], b[CHILD[n]], dr, wr, _rq); }
+  }
   var a = p.act;
   if (a) {
     var u = t - a.t0, w = bump(u, 0, a.dur, 0.45);
@@ -3303,6 +3310,7 @@ function updateAgent(p, t, dt){
     p.root.position.copy(p.seat);
     if (p.rollOff) p.root.position.add(p.rollOff);
     if (p.rollEnd && t > p.rollEnd) { p.rollEnd = 0; p.rollOn = false; }
+    if (p.roll > 0.01) { p.typeOn = false; p.typeNext = t + 1; }
     if (p.roll > 0.01) p.decideAt = Math.max(p.decideAt, t + 2);
     r.sit = 1;
     var ln = lunchNow(p);
