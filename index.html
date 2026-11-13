@@ -88,6 +88,7 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .btn:hover{border-color:var(--muted)}
 .btn svg{width:15px;height:15px}
 
+#night{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 40%, rgba(12,18,32,.42), rgba(6,10,20,.62));opacity:0;pointer-events:none;z-index:1;transition:opacity 1.5s}
 .clockhud{position:absolute;top:12px;left:max(16px, env(safe-area-inset-left, 0px));z-index:2;display:flex;flex-direction:column;gap:2px;
   padding:8px 12px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink);box-shadow:var(--shadow);pointer-events:none}
 .clockhud b{font:700 20px/1 var(--f-body);font-variant-numeric:tabular-nums;letter-spacing:.01em}
@@ -227,6 +228,7 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 </header>
 
 <main id="stage">
+  <div id="night" aria-hidden="true"></div>
   <div id="labels"></div>
   <div class="clockhud" id="clockHud" aria-live="off"><b id="clkTime">--:--</b><span id="clkDay"></span></div>
   <div class="ctrl">
@@ -376,7 +378,7 @@ scene.environment = pmrem.fromScene(new RoomEnvironment(renderer), 0.04).texture
 var composer = null, aoPass = null;
 
 /* ---------- lights ---------- */
-scene.add(new T.HemisphereLight(0xffffff, 0xc9b49a, 0.42));
+var hemiL = new T.HemisphereLight(0xffffff, 0xc9b49a, 0.42); scene.add(hemiL);
 var sun = new T.DirectionalLight(0xfff4e6, 1.0);
 sun.position.set(9, 20, 15.9);
 sun.target.position.set(0, 0, 1.9);
@@ -695,7 +697,9 @@ function monitor(parent, x, z, w, h, kind, ry){
   add(G.box, M("#1f2329", { roughness:0.4 }), w + 0.035, h + 0.035, 0.03, 0, 0.18 + h / 2, -0.02, g);
   var scr = new T.Mesh(plane1, new T.MeshBasicMaterial({ map:screenTex(kind), toneMapped:false }));
   scr.scale.set(w, h, 1); scr.position.set(0, 0.18 + h / 2, -0.003);
+  scr.userData.dyn = true;
   g.add(scr);
+  (parent.userData.screens = parent.userData.screens || []).push(scr);
   return g;
 }
 /* soft contact shadow decal, shared by chairs and desks */
@@ -790,6 +794,7 @@ function laptop(parent, x, z, kind, ry){
   add(G.box, alu, 0.36, 0.235, 0.01, 0, 0.117, 0, lid, false);
   var scr = new T.Mesh(plane1, new T.MeshBasicMaterial({ map:screenTex(kind), toneMapped:false }));
   scr.scale.set(0.33, 0.205, 1); scr.position.set(0, 0.117, 0.006); lid.add(scr);
+  scr.userData.dyn = true; (parent.userData.screens = parent.userData.screens || []).push(scr);
   return g;
 }
 /* Luis: two external monitors and his laptop */
@@ -994,6 +999,25 @@ function cardFor(p, kind){
   } else if (p.cardMat.map !== lunchCardTex) p.cardMat.map = lunchCardTex;
 }
 var NO_LUNCH = /[?&]lunch=off/.test(location.search || "");
+function homeNow(p){ return !p.guest && !p.remote && DAY.wd > 0 && DAY.wd < 6 && (DAY.h >= (p.leaveH || 17) || DAY.h < 7); }
+var OFFICE_DARK = 0;
+function officeHours(t, dt){
+  /* lights dim and monitors switch off once people have gone */
+  var dark = DAY.wd > 0 && DAY.wd < 6 && (DAY.h >= 17 || DAY.h < 7) ? 1 : 0;
+  OFFICE_DARK = lerp(OFFICE_DARK, dark, 1 - Math.exp(-dt * 0.8));
+  var k = 1 - 0.68 * OFFICE_DARK;
+  if (!officeHours.base) officeHours.base = { sun:sun.intensity, fill:fill.intensity, hemi:hemiL.intensity, logo:logoLight.intensity, exp:renderer.toneMappingExposure, env:scene.environmentIntensity !== undefined ? scene.environmentIntensity : 1 };
+  renderer.toneMappingExposure = officeHours.base.exp * (1 - 0.45 * OFFICE_DARK);
+  var nightEl = officeHours.el || (officeHours.el = document.getElementById("night"));
+  var op = (OFFICE_DARK > 0.02 ? OFFICE_DARK : 0).toFixed(2); if (nightEl.style.opacity !== op) nightEl.style.opacity = op;
+  sun.intensity = officeHours.base.sun * k; fill.intensity = officeHours.base.fill * k; hemiL.intensity = officeHours.base.hemi * (1 - 0.5 * OFFICE_DARK);
+  logoLight.intensity = officeHours.base.logo * (1 - 0.6 * OFFICE_DARK);
+  PEOPLE.forEach(function(q){
+    var sc = q.deskGroup && q.deskGroup.userData.screens; if (!sc) return;
+    var off = q.state === "away" && q.trip && q.trip.kind === "home" ? 0.05 : 1;
+    sc.forEach(function(m){ var c = m.material.color.r; if (Math.abs(c - off) > 0.01) m.material.color.setScalar(lerp(c, off, 1 - Math.exp(-dt * 3))); });
+  });
+}
 function lunchNow(p){ if (NO_LUNCH) return ""; var L = LUNCH[p.id]; return L && DAY.h >= L[0] && DAY.h < L[1] && DAY.wd > 0 && DAY.wd < 6 ? L[2] : ""; }
 
 /* ---------- seasonal themes ----------
@@ -2521,6 +2545,8 @@ ALL.forEach(function(p, i){
   p.w = PERSONA[p.id];
   var early = DAY.key === "early" || DAY.key === "morning";
   p.dayK = rand(0.7, 1.3);
+  /* end of the day: Luis leaves at 4, everyone else between 4:45 and 5 */
+  p.leaveH = p.id === "luis" ? 16 : rand(16.75, 16.97);
   p.needs = { energy:clamp(rand(0.45, 1) - (early ? 0.25 : 0) - (DAY.load - 1) * 0.5, 0.12, 1), focus:rand(0.3, 0.9), social:rand(0, 0.6), coffee:clamp(rand(0, 0.55) + (early ? 0.3 : 0), 0, 1) };
   p.state = "sit"; p.t0 = 0; p.dur = 0;
   p.decideAt = rand(2, 7);
@@ -2970,7 +2996,7 @@ function guestTick(t){
   if (!GUESTS.next) GUESTS.next = t + (/[?&]guest=now/.test(location.search) ? 3 : rand(60, 120));
   if (t < GUESTS.next) return;
   GUESTS.next = t + rand(30, 60);
-  if (DAY.h < 8.5 || DAY.h > 18) return;
+  if (DAY.h < 8.5 || DAY.h > 16.6) return;
   function okHost(q){ return !q.guest && available(q) && !q.visitor && !lunchNow(q); }
   var pool = PEOPLE.filter(function(g){ return g.guest && g.state === "gone" && PEOPLE.some(function(q){ return okHost(q) && (!g.hosts || g.hosts.indexOf(q.id) >= 0); }); });
   if (!pool.length) return;
@@ -3019,7 +3045,15 @@ function updateAgent(p, t, dt){
     r.sit = 1;
     var ln = lunchNow(p);
     if (p.lunchBox) p.lunchBox.visible = ln === "desk";
-    if (ln === "out" && !p.chatWith && !p.answering && !p.visitor) {
+    if (homeNow(p) && !p.chatWith && !p.answering && !p.visitor && !(p.roll > 0.01)) {
+      /* time to go: say goodbye to whoever is near, then walk out */
+      var bye = DAY.fri ? "See you next week!" : "See you tomorrow!";
+      sayLater(p, choose([bye, "Okay, I'm out. " + bye, "Bye everyone! " + bye]), t, 3.6);
+      var nb = nearestSitter(p.seat.x, p.seat.z, p);
+      if (nb && !homeNow(nb)) sayLater(nb, DAY.fri ? choose(["Have a great weekend!", "Enjoy the weekend!"]) : choose(["See you tomorrow!", "Bye! Have a good night."]), t + 2.4, 3.4);
+      p.act = null; p.pendingCoffee = 0;
+      goTrip(p, t, "home", null, aislePath(p.seat, p.side, EXIT_SPOT, 0));
+    } else if (ln === "out" && !p.chatWith && !p.answering && !p.visitor) {
       p.act = null; p.pendingCoffee = 0;
       goTrip(p, t, "lunch", null, aislePath(p.seat, p.side, EXIT_SPOT, 0));
     } else if (ln === "desk") {
@@ -3089,12 +3123,12 @@ function updateAgent(p, t, dt){
     var hd = along(path, tr.d);
     p.root.position.copy(tmpPos);
     if (rem > 0.05) smoothTurn(p, hd, dt, 6);
-    if ((tr.kind === "meeting" || tr.kind === "coffee" || tr.kind === "lunch" || p.guest) && Math.abs(p.root.position.x) > 4.4) p.root.visible = false;
+    if ((tr.kind === "meeting" || tr.kind === "coffee" || tr.kind === "lunch" || tr.kind === "home" || p.guest) && Math.abs(p.root.position.x) > 4.4) p.root.visible = false;
     if (rem <= 0.04 && r.walkW < 0.25) {
       if (tr.back && p.guest) { p.trip = null; setState(p, "gone", t, 0); GUESTS.cur = null; GUESTS.next = t + rand(180, 420); }
       else if (tr.back) setState(p, "down", t, 0.6);
       else if (tr.kind === "meeting") setState(p, "away", t, 1800);
-      else if (tr.kind === "lunch") setState(p, "away", t, 99999);
+      else if (tr.kind === "lunch" || tr.kind === "home") setState(p, "away", t, 99999);
       else if (tr.kind === "coffee") { setState(p, "coffee", t, rand(5, 8)); startAct(p, "sip", t + 1.2, 3); }
       else {
         var q = tr.target;
@@ -3124,6 +3158,10 @@ function updateAgent(p, t, dt){
       if (st === "visit" && tr.target.visitor === p) tr.target.visitor = null;
       startReturn(p, t);
     }
+  } else if (st === "away" && tr && tr.kind === "home") {
+    r.sit = 0;
+    p.root.position.copy(EXIT_SPOT);
+    if (!homeNow(p)) startReturn(p, t);
   } else if (st === "away" && tr && tr.kind === "lunch") {
     r.sit = 0;
     p.root.position.copy(EXIT_SPOT);
@@ -3144,6 +3182,7 @@ function updateAgent(p, t, dt){
 
   var kind = p.trip ? p.trip.kind : "";
   if (p.lunchCard) { var away2 = (kind === "lunch" || kind === "meeting") && !p.trip.back; if (away2) cardFor(p, kind); p.lunchCard.visible = away2; }
+  if (kind === "home") { p.statusNow = p.state === "away" ? (DAY.fri ? "Gone for the weekend" : "Gone for the day") : "Heading home"; return; }
   if (kind === "lunch") { p.statusNow = p.state === "away" ? (p.id === "carla" ? "Out for lunch" : "Lunch time") : (p.trip.back ? "Back from lunch" : "Heading out for lunch"); return; }
   if (kind === "meeting") p.statusNow = p.state === "away" ? p.walker.text.away : (p.trip.back ? p.walker.text.back : p.walker.text.out);
   else if (kind === "coffee") p.statusNow = p.id === "olivia" ? (p.trip.back ? "Back with a tea" : "Making a tea") : (p.trip.back ? "Back with a coffee" : "Getting coffee");
@@ -4261,6 +4300,12 @@ function swapShoes(dstRoot, srcRoot, opt){
   m.bind(new T.Skeleton(newBones), dstBody.matrixWorld.clone());
 }
 PEOPLE.forEach(function(p){ makeRig(p); });
+/* opening the page after hours: whoever has already left is simply not there */
+PEOPLE.forEach(function(p){
+  if (p.guest || !homeNow(p)) return;
+  p.trip = { kind:"home", target:null, path:aislePath(p.seat, p.side, EXIT_SPOT, 0), d:0, back:false };
+  p.state = "away"; p.t0 = 0; p.dur = 99999; p.root.visible = false; p.rig.sit = 0; p.rig.walkW = 1;
+});
 PEOPLE.forEach(function(g){
   if (!g.guest) return;
   g.seat = EXIT_SPOT.clone(); g.side = 0; g.sitHeading = -Math.PI / 2; g.heading = g.sitHeading;
@@ -4356,6 +4401,14 @@ function updateRemote(p, t, dt){
   if (!p.act && !p.chatWith && !p.answering && t > p.nextAct) { startAct(p, choose(["sip","phone","stretch","leanBack","sip"]), t); p.nextAct = t + rand(6, 16); }
   p.typeAmp = lerp(p.typeAmp, p.typeOn && !p.act ? 1 : 0, 1 - Math.exp(-dt * 4));
   p.glowM.opacity = 0.26 + (p.chatWith || p.answering ? 0.18 : 0) + 0.04 * Math.sin(t * 2 + p.sx);
+  /* remote colleagues log off at 5 */
+  var offline = DAY.wd > 0 && DAY.wd < 6 && (DAY.h >= 17 || DAY.h < 7);
+  if (offline) {
+    if (!p.camOff || p.scrMat.map !== p.offTex) { p.camOff = true; p.scrMat.map = p.offTex; }
+    p.glowM.opacity = 0.05; p.camNext = t + 30;
+    p.statusNow = DAY.fri ? "Offline for the weekend" : "Offline, back tomorrow";
+    return;
+  }
   /* now and then the camera goes off for a while */
   if (t > p.camNext) {
     p.camOff = !p.camOff;
@@ -4447,6 +4500,7 @@ function frame(){
   REMOTE.forEach(function(p){ updateRemote(p, t, dt); });
   updateMishaps(t, dt);
   guestTick(t);
+  officeHours(t, dt);
   huddleTick(t, dt);
   PEOPLE.forEach(function(p){ rollUpdate(p, dt); });
   if (!(t - (window.__dayT || -9) < 1)) { window.__dayT = t; dayTick(); clockTick(); }
