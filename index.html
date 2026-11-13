@@ -1081,6 +1081,19 @@ function deskMouse(g, x, z){
   m.userData.base = m.position.clone();
   return m;
 }
+/* Luis always has his bag hanging on the back of his chair */
+function chairBag(c){
+  var bag = new T.Group(); bag.position.set(0.03, 0.66, 0.4); bag.rotation.set(0.12, 0, 0.05); c.add(bag);
+  var cloth = M("#2f3a33", { roughness:0.9 }), dark = M("#1f2621", { roughness:0.85 }), buckle = M("#b8b2a4", { roughness:0.35, metalness:0.6 });
+  add(G.box, cloth, 0.3, 0.24, 0.09, 0, 0, 0, bag);
+  add(G.box, dark, 0.305, 0.14, 0.012, 0, 0.055, 0.048, bag, false);
+  add(G.box, buckle, 0.03, 0.02, 0.006, 0, -0.012, 0.056, bag, false);
+  [-1, 1].forEach(function(s){
+    var st = add(G.box, dark, 0.03, 0.34, 0.012, s * 0.12, 0.27, -0.035, bag, false);
+    st.rotation.x = -0.32; st.rotation.z = -s * 0.12;
+  });
+  add(G.box, dark, 0.27, 0.012, 0.09, 0, 0.43, -0.1, bag, false);
+}
 function desk(p){
   var g = new T.Group(); g.position.set(p.side * 1.6, 0, p.z); g.rotation.y = -p.side * Math.PI / 2; scene.add(g);
   aoDecal(g, 0, -0.78, 1.9, 1.0);
@@ -1095,6 +1108,7 @@ function desk(p){
   lunchProps(p, g);
   p.cup.userData.dyn = true;
   p.chairG = chair(g, 0, 0.02);
+  if (p.id === "luis") chairBag(p.chairG);
   if (p.id) { mergeByMaterial(p.chairG); p.chairG.traverse(function(o){ o.userData.dyn = true; if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } }); p.chairBase = p.chairG.position.clone(); }
   p.deskGroup = g;
   return g;
