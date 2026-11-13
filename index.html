@@ -1342,25 +1342,35 @@ function cardFor(p, kind){
   } else if (p.cardMat.map !== lunchCardTex) p.cardMat.map = lunchCardTex;
 }
 var NO_LUNCH = /[?&]lunch=off/.test(location.search || "");
-function homeNow(p){ return !p.guest && !p.remote && DAY.wd > 0 && DAY.wd < 6 && (DAY.h >= (p.leaveH || 17) || DAY.h < 7); }
+/* morning arrival: everyone starts at 8, each person shows up somewhere between 8:00 and 8:30, closer to 8 more often.
+   The time changes every day but stays the same within a day (seeded by the date and the person). */
+function arriveH(p){
+  var d = DAY.d || new Date(), key = d.getFullYear() * 1000 + d.getMonth() * 40 + d.getDate();
+  if (p.arriveKey !== key) {
+    var hs = 0; for (var i = 0; i < p.id.length; i++) hs = (hs * 31 + p.id.charCodeAt(i)) % 100000;
+    var r = seeded((key * 7919 + hs * 104729) % 2147483646 + 1); r(); r();
+    p.arriveKey = key; p.arriveAt = 8 + 0.5 * Math.pow(r(), 1.8);
+  }
+  return p.arriveAt;
+}
+function homeNow(p){ return !p.guest && !p.remote && DAY.wd > 0 && DAY.wd < 6 && (DAY.h >= (p.leaveH || 17) || DAY.h < arriveH(p)); }
 var OFFICE_DARK = 0;
 function officeHours(t, dt){
-  /* lights dim and monitors switch off once people have gone */
-  /* the later it gets, the darker: 5 pm starts low light, full night by 9 pm, dawn between 6 and 7 */
+  /* at 5 pm the office lights go off and it is properly dark (only the Christmas lights stay on), a bit darker as the
+     night goes on; at 8 am the office lights come back on and the Christmas lights go off */
   var hh = DAY.h, dark = 0;
   if (DAY.wd > 0 && DAY.wd < 6) {
-    if (hh >= 17) dark = 0.45 + 0.55 * clamp((hh - 17) / 4, 0, 1);
-    else if (hh < 6) dark = 1;
-    else if (hh < 7) dark = 1 - 0.55 * (hh - 6);
+    if (hh >= 17) dark = 0.88 + 0.12 * clamp((hh - 17) / 3, 0, 1);
+    else if (hh < 8) dark = 1;
   }
-  OFFICE_DARK = lerp(OFFICE_DARK, dark, 1 - Math.exp(-dt * 0.8));
-  var k = 1 - 0.8 * OFFICE_DARK;
+  OFFICE_DARK = lerp(OFFICE_DARK, dark, 1 - Math.exp(-dt * 2.2));
+  var k = 1 - 0.93 * OFFICE_DARK;
   if (!officeHours.base) officeHours.base = { sun:sun.intensity, fill:fill.intensity, hemi:hemiL.intensity, logo:logoLight.intensity, exp:renderer.toneMappingExposure, env:scene.environmentIntensity !== undefined ? scene.environmentIntensity : 1 };
-  renderer.toneMappingExposure = officeHours.base.exp * (1 - 0.55 * OFFICE_DARK);
+  renderer.toneMappingExposure = officeHours.base.exp * (1 - 0.45 * OFFICE_DARK);
   var nightEl = officeHours.el || (officeHours.el = document.getElementById("night"));
-  var op = (OFFICE_DARK > 0.02 ? OFFICE_DARK : 0).toFixed(2); if (nightEl.style.opacity !== op) nightEl.style.opacity = op;
-  sun.intensity = officeHours.base.sun * k; fill.intensity = officeHours.base.fill * k; hemiL.intensity = officeHours.base.hemi * (1 - 0.5 * OFFICE_DARK);
-  logoLight.intensity = officeHours.base.logo * (1 - 0.6 * OFFICE_DARK);
+  var op = (OFFICE_DARK > 0.02 ? OFFICE_DARK * 0.4 : 0).toFixed(2); if (nightEl.style.opacity !== op) nightEl.style.opacity = op;
+  sun.intensity = officeHours.base.sun * k; fill.intensity = officeHours.base.fill * k; hemiL.intensity = officeHours.base.hemi * (1 - 0.88 * OFFICE_DARK);
+  logoLight.intensity = officeHours.base.logo * (1 - 0.75 * OFFICE_DARK);
   PEOPLE.forEach(function(q){
     var sc = q.deskGroup && q.deskGroup.userData.screens; if (!sc) return;
     var gone = q.state === "away" && q.trip && q.trip.kind === "home", off = gone ? 0 : 1;
@@ -1401,7 +1411,7 @@ var SEASONS = {
   }
 };
 var SZ = SEASONS[SEASON] || null;
-var seasonFx = { bats:[], mist:[], snow:[], bulbMats:[], faceMat:null, next:0, line:null };
+var seasonFx = { bats:[], mist:[], snow:[], bulbMats:[], glow:[], lamps:[], faceMat:null, next:0, line:null };
 var green2 = null;
 
 /* costume touches, built in the head's bind-pose space like the rest of the hair */
@@ -1487,6 +1497,12 @@ function pumpkin(parent, x, y, z, s, lit, ry){
   }
   return g;
 }
+/* every light bulb is remembered so it can glow at night */
+function glowBulb(m, color){
+  m.updateWorldMatrix(true, false);
+  seasonFx.glow.push({ p:m.getWorldPosition(new V3()), c:new T.Color(color) });
+  return m;
+}
 function stringLights(pts, sag, step, wireColor){
   var bulbs = SZ.bulbs.map(function(c){ var m = new T.MeshBasicMaterial({ color:c, toneMapped:false }); m.userData.base = new T.Color(c); seasonFx.bulbMats.push(m); return m; });
   var path = [], n = 0;
@@ -1496,7 +1512,7 @@ function stringLights(pts, sag, step, wireColor){
       if (j === 0 && s > 0) continue;
       var u = j / k, p = new V3().lerpVectors(a, b, u); p.y -= sag * 4 * u * (1 - u);
       path.push(p);
-      if (j > 0 && j < k) { add(G.lowSph, bulbs[n % bulbs.length], 0.022, 0.032, 0.022, p.x, p.y - 0.035, p.z, scene, false); n++; }
+      if (j > 0 && j < k) { glowBulb(add(G.lowSph, bulbs[n % bulbs.length], 0.022, 0.032, 0.022, p.x, p.y - 0.035, p.z, scene, false), SZ.bulbs[n % bulbs.length]); n++; }
     }
   }
   var wire = new T.Mesh(new T.TubeGeometry(new T.CatmullRomCurve3(path), path.length * 3, 0.006, 4, false), M(wireColor, { roughness:0.8 }));
@@ -1613,11 +1629,14 @@ function buildSeason(){
       /* a little snow piled on the sill */
       add(G.box, M("#ffffff", { roughness:0.9 }), 0.07, 0.025, q[1], -2.76, 2.15 - 0.5 - 0.035, q[0], scene, false);
     });
-    /* wreaths either side of the logo */
+    /* wreaths either side of the logo, with a ring of warm lights */
+    var wreathBulb = null;
     [[-2.6, 0], [5.65, 0]].forEach(function(q){
       var wg = new T.Group(); wg.position.set(-2.77, 2.12, q[0]); wg.rotation.y = Math.PI / 2; scene.add(wg);
       var wr = new T.Mesh(new T.TorusGeometry(0.24, 0.075, 10, 28), M("#1f6a3c", { roughness:0.85 })); wr.castShadow = true; wg.add(wr);
       for (var b = 0; b < 9; b++) { var ba = b * Math.PI * 2 / 9 + 0.3; add(G.lowSph, M(b % 3 ? "#c8202f" : "#ffd36b", { roughness:0.3, metalness:0.2 }), 0.03, 0.03, 0.03, Math.cos(ba) * 0.24, Math.sin(ba) * 0.24, 0.07, wg, false); }
+      var wb = wreathBulb || (wreathBulb = (function(){ var m = new T.MeshBasicMaterial({ color:"#ffd36b", toneMapped:false }); m.userData.base = new T.Color("#ffd36b"); seasonFx.bulbMats.push(m); return m; })());
+      for (b = 0; b < 12; b++) { var wa = b * Math.PI * 2 / 12; glowBulb(add(G.lowSph, wb, 0.016, 0.016, 0.016, Math.cos(wa) * 0.29, Math.sin(wa) * 0.29, 0.06, wg, false), "#ffd36b"); }
       add(G.box, M("#c8202f", { roughness:0.6 }), 0.16, 0.07, 0.03, 0, -0.25, 0.08, wg, false);
       add(G.box, M("#c8202f", { roughness:0.6 }), 0.04, 0.16, 0.025, -0.04, -0.33, 0.07, wg, false).rotation.z = 0.25;
       add(G.box, M("#c8202f", { roughness:0.6 }), 0.04, 0.16, 0.025, 0.04, -0.33, 0.07, wg, false).rotation.z = -0.25;
@@ -1655,7 +1674,7 @@ function buildSeason(){
     [[0.42, 0.5, 0.4], [0.34, 0.45, 0.72], [0.24, 0.38, 1.0]].forEach(function(q){ var c = new T.Mesh(new T.ConeGeometry(q[0], q[1], 18), green2); c.position.y = q[2]; c.castShadow = true; tg2.add(c); });
     add(G.sph, new T.MeshBasicMaterial({ color:0xffd36b, toneMapped:false }), 0.05, 0.05, 0.05, 0, 1.22, 0, tg2, false);
     var bulbs2 = SZ.bulbs.map(function(c){ var m = new T.MeshBasicMaterial({ color:c, toneMapped:false }); m.userData.base = new T.Color(c); seasonFx.bulbMats.push(m); return m; });
-    for (i = 0; i < 18; i++) { var ba2 = i * 2.1, bh2 = 0.3 + (i / 18) * 0.8, br2 = 0.4 * (1 - (bh2 - 0.25) / 1.0) + 0.02; add(G.lowSph, bulbs2[i % bulbs2.length], 0.025, 0.025, 0.025, Math.cos(ba2) * br2, bh2, Math.sin(ba2) * br2, tg2, false); }
+    for (i = 0; i < 18; i++) { var ba2 = i * 2.1, bh2 = 0.3 + (i / 18) * 0.8, br2 = 0.4 * (1 - (bh2 - 0.25) / 1.0) + 0.02; glowBulb(add(G.lowSph, bulbs2[i % bulbs2.length], 0.025, 0.025, 0.025, Math.cos(ba2) * br2, bh2, Math.sin(ba2) * br2, tg2, false), SZ.bulbs[i % bulbs2.length]); }
     /* the original small tree by the logo wall */
     /* a small tree by the logo wall */
     var tg = new T.Group(); tg.position.set(-1.2, 0, -3.72); scene.add(tg);
@@ -1665,16 +1684,34 @@ function buildSeason(){
     add(G.sph, new T.MeshBasicMaterial({ color:0xffd36b, toneMapped:false }), 0.05, 0.05, 0.05, 0, 1.22, 0, tg, false);
     var orn = ["#c8202f", "#ffd36b", "#f2efe8"];
     for (i = 0; i < 14; i++) { var oa = i * 2.4, oh = 0.35 + (i / 14) * 0.75, orad = 0.38 * (1 - (oh - 0.3) / 1.0); add(G.lowSph, M(orn[i % 3], { roughness:0.3, metalness:0.3 }), 0.035, 0.035, 0.035, Math.cos(oa) * orad, oh, Math.sin(oa) * orad, tg, false); }
+    /* a string of lights wound around the small tree too */
+    var bulbs3 = SZ.bulbs.map(function(c){ var m = new T.MeshBasicMaterial({ color:c, toneMapped:false }); m.userData.base = new T.Color(c); seasonFx.bulbMats.push(m); return m; });
+    for (i = 0; i < 20; i++) { var la = i * 1.9 + 0.8, lh = 0.3 + (i / 20) * 0.85, lr = 0.42 * (1 - (lh - 0.25) / 1.0) + 0.03; glowBulb(add(G.lowSph, bulbs3[i % bulbs3.length], 0.022, 0.022, 0.022, Math.cos(la) * lr, lh, Math.sin(la) * lr, tg, false), SZ.bulbs[i % bulbs3.length]); }
+    /* warm lamps that wash the walls in colour when the office lights are off */
+    [[-1.2, 1.0, -3.4, 0xffb46b], [1.25, 1.1, 5.4, 0xff7a6b], [-2.3, 2.7, 1.0, 0xffd08a], [0.4, 2.7, -3.6, 0xff9a7a], [2.5, 0.95, 1.0, 0x8affb0]].forEach(function(q){
+      var L = new T.PointLight(q[3], 0, 3.6, 1.6); L.position.set(q[0], q[1], q[2]); scene.add(L); seasonFx.lamps.push(L);
+    });
   }
 }
 
 /* now and then someone says the seasonal line out loud, and a neighbour answers */
 function seasonTick(t, dt){
   if (!SZ) return;
+  var night = OFFICE_DARK;
   for (var i = 0; i < seasonFx.bulbMats.length; i++) {
     var bm = seasonFx.bulbMats[i], tw = 0.7 + 0.3 * Math.sin(t * 2.2 + i * 2.1);
-    bm.color.copy(bm.userData.base).multiplyScalar(tw);
+    bm.color.copy(bm.userData.base).multiplyScalar(0.32 + 0.68 * night * tw);
   }
+  if (seasonFx.glow.length && !seasonFx.halo) {
+    var gp = new Float32Array(seasonFx.glow.length * 3), gc = new Float32Array(seasonFx.glow.length * 3);
+    seasonFx.glow.forEach(function(o, k){ gp[k * 3] = o.p.x; gp[k * 3 + 1] = o.p.y; gp[k * 3 + 2] = o.p.z; gc[k * 3] = o.c.r; gc[k * 3 + 1] = o.c.g; gc[k * 3 + 2] = o.c.b; });
+    var gg = new T.BufferGeometry(); gg.setAttribute("position", new T.BufferAttribute(gp, 3)); gg.setAttribute("color", new T.BufferAttribute(gc, 3));
+    var dot = canvasTex(64, 64, function(g, w, h){ var rg = g.createRadialGradient(32, 32, 0, 32, 32, 32); rg.addColorStop(0, "rgba(255,255,255,1)"); rg.addColorStop(0.25, "rgba(255,255,255,0.55)"); rg.addColorStop(1, "rgba(255,255,255,0)"); g.fillStyle = rg; g.fillRect(0, 0, w, h); });
+    seasonFx.halo = new T.Points(gg, new T.PointsMaterial({ size:0.26, map:dot, vertexColors:true, transparent:true, opacity:0, blending:T.AdditiveBlending, depthWrite:false, toneMapped:false }));
+    seasonFx.halo.userData.dyn = true; seasonFx.halo.frustumCulled = false; scene.add(seasonFx.halo);
+  }
+  if (seasonFx.halo) { seasonFx.halo.visible = night > 0.03; seasonFx.halo.material.opacity = night * (0.85 + 0.15 * Math.sin(t * 1.7)); }
+  for (i = 0; i < seasonFx.lamps.length; i++) seasonFx.lamps[i].intensity = night * (1.6 + 0.25 * Math.sin(t * 2 + i * 1.7));
   for (i = 0; i < seasonFx.snow.length; i++) { var sn = seasonFx.snow[i]; sn.tex.offset.y = (t * 0.09 + sn.ph) % 1; sn.tex.offset.x = 0.04 * Math.sin(t * 0.4 + sn.ph * 5); }
   if (seasonFx.faceMat) { var fl = 0.82 + 0.18 * noise(t * 8); seasonFx.faceMat.color.setRGB(fl, 0.72 * fl, 0.38 * fl); }
   for (i = 0; i < seasonFx.bats.length; i++) {
@@ -4642,7 +4679,7 @@ function updateRemote(p, t, dt){
   p.typeAmp = lerp(p.typeAmp, p.typeOn && !p.act ? 1 : 0, 1 - Math.exp(-dt * 4));
   p.glowM.opacity = 0.26 + (p.chatWith || p.answering ? 0.18 : 0) + 0.04 * Math.sin(t * 2 + p.sx);
   /* remote colleagues log off at 5 */
-  var offline = DAY.wd > 0 && DAY.wd < 6 && (DAY.h >= 17 || DAY.h < 7);
+  var offline = DAY.wd > 0 && DAY.wd < 6 && (DAY.h >= 17 || DAY.h < arriveH(p));
   if (offline !== !!p.offline) {
     /* the call ends: screen goes black, the name caption and the name tag disappear */
     p.offline = offline; p.capM.visible = !offline; p.scrMat.color.setScalar(offline ? 0 : 1);
