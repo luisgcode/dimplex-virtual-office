@@ -312,7 +312,18 @@ var PEOPLE = [
   { id:"luis", name:"Luis", role:"Web Manager", side:-1, z:4.5, personality:"Headphones on, building the web.", topics:"The Dimplex, Convectair and Cadet sites", shirt:"#34495e", pants:"#23272e", skin:"#b98a68", hair:"#0c0c0e", style:"short", sleeves:false, screen:"code", headphones:true,
     status:"Headphones on, building the web", blurb:"Dimplex, Convectair and Cadet sites. Headphones on means deep in a build." },
   { id:"carla", name:"Carla", role:"Events and tradeshows", side:-1, z:2.65, personality:"Friendly organiser. Runs every tradeshow, booth and event trip.", topics:"Tradeshows, booths and event logistics", shirt:"#e2ac2f", pants:"#2a2f3a", skin:"#e6b38c", hair:"#3a2418", style:"wavy", sleeves:true, screen:"tasks",
-    status:"Planning the next show", blurb:"Ask her for anything and the answer is the same: on it." }
+    status:"Planning the next show", blurb:"Ask her for anything and the answer is the same: on it." },
+  /* visitors from other teams: no desk here, they walk in now and then, talk to someone and leave */
+  { id:"nolan", name:"Nolan", role:"Sales, visiting from upstairs", guest:true, freq:3, side:1, z:0, personality:"Always has a customer story and a question about stock.", topics:"Customers, dealers and what is selling", shirt:"#2f5d8a", pants:"#2b2f36", skin:"#e8bf9e", hair:"#4a3020", style:"short", sleeves:true,
+    status:"Visiting the marketing floor", blurb:"Drops by with a customer story and leaves with a sell sheet." },
+  { id:"elena", name:"Elena", role:"Customer care, visiting", guest:true, freq:3, side:1, z:0, personality:"Hears every customer question first and brings the good ones upstairs.", topics:"Customer questions, manuals and returns", shirt:"#b0476b", pants:"#262a31", skin:"#d9a27c", hair:"#2b1a12", style:"wavy", sleeves:true, earrings:"small",
+    status:"Visiting the marketing floor", blurb:"If customers keep asking it, she knows about it." },
+  { id:"tessa", name:"Tessa", role:"Product team, visiting", guest:true, freq:1, side:1, z:0, personality:"Knows what is launching next and never says it out loud.", topics:"Launches and product specs", shirt:"#3e8e6a", pants:"#2a2d35", skin:"#f2d2bf", hair:"#b5733f", style:"straight", sleeves:true,
+    status:"Visiting the marketing floor", blurb:"Has the launch calendar in her head." },
+  { id:"grant", name:"Grant", role:"Operations, visiting", guest:true, freq:1, side:1, z:0, personality:"Calm, practical, always checking when things ship.", topics:"Shipping, stock and warehouses", shirt:"#6b6f76", pants:"#23272e", skin:"#c99673", hair:"#18120e", style:"short", sleeves:true, glasses:true,
+    status:"Visiting the marketing floor", blurb:"If it ships, he knows when." },
+  { id:"hana", name:"Hana", role:"Finance, visiting", guest:true, freq:1, side:1, z:0, personality:"Friendly, precise, and somehow always has snacks.", topics:"Budgets, invoices and approvals", shirt:"#d9d4c7", pants:"#2c3038", skin:"#f0d0b4", hair:"#0f0d0c", style:"straight", sleeves:true, earrings:"small",
+    status:"Visiting the marketing floor", blurb:"Brings snacks and a budget question, in that order." }
 ];
 var LINES = {
   erica:["Jumping on a call","Back in 5, another meeting","Can we take this offline?","Who moved my 2:00?"],
@@ -323,7 +334,9 @@ var LINES = {
   luis:["Headphones on","Pushing to the site","Deploying now","Fixing one more page"],
   carla:["Booth ships Monday!","Who needs a show badge?","Hotel is booked","Which products go to the show?"],
   marissa:["Can you hear me okay?","You are on mute!","Hi everyone!","Let me share my screen"],
-  stephanieb:["Hi everyone!","Give me a sec, reconnecting","Can you see my screen?","The call is lagging a bit today"]
+  stephanieb:["Hi everyone!","Give me a sec, reconnecting","Can you see my screen?","The call is lagging a bit today"],
+  nolan:["A dealer called about the Ignite again","Do we have stock of the Revillusion?"], elena:["Customers keep asking for the manual","Another call about the Optimyst water"],
+  tessa:["Specs for the new unit are almost final","Launch date might move"], grant:["Truck comes Thursday","Stock is looking good"], hana:["Approved, you're welcome","I brought cookies"]
 };
 var REMOTE = [
   { id:"marissa", name:"Marissa", fullName:"Marissa", role:"Team member, remote", remote:true, sx:-1.95, shirt:"#4f7cc4", pants:"#2a2d35", skin:"#e9b996", hair:"#5a3a26", style:"wavy", sleeves:true, glasses:true,
@@ -757,7 +770,7 @@ function desk(p){
 
 
 /* ---------- desks and props ---------- */
-PEOPLE.forEach(function(p){ desk(p); });
+PEOPLE.forEach(function(p){ if (!p.guest) desk(p); });
 /* the empty desk at the entrance, right side */
 var emptyDesk = { side:1, z:4.5 };
 desk(emptyDesk);
@@ -892,39 +905,33 @@ plant(-2.45, 5.8, 0.85); plant(2.45, 5.8, 0.85); plant(-2.45, -3.7, 0.8); plant(
 
 
 
-/* ---------- wall clock: real time, hands move every frame ---------- */
+/* ---------- wall clock: a digital display with am / pm, redrawn when the minute changes ---------- */
 var WALLCLOCK = (function(){
-  var g = new T.Group(); g.position.set(-2.772, 2.42, 1.7); scene.add(g);
-  var faceTex = canvasTex(256, 256, function(c, w, h){
-    c.fillStyle = "#fbfaf7"; c.beginPath(); c.arc(128, 128, 124, 0, Math.PI * 2); c.fill();
-    c.strokeStyle = "#2b3038"; c.lineCap = "round";
-    for (var i = 0; i < 60; i++) {
-      var a = i * Math.PI / 30, big = i % 5 === 0, r0 = big ? 96 : 106;
-      c.lineWidth = big ? 7 : 2.5;
-      c.beginPath(); c.moveTo(128 + Math.sin(a) * r0, 128 - Math.cos(a) * r0); c.lineTo(128 + Math.sin(a) * 114, 128 - Math.cos(a) * 114); c.stroke();
-    }
-    c.fillStyle = "#E31837"; c.font = "italic 900 26px " + FONT; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText("Dimplex", 128, 170);
-  });
-  var face = new T.Mesh(new T.CircleGeometry(0.17, 40), new T.MeshStandardMaterial({ map:faceTex, roughness:0.6 }));
-  face.rotation.y = Math.PI / 2; face.userData.dyn = true; g.add(face);
-  var rim = new T.Mesh(new T.TorusGeometry(0.175, 0.014, 8, 40), M("#2b3038", { roughness:0.4, metalness:0.5 }));
-  rim.rotation.y = Math.PI / 2; rim.userData.dyn = true; g.add(rim);
-  var back = add(G.cyl, M("#2b3038", { roughness:0.5 }), 0.175, 0.03, 0.175, -0.016, 0, 0, g, false); back.rotation.z = Math.PI / 2; back.userData.dyn = true;
-  function hand(len, wid, col, x){
-    var hg = new T.Group(); hg.position.x = x; g.add(hg);
-    var m = add(G.box, M(col, { roughness:0.5 }), 0.004, len, wid, 0, len / 2 - 0.02, 0, hg, false); m.userData.dyn = true;
-    return hg;
-  }
-  var hh = hand(0.1, 0.014, "#2b3038", 0.006), mh = hand(0.145, 0.009, "#2b3038", 0.009), sh = hand(0.15, 0.004, "#E31837", 0.012);
-  var pin = add(G.cyl, M("#E31837", { roughness:0.4 }), 0.012, 0.01, 0.012, 0.014, 0, 0, g, false); pin.rotation.z = Math.PI / 2; pin.userData.dyn = true;
-  return { h:hh, m:mh, s:sh };
+  var c = document.createElement("canvas"); c.width = 512; c.height = 200;
+  var tex = new T.CanvasTexture(c); tex.colorSpace = T.SRGBColorSpace; tex.anisotropy = maxAniso;
+  var g = new T.Group(); g.position.set(-2.772, 2.45, 1.7); scene.add(g);
+  var body = add(G.box, M("#1d2127", { roughness:0.45, metalness:0.3 }), 0.04, 0.23, 0.56, -0.012, 0, 0, g, false); body.userData.dyn = true;
+  var face = new T.Mesh(G.plane, new T.MeshBasicMaterial({ map:tex, toneMapped:false }));
+  face.scale.set(0.52, 0.2, 1); face.position.x = 0.01; face.rotation.y = Math.PI / 2; face.userData.dyn = true; g.add(face);
+  return { c:c, ctx:c.getContext("2d"), tex:tex, last:"" };
 })();
 function wallClockTick(){
-  var d = new Date(Date.now() + DAYQ.off), sec = d.getSeconds() + d.getMilliseconds() / 1000, mn = d.getMinutes() + sec / 60, hr = (d.getHours() % 12) + mn / 60;
-  /* the face looks toward +x, so clockwise on screen is a negative turn about x */
-  WALLCLOCK.h.rotation.x = -hr / 12 * Math.PI * 2;
-  WALLCLOCK.m.rotation.x = -mn / 60 * Math.PI * 2;
-  WALLCLOCK.s.rotation.x = -Math.floor(sec) / 60 * Math.PI * 2;
+  var d = new Date(Date.now() + DAYQ.off), hh = d.getHours(), mm = d.getMinutes(), col = d.getSeconds() % 2 === 0;
+  var key = hh + ":" + mm + (col ? ":" : " ");
+  if (key === WALLCLOCK.last) return;
+  WALLCLOCK.last = key;
+  var g = WALLCLOCK.ctx, w = 512, h = 200;
+  g.fillStyle = "#0b0d10"; g.fillRect(0, 0, w, h);
+  g.textBaseline = "middle"; g.textAlign = "right";
+  g.shadowColor = "rgba(255,60,80,0.8)"; g.shadowBlur = 18; g.fillStyle = "#ff3b4f";
+  g.font = "700 132px 'Courier New', monospace";
+  var h12 = hh % 12 || 12;
+  g.fillText((h12 < 10 ? " " : "") + h12 + (col ? ":" : " ") + (mm < 10 ? "0" : "") + mm, 400, 104);
+  g.font = "700 46px " + FONT; g.textAlign = "left";
+  g.fillText(hh < 12 ? "AM" : "PM", 412, 76);
+  g.shadowBlur = 0; g.fillStyle = "rgba(255,59,79,0.55)"; g.font = "600 26px " + FONT;
+  g.fillText(WEEKDAY[DAYQ.day >= 0 ? DAYQ.day : d.getDay()].slice(0, 3).toUpperCase(), 414, 136);
+  WALLCLOCK.tex.needsUpdate = true;
 }
 var clkTime = document.getElementById("clkTime"), clkDay = document.getElementById("clkDay");
 function clockTick(){
@@ -1174,8 +1181,8 @@ function buildSeason(){
       add(G.box, M("#ffffff", { roughness:0.9 }), 0.07, 0.025, q[1], -2.76, 2.15 - 0.5 - 0.035, q[0], scene, false);
     });
     /* wreaths either side of the logo */
-    [-1.9, 1.9].forEach(function(x){
-      var wg = new T.Group(); wg.position.set(x, 2.05, -4.0); scene.add(wg);
+    [[-2.6, 0], [5.65, 0]].forEach(function(q){
+      var wg = new T.Group(); wg.position.set(-2.77, 2.12, q[0]); wg.rotation.y = Math.PI / 2; scene.add(wg);
       var wr = new T.Mesh(new T.TorusGeometry(0.24, 0.075, 10, 28), M("#1f6a3c", { roughness:0.85 })); wr.castShadow = true; wg.add(wr);
       for (var b = 0; b < 9; b++) { var ba = b * Math.PI * 2 / 9 + 0.3; add(G.lowSph, M(b % 3 ? "#c8202f" : "#ffd36b", { roughness:0.3, metalness:0.2 }), 0.03, 0.03, 0.03, Math.cos(ba) * 0.24, Math.sin(ba) * 0.24, 0.07, wg, false); }
       add(G.box, M("#c8202f", { roughness:0.6 }), 0.16, 0.07, 0.03, 0, -0.25, 0.08, wg, false);
@@ -1184,7 +1191,7 @@ function buildSeason(){
     });
     /* stockings hanging under the string lights */
     var sto = ["#c8202f", "#1f7a45", "#c8202f", "#f2efe8", "#1f7a45", "#c8202f"];
-    [0.25, 0.65, 2.2, 2.6, 3.0, 5.6].forEach(function(z, k){
+    [0.25, 0.65, 2.2, 2.6, 3.0, 3.4].forEach(function(z, k){
       var sg = new T.Group(); sg.position.set(-2.78, 2.78, z); scene.add(sg);
       var col = M(sto[k], { roughness:0.9 }), cuff = M("#f4f1ea", { roughness:1 });
       add(G.box, col, 0.03, 0.2, 0.09, 0, -0.1, 0, sg, false);
@@ -2148,7 +2155,10 @@ var PERSONA = {
   olivia:    { focus:1.0, social:0.85, shop:0.7, coffee:0.9, breaky:0.9 },
   carla:     { focus:0.8, social:1.45, shop:0.9, coffee:1.0, breaky:0.8 },
   erica:     { focus:0.9, social:0.9, shop:0.6, coffee:1.1, breaky:0.6 },
-  allyson:   { focus:0.9, social:0.9, shop:0.6, coffee:1.1, breaky:0.6 }
+  allyson:   { focus:0.9, social:0.9, shop:0.6, coffee:1.1, breaky:0.6 },
+  nolan:{ focus:0.5, social:1.5, shop:1, coffee:1, breaky:0.5 }, elena:{ focus:0.5, social:1.5, shop:1, coffee:1, breaky:0.5 },
+  tessa:{ focus:0.5, social:1.2, shop:1, coffee:1, breaky:0.5 }, grant:{ focus:0.5, social:1.1, shop:1, coffee:1, breaky:0.5 },
+  hana:{ focus:0.5, social:1.2, shop:1, coffee:1, breaky:0.5 }
 };
 var POOLS = {
   luis:["stretch","headphones","sip","leanBack","headphones"],
@@ -2157,7 +2167,8 @@ var POOLS = {
   olivia:["swatch","stretch","sip","swatch"],
   stephanie:["leanFire","phone","sip","leanFire"],
   erica:["phone","sip","phone"],
-  allyson:["phone","sip","phone"]
+  allyson:["phone","sip","phone"],
+  nolan:["phone"], elena:["phone"], tessa:["phone"], grant:["phone"], hana:["phone"]
 };
 var COFFEE_SPOT = new V3(-6.2, 0, 7.0), EXIT_SPOT = new V3(6.2, 0, 7.0);
 /* the kind of requests Luis gets every day (public product names only) */
@@ -2316,6 +2327,16 @@ function chatter(a, b, t){
   function add(w, key, lines){ if (CHAT_RECENT.indexOf(key) < 0) C.push({ w:w, key:key, lines:lines }); }
   var bd = drinkOf(b), ad = drinkOf(a);
 
+  /* 0. a visitor always comes with a reason */
+  var GV = {
+    nolan:[["Hey! Got a minute?", "For you, always. What's up?", "A dealer wants new sell sheets. Who do I ask?"], ["Quick one. Do we have photos of the new Ignite?", "Olivia has all of them.", "Perfect, I owe you a coffee."], ["Guess who just closed a big order.", "No way! Congrats!", "Fireplace season, baby."]],
+    elena:[["Hi! Customers keep asking for the Optimyst manual.", "Is it not on the page?", "It is. They just can't find it."], ["Got a sec? A customer can't find their model number.", "Is it on the label inside?", "That's what I told them. Thanks!"], ["Just came up to say hi.", "Hi! How's it going downstairs?", "Phones are busy. Winter is coming."]],
+    tessa:[["Hey, can I steal you for a sec?", "Sure. What's up?", "New specs coming. Don't publish the old ones yet."], ["Do you have five minutes later?", "For a launch? Of course.", "I'll book it. Bring coffee."]],
+    grant:[["Hey. The truck comes Thursday.", "Good to know, thanks.", "Thought you'd want to hear it from me."], ["Quick heads up, stock is looking good.", "That's the best news all week.", "Don't jinx it."]],
+    hana:[["Hi! I brought cookies.", "You're my favorite person today.", "Also, I need one receipt from you."], ["Got a minute for a quick budget question?", "Sure, what's up?", "Nothing scary, I promise."]]
+  };
+  if (GV[a.id]) { var gl = choose(GV[a.id]); CHAT_RECENT.push("g" + a.id); if (CHAT_RECENT.length > 14) CHAT_RECENT.shift(); return gl.slice(); }
+
   /* 1. things that just happened */
   OFFICE_EV.forEach(function(e, i){
     if (t - e.t > 240 || e.used > 1) return;
@@ -2328,6 +2349,7 @@ function chatter(a, b, t){
     else if (e.kind === "chair") L = mine ? ["Please tell me nobody saw my chair move.", "Everybody saw it.", "Great. Just great."]
       : ["" + xn + " almost went over on that chair.", "I saw that! Smooth save though.", "Ten out of ten landing."];
     else if (e.kind === "book") L = ["That shelf dropped a book again.", "Someone should fix that shelf.", "Someone. Not me."];
+    else if (e.kind === "guest" && !mine && !theirs) L = ["Was that " + xn + " just now?", "Yep, dropped by to say hi.", "We should give " + xn + " a desk up here."];
     else if (e.kind === "coffee" && !mine && !theirs && X.id !== "debbie") L = [xn + " just made a coffee run.", "Without asking us? Rude.", "Next round is on " + xn + "."];
     else if (e.kind === "coffee" && mine) L = ["Fresh " + ad + ". Feeling human again.", "Lucky. I still need mine.", "The pot is still warm, go!"];
     else if (e.kind === "longmeeting" && !mine) L = ["That meeting " + xn + " was in ran long.", "They always do on " + DAY.wdName + "s.", "Could have been an email."];
@@ -2548,6 +2570,30 @@ function startReturn(p, t){
   setState(p, "walk", t, 0);
 }
 
+/* ---------- visitors: one at a time, Nolan and Elena come by the most ---------- */
+var GUESTS = { next:0, cur:null };
+window.__voGuests = function(){ return PEOPLE.filter(function(g){ return g.guest; }).map(function(g){ return g.id + ":" + g.state + ":" + g.root.position.x.toFixed(1) + "," + g.root.position.z.toFixed(1) + ":" + g.root.visible + (g.trip ? ":" + g.trip.d.toFixed(1) + "/" + g.trip.path.L.toFixed(1) : ""); }).join(" | "); };
+function guestTick(t){
+  if (GUESTS.cur) return;
+  if (!GUESTS.next) GUESTS.next = t + (/[?&]guest=now/.test(location.search) ? 3 : rand(60, 120));
+  if (t < GUESTS.next) return;
+  GUESTS.next = t + rand(30, 60);
+  if (DAY.h < 8.5 || DAY.h > 18) return;
+  var pool = PEOPLE.filter(function(g){ return g.guest && g.state === "gone"; });
+  var hosts = PEOPLE.filter(function(q){ return !q.guest && available(q) && !q.visitor && !luisDeepWork(q); });
+  if (!pool.length || !hosts.length) return;
+  var tot = 0; pool.forEach(function(g){ tot += g.freq; });
+  var r = Math.random() * tot, g = pool[0];
+  for (var i = 0; i < pool.length; i++) { r -= pool[i].freq; if (r <= 0) { g = pool[i]; break; } }
+  var q = choose(hosts), spot = new V3(q.side * 0.95, 0, q.seat.z + rand(-0.12, 0.12));
+  q.visitor = g;
+  g.trip = { kind:"visit", target:q, path:aislePath(EXIT_SPOT, 0, spot, 0), d:0, back:false };
+  g.act = null; g.rig.sit = 0; g.rig.walkW = 1; g.root.position.copy(EXIT_SPOT);
+  setState(g, "walk", t, 0);
+  logEvent("guest", g, t);
+  GUESTS.cur = g;
+}
+
 /* ---------- per-frame update ---------- */
 var fwd = new V3(), dv = new V3();
 function updateAgent(p, t, dt){
@@ -2559,10 +2605,15 @@ function updateAgent(p, t, dt){
   if (p.act && t - p.act.t0 > p.act.dur + 0.5) p.act = null;
   if (p.answering && t > p.answering) p.answering = 0;
   p.mood.v += (moodTarget(p) - p.mood.v) * dt * 0.01;
+  moodDrift(p, t);
   if (Math.random() < dt * 0.2) recomputeMood(p);
   p.pace = (0.86 + 0.24 * (p.mood.v + 1) / 2 + 0.06 * (p.needs.energy - 0.5)) * DAY.pace;
 
   var st = p.state, k = p.dur > 0 ? clamp((t - p.t0) / p.dur, 0, 1) : 1, tr = p.trip;
+  if (p.guest) {
+    if (p.chip && p.chip.hidden !== (st === "gone")) p.chip.hidden = st === "gone";
+    if (st === "gone") { p.root.visible = false; r.sit = 0; r.walkTarget = 0; p.root.position.copy(EXIT_SPOT); p.statusNow = "Not on the floor right now"; return; }
+  }
   p.root.visible = st !== "away" && st !== "coffee";
   r.walkTarget = 0;
   var swivelTarget = 0;
@@ -2629,9 +2680,10 @@ function updateAgent(p, t, dt){
     var hd = along(path, tr.d);
     p.root.position.copy(tmpPos);
     if (rem > 0.05) smoothTurn(p, hd, dt, 6);
-    if ((tr.kind === "meeting" || tr.kind === "coffee") && Math.abs(p.root.position.x) > 4.4) p.root.visible = false;
+    if ((tr.kind === "meeting" || tr.kind === "coffee" || p.guest) && Math.abs(p.root.position.x) > 4.4) p.root.visible = false;
     if (rem <= 0.04 && r.walkW < 0.25) {
-      if (tr.back) setState(p, "down", t, 0.6);
+      if (tr.back && p.guest) { p.trip = null; setState(p, "gone", t, 0); GUESTS.cur = null; GUESTS.next = t + rand(180, 420); }
+      else if (tr.back) setState(p, "down", t, 0.6);
       else if (tr.kind === "meeting") setState(p, "away", t, rand(15, 35));
       else if (tr.kind === "coffee") { setState(p, "coffee", t, rand(5, 8)); startAct(p, "sip", t + 1.2, 3); }
       else {
@@ -2761,7 +2813,7 @@ var MOODS = {
 };
 var PROFILE = {
   luis:{ pron:"he", traits:{ patience:0.5, humour:0.6, chattiness:0.3, stressTol:0.8 },
-    moodW:{ excited:1, great:2, good:3, okay:2, tired:1.5, stressed:1, off:0.4 },
+    moodW:{ excited:1.4, great:2.5, good:3, okay:2, tired:0.8, stressed:0.8, off:0.3 },
     likes:"clean code and a fast page", dislikes:"being pulled out of the zone",
     joke:"If the headphones are on, assume I am deploying.",
     work:["Pushing updates to the product pages","Fixing a layout on the Convectair site","Publishing new product pages","Cleaning up the Cadet menus"] },
@@ -2804,7 +2856,32 @@ var PROFILE = {
     moodW:{ excited:1, great:2, good:2.5, okay:2, tired:1.5, stressed:1.5, off:0.4 },
     likes:"a clear decision", dislikes:"double-booked afternoons",
     joke:"Back-to-back is my love language.",
-    work:["Reviewing priorities between calls","Signing off a few decisions","Catching up on the campaign plan","Writing notes from my last meeting"] }
+    work:["Reviewing priorities between calls","Signing off a few decisions","Catching up on the campaign plan","Writing notes from my last meeting"] },
+  nolan:{ pron:"he", traits:{ patience:0.7, humour:0.8, chattiness:0.9, stressTol:0.7 },
+    moodW:{ excited:1.5, great:3, good:3, okay:1, tired:0.8, stressed:0.6, off:0.2 },
+    likes:"a dealer who reorders", dislikes:"out of stock emails",
+    joke:"I don't sell fireplaces. I sell cozy.",
+    work:["Visiting the marketing floor","Chasing a dealer question","Picking up sell sheets"] },
+  elena:{ pron:"she", traits:{ patience:0.95, humour:0.7, chattiness:0.85, stressTol:0.8 },
+    moodW:{ excited:1, great:2.5, good:3, okay:1.5, tired:1, stressed:0.8, off:0.3 },
+    likes:"a customer who reads the manual", dislikes:"a question with no model number",
+    joke:"Have you tried turning it off and on again? Works on fireplaces too.",
+    work:["Bringing customer questions upstairs","Checking a manual link","Following up on a return"] },
+  tessa:{ pron:"she", traits:{ patience:0.7, humour:0.6, chattiness:0.6, stressTol:0.7 },
+    moodW:{ excited:2.5, great:2, good:2.5, okay:1.5, tired:1, stressed:1, off:0.3 },
+    likes:"final specs", dislikes:"specs that change after the photo shoot",
+    joke:"I can't tell you what's launching. But it's good.",
+    work:["Checking specs with the team","Lining up a launch","Reviewing product copy"] },
+  grant:{ pron:"he", traits:{ patience:0.85, humour:0.6, chattiness:0.5, stressTol:0.9 },
+    moodW:{ excited:0.8, great:2, good:3, okay:2.5, tired:1, stressed:0.6, off:0.3 },
+    likes:"a truck that shows up on time", dislikes:"pallets with no labels",
+    joke:"Everything ships eventually.",
+    work:["Checking a shipment","Counting stock","Sorting out a delivery date"] },
+  hana:{ pron:"she", traits:{ patience:0.8, humour:0.75, chattiness:0.7, stressTol:0.8 },
+    moodW:{ excited:1, great:2.5, good:3, okay:1.5, tired:1, stressed:0.8, off:0.3 },
+    likes:"an invoice that matches the PO", dislikes:"receipts from last quarter",
+    joke:"I'll approve it. Right after the cookies.",
+    work:["Chasing a receipt","Approving a few invoices","Checking the budget"] }
 };
 function rollMood(p){
   var w = PROFILE[p.id].moodW, tot = 0, k;
@@ -2828,6 +2905,20 @@ function recomputeMood(p){
   else if (v > -0.15) m.kind = "okay";
   else m.kind = p.needs.energy < 0.35 || prof.traits.stressTol > 0.6 ? "tired" : "stressed";
 }
+/* nobody stays in one mood all day: every few minutes the base mood moves on, and little things lift or sink it */
+var LIFT = ["a small win just landed", "someone said thanks for my work", "that task finally closed", "good news from a customer", "the playlist is on point today", "lunch was great"];
+var SINK = ["a task came back with changes", "the printer jammed again", "an email ruined my flow", "that page is fighting me", "the wifi is being weird"];
+function moodDrift(p, t){
+  if (!p.moodNext) p.moodNext = t + rand(60, 180);
+  if (t < p.moodNext) return;
+  p.moodNext = t + rand(120, 300);
+  var w = PROFILE[p.id].moodW, tot = 0, k, cur = p.mood.base;
+  for (k in w) if (k !== cur) tot += w[k];
+  var r = Math.random() * tot;
+  for (k in w) { if (k === cur) continue; r -= w[k]; if (r <= 0) break; }
+  p.mood.base = k;
+  if (Math.random() < 0.6) { var up = MOODS[k].v >= MOODS[cur].v; moodShift(p, up ? rand(0.15, 0.35) : -rand(0.1, 0.25), choose(up ? LIFT : SINK)); }
+}
 function moodShift(p, dv, why){
   p.mood.v = clamp(p.mood.v + dv, -1, 1);
   if (why) p.moodWhy = why;
@@ -2836,6 +2927,11 @@ function moodShift(p, dv, why){
 
 /* ---------- topic knowledge (public, generic) ---------- */
 var KB = {
+  nolan:{ qa:[{ q:"What is selling?", k:["selling","sales","best seller","popular","dealers","stock"], a:"Fireplaces are flying this time of year. Ignite and Revillusion lead, and baseboards pick up as soon as it gets cold." }], fallback:"I'm just visiting! Ask me about dealers or what is selling." },
+  elena:{ qa:[{ q:"What do customers ask?", k:["customers","customer","calls","questions","returns","manual"], a:"Most calls are about manuals, model numbers and Optimyst water. If a page answers those clearly, my phone rings a lot less." }], fallback:"I'm just visiting! Ask me what customers are asking about." },
+  tessa:{ qa:[{ q:"What is launching?", k:["launch","launching","new product","next","coming","specs"], a:"Something good is coming. That's all I can say. Specs are almost final, I promise." }], fallback:"I'm just visiting! Ask me about launches, I might even answer." },
+  grant:{ qa:[{ q:"When does it ship?", k:["ship","shipping","delivery","truck","stock","warehouse"], a:"Most orders go out in a couple of days. The big trucks come Thursdays." }], fallback:"I'm just visiting! Ask me about shipping or stock." },
+  hana:{ qa:[{ q:"Is it approved?", k:["budget","invoice","approve","approved","money","receipt","po"], a:"Send me the PO and the invoice and it's approved by Friday. Missing receipts, not so fast." }], fallback:"I'm just visiting! Ask me about budgets, or about the cookies." },
   stephanie:{ qa:[
     { q:"What is Optimyst?", k:["optimyst","water vapour","water vapor","vapour","vapor","mist","steam","smoke"], a:"Optimyst uses ultrasonic water vapour lit by LEDs, so the flames and smoke look real and you can put your hand right through them. You just top up the water tank now and then." },
     { q:"What is Revillusion?", k:["revillusion","firebox","log set","logs","brick"], a:"Revillusion is the built-in firebox line. It layers a realistic flame over a detailed log set and a brick-look interior, so it reads like a real wood fire from across the room." },
@@ -3068,6 +3164,7 @@ var PRIVATE = [
 ];
 var FUZZY_PRIVATE = ["salary","salaries","paycheck","married","divorced","religion","politics","pregnant","boyfriend","girlfriend","birthday","immigration","citizenship","hospital","medication","lawsuit","harassment","resignation","gossip"];
 var WORK_NUDGE = {
+  nolan:"Ask me about dealers instead.", elena:"Ask me about customers instead.", tessa:"Ask me about launches instead.", grant:"Ask me about shipping instead.", hana:"Ask me about budgets instead.",
   luis:"Ask me about the website, manuals or finding a dealer.",
   stephanie:"Ask me about fireplaces instead.",
   debbie:"Ask me about baseboards.",
@@ -3214,6 +3311,7 @@ function converseCore(p, raw){
           : ev.kind === "cat" ? "A cat crashed " + (ev.p === p ? "my" : ev.p.name + "'s") + " call " + ago + ". Best moment of the day."
           : ev.kind === "chair" ? en + " almost fell off a chair " + ago + ". Great save though."
           : ev.kind === "book" ? "The shelf dropped a book again, " + ago + "."
+          : ev.kind === "guest" ? ev.p.name + " from " + ev.p.role.split(",")[0] + " came by " + ago + "."
           : ev.kind === "coffee" ? en + " made a coffee run " + ago + "."
           : ev.kind === "longmeeting" ? en + " just got out of a really long meeting."
           : en + " just got back from a meeting.";
@@ -3453,6 +3551,12 @@ try {
 GLTF.animations.forEach(function(c){ CLIPS[c.name] = c; });
 T.AnimationUtils.makeClipAdditive(CLIPS.agree);
 PEOPLE.forEach(function(p){ makeRig(p); });
+PEOPLE.forEach(function(g){
+  if (!g.guest) return;
+  g.seat = EXIT_SPOT.clone(); g.side = 0; g.sitHeading = -Math.PI / 2; g.heading = g.sitHeading;
+  g.root.position.copy(EXIT_SPOT); g.root.visible = false; g.state = "gone"; g.rig.sit = 0;
+  if (g.chip) g.chip.hidden = true;
+});
 /* ---------- remote colleagues: each one lives in a small scene rendered to a wall screen ---------- */
 function homeTex(seed, wall, accent){
   return canvasTex(512, 320, function(g, w, h){
@@ -3533,6 +3637,7 @@ function updateRemote(p, t, dt){
   var r = p.rig;
   r.sit = 1; r.walkTarget = 0;
   p.mood.v += (moodTarget(p) - p.mood.v) * dt * 0.01;
+  moodDrift(p, t);
   if (Math.random() < dt * 0.2) recomputeMood(p);
   if (t > p.typeNext) { p.typeOn = !p.typeOn; p.typeNext = t + (p.typeOn ? rand(2, 7) : rand(0.8, 3.5)); }
   if (p.act && t - p.act.t0 > p.act.dur + 0.5) p.act = null;
@@ -3631,6 +3736,7 @@ function frame(){
   });
   REMOTE.forEach(function(p){ updateRemote(p, t, dt); });
   updateMishaps(t, dt);
+  guestTick(t);
   if (!(t - (window.__dayT || -9) < 1)) { window.__dayT = t; dayTick(); clockTick(); }
   wallClockTick();
 
