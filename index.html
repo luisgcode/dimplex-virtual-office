@@ -1503,7 +1503,7 @@ var MODEL_URL = "https://cdn.jsdelivr.net/gh/mrdoob/three.js@r160/examples/model
 /* pilot: real character models with hair and clothes, same Mixamo skeleton, so the same animations play on them */
 var REAL_MODELS = {
   /* each person: an artist-made character, recoloured per garment to match how they dress */
-  stephanie:{ url:"models/stephanie.glb", height:1.66, tint:{ Coat:"#2a2a2e", Shirt:"#1d1d20", Pants:"#26304a", Shoe:"#3a3a3a" }, glasses:true, ownHair:true, hairScale:[0.84, 0.8, 0.86], hairY:0.04, hairZ:0.022 }
+  stephanie:{ url:"models/stephanie.glb", height:1.66, tint:{ Coat:"#2a2a2e", Shirt:"#1d1d20", Pants:"#26304a", Shoe:"#3a3a3a" }, glasses:true, ownHair:true, hairScale:[1.04, 1, 1.04], hairY:0.02, hairZ:0.0 }
 };
 var REAL = {}, CLIPS_R = {};
 var CH_SCALE = 1.70 / 1.806;
@@ -4006,12 +4006,36 @@ function realHair(p, model, head, top){
       }
     }
   }
-  var hs = cfg.hairScale || [1, 1, 1];
-  g.scale.set(k * hs[0], k * hs[1], k * hs[2]);
-  g.position.set(h.x, h.y + (cfg.hairY || 0) * k, h.z + (cfg.hairZ || 0) * k).sub(new V3(0, 1.596, -0.01).multiply(g.scale));
+  /* map the mannequin's skull box onto the new skull box, so the hair hugs the real head */
+  var hs = cfg.hairScale || [1, 1, 1], XB = xbotHeadBox(), RB = REAL[p.model].headBox;
+  if (RB) {
+    var xs = XB.getSize(new V3()), rs = RB.getSize(new V3()), xc = XB.getCenter(new V3()), rc = RB.getCenter(new V3());
+    var sx = rs.x / xs.x, sy = rs.y / xs.y, sz = rs.z / xs.z, sxz = (sx + sz) / 2;
+    g.scale.set(sxz * hs[0], sy * hs[1], sxz * hs[2]);
+    g.position.copy(rc).sub(xc.clone().multiply(g.scale)).add(new V3(0, (cfg.hairY || 0) * rs.y, (cfg.hairZ || 0) * rs.z));
+  } else {
+    g.scale.set(k * hs[0], k * hs[1], k * hs[2]);
+    g.position.set(h.x, h.y, h.z).sub(new V3(0, 1.596, -0.01).multiply(g.scale));
+  }
   model.updateMatrixWorld(true);
   head.attach(g);
 }
+/* skull boxes: the vertices that follow the Head bone, in each model's own space */
+function headBoxOf(root){
+  root.updateMatrixWorld(true);
+  var rootInv = root.matrixWorld.clone().invert(), box = new T.Box3(), v = new V3(), any = false;
+  root.traverse(function(o){
+    if (!o.isSkinnedMesh || !/Body|Surface/.test(o.name)) return;
+    var hi = o.skeleton.bones.findIndex(function(b){ return b.name === "mixamorigHead"; });
+    var pa = o.geometry.attributes.position, si = o.geometry.attributes.skinIndex, sw = o.geometry.attributes.skinWeight;
+    for (var i = 0; i < pa.count; i++) {
+      for (var j = 0; j < 4; j++) if (si.getComponent(i, j) === hi && sw.getComponent(i, j) > 0.6) { v.fromBufferAttribute(pa, i).applyMatrix4(o.bindMatrix).applyMatrix4(rootInv); box.expandByPoint(v); any = true; break; }
+    }
+  });
+  return any ? box : null;
+}
+var _xbHead = null;
+function xbotHeadBox(){ return _xbHead || (_xbHead = headBoxOf(GLTF.scene) || new T.Box3(new V3(-0.09, 1.55, -0.1), new V3(0.09, 1.78, 0.11))); }
 function realGlasses(model, head, top){
   model.updateMatrixWorld(true);
   var h = model.worldToLocal(head.getWorldPosition(new V3())), tp = model.worldToLocal(top.getWorldPosition(new V3()));
@@ -4055,7 +4079,7 @@ await Promise.all(Object.keys(REAL_MODELS).map(function(k){
     /* match the Xbot by skeleton height: head top over the hips line, measured on both rigs */
     function topY(sc){ sc.updateMatrixWorld(true); var o = sc.getObjectByName("mixamorigHeadTop_End") || sc.getObjectByName("mixamorigHead"), v = new V3(); o.getWorldPosition(v); return v.y; }
     var hx = topY(GLTF.scene), hm = topY(g.scene) || 1;
-    REAL[k] = { scene:g.scene, scale:CH_SCALE * (hx / hm) * (REAL_MODELS[k].height / 1.70) };
+    REAL[k] = { scene:g.scene, scale:CH_SCALE * (hx / hm) * (REAL_MODELS[k].height / 1.70), headBox:headBoxOf(g.scene) };
     g.scene.traverse(function(o){ if (o.isMesh && o.material) { o.material.envMapIntensity = 0.6; } });
   }).catch(function(){ /* if the model fails, that person keeps the current look */ });
 }));
