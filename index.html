@@ -2298,23 +2298,38 @@ function startAct(p, name, t, dur, target){
    Topics come from what just happened in the office, the time of day, the day of the week, the season,
    how the other person looks, and a bit of everyday life. Recent lines are not repeated. */
 var LINE_GAP = 3.8;
-var TEAM_TOPICS = [["Did Ember say anything weird today?", "It still thinks the Sierra has eight ember colors.", "Seven. I think. Ask Stephanie."],
-   ["How many old QR codes are still out there?", "Some point to pages from years ago.", "They need new links, fast."],
-   ["Someone asked for a 60 inch fireplace again.", "Big walls, big flames.", "The Ignite has them covered."],
-   ["The new Downloads pages for Cadet and Convectair are up.", "Finally! No more digging for manuals.", "Sending the links to Debbie."],
-   ["Is the Share the Warmth form back up?", "Almost. One last piece to go.", "Fingers crossed for this week."],
-   ["We should do a Get Inspired gallery for the fireplaces.", "Yes! Real rooms, real installs.", "Olivia would make it look amazing."],
-   ["Which water goes in an Optimyst again?", "Distilled is the safe answer.", "Writing that down."],
-   ["The Revillusion pages are finally in French.", "All three versions?", "All three. US, Canada and French."],
-   ["Did you see the new Models filter on Convectair?", "Opera, Apero, all grouped. So much easier.", "About time!"],
-   ["The Flame landing page needs fresh content.", "New photos would help a lot.", "I'll ask Olivia."],
-   ["Customers keep asking where their manual is.", "The find documents tool should be on more pages.", "Agreed. More pages soon."],
-   ["Do we have a test dealer account for the Hub yet?", "Still waiting on it.", "Of course we are."],
-   ["Is the Vital Sense 6-3/4 or 7-1/8 inches deep?", "Depends which page you ask.", "That's the whole problem."],
-   ["Does the Slim have 4 or 5 brightness levels?", "I counted five.", "The manual says four. Fun."],
-   ["The FOR heaters finally have matching bullets.", "In English and French?", "Both. Live on the site."],
-   ["Which pages get the most visits in French?", "The fireplaces, by far.", "Makes sense in winter."]
-  ];
+/* team topics, each one owned by the person whose area it is.
+   "tell": the owner brings it up with anyone. "ask": someone else brings it to the owner.
+   Fireplaces are Stephanie, heat is Debbie, anything web is Luis, images are Olivia, events are Carla. */
+var TEAM_TOPICS = [
+  { own:"luis", mode:"ask", L:["Is Ember still mixing up the Sierra colors?", "Fixing it. It keeps reading an old page.", "Thanks, customers ask about that a lot."] },
+  { own:"luis", mode:"ask", L:["Some old QR codes still go to dead pages.", "Send me the list, I'll find the new links.", "Sending it now."] },
+  { own:"luis", mode:"tell", L:["The new Downloads pages for Cadet and Convectair are up.", "Finally! No more digging for manuals.", "I'll send you the links."] },
+  { own:"luis", mode:"ask", L:["Is the Share the Warmth form back up?", "Almost. One last piece to go.", "Fingers crossed for this week."] },
+  { own:"luis", mode:"tell", L:["The Revillusion pages are finally in French.", "All three versions?", "All three. US, Canada and French."] },
+  { own:"luis", mode:"tell", L:["Convectair has a new Models filter.", "Opera, Apero, all grouped?", "All grouped. Much easier to browse."] },
+  { own:"luis", mode:"ask", L:["Customers keep asking where their manual is.", "I'm adding the find documents tool to more pages.", "That will help a lot."] },
+  { own:"luis", mode:"tell", L:["Still no test dealer account for the Hub.", "Still waiting on it?", "Of course I am."] },
+  { own:"luis", mode:"ask", L:["Which pages get the most visits in French?", "The fireplaces, by far.", "Makes sense in winter."] },
+  { own:"luis", mode:"ask", L:["Can you check a page for me? Something looks off.", "Send me the link.", "You're the best."] },
+  { own:"stephanie", mode:"tell", L:["Someone asked for a 60 inch fireplace again.", "Big walls, big flames.", "The Ignite has them covered."] },
+  { own:"stephanie", mode:"ask", L:["Which water goes in an Optimyst again?", "Distilled is the safe answer.", "Writing that down."] },
+  { own:"stephanie", mode:"tell", L:["The Flame landing page needs fresh content.", "New photos would help a lot.", "Let's plan it this week."] },
+  { own:"stephanie", mode:"ask", L:["Is the Vital Sense 6-3/4 or 7-1/8 inches deep?", "Depends which page you ask.", "That's the whole problem."] },
+  { own:"stephanie", mode:"ask", L:["Does the Slim have 4 or 5 brightness levels?", "I counted five.", "The manual says four. Fun."] },
+  { own:"stephanie", mode:"tell", L:["Another Revillusion question from a dealer.", "The 36 inch again?", "Always the 36 inch."] },
+  { own:"debbie", mode:"tell", L:["Baseboard season is officially here.", "Phones ringing already?", "Nonstop."] },
+  { own:"debbie", mode:"ask", L:["How many watts for a 150 square foot room?", "About 1500. Ten watts a square foot.", "Easy rule, thanks!"] },
+  { own:"debbie", mode:"tell", L:["The FOR heaters finally have matching bullets.", "In English and French?", "Both. Live on the site."] },
+  { own:"debbie", mode:"ask", L:["Convectair or Cadet for a bathroom?", "Depends on the space. Fan-forced heats it fastest.", "Good to know."] },
+  { own:"olivia", mode:"ask", L:["Are the new lifestyle shots in?", "Uploading them now.", "Can't wait to see them."] },
+  { own:"olivia", mode:"tell", L:["I'm thinking of a Get Inspired gallery for the fireplaces.", "Real rooms, real installs?", "Exactly. I'll pull the best shots."] },
+  { own:"olivia", mode:"tell", L:["The holiday banners are done.", "Already? They look great.", "Red and green everywhere."] },
+  { own:"carla", mode:"tell", L:["The booth for the next show is booked.", "Already? That's fast.", "Crates ship in two weeks."] },
+  { own:"carla", mode:"ask", L:["Which products are going to the next show?", "Still deciding. The best sellers for sure.", "Save me a spot on the booth."] },
+  { own:"carla", mode:"tell", L:["Show badges are ready to pick up.", "Already? You're amazing.", "On it, as always."] }
+];
+function topicFits(tp, a, b){ return tp.mode === "tell" ? tp.own === a.id : tp.own === b.id && a.id !== tp.own; }
 var OFFICE_EV = [];
 function logEvent(kind, p, t){
   if (!p) return;
@@ -2425,7 +2440,7 @@ function chatter(a, b, t){
   add(0.8, "e6", ["Did someone take my pen?", "Which one?", "The good one. You know the one."]);
 
   /* 8. what the team is busy with this month */
-  TEAM_TOPICS.forEach(function(L, i){ add(1.3, "tm" + i, L); });
+  TEAM_TOPICS.forEach(function(tp, i){ if (topicFits(tp, a, b)) add(2.2, "tm" + i, tp.L); });
 
   /* 9. a bit of work, now as a real back and forth */
   var wk = LINES[a.id];
@@ -3317,12 +3332,13 @@ function converseCore(p, raw){
           : en + " just got back from a meeting.";
         return { text:what, intent:"news", reason:"" };
       }
-      var tp = choose(TEAM_TOPICS);
+      var mine = TEAM_TOPICS.filter(function(x){ return x.own === p.id && x.mode === "tell"; }), tp = (mine.length ? choose(mine) : choose(TEAM_TOPICS)).L;
       return { text:"Quiet so far. " + tp[0], intent:"news", reason:"" };
     case "week":
       return { text:DAY.wd === 1 ? "It's Monday. Ask me again on Thursday." : DAY.fri ? "Friday! The best kind of week is the one that's ending." : DAY.load > 1.15 ? "Long. This week feels like two weeks." : "Not bad, actually. Steady.", intent:"week", reason:DAY.load > 1.15 ? "it has been a heavy week" : "" };
     case "team":
-      var tq = choose(TEAM_TOPICS);
+      var own = TEAM_TOPICS.filter(function(x){ return x.own === p.id && x.mode === "tell"; }), tq = own.length ? choose(own).L : null;
+      if (!tq) { var ot = choose(TEAM_TOPICS.filter(function(x){ return x.mode === "tell"; })); return { text:"From what I hear, " + BY[ot.own].name + " is busy with this one: " + ot.L[0], intent:"team", reason:"" }; }
       return { text:fresh(p, ["Lots going on. ", "Where do I start? ", "Busy month. "]) + tq[0] + " " + tq[1], intent:"team", reason:"" };
     case "opinion":
       var oq = personIn(s);
