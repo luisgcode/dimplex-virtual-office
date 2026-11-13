@@ -1301,13 +1301,14 @@ function officeHours(t, dt){
   logoLight.intensity = officeHours.base.logo * (1 - 0.6 * OFFICE_DARK);
   PEOPLE.forEach(function(q){
     var sc = q.deskGroup && q.deskGroup.userData.screens; if (!sc) return;
-    var gone = q.state === "away" && q.trip && q.trip.kind === "home", off = gone ? 0.05 : 1;
+    var gone = q.state === "away" && q.trip && q.trip.kind === "home", off = gone ? 0 : 1;
     if (q.chairG && q.chairBase && !(q.roll > 0.002)) {
       q.tuck = lerp(q.tuck || 0, gone ? 1 : 0, 1 - Math.exp(-dt * 1.5));
       q.chairG.position.set(q.chairBase.x, q.chairBase.y, q.chairBase.z - 0.36 * q.tuck);
       if (gone) q.chairG.rotation.y = lerp(q.chairG.rotation.y, 0, 1 - Math.exp(-dt * 2));
     }
-    sc.forEach(function(m){ var c = m.material.color.r; if (Math.abs(c - off) > 0.01) m.material.color.setScalar(lerp(c, off, 1 - Math.exp(-dt * 3))); });
+    /* screens switch off at once: plain black, no fade */
+    sc.forEach(function(m){ if (m.material.color.r !== off) m.material.color.setScalar(off); });
   });
 }
 function lunchNow(p){ if (NO_LUNCH) return ""; var L = LUNCH[p.id]; return L && DAY.h >= L[0] && DAY.h < L[1] && DAY.wd > 0 && DAY.wd < 6 ? L[2] : ""; }
