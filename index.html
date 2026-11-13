@@ -1503,7 +1503,7 @@ var MODEL_URL = "https://cdn.jsdelivr.net/gh/mrdoob/three.js@r160/examples/model
 /* pilot: real character models with hair and clothes, same Mixamo skeleton, so the same animations play on them */
 var REAL_MODELS = {
   /* each person: an artist-made character, recoloured per garment to match how they dress */
-  stephanie:{ url:"models/stephanie.glb", height:1.66, tint:{ Coat:"#2a2a2e", Shirt:"#1d1d20", Pants:"#26304a", Shoe:"#3a3a3a", Hair:"#6b4a40" }, glasses:true }
+  stephanie:{ url:"models/stephanie.glb", height:1.66, tint:{ Coat:"#2a2a2e", Shirt:"#1d1d20", Pants:"#26304a", Shoe:"#3a3a3a" }, glasses:true, ownHair:true, hairScale:[0.84, 0.8, 0.86], hairY:0.04, hairZ:0.022 }
 };
 var REAL = {}, CLIPS_R = {};
 var CH_SCALE = 1.70 / 1.806;
@@ -2226,6 +2226,7 @@ function makeRig(p, sc){
   model.traverse(function(o){
     if (o.isSkinnedMesh && real) {
       o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false;
+      if (REAL_MODELS[p.model].ownHair && /Hair/.test(o.name)) { o.visible = false; return; }
       var tint = REAL_MODELS[p.model].tint || {}, key = Object.keys(tint).find(function(k){ return o.name.indexOf(k) >= 0; });
       if (key) { o.material = o.material.clone(); o.material.color.set(tint[key]); }
       return;
@@ -2256,7 +2257,10 @@ function makeRig(p, sc){
   BONE_NAMES.forEach(function(n){ b[n] = model.getObjectByName("mixamorig" + n); });
   root.updateMatrixWorld(true);
   if (!real) buildHead(p, model, b.Head);
-  else if (REAL_MODELS[p.model].glasses) realGlasses(model, b.Head, b.HeadTop_End);
+  else {
+    if (REAL_MODELS[p.model].ownHair) realHair(p, model, b.Head, b.HeadTop_End);
+    if (REAL_MODELS[p.model].glasses) realGlasses(model, b.Head, b.HeadTop_End);
+  }
   buildProps(p, model, b.RightHand);
   var mixer = new T.AnimationMixer(model), CL = real ? CLIPS_R : CLIPS;
   var idle = mixer.clipAction(CL.idle), walk = mixer.clipAction(CL.walk), nod = mixer.clipAction(CL.agree);
@@ -3959,11 +3963,60 @@ GLTF.animations.forEach(function(c){ CLIPS[c.name] = c; });
    (same world rotation, same joint position), then re-bind the meshes at that pose: the mesh does not move, and every
    Xbot clip and procedural pose now bends each joint the same way. */
 /* glasses on an artist-made head: sized from the head bone length, attached to the head */
+/* each person's own hair, built for the mannequin head, then scaled and moved onto the artist-made head */
+function realHair(p, model, head, top){
+  model.updateMatrixWorld(true);
+  var h = model.worldToLocal(head.getWorldPosition(new V3())), tp = model.worldToLocal(top.getWorldPosition(new V3()));
+  var k = h.distanceTo(tp) / 0.179, cfg = REAL_MODELS[p.model];
+  var g = new T.Group(); model.add(g);
+  var hm = new T.MeshPhysicalMaterial({ color:p.hair, roughness:0.48, sheen:0.7, sheenRoughness:0.45, sheenColor:new T.Color(p.hair).offsetHSL(0, 0, 0.22), envMapIntensity:0.55 });
+  var cap = add(G.hcap2, hm, 0.097, 0.114, 0.137, 0, 1.709, -0.008, g);
+  cap.rotation.x = -0.42;
+  var st = p.style;
+  if (st === "curly" || st === "softwave" || st === "straight") {
+    /* smooth, flowing locks: tube strands along wavy paths around the back and sides */
+    var hl = new T.MeshPhysicalMaterial({ color:p.highlight || p.hair, roughness:0.45, sheen:0.7, sheenRoughness:0.45, sheenColor:new T.Color(p.highlight || p.hair).offsetHSL(0, 0, 0.18), envMapIntensity:0.55 });
+    var part = p.part || 0;
+    add(G.hsph, hm, 0.112, 0.108, 0.13, part * 0.3, 1.69, -0.028, g);
+    add(G.hsph, hm, 0.106, 0.072, 0.13, part * 0.6, 1.752, -0.004, g);
+    if (st === "curly") waveLocks(g, [hm, hl, hm], 20, { len:0.44, amp:0.024, freq:10, thick:0.024, sweep:true, seed:42 });
+    else if (st === "softwave") waveLocks(g, [hm, hm, hl], 16, { len:0.32, amp:0.011, freq:5, thick:0.021, sweep:false, seed:17 });
+    else waveLocks(g, [hm, hm, hl], 17, { len:0.4, amp:0.0035, freq:2, thick:0.021, sweep:false, seed:23 });
+    if (p.framing) [-1, 1].forEach(function(s){
+      var fp = [new T.Vector3(s * 0.086, 1.74, 0.07), new T.Vector3(s * 0.098, 1.66, 0.075), new T.Vector3(s * 0.1, 1.56, 0.06), new T.Vector3(s * 0.11, 1.46, 0.045)];
+      var fm = new T.Mesh(new T.TubeGeometry(new T.CatmullRomCurve3(fp), 24, 0.012, 8, false), hm); g.add(fm);
+    });
+  } else if (st === "short") {
+    add(G.hsph, hm, 0.1, 0.064, 0.127, 0, 1.758, 0.004, g);
+  } else {
+    add(G.hsph, hm, 0.104, 0.1, 0.124, 0, 1.68, -0.03, g);
+    add(G.hsph, hm, 0.102, 0.066, 0.128, 0, 1.756, 0.0, g);
+    if (st === "pony") {
+      var pony = add(G.hsph, hm, 0.042, 0.17, 0.046, 0, 1.6, -0.155, g);
+      pony.rotation.x = 0.3;
+      add(G.cyl, M("#E31837", { roughness:0.5 }), 0.03, 0.024, 0.03, 0, 1.705, -0.136, g, false).rotation.x = 1.1;
+    } else {
+      var back = add(G.hsph, hm, 0.1, 0.215, 0.06, 0, 1.55, -0.09, g);
+      back.rotation.x = 0.12;
+      [-1, 1].forEach(function(s){ add(G.hsph, hm, 0.028, 0.13, 0.05, s * 0.088, 1.6, 0.005, g); });
+      if (st === "wavy") {
+        waveLocks(g, [hm], 10, { len:0.3, amp:0.012, freq:6, thick:0.018, sweep:false, seed:9 });
+      } else if (st === "halfup") {
+        add(G.hsph, hm, 0.042, 0.04, 0.042, 0, 1.745, -0.128, g);
+      }
+    }
+  }
+  var hs = cfg.hairScale || [1, 1, 1];
+  g.scale.set(k * hs[0], k * hs[1], k * hs[2]);
+  g.position.set(h.x, h.y + (cfg.hairY || 0) * k, h.z + (cfg.hairZ || 0) * k).sub(new V3(0, 1.596, -0.01).multiply(g.scale));
+  model.updateMatrixWorld(true);
+  head.attach(g);
+}
 function realGlasses(model, head, top){
   model.updateMatrixWorld(true);
   var h = model.worldToLocal(head.getWorldPosition(new V3())), tp = model.worldToLocal(top.getWorldPosition(new V3()));
   var L = h.distanceTo(tp), k = L / 0.179;
-  var g = new T.Group(); g.position.set(h.x, h.y + L * 0.36, h.z + 0.093 * k); model.add(g);
+  var g = new T.Group(); g.position.set(h.x, h.y + L * 0.37, h.z + 0.108 * k); model.add(g);
   var fr = new T.MeshStandardMaterial({ color:0x111111, roughness:0.35, metalness:0.2 });
   var lens = new T.MeshStandardMaterial({ color:0xbfd4e6, roughness:0.05, transparent:true, opacity:0.18 });
   [-1, 1].forEach(function(s){
