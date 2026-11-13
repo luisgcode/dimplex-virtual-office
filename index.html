@@ -700,7 +700,139 @@ function monitor(parent, x, z, w, h, kind, ry){
   scr.userData.dyn = true;
   g.add(scr);
   (parent.userData.screens = parent.userData.screens || []).push(scr);
+  registerScreen(scr, kind, parent);
   return g;
+}
+/* ---------- screens come alive ----------
+   Every desk screen does something while its owner works: code scrolls up and down on Luis's monitor and his second
+   monitor is a chat that keeps getting replies, Olivia zooms in and out of a product photo, and everyone else scrolls
+   and switches between tasks now and then. Screens freeze when their owner is away and go dark after hours. */
+var LIVE_SCREENS = [];
+function liveCanvas(w, h){ var c = document.createElement("canvas"); c.width = w; c.height = h; var t = new T.CanvasTexture(c); t.colorSpace = T.SRGBColorSpace; t.anisotropy = maxAniso; return { c:c, g:c.getContext("2d"), tex:t }; }
+function codeSheet(){
+  var L = liveCanvas(512, 1280), g = L.g, r = seeded(404), w = 512, h = 1280;
+  g.fillStyle = "#1c2128"; g.fillRect(0, 0, w, h);
+  g.fillStyle = "#242a32"; g.fillRect(0, 0, 96, h);
+  for (var i = 0; i < 70; i++) { g.fillStyle = i % 9 === 3 ? "#3a6ea5" : "#3a424d"; g.fillRect(12, 18 + i * 18, 40 + r() * 36, 7); }
+  var cols = ["#7fb3ff","#ff8fa3","#ffd479","#9be59b","#c9a7ff","#8a96a3","#8a96a3"], y = 14;
+  while (y < h - 8) {
+    var x = 110 + Math.floor(r() * 4) * 16, n = r() < 0.12 ? 0 : 1 + Math.floor(r() * 4);
+    g.fillStyle = "#4a535e"; g.font = "10px monospace"; g.fillText(String(Math.round(y / 15) + 1), 100 - 22, y + 7);
+    for (var j = 0; j < n; j++) { var ww = 18 + r() * 74; g.fillStyle = cols[Math.floor(r() * cols.length)]; g.fillRect(x, y, ww, 7); x += ww + 8; }
+    y += 15;
+  }
+  L.tex.needsUpdate = true;
+  L.tex.repeat.set(1, 320 / 1280); L.tex.offset.set(0, 1 - 320 / 1280);
+  return L.tex;
+}
+/* a chat window: messages appear one after another, the newest at the bottom, with a typing indicator in between */
+function chatScreen(){
+  var L = liveCanvas(512, 320);
+  L.msgs = []; L.next = 0; L.typing = 0;
+  L.draw = function(){
+    var g = L.g, w = 512, h = 320;
+    g.fillStyle = "#1f1e1d"; g.fillRect(0, 0, w, h);
+    g.fillStyle = "#2a2927"; g.fillRect(0, 0, w, 30);
+    g.fillStyle = "#d97757"; g.beginPath(); g.arc(18, 15, 7, 0, 7); g.fill();
+    g.fillStyle = "#e8e6e1"; g.font = "600 13px " + FONT; g.textBaseline = "middle"; g.fillText("Chat", 32, 15);
+    g.fillStyle = "#2f2e2c"; rrect(g, 14, h - 40, w - 28, 28, 8); g.fill();
+    g.fillStyle = "#6b6863"; g.fillRect(28, h - 29, 140, 6);
+    var y = h - 52;
+    if (L.typing) { g.fillStyle = "#8c8984"; for (var d = 0; d < 3; d++) { var a = 0.4 + 0.6 * Math.abs(Math.sin(performance.now() / 300 + d)); g.globalAlpha = a; g.beginPath(); g.arc(30 + d * 12, y, 4, 0, 7); g.fill(); } g.globalAlpha = 1; y -= 22; }
+    for (var i = L.msgs.length - 1; i >= 0 && y > 40; i--) {
+      var m = L.msgs[i], bh = 12 + m.lines * 11;
+      y -= bh;
+      if (m.me) { g.fillStyle = "#3b3a37"; rrect(g, w - 30 - m.w, y, m.w + 14, bh, 9); g.fill(); g.fillStyle = "#d8d5cf"; for (var k = 0; k < m.lines; k++) g.fillRect(w - 22 - m.w, y + 8 + k * 11, m.w * (k === m.lines - 1 ? 0.6 : 1) - 2, 5); }
+      else { g.fillStyle = "#c9c5bd"; for (var k2 = 0; k2 < m.lines; k2++) g.fillRect(24, y + 6 + k2 * 11, m.w * (k2 === m.lines - 1 ? 0.55 : 1), 5); }
+      y -= 10;
+    }
+    L.tex.needsUpdate = true;
+  };
+  L.tick = function(t){
+    if (t < L.next) { if (L.typing) L.draw(); return; }
+    if (L.typing) { L.typing = 0; L.msgs.push({ me:false, w:300 + Math.random() * 120, lines:2 + Math.floor(Math.random() * 5) }); L.next = t + rand(4, 9); }
+    else if (!L.msgs.length || L.msgs[L.msgs.length - 1].me === false) { L.msgs.push({ me:true, w:90 + Math.random() * 170, lines:1 + Math.floor(Math.random() * 2) }); L.typing = 1; L.next = t + rand(1.5, 3); }
+    else { L.typing = 1; L.next = t + rand(1.5, 3); }
+    if (L.msgs.length > 14) L.msgs.shift();
+    L.draw();
+  };
+  L.msgs.push({ me:true, w:180, lines:1 }, { me:false, w:360, lines:4 });
+  L.draw();
+  return L;
+}
+/* a photo editor: a lifestyle shot that the designer zooms into, pans across, and zooms back out of */
+function photoScreen(){
+  var P = document.createElement("canvas"); P.width = 640; P.height = 420; var p = P.getContext("2d"), r = seeded(77);
+  var wall = p.createLinearGradient(0, 0, 0, 420); wall.addColorStop(0, "#d8cbb8"); wall.addColorStop(1, "#b9a68e"); p.fillStyle = wall; p.fillRect(0, 0, 640, 420);
+  p.fillStyle = "#8a6a4e"; p.fillRect(0, 330, 640, 90);
+  p.fillStyle = "#2b2a2e"; p.fillRect(200, 140, 240, 130); p.fillStyle = "#141416"; p.fillRect(212, 152, 216, 106);
+  for (var i = 0; i < 10; i++) { p.fillStyle = i % 2 ? "rgba(255,170,60,0.9)" : "rgba(255,110,30,0.85)"; p.beginPath(); var fx = 225 + i * 20; p.moveTo(fx - 12, 252); p.quadraticCurveTo(fx, 170 + r() * 40, fx + 12, 252); p.fill(); }
+  p.fillStyle = "#f2efe8"; p.fillRect(170, 270, 300, 14);
+  p.fillStyle = "#6f7b6a"; p.fillRect(470, 250, 150, 90); p.fillStyle = "#5c6857"; p.fillRect(470, 230, 150, 30);
+  p.fillStyle = "#3f6b3a"; p.beginPath(); p.arc(90, 260, 46, 0, 7); p.fill(); p.fillStyle = "#7a5636"; p.fillRect(76, 290, 28, 44);
+  p.fillStyle = "#e9e3d6"; p.fillRect(250, 60, 140, 60); p.fillStyle = "#c7b79f"; p.fillRect(258, 68, 124, 44);
+  var L = liveCanvas(512, 320);
+  L.z = 1; L.cx = 320; L.cy = 210; L.target = null; L.next = 0;
+  L.draw = function(){
+    var g = L.g, w = 512, h = 320;
+    g.fillStyle = "#2b2b31"; g.fillRect(0, 0, w, h);
+    g.fillStyle = "#35353c"; g.fillRect(0, 0, 46, h); g.fillRect(w - 70, 0, 70, h); g.fillRect(0, 0, w, 20);
+    for (var i = 0; i < 9; i++) { g.fillStyle = i === 3 ? "#5b7cfa" : "#4b4b55"; g.fillRect(10, 30 + i * 26, 26, 14); }
+    for (i = 0; i < 6; i++) { g.fillStyle = "#4b4b55"; g.fillRect(w - 60, 30 + i * 34, 50, 22); }
+    var vx = 56, vy = 28, vw = w - 136, vh = h - 40, sw = 640 / L.z, sh = 420 / L.z;
+    var sx = clamp(L.cx - sw / 2, 0, 640 - sw), sy = clamp(L.cy - sh / 2, 0, 420 - sh);
+    g.drawImage(P, sx, sy, sw, sh, vx, vy, vw, vh);
+    g.strokeStyle = "rgba(255,255,255,0.7)"; g.setLineDash([5, 4]); g.strokeRect(vx + vw * 0.3, vy + vh * 0.3, vw * 0.4, vh * 0.4); g.setLineDash([]);
+    g.fillStyle = "#c9c9d2"; g.font = "600 11px " + FONT; g.textBaseline = "middle"; g.fillText(Math.round(L.z * 100) + "%", 60, 12);
+    L.tex.needsUpdate = true;
+  };
+  L.tick = function(t, dt){
+    if (t > L.next) {
+      L.next = t + rand(3, 6);
+      L.target = Math.random() < 0.35 ? { z:1, cx:320, cy:210 } : { z:rand(1.6, 3.2), cx:rand(180, 470), cy:rand(120, 300) };
+    }
+    var T2 = L.target || { z:1, cx:320, cy:210 }, k = 1 - Math.exp(-dt * 1.6);
+    L.z += (T2.z - L.z) * k; L.cx += (T2.cx - L.cx) * k; L.cy += (T2.cy - L.cy) * k;
+    L.draw();
+  };
+  L.draw();
+  return L;
+}
+function registerScreen(scr, kind, parent){ scr.userData.kind = kind; LIVE_SCREENS.push({ m:scr, kind:kind, desk:parent, base:scr.material.map }); }
+function screensTick(t, dt){
+  if (!screensTick.ready) {
+    screensTick.ready = true;
+    LIVE_SCREENS.forEach(function(s){
+      s.owner = PEOPLE.find(function(q){ return q.deskGroup === s.desk; }) || null;
+      if (s.kind === "code") { s.map = codeSheet(); s.m.material.map = s.map; s.scroll = 1 - 320 / 1280; s.to = s.scroll; }
+      else if (s.kind === "chat") { s.live = chatScreen(); s.m.material.map = s.live.tex; }
+      else if (s.kind === "swatch" && s.owner && s.owner.id === "olivia") { s.live = photoScreen(); s.m.material.map = s.live.tex; }
+      else if (s.kind !== "off") {
+        s.alts = [s.base, screenTex(s.kind === "web" ? "sheet" : "web")];
+        s.alts.forEach(function(tx){ tx.repeat.set(1, 0.86); tx.offset.set(0, 0.14); });
+        s.next = rand(15, 40); s.cur = 0;
+      }
+      s.m.material.needsUpdate = true;
+    });
+  }
+  for (var i = 0; i < LIVE_SCREENS.length; i++) {
+    var s = LIVE_SCREENS[i], p = s.owner;
+    var active = p && p.state === "sit" && !(p.trip && p.trip.kind === "home") && !lunchNow(p);
+    if (!active || !s.m.visible) continue;
+    if (s.map) {
+      /* code scrolls while typing, and jumps to another part of the file now and then */
+      if (Math.random() < dt * 0.12) s.to = clamp(s.to + (Math.random() < 0.5 ? -1 : 1) * rand(0.08, 0.3), 0, 1 - 320 / 1280);
+      if (p.typeOn) s.to = Math.max(0, s.to - dt * 0.004);
+      s.scroll += (s.to - s.scroll) * (1 - Math.exp(-dt * 3));
+      s.map.offset.y = s.scroll;
+    } else if (s.live) {
+      if (frameNo % 3 === 0 || s.kind === "chat") s.live.tick(t, dt * (frameNo % 3 === 0 ? 3 : 1));
+    } else if (s.alts) {
+      var tx = s.alts[s.cur];
+      tx.offset.y = 0.07 + 0.07 * Math.sin(t * 0.25 + i);
+      if (t > s.next) { s.cur = (s.cur + 1) % s.alts.length; s.m.material.map = s.alts[s.cur]; s.next = t + (s.cur ? rand(8, 18) : rand(20, 45)); }
+    }
+  }
 }
 /* soft contact shadow decal, shared by chairs and desks */
 var aoTex = canvasTex(128, 128, function(g, w, h){
@@ -795,11 +927,12 @@ function laptop(parent, x, z, kind, ry){
   var scr = new T.Mesh(plane1, new T.MeshBasicMaterial({ map:screenTex(kind), toneMapped:false }));
   scr.scale.set(0.33, 0.205, 1); scr.position.set(0, 0.117, 0.006); lid.add(scr);
   scr.userData.dyn = true; (parent.userData.screens = parent.userData.screens || []).push(scr);
+  registerScreen(scr, kind, parent);
   return g;
 }
 /* Luis: two external monitors and his laptop */
 monitor(dg, -0.5, -1.0, 0.56, 0.34, "code", 0.18);
-monitor(dg, 0.08, -1.0, 0.56, 0.34, "web", -0.12);
+monitor(dg, 0.08, -1.0, 0.56, 0.34, "chat", -0.12);
 laptop(dg, 0.58, -0.5, "code", -0.25);
 /* Debbie: two external monitors and a laptop */
 monitor(BY.debbie.deskGroup, -0.5, -1.0, 0.56, 0.34, "sheet", 0.18);
@@ -1014,7 +1147,12 @@ function officeHours(t, dt){
   logoLight.intensity = officeHours.base.logo * (1 - 0.6 * OFFICE_DARK);
   PEOPLE.forEach(function(q){
     var sc = q.deskGroup && q.deskGroup.userData.screens; if (!sc) return;
-    var off = q.state === "away" && q.trip && q.trip.kind === "home" ? 0.05 : 1;
+    var gone = q.state === "away" && q.trip && q.trip.kind === "home", off = gone ? 0.05 : 1;
+    if (q.chairG && q.chairBase && !(q.roll > 0.002)) {
+      q.tuck = lerp(q.tuck || 0, gone ? 1 : 0, 1 - Math.exp(-dt * 1.5));
+      q.chairG.position.set(q.chairBase.x, q.chairBase.y, q.chairBase.z - 0.36 * q.tuck);
+      if (gone) q.chairG.rotation.y = lerp(q.chairG.rotation.y, 0, 1 - Math.exp(-dt * 2));
+    }
     sc.forEach(function(m){ var c = m.material.color.r; if (Math.abs(c - off) > 0.01) m.material.color.setScalar(lerp(c, off, 1 - Math.exp(-dt * 3))); });
   });
 }
@@ -1531,13 +1669,13 @@ var REAL_MODELS = {
   stephanie:{ url:"models/stephanie.glb", height:1.66, tint:{ Coat:"#2a2a2e", Shirt:"#1d1d20", Pants:"#26304a", SwappedShoes:"#3a3a3a" }, shoesFrom:{ model:"stephanieb", mesh:"Sneakers", hide:["Shoe"] }, glasses:true, ownHair:true, hairScale:[1.0, 0.86, 1.0], hairY:0.13, hairZ:-0.02 },
   luis:{ url:"models/luis.glb", height:1.76, remap:[{ hue:[150, 215], to:"#34495e", minSat:0.05, midL:0.5 }, { hue:[0, 45], to:"#b98a68", minSat:0.12, midL:0.3, maxL:0.8 }] },
   carla:{ url:"models/carla.glb", height:1.64, tint:{ Shirt:"#e8b33a", Zipper:"#d9d4ca", Pants:"#2a2f3a" }, ownHair:true, hairScale:[1.0, 0.88, 1.0], hairY:0.12, hairZ:-0.02 },
-  erica:{ url:"models/erica.glb", height:1.66, tint:{ Suit:"#a3a8b0", Shirt:"#a8adb5", Pants:"#1d1f24", SwappedShoes:"#1a1b1e" }, hair:"#3a2418", highlight:"#8a6040", len:1.45, curl:1.6, locks:22, thick:1.1, shoesFrom:{ model:"stephanieb", mesh:"Sneakers", hide:["Heels"] }, ownHair:true, hairScale:[1.0, 0.88, 1.0], hairY:0.12, hairZ:-0.02 },
+  erica:{ footDrop:0.065, url:"models/erica.glb", height:1.66, tint:{ Suit:"#a3a8b0", Shirt:"#a8adb5", Pants:"#1d1f24", SwappedShoes:"#1a1b1e" }, hair:"#3a2418", highlight:"#8a6040", len:1.45, curl:1.6, locks:22, thick:1.1, shoesFrom:{ model:"stephanieb", mesh:"Sneakers", hide:["Heels"] }, ownHair:true, hairScale:[1.0, 0.88, 1.0], hairY:0.12, hairZ:-0.02 },
   allyson:{ url:"models/allyson.glb", height:1.66, tint:{ Shirt:"#7a4d9e", Pants:"#2c2a33", Shoes:"#5a2830" }, ownHair:true, hairScale:[1.0, 0.88, 1.0], hairY:0.12, hairZ:-0.02 },
-  debbie:{ url:"models/debbie.glb", height:1.63, tint:{ Suit:"#2a2b30", Shirt:"#3a3b40", Pants:"#17181b", SwappedShoes:"#141518" }, shoesFrom:{ model:"stephanieb", mesh:"Sneakers", hide:["Heels"] }, ownHair:true, hairScale:[1.0, 0.88, 1.0], hairY:0.12, hairZ:-0.02, earrings:"#d4af5a" },
+  debbie:{ footDrop:0.065, url:"models/debbie.glb", height:1.63, tint:{ Suit:"#2a2b30", Shirt:"#3a3b40", Pants:"#17181b", SwappedShoes:"#141518" }, shoesFrom:{ model:"stephanieb", mesh:"Sneakers", hide:["Heels"] }, ownHair:true, hairScale:[1.0, 0.88, 1.0], hairY:0.12, hairZ:-0.02, earrings:"#d4af5a" },
   olivia:{ url:"models/olivia.glb", height:1.66, tint:{ Shirt:"#c9ad84", Pants:"#4a4f58", Shoe:"#ecebe6" }, ownHair:true, hairScale:[1.0, 0.88, 1.0], hairY:0.12, hairZ:-0.02, glasses:true, sunglasses:true, earrings:"#d4af5a" },
   marissa:{ url:"models/marissa.glb", height:1.65, tint:{ Shirt:"#4f7cc4", Shorts:"#2a2d35" }, ownHair:true, hairScale:[1.0, 0.88, 1.0], hairY:0.12, hairZ:-0.02, glasses:true },
   nolan:{ url:"models/nolan.glb", height:1.8, tint:{ Suit:"#2b3a52", Shirt:"#e9eef4", Tie:"#8a2432", Pants:"#2b2f36" } },
-  elena:{ url:"models/elena.glb", height:1.65, tint:{ Shirt:"#b0476b", Pants:"#262a31", SwappedShoes:"#1a1b1e" }, shoesFrom:{ model:"stephanieb", mesh:"Sneakers", hide:["Heels"] }, earrings:"#d4af5a" },
+  elena:{ footDrop:0.065, url:"models/elena.glb", height:1.65, tint:{ Shirt:"#b0476b", Pants:"#262a31", SwappedShoes:"#1a1b1e" }, shoesFrom:{ model:"stephanieb", mesh:"Sneakers", hide:["Heels"] }, earrings:"#d4af5a" },
   tessa:{ url:"models/stephanieb.glb", height:1.66, tint:{ Shirt:"#3e8e6a", Pants:"#2a2d35" }, ownHair:true, hairScale:[1.0, 0.88, 1.0], hairY:0.12, hairZ:-0.02 },
   grant:{ url:"models/grant.glb", height:1.79, tint:{ Shirt:"#6b6f76", Pants:"#23272e" }, ownHair:true, hairScale:[1.0, 0.9, 1.0], hairY:0.1, hairZ:-0.02, glasses:true },
   hana:{ url:"models/hana.glb", height:1.62, tint:{ Cloth:"#d9d4c7" }, ownHair:true, hairScale:[1.0, 0.88, 1.0], hairY:0.12, hairZ:-0.02, earrings:"#d4af5a" },
@@ -2253,6 +2391,8 @@ function makeRig(p, sc){
   var root = new T.Group();
   root.rotation.order = "YXZ";
   var real = p.model && REAL[p.model];
+  /* characters modelled on heels stand that much taller: with flat shoes swapped in, lower them to the floor */
+  p.footDrop = real ? (REAL_MODELS[p.model].footDrop || 0) : 0;
   var model = SkeletonUtils.clone(real ? real.scene : GLTF.scene);
   p.k = p.id === "debbie" || p.id === "olivia" ? 0.945 : 1;
   model.scale.setScalar(real ? real.scale : CH_SCALE * p.k);
@@ -2336,7 +2476,7 @@ function updateRig(p, t, dt){
   r.nod.setEffectiveWeight(r.nodW);
   r.mixer.update(dt);
   var sit = ease(r.sit);
-  r.model.position.y = -(p.seatDrop || SEAT_DROP) * sit;
+  r.model.position.y = -(p.seatDrop || SEAT_DROP) * sit - (p.footDrop || 0);
   r.proxy.scale.y = 1 - 0.3 * sit; r.proxy.position.y = 0.9 * (1 - 0.3 * sit);
   r.root.rotation.y = p.heading + p.swivel;
   /* leaning back too far on the chair: the whole body tips, wobbles and comes back */
@@ -2884,7 +3024,7 @@ function decide(p, t){
     if (q.id === "luis" && p.walker) sc *= 0.12; /* the managers talk to Luis on Teams, they almost never walk over */
     if (sc > bs) { bs = sc; best = q; }
   });
-  if (best && !withdrawn) opts.push({ k:"visit", s:bs, q:best });
+  if (best && !withdrawn) opts.push({ k:"visit", s:bs * 0.45, q:best });
   var nbs = neighbours(p).filter(function(q){ return !luisDeepWork(q); });
   if (nbs.length && !withdrawn) { var tq = pickByAff(p, nbs); opts.push({ k:"talk", s:n.social * w.shop * 1.1 * sociable * (0.7 + 0.3 * aff(p, tq)) + rand(0, 0.3), q:tq }); }
   /* Carla checks on anyone who seems down */
@@ -2892,7 +3032,7 @@ function decide(p, t){
   /* walk up to a wall screen and talk to a remote colleague */
   REMOTE.forEach(function(rq){
     if (rq.visitor || rq.chatWith || rq.answering || withdrawn) return;
-    opts.push({ k:"visit", s:n.social * w.social * 0.95 * sociable + rand(0, 0.3), q:rq });
+    opts.push({ k:"visit", s:(n.social * w.social * 0.95 * sociable + rand(0, 0.3)) * 0.4, q:rq });
   });
   /* requests for Luis: walk over or ask from the desk */
   if (REQUESTS[p.id] && available(BY.luis)) {
@@ -3028,8 +3168,8 @@ var fwd = new V3(), dv = new V3();
 function updateAgent(p, t, dt){
   var n = p.needs, w = p.w, r = p.rig;
   n.energy = clamp(n.energy - dt * 0.004 * (p.typeOn ? 1.3 : 0.6) * DAY.load, 0, 1);
-  n.coffee = clamp(n.coffee + dt * 0.0055 * w.coffee * DAY.coffee, 0, 1);
-  n.social = clamp(n.social + dt * 0.0085 * w.social, 0, 1);
+  n.coffee = clamp(n.coffee + dt * 0.0019 * w.coffee * DAY.coffee, 0, 1);
+  n.social = clamp(n.social + dt * 0.0032 * w.social, 0, 1);
   n.focus = clamp(n.focus + dt * (p.typeOn ? 0.01 : -0.006), 0, 1);
   if (p.act && t - p.act.t0 > p.act.dur + 0.5) p.act = null;
   if (p.answering && t > p.answering) p.answering = 0;
@@ -3076,7 +3216,7 @@ function updateAgent(p, t, dt){
       if (bossAway(p) && Math.random() < 0.85) p.cal.next = t + rand(10, 25);
       else goTrip(p, t, "meeting", null, aislePath(p.seat, p.side, EXIT_SPOT, 0));
     } else if (t >= p.decideAt && !p.act && !p.chatWith && !p.visitor && !p.answering) {
-      p.decideAt = t + rand(3.5, 7);
+      p.decideAt = t + rand(9, 18);
       decide(p, t);
     }
     if (p.state === "sit") {
@@ -4298,12 +4438,15 @@ function swapShoes(dstRoot, srcRoot, opt){
   for (var i = 0; i < pa.count; i++) {
     var best = 0, bw = -1;
     for (var j = 0; j < 4; j++) if (comp(sw, i, j) > bw) { bw = comp(sw, i, j); best = comp(si, i, j); }
-    var sb = srcMesh.skeleton.bones[best], db = dB[sb.name] || dB["mixamorigHips"], side = /Right/.test(sb.name) ? "Right" : "Left";
+    var side = /Right/.test(srcMesh.skeleton.bones[best].name) ? "Right" : "Left";
+    var sb = sB["mixamorig" + side + "Foot"], db = dB["mixamorig" + side + "Foot"];
     v.fromBufferAttribute(pa, i).applyMatrix4(srcMesh.bindMatrix);
     inv.copy(sb.matrixWorld).invert(); v.applyMatrix4(inv).multiplyScalar(ratio[side]);
     v.applyMatrix4(db.matrixWorld).applyMatrix4(dstInv);
     pa.setXYZ(i, v.x, v.y, v.z);
-    for (j = 0; j < 4; j++) setComp(si, i, j, idxMap[comp(si, i, j)] || 0);
+    /* the whole shoe follows the foot bone as one piece */
+    var fi = newBones.indexOf(db); setComp(si, i, 0, fi); setComp(si, i, 1, 0); setComp(si, i, 2, 0); setComp(si, i, 3, 0);
+    setComp(sw, i, 0, 1); setComp(sw, i, 1, 0); setComp(sw, i, 2, 0); setComp(sw, i, 3, 0);
   }
   g.computeVertexNormals();
   var m = new T.SkinnedMesh(g, srcMesh.material.clone());
@@ -4514,6 +4657,7 @@ function frame(){
   updateMishaps(t, dt);
   guestTick(t);
   officeHours(t, dt);
+  screensTick(t, dt);
   huddleTick(t, dt);
   PEOPLE.forEach(function(p){ rollUpdate(p, dt); });
   if (!(t - (window.__dayT || -9) < 1)) { window.__dayT = t; dayTick(); clockTick(); }
