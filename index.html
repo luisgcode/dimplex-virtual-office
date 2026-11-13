@@ -303,7 +303,7 @@ var PEOPLE = [
   { id:"allyson", name:"Allyson", role:"Manager, Marketing", side:1, z:0.8, personality:"One of the bosses. Back-to-back meetings, every single day.", topics:"Meetings and quick syncs", shirt:"#7a4d9e", pants:"#2b2833", skin:"#f3d2b6", hair:"#c9a05c", style:"wavy", sleeves:true, screen:"cal2",
     blurb:"Leaves for one meeting, comes back for a coffee, leaves for the next one.",
     walker:{ sit:6, away:11, offset:14, text:{ sit:"Back-to-back meetings", out:"Running to the next call", away:"Back-to-back meetings", back:"Back-to-back meetings" } } },
-  { id:"stephanie", name:"Stephanie", role:"Flame products", side:1, z:2.65, personality:"Always solving fireplace issues.", topics:"Fireplaces and Flame products", shirt:"#141416", dot:"#e0703a", pants:"#1c2333", skin:"#f0d2c0", hair:"#1e1512", highlight:"#4a1f22", style:"softwave", part:-0.022, sleeves:false, puff:true, alwaysSmile:true, screen:"fire", glasses:true,
+  { id:"stephanie", name:"Stephanie", model:"stephanie", role:"Flame products", side:1, z:2.65, personality:"Always solving fireplace issues.", topics:"Fireplaces and Flame products", shirt:"#141416", dot:"#e0703a", pants:"#1c2333", skin:"#f0d2c0", hair:"#1e1512", highlight:"#4a1f22", style:"softwave", part:-0.022, sleeves:false, puff:true, alwaysSmile:true, screen:"fire", glasses:true,
     status:"Fixing a fireplace issue", blurb:"Electric fireplaces. If a flame effect looks wrong, she already knows why." },
   { id:"debbie", name:"Debbie", role:"Heat products", side:-1, z:0.8, personality:"Keeps every room in the catalog warm.", topics:"Baseboards and Heat products", shirt:"#b83c4c", pants:"#2d3138", skin:"#e8c4a4", hair:"#211611", style:"straight", part:0.012, framing:true, eyeShape:"almond", earrings:"drop", alwaysSmile:true, sleeves:true, screen:"sheet",
     status:"Heat products", blurb:"Baseboards, wall heaters and everything that keeps a room warm in January." },
@@ -1501,7 +1501,10 @@ focusRing.userData.dyn = true;
 /* ---------- characters: rigged, skinned mannequin with skeletal animation ---------- */
 var MODEL_URL = "https://cdn.jsdelivr.net/gh/mrdoob/three.js@r160/examples/models/gltf/Xbot.glb";
 /* pilot: real character models with hair and clothes, same Mixamo skeleton, so the same animations play on them */
-var REAL_MODELS = {};
+var REAL_MODELS = {
+  /* each person: an artist-made character, recoloured per garment to match how they dress */
+  stephanie:{ url:"models/stephanie.glb", height:1.66, tint:{ Coat:"#2a2a2e", Shirt:"#1d1d20", Pants:"#26304a", Shoe:"#3a3a3a", Hair:"#6b4a40" }, glasses:true }
+};
 var REAL = {}, CLIPS_R = {};
 var CH_SCALE = 1.70 / 1.806;
 var WALK_V = 1.26;      /* metres per second that match the walk clip at this scale, so feet do not slide */
@@ -2221,7 +2224,12 @@ function makeRig(p, sc){
   root.add(model);
   var bodyMesh = null;
   model.traverse(function(o){
-    if (o.isSkinnedMesh && real) { o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; return; }
+    if (o.isSkinnedMesh && real) {
+      o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false;
+      var tint = REAL_MODELS[p.model].tint || {}, key = Object.keys(tint).find(function(k){ return o.name.indexOf(k) >= 0; });
+      if (key) { o.material = o.material.clone(); o.material.color.set(tint[key]); }
+      return;
+    }
     if (o.isSkinnedMesh) {
       colorize(o, p, 1);
       o.castShadow = o.name.indexOf("Joints") < 0; o.receiveShadow = true; o.frustumCulled = false;
@@ -2248,6 +2256,7 @@ function makeRig(p, sc){
   BONE_NAMES.forEach(function(n){ b[n] = model.getObjectByName("mixamorig" + n); });
   root.updateMatrixWorld(true);
   if (!real) buildHead(p, model, b.Head);
+  else if (REAL_MODELS[p.model].glasses) realGlasses(model, b.Head, b.HeadTop_End);
   buildProps(p, model, b.RightHand);
   var mixer = new T.AnimationMixer(model), CL = real ? CLIPS_R : CLIPS;
   var idle = mixer.clipAction(CL.idle), walk = mixer.clipAction(CL.walk), nod = mixer.clipAction(CL.agree);
@@ -3946,12 +3955,50 @@ try {
   GLTF = await new GLTFLoader().loadAsync(MODEL_URL);
 } catch (e) { fail("Could not load the 3D people. Check your connection and reload the page."); return; }
 GLTF.animations.forEach(function(c){ CLIPS[c.name] = c; });
+/* artist rigs orient their bones differently from the Xbot. Re-orient every bone so its rest frame matches the Xbot's
+   (same world rotation, same joint position), then re-bind the meshes at that pose: the mesh does not move, and every
+   Xbot clip and procedural pose now bends each joint the same way. */
+/* glasses on an artist-made head: sized from the head bone length, attached to the head */
+function realGlasses(model, head, top){
+  model.updateMatrixWorld(true);
+  var h = model.worldToLocal(head.getWorldPosition(new V3())), tp = model.worldToLocal(top.getWorldPosition(new V3()));
+  var L = h.distanceTo(tp), k = L / 0.179;
+  var g = new T.Group(); g.position.set(h.x, h.y + L * 0.36, h.z + 0.093 * k); model.add(g);
+  var fr = new T.MeshStandardMaterial({ color:0x111111, roughness:0.35, metalness:0.2 });
+  var lens = new T.MeshStandardMaterial({ color:0xbfd4e6, roughness:0.05, transparent:true, opacity:0.18 });
+  [-1, 1].forEach(function(s){
+    var ring = new T.Mesh(new T.TorusGeometry(0.019 * k, 0.0028 * k, 8, 24), fr); ring.scale.y = 0.8; ring.position.x = s * 0.032 * k; g.add(ring);
+    var ln = new T.Mesh(new T.CircleGeometry(0.019 * k, 20), lens); ln.scale.y = 0.8; ln.position.set(s * 0.032 * k, 0, -0.001 * k); g.add(ln);
+    var arm = new T.Mesh(new T.BoxGeometry(0.003 * k, 0.003 * k, 0.09 * k), fr); arm.position.set(s * 0.052 * k, 0.004 * k, -0.045 * k); g.add(arm);
+  });
+  var br = new T.Mesh(new T.BoxGeometry(0.026 * k, 0.003 * k, 0.003 * k), fr); br.position.y = 0.004 * k; g.add(br);
+  g.scale.setScalar(0.86); g.position.y -= L * 0.02;
+  head.attach(g);
+}
+function normalizeRig(sc){
+  var xs = {}, q = new T.Quaternion();
+  GLTF.scene.updateMatrixWorld(true);
+  GLTF.scene.traverse(function(b){ if (b.isBone) xs[b.name] = b.getWorldQuaternion(new T.Quaternion()); });
+  sc.updateMatrixWorld(true);
+  var bones = [], wp = new Map(), wq = new Map();
+  sc.traverse(function(b){ if (b.isBone) { bones.push(b); wp.set(b, b.getWorldPosition(new V3())); wq.set(b, b.getWorldQuaternion(new T.Quaternion())); } });
+  bones.forEach(function(b){
+    var par = b.parent; par.updateMatrixWorld(true);
+    var pq = par.getWorldQuaternion(new T.Quaternion()), target = xs[b.name] || wq.get(b);
+    b.quaternion.copy(pq.invert().multiply(target));
+    b.position.copy(par.worldToLocal(wp.get(b).clone()));
+    b.updateMatrixWorld(true);
+  });
+  sc.updateMatrixWorld(true);
+  sc.traverse(function(o){ if (o.isSkinnedMesh) o.bind(o.skeleton); });
+}
 /* the real models get the same clips without position tracks (their rest pose is in different units) */
-["idle", "walk", "agree"].forEach(function(n){ var c = CLIPS[n].clone(); c.tracks = c.tracks.filter(function(tk){ return !/\.position$/.test(tk.name) && tk.name !== "mixamorigHips.quaternion"; }); CLIPS_R[n] = c; });
+["idle", "walk", "agree"].forEach(function(n){ var c = CLIPS[n].clone(); c.tracks = c.tracks.filter(function(tk){ return !/\.position$/.test(tk.name); }); CLIPS_R[n] = c; });
 T.AnimationUtils.makeClipAdditive(CLIPS.agree);
 T.AnimationUtils.makeClipAdditive(CLIPS_R.agree);
 await Promise.all(Object.keys(REAL_MODELS).map(function(k){
   return new GLTFLoader().loadAsync(REAL_MODELS[k].url).then(function(g){
+    normalizeRig(g.scene);
     /* match the Xbot by skeleton height: head top over the hips line, measured on both rigs */
     function topY(sc){ sc.updateMatrixWorld(true); var o = sc.getObjectByName("mixamorigHeadTop_End") || sc.getObjectByName("mixamorigHead"), v = new V3(); o.getWorldPosition(v); return v.y; }
     var hx = topY(GLTF.scene), hm = topY(g.scene) || 1;
