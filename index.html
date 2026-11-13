@@ -1531,7 +1531,7 @@ var REAL_MODELS = {
   stephanie:{ url:"models/stephanie.glb", height:1.66, tint:{ Coat:"#2a2a2e", Shirt:"#1d1d20", Pants:"#26304a", SwappedShoes:"#3a3a3a" }, shoesFrom:{ model:"stephanieb", mesh:"Sneakers", hide:["Shoe"] }, glasses:true, ownHair:true, hairScale:[1.0, 0.86, 1.0], hairY:0.13, hairZ:-0.02 },
   luis:{ url:"models/luis.glb", height:1.76, remap:[{ hue:[150, 215], to:"#34495e", minSat:0.05, midL:0.5 }, { hue:[0, 45], to:"#b98a68", minSat:0.12, midL:0.3, maxL:0.8 }] },
   carla:{ url:"models/carla.glb", height:1.64, tint:{ Shirt:"#e8b33a", Zipper:"#d9d4ca", Pants:"#2a2f3a" }, ownHair:true, hairScale:[1.0, 0.88, 1.0], hairY:0.12, hairZ:-0.02 },
-  erica:{ url:"models/erica.glb", height:1.66, tint:{ Suit:"#4a4d52", Shirt:"#e9e6e1", Pants:"#1d1f24", SwappedShoes:"#1a1b1e" }, shoesFrom:{ model:"stephanieb", mesh:"Sneakers", hide:["Heels"] }, ownHair:true, hairScale:[1.0, 0.88, 1.0], hairY:0.12, hairZ:-0.02 },
+  erica:{ url:"models/erica.glb", height:1.66, tint:{ Suit:"#a3a8b0", Shirt:"#a8adb5", Pants:"#1d1f24", SwappedShoes:"#1a1b1e" }, hair:"#3a2418", highlight:"#8a6040", len:1.45, curl:1.6, locks:22, thick:1.1, shoesFrom:{ model:"stephanieb", mesh:"Sneakers", hide:["Heels"] }, ownHair:true, hairScale:[1.0, 0.88, 1.0], hairY:0.12, hairZ:-0.02 },
   allyson:{ url:"models/allyson.glb", height:1.66, tint:{ Shirt:"#7a4d9e", Pants:"#2c2a33", Shoes:"#5a2830" }, ownHair:true, hairScale:[1.0, 0.88, 1.0], hairY:0.12, hairZ:-0.02 },
   debbie:{ url:"models/debbie.glb", height:1.63, tint:{ Suit:"#2a2b30", Shirt:"#3a3b40", Pants:"#17181b", SwappedShoes:"#141518" }, shoesFrom:{ model:"stephanieb", mesh:"Sneakers", hide:["Heels"] }, ownHair:true, hairScale:[1.0, 0.88, 1.0], hairY:0.12, hairZ:-0.02, earrings:"#d4af5a" },
   olivia:{ url:"models/olivia.glb", height:1.66, tint:{ Shirt:"#c9ad84", Pants:"#4a4f58", Shoe:"#ecebe6" }, ownHair:true, hairScale:[1.0, 0.88, 1.0], hairY:0.12, hairZ:-0.02, glasses:true, sunglasses:true, earrings:"#d4af5a" },
@@ -1541,7 +1541,7 @@ var REAL_MODELS = {
   tessa:{ url:"models/stephanieb.glb", height:1.66, tint:{ Shirt:"#3e8e6a", Pants:"#2a2d35" }, ownHair:true, hairScale:[1.0, 0.88, 1.0], hairY:0.12, hairZ:-0.02 },
   grant:{ url:"models/grant.glb", height:1.79, tint:{ Shirt:"#6b6f76", Pants:"#23272e" }, ownHair:true, hairScale:[1.0, 0.9, 1.0], hairY:0.1, hairZ:-0.02, glasses:true },
   hana:{ url:"models/hana.glb", height:1.62, tint:{ Cloth:"#d9d4c7" }, ownHair:true, hairScale:[1.0, 0.88, 1.0], hairY:0.12, hairZ:-0.02, earrings:"#d4af5a" },
-  stephanieb:{ url:"models/stephanieb.glb", height:1.66, tint:{ Shirt:"#17181b", Pants:"#2b2f36", Sneakers:"#d9d4ca" }, ownHair:true, hairScale:[1.02, 0.88, 1.02], hairY:0.12, hairZ:-0.02, earrings:"#d4af5a", lips:"#c0283a", hair:"#4a2216", highlight:"#7a3a22", curl:2.4, locks:28, thick:1.15 }
+  stephanieb:{ url:"models/stephanieb.glb", height:1.66, tint:{ Shirt:"#17181b", Pants:"#2b2f36", Sneakers:"#d9d4ca" }, ownHair:true, hairScale:[1.02, 0.88, 1.02], hairY:0.12, hairZ:-0.02, earrings:"#d9dade", hoop:2.1, lips:"#a8101f", lipsAlpha:0.8, hair:"#3d2216", highlight:"#5c3522", curl:1.5, freq:0.45, len:1.25, locks:34, thick:1.45, hatScale:0.95, hatDrop:0.06 }
 };
 var REAL = {}, CLIPS_R = {};
 var CH_SCALE = 1.70 / 1.806;
@@ -4039,8 +4039,8 @@ function realHair(p, model, head, top){
     var part = p.part || 0;
     add(G.hsph, hm, 0.112, 0.108, 0.13, part * 0.3, 1.69, -0.028, g);
     add(G.hsph, hm, 0.106, 0.072, 0.13, part * 0.6, 1.752, -0.004, g);
-    if (st === "curly") waveLocks(g, [hm, hl, hm], cfg.locks || 20, { len:0.44, amp:0.024 * (cfg.curl || 1), freq:10, thick:0.024 * (cfg.thick || 1), sweep:true, seed:42 });
-    else if (st === "softwave") waveLocks(g, [hm, hm, hl], 16, { len:0.32, amp:0.011, freq:5, thick:0.021, sweep:false, seed:17 });
+    if (st === "curly") waveLocks(g, [hm, hl, hm], cfg.locks || 20, { len:0.44 * (cfg.len || 1), amp:0.024 * (cfg.curl || 1), freq:10 * (cfg.freq || 1), thick:0.024 * (cfg.thick || 1), sweep:true, seed:42 });
+    else if (st === "softwave") waveLocks(g, [hm, hm, hl], cfg.locks || 16, { len:0.32 * (cfg.len || 1), amp:0.011 * (cfg.curl || 1), freq:5 * (cfg.freq || 1), thick:0.021 * (cfg.thick || 1), sweep:false, seed:17 });
     else waveLocks(g, [hm, hm, hl], 17, { len:0.4, amp:0.0035, freq:2, thick:0.021, sweep:false, seed:23 });
     if (p.framing) [-1, 1].forEach(function(s){
       var fp = [new T.Vector3(s * 0.086, 1.74, 0.07), new T.Vector3(s * 0.098, 1.66, 0.075), new T.Vector3(s * 0.1, 1.56, 0.06), new T.Vector3(s * 0.11, 1.46, 0.045)];
@@ -4139,7 +4139,7 @@ function paintLips(root, RB, color){
     var nOk = 0; for (var i2 = 0; i2 < ok.length; i2++) nOk += ok[i2];
 
     /* a soft tint, not paint: multiply at partial strength so the lip shape and shading show through */
-    g.globalCompositeOperation = "multiply"; g.fillStyle = color; g.globalAlpha = 0.55; g.filter = "blur(1.5px)";
+    g.globalCompositeOperation = "multiply"; g.fillStyle = color; g.globalAlpha = arguments[3] || 0.55; g.filter = "blur(1.5px)";
     var flip = o.material.map.flipY;
     for (var t = 0; t < ix.length; t += 3) {
       var a = ix[t], b = ix[t + 1], d = ix[t + 2];
@@ -4200,8 +4200,9 @@ function realEarrings(p, model, head){
   var RB = REAL[p.model].headBox; if (!RB) return;
   var rs = RB.getSize(new V3()), rc = RB.getCenter(new V3()), m = new T.MeshStandardMaterial({ color:REAL_MODELS[p.model].earrings, roughness:0.25, metalness:0.9 });
   [-1, 1].forEach(function(s){
-    var e = new T.Mesh(new T.TorusGeometry(rs.x * 0.06, rs.x * 0.012, 8, 20), m);
-    e.position.set(rc.x + s * rs.x * 0.47, rc.y - rs.y * 0.17, rc.z - rs.z * 0.06); e.rotation.y = Math.PI / 2;
+    var hs2 = REAL_MODELS[p.model].hoop || 1;
+    var e = new T.Mesh(new T.TorusGeometry(rs.x * 0.06 * hs2, rs.x * 0.01, 8, 28), m);
+    e.position.set(rc.x + s * rs.x * 0.47, rc.y - rs.y * (0.17 + 0.055 * (hs2 - 1)), rc.z - rs.z * 0.06); e.rotation.y = Math.PI / 2;
     model.add(e); model.updateMatrixWorld(true); head.attach(e);
   });
 }
@@ -4266,7 +4267,7 @@ await Promise.all(Object.keys(REAL_MODELS).map(function(k){
     var hx = topY(GLTF.scene), hm = topY(g.scene) || 1;
     REAL[k] = { scene:g.scene, scale:CH_SCALE * (hx / hm) * (REAL_MODELS[k].height / 1.70), headBox:headBoxOf(g.scene) };
     if (REAL_MODELS[k].remap) { try { remapTexture(g.scene, REAL_MODELS[k].remap); } catch (e) { console.warn("remap", e); } }
-    if (REAL_MODELS[k].lips) { try { paintLips(g.scene, REAL[k].headBox, REAL_MODELS[k].lips); } catch (e) { window.__lips = "ERR " + e.message; } }
+    if (REAL_MODELS[k].lips) { try { paintLips(g.scene, REAL[k].headBox, REAL_MODELS[k].lips, REAL_MODELS[k].lipsAlpha); } catch (e) { window.__lips = "ERR " + e.message; } }
     g.scene.traverse(function(o){ if (o.isMesh && o.material) { o.material.envMapIntensity = 0.6; } });
   }).catch(function(e){ console.warn("model " + k, e); window.__modelErr = (window.__modelErr || "") + k + ": " + (e && e.message) + "; "; /* if the model fails, that person keeps the current look */ });
 }));
@@ -4420,7 +4421,8 @@ function updateRemote(p, t, dt){
     p.statusNow = DAY.fri ? "Offline for the weekend" : "Offline, back tomorrow";
     return;
   }
-  /* now and then the camera goes off for a while */
+  /* now and then the camera goes off for a while (?cam=on keeps it on, for checking looks) */
+  if (t > p.camNext && /[?&]cam=on/.test(location.search)) { p.camNext = t + 999; if (p.camOff) { p.camOff = false; p.scrMat.map = p.liveTex; } }
   if (t > p.camNext) {
     p.camOff = !p.camOff;
     p.camNext = t + (p.camOff ? rand(30, 120) : rand(60, 200));
