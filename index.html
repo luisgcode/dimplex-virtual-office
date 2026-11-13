@@ -1368,9 +1368,19 @@ function officeHours(t, dt){
   if (!officeHours.base) officeHours.base = { sun:sun.intensity, fill:fill.intensity, hemi:hemiL.intensity, logo:logoLight.intensity, exp:renderer.toneMappingExposure, env:scene.environmentIntensity !== undefined ? scene.environmentIntensity : 1 };
   renderer.toneMappingExposure = officeHours.base.exp * (1 - 0.45 * OFFICE_DARK);
   var nightEl = officeHours.el || (officeHours.el = document.getElementById("night"));
-  var op = (OFFICE_DARK > 0.02 ? OFFICE_DARK * 0.4 : 0).toFixed(2); if (nightEl.style.opacity !== op) nightEl.style.opacity = op;
+  var op = (OFFICE_DARK > 0.02 ? OFFICE_DARK * 0.3 : 0).toFixed(2); if (nightEl.style.opacity !== op) nightEl.style.opacity = op;
   sun.intensity = officeHours.base.sun * k; fill.intensity = officeHours.base.fill * k; hemiL.intensity = officeHours.base.hemi * (1 - 0.88 * OFFICE_DARK);
   logoLight.intensity = officeHours.base.logo * (1 - 0.75 * OFFICE_DARK);
+  /* the room environment light is most of the daylight look: turn it down on every material too */
+  if (Math.abs(OFFICE_DARK - (officeHours.envAt === undefined ? -1 : officeHours.envAt)) > 0.01) {
+    officeHours.envAt = OFFICE_DARK;
+    if (!officeHours.mats) {
+      officeHours.mats = [];
+      scene.traverse(function(o){ var ms = o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : []; ms.forEach(function(m){ if (m.envMapIntensity !== undefined && !m.userData.envBase && officeHours.mats.indexOf(m) < 0) { m.userData.envBase = m.envMapIntensity; officeHours.mats.push(m); } }); });
+    }
+    var ek = 1 - 0.9 * OFFICE_DARK;
+    for (var mi = 0; mi < officeHours.mats.length; mi++) officeHours.mats[mi].envMapIntensity = officeHours.mats[mi].userData.envBase * ek;
+  }
   PEOPLE.forEach(function(q){
     var sc = q.deskGroup && q.deskGroup.userData.screens; if (!sc) return;
     var gone = q.state === "away" && q.trip && q.trip.kind === "home", off = gone ? 0 : 1;
