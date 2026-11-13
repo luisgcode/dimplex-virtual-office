@@ -1749,6 +1749,160 @@ function fabricNormal(twill){
   return t;
 }
 var WEAVE = null, TWILL = null;
+/* ---------- smooth body (pilot) ----------
+   Instead of the mannequin surface, the body is rebuilt as continuous skinned tubes that follow the same skeleton:
+   a top, trousers, arms, hands, neck, head and shoes, each its own piece with its own material, blended at the joints
+   so knees, elbows and shoulders bend without seams. Same skeleton, so every animation keeps working. */
+var SMOOTH = { stephanie:true };
+function smoothBody(p, model, body){
+  if (!WEAVE) { WEAVE = fabricNormal(false); TWILL = fabricNormal(true); }
+  var sk = body.skeleton, bi = {};
+  sk.bones.forEach(function(b, i){ bi[b.name.replace(/^mixamorig:?/, "")] = i; });
+  var bindM = body.bindMatrix.clone(), invBind = bindM.clone().invert();
+  function P(n){ var i = bi[n]; if (i === undefined) return null; return new V3().setFromMatrixPosition(sk.boneInverses[i].clone().invert()); }
+  function ss(a, b, x){ var t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); }
+
+  /* head: fit an ellipsoid to the mannequin's own head so the face, hair and glasses still sit right */
+  var pos = body.geometry.attributes.position, si = body.geometry.attributes.skinIndex, sw = body.geometry.attributes.skinWeight;
+  var hb = new T.Box3(), v = new V3(), headI = bi.Head, any = false;
+  for (var i = 0; i < pos.count; i++) {
+    if (si.getX(i) === headI && sw.getX(i) > 0.6) { v.fromBufferAttribute(pos, i).applyMatrix4(bindM); hb.expandByPoint(v); any = true; }
+  }
+  var hc = any ? hb.getCenter(new V3()) : new V3(0, 1.665, 0.01), hs = any ? hb.getSize(new V3()).multiplyScalar(0.5) : new V3(0.09, 0.115, 0.105);
+
+  function piece(color, map, rough){
+    return { P:[], N:[], U:[], SI:[], SW:[], IDX:[], mat:new T.MeshStandardMaterial({ color:color, roughness:rough || 0.82, normalMap:map || null, normalScale:new T.Vector2(0.45, 0.45), envMapIntensity:0.5 }) };
+  }
+  /* a tube along a chain of points; radii are [side, front] half sizes; bones name the bone at each point */
+  function tube(G, pts, radii, bones, o){
+    o = o || {};
+    var sides = o.sides || 22, segN = o.seg || 7, rings = [], i, j, k;
+    for (i = 0; i < pts.length - 1; i++) for (j = 0; j < segN; j++) rings.push({ i:i, u:j / segN });
+    rings.push({ i:pts.length - 2, u:1 });
+    var C = rings.map(function(r){ return new V3().lerpVectors(pts[r.i], pts[r.i + 1], r.u); });
+    var ref = o.ref || new V3(0, 0, 1);
+    var out = [];
+    function ringAt(c, tng, rx, rz, w){
+      var A = ref.clone().addScaledVector(tng, -ref.dot(tng)).normalize(), B = new V3().crossVectors(tng, A).normalize();
+      out.push({ c:c, A:A, B:B, rx:rx, rz:rz, w:w });
+    }
+    rings.forEach(function(r, n){
+      var prev = C[Math.max(0, n - 1)], next = C[Math.min(C.length - 1, n + 1)];
+      var tng = new V3().subVectors(next, prev).normalize();
+      var e = r.u * r.u * (3 - 2 * r.u), a = radii[r.i], b = radii[r.i + 1];
+      var rx = a[0] + (b[0] - a[0]) * e, rz = a[1] + (b[1] - a[1]) * e;
+      if (o.bulge) { var bl = o.bulge(r.i, r.u); rx *= bl; rz *= bl; }
+      var nA = bones[r.i], nB = r.i + 1 < bones.length ? bones[r.i + 1] : null, nP = r.i > 0 ? bones[r.i - 1] : null;
+      var wB = nB && nB !== nA && (r.i < pts.length - 2 || o.blendEnd) ? ss(0.55, 1, r.u) * 0.5 : 0;
+      var wP = nP && nP !== nA ? (1 - ss(0, 0.45, r.u)) * 0.5 : 0;
+      ringAt(C[n], tng, rx, rz, [[nA, 1 - wB - wP], [nB, wB], [nP, wP]]);
+    });
+    /* rounded caps */
+    function cap(end){
+      var R = end ? out[out.length - 1] : out[0], d = new V3().subVectors(end ? C[C.length - 1] : C[0], end ? C[C.length - 2] : C[1]).normalize();
+      var add = [];
+      for (k = 1; k <= 4; k++) {
+        var a = k / 4 * Math.PI / 2, s = Math.cos(a);
+        add.push({ c:R.c.clone().addScaledVector(d, Math.sin(a) * Math.min(R.rx, R.rz) * (o.capK || 0.9)), A:R.A, B:R.B, rx:R.rx * Math.max(s, 0.02), rz:R.rz * Math.max(s, 0.02), w:R.w });
+      }
+      if (end) out = out.concat(add); else out = add.reverse().concat(out);
+    }
+    if (o.capStart !== false) cap(false);
+    if (o.capEnd !== false) cap(true);
+    var base = G.P.length / 3, L = 0;
+    out.forEach(function(R, n){
+      if (n) L += R.c.distanceTo(out[n - 1].c);
+      for (var s2 = 0; s2 <= sides; s2++) {
+        var ang = s2 / sides * Math.PI * 2, ca = Math.cos(ang), sa = Math.sin(ang);
+        var pp = R.c.clone().addScaledVector(R.B, ca * R.rx).addScaledVector(R.A, sa * R.rz);
+        G.P.push(pp.x, pp.y, pp.z); G.U.push(s2 / sides * 3, L * 6);
+        var ww = R.w.filter(function(x){ return x[0] && x[1] > 0.001; }), tot = 0;
+        ww.forEach(function(x){ tot += x[1]; });
+        for (var q = 0; q < 4; q++) { var x2 = ww[q]; G.SI.push(x2 ? bi[x2[0]] || 0 : 0); G.SW.push(x2 ? x2[1] / tot : 0); }
+      }
+    });
+    for (var n2 = 0; n2 < out.length - 1; n2++) for (var s3 = 0; s3 < sides; s3++) {
+      var a0 = base + n2 * (sides + 1) + s3, a1 = a0 + sides + 1;
+      G.IDX.push(a0, a0 + 1, a1, a0 + 1, a1 + 1, a1);
+    }
+  }
+  function ellipsoid(G, c, r, bone){
+    var sg = new T.SphereGeometry(1, 28, 20), sp = sg.attributes.position, uv = sg.attributes.uv, base = G.P.length / 3;
+    for (var i2 = 0; i2 < sp.count; i2++) {
+      G.P.push(c.x + sp.getX(i2) * r.x, c.y + sp.getY(i2) * r.y, c.z + sp.getZ(i2) * r.z); G.U.push(uv.getX(i2), uv.getY(i2));
+      G.SI.push(bi[bone], 0, 0, 0); G.SW.push(1, 0, 0, 0);
+    }
+    var ix = sg.index.array; for (var j2 = 0; j2 < ix.length; j2++) G.IDX.push(base + ix[j2]);
+  }
+  function build(G){
+    var g = new T.BufferGeometry();
+    g.setAttribute("position", new T.Float32BufferAttribute(G.P, 3));
+    g.setAttribute("uv", new T.Float32BufferAttribute(G.U, 2));
+    g.setAttribute("skinIndex", new T.Uint16BufferAttribute(G.SI, 4));
+    g.setAttribute("skinWeight", new T.Float32BufferAttribute(G.SW, 4));
+    g.setIndex(G.IDX);
+    g.applyMatrix4(invBind);
+    g.computeVertexNormals();
+    var m = new T.SkinnedMesh(g, G.mat);
+    m.castShadow = true; m.receiveShadow = true; m.frustumCulled = false;
+    body.parent.add(m);
+    m.bind(sk, bindM.clone());
+    return m;
+  }
+
+  var o = OUTFIT[p.id] || {}, top = piece(o.shirt || p.shirt, WEAVE), pants = piece(o.pants || p.pants, TWILL, 0.85);
+  var skin = piece(p.skin, null, 0.55), shoes = piece(o.shoe || "#17181b", null, 0.45);
+  var hips = P("Hips"), sp0 = P("Spine"), sp1 = P("Spine1"), sp2 = P("Spine2"), neck = P("Neck"), head = P("Head");
+  var fem = p.k < 1 || /she/.test((PROFILE[p.id] || {}).pron || "");
+
+  /* trousers: a seat that the top hangs over, then both legs down to the ankle */
+  tube(pants, [new V3(0, hips.y - 0.17, hips.z - 0.005), new V3(0, hips.y - 0.08, hips.z), new V3(0, hips.y + 0.03, hips.z)],
+    [[0.14, 0.098], [fem ? 0.162 : 0.155, 0.108], [0.148, 0.1]], ["Hips", "Hips", "Hips"], { ref:new V3(0, 0, 1) });
+  [["Left", 1], ["Right", -1]].forEach(function(sd){
+    var S = sd[0], up = P(S + "UpLeg"), kn = P(S + "Leg"), an = P(S + "Foot");
+    tube(pants, [new V3(up.x * 0.9, up.y + 0.04, up.z - 0.005), up, kn, new V3(an.x, an.y - 0.01, an.z)],
+      [[0.086, 0.092], [0.084, 0.09], [0.056, 0.06], [0.05, 0.052]], [S + "UpLeg", S + "UpLeg", S + "Leg", S + "Foot"], { blendEnd:false, capEnd:false });
+    /* shoes: heel to toe */
+    var tb = P(S + "ToeBase"), te = P(S + "Toe_End") || tb.clone().add(new V3(0, 0, 0.09));
+    tube(shoes, [new V3(an.x, 0.045, an.z - 0.05), new V3(tb.x, 0.042, tb.z), new V3(te.x, 0.032, te.z - 0.005)],
+      [[0.043, 0.046], [0.047, 0.04], [0.036, 0.026]], [S + "Foot", S + "Foot", S + "ToeBase"], { ref:new V3(0, 1, 0), seg:5 });
+    /* arms: skin from the shoulder to the wrist, then a hand */
+    var sh = P(S + "Shoulder"), ar = P(S + "Arm"), fa = P(S + "ForeArm"), ha = P(S + "Hand"), mid = P(S + "HandMiddle1"), mend = P(S + "HandMiddle4") || mid.clone().add(new V3(sd[1] * 0.09, 0, 0));
+    tube(skin, [new V3(sh.x + sd[1] * 0.02, sh.y - 0.005, sh.z - 0.01), ar, fa, ha],
+      [[fem ? 0.044 : 0.05, 0.046], [fem ? 0.042 : 0.048, 0.044], [0.036, 0.034], [0.027, 0.023]], [S + "Shoulder", S + "Arm", S + "ForeArm", S + "Hand"], { capStart:false, ref:new V3(0, 0, 1) });
+    /* hand: a soft mitten, flat across the palm, plus a thumb */
+    tube(skin, [ha, new V3().lerpVectors(ha, mid, 0.55), mid, new V3().lerpVectors(mid, mend, 0.7)],
+      [[0.017, 0.026], [0.016, 0.038], [0.015, 0.037], [0.012, 0.028]], [S + "Hand", S + "Hand", S + "HandMiddle1", S + "HandMiddle1"], { ref:new V3(0, 0, 1), seg:4, sides:16 });
+    var t1 = P(S + "HandThumb1"), t3 = P(S + "HandThumb3");
+    if (t1 && t3) tube(skin, [t1, t3], [[0.012, 0.012], [0.009, 0.009]], [S + "HandThumb1", S + "HandThumb2"], { seg:4, sides:12, ref:new V3(0, 1, 0) });
+    /* sleeves: long, short, or a little puff at the shoulder */
+    var sl = p.sleeves === true ? 1 : p.sleeves === "short" ? 0.35 : p.puff ? 0.16 : 0;
+    if (sl > 0) {
+      var endP = sl >= 1 ? new V3().lerpVectors(fa, ha, 0.92) : new V3().lerpVectors(ar, fa, sl * 2.4);
+      var sp2s = sl >= 1 ? [new V3(sh.x, sh.y, sh.z - 0.01), ar, fa, endP] : [new V3(sh.x, sh.y, sh.z - 0.01), ar, endP];
+      var rr = sl >= 1 ? [[0.056, 0.054], [0.055, 0.053], [0.045, 0.043], [0.038, 0.036]] : p.puff && sl < 0.3 ? [[0.062, 0.06], [0.07, 0.068], [0.056, 0.055]] : [[0.058, 0.056], [0.057, 0.055], [0.052, 0.05]];
+      var bb = sl >= 1 ? [S + "Shoulder", S + "Arm", S + "ForeArm", S + "ForeArm"] : [S + "Shoulder", S + "Arm", S + "Arm"];
+      tube(top, sp2s, rr, bb, { capStart:false, capEnd:false });
+    }
+  });
+  /* the top: from the hem over the trousers up to the shoulders and the neckline */
+  tube(top, [new V3(0, hips.y - 0.1, hips.z + 0.002), new V3(0, sp0.y, sp0.z + 0.004), sp1, sp2, new V3(0, sp2.y + 0.085, sp2.z - 0.012), new V3(0, neck.y - 0.03, neck.z)],
+    [[fem ? 0.166 : 0.16, 0.114], [fem ? 0.136 : 0.145, 0.1], [fem ? 0.146 : 0.152, fem ? 0.112 : 0.104], [fem ? 0.158 : 0.168, fem ? 0.108 : 0.104], [fem ? 0.16 : 0.178, 0.086], [0.07, 0.062]],
+    ["Hips", "Spine", "Spine1", "Spine2", "Spine2", "Neck"], { capEnd:false, capK:0.4 });
+  /* neck and head */
+  tube(skin, [new V3(0, sp2.y + 0.05, sp2.z - 0.01), neck, new V3().lerpVectors(neck, head, 0.9)], [[0.046, 0.046], [0.043, 0.043], [0.044, 0.046]], ["Spine2", "Neck", "Head"], { capStart:false, capEnd:false });
+  ellipsoid(skin, hc, hs, "Head");
+
+  [top, pants, skin, shoes].forEach(build);
+  /* a neckline rim so the top reads as a garment, not paint */
+  var rim = new T.Mesh(new T.TorusGeometry(0.066, 0.009, 8, 28), top.mat);
+  rim.rotation.x = Math.PI / 2 - 0.25; rim.position.set(0, neck.y - 0.032, neck.z + 0.004); model.add(rim);
+  model.updateMatrixWorld(true);
+  model.getObjectByName("mixamorigSpine2").attach(rim);
+  body.visible = false;
+  p.smooth = true;
+}
+
 var GARMENTS = ["shirt", "pants", "shoe", "belt", "trim"];
 var THICK = { shirt:0.022, pants:0.017, shoe:0.016, belt:0.027, trim:0.03 };
 function thickAt(gk, x, y, p){
@@ -2042,10 +2196,13 @@ function makeRig(p, sc){
       var mg = BufferGeometryUtils.mergeGeometries([bodyMesh.geometry, jm.geometry], false);
       if (mg) { bodyMesh.geometry = mg; bodyMesh.userData.surfN = surfN; jm.parent.remove(jm); }
     }
-    buildClothes(p, bodyMesh);
-    if (p.coat) trenchBelt(p, model, bodyMesh);
-    hideCovered(p, bodyMesh);
-    costumeBody(p, model, bodyMesh);
+    if (SMOOTH[p.id]) smoothBody(p, model, bodyMesh);
+    else {
+      buildClothes(p, bodyMesh);
+      if (p.coat) trenchBelt(p, model, bodyMesh);
+      hideCovered(p, bodyMesh);
+      costumeBody(p, model, bodyMesh);
+    }
   }
   var b = {};
   BONE_NAMES.forEach(function(n){ b[n] = model.getObjectByName("mixamorig" + n); });
@@ -2507,6 +2664,12 @@ function chatter(a, b, t, casualOnly){
   if (pa === "dogs" && pb === "dogs") add(2.6, "pdd", ["We should do a dog playdate.", "Four dogs in one park? Brave.", "Saturday morning?"]);
   if (pa === "dogs" && pb === "cat") add(1.8, "pdc" + a.id, ["My dogs would love your cat.", "My cat would not love your dogs.", "Fair."]);
   if (pa === "cat" && pb === "dogs") add(1.8, "pcd" + a.id, ["Two dogs? How do you get anything done?", "Long walks and lots of coffee.", "Respect."]);
+
+  /* 6c. office lore: we won the company Pumpkin Harvest event, and Stephanie came as Bad Bunny for Halloween (rare) */
+  add(0.45, "ph1", ["Still can't believe we won the Pumpkin Harvest.", "Best team, obviously.", "The trophy stays on our floor."]);
+  add(0.35, "ph2", ["Same pumpkin strategy next year?", "Never change a winning recipe.", "Two years in a row, let's go."]);
+  if (b.id === "stephanie") { add(0.6, "bb1", ["Benito! I mean, Stephanie.", "Ha ha. Very funny.", "That costume will live forever."]); add(0.5, "bb2", ["Any concerts this weekend, Bad Bunny?", "Only in the car, with the windows up.", "Fair."]); }
+  if (a.id === "stephanie") add(0.4, "bb3", ["I'm retiring the Bad Bunny costume.", "Nooo, it was iconic!", "Fine. Maybe one more time."]);
 
   /* 7. everyday life */
   if (aff(a, b) >= 2) {
