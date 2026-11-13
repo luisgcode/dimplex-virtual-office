@@ -1503,7 +1503,7 @@ var MODEL_URL = "https://cdn.jsdelivr.net/gh/mrdoob/three.js@r160/examples/model
 /* pilot: real character models with hair and clothes, same Mixamo skeleton, so the same animations play on them */
 var REAL_MODELS = {
   /* each person: an artist-made character, recoloured per garment to match how they dress */
-  stephanie:{ url:"models/stephanie.glb", height:1.66, tint:{ Coat:"#2a2a2e", Shirt:"#1d1d20", Pants:"#26304a", Shoe:"#3a3a3a" }, glasses:true, ownHair:true, hairScale:[1.04, 1, 1.04], hairY:0.02, hairZ:0.0 }
+  stephanie:{ url:"models/stephanie.glb", height:1.66, tint:{ Coat:"#2a2a2e", Shirt:"#1d1d20", Pants:"#26304a", Shoe:"#3a3a3a" }, glasses:true, ownHair:true, hairScale:[1.0, 0.86, 1.0], hairY:0.13, hairZ:-0.02 }
 };
 var REAL = {}, CLIPS_R = {};
 var CH_SCALE = 1.70 / 1.806;
@@ -4053,6 +4053,15 @@ function realGlasses(model, head, top){
   head.attach(g);
 }
 function normalizeRig(sc){
+  /* the export can give each garment its own copy of the skeleton (mixamorigHead_4...): point every mesh at the main one */
+  var main = {};
+  sc.traverse(function(b){ if (b.isBone && !/_\d+$/.test(b.name) && !main[b.name]) main[b.name] = b; });
+  sc.updateMatrixWorld(true);
+  sc.traverse(function(o){
+    if (!o.isSkinnedMesh) return;
+    var sk = o.skeleton, nb = sk.bones.map(function(b){ return main[b.name.replace(/_\d+$/, "")] || b; });
+    o.bind(new T.Skeleton(nb, sk.boneInverses.map(function(m){ return m.clone(); })), o.bindMatrix.clone());
+  });
   var xs = {}, q = new T.Quaternion();
   GLTF.scene.updateMatrixWorld(true);
   GLTF.scene.traverse(function(b){ if (b.isBone) xs[b.name] = b.getWorldQuaternion(new T.Quaternion()); });
