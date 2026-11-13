@@ -89,6 +89,8 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .btn svg{width:15px;height:15px}
 
 #night{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 40%, rgba(12,18,32,.42), rgba(6,10,20,.62));opacity:0;pointer-events:none;z-index:1;transition:opacity 1.5s}
+/* no sidebar: the floor takes the whole screen, people are opened by tapping them */
+body > header{display:none !important}
 .clockhud{position:absolute;top:12px;left:max(16px, env(safe-area-inset-left, 0px));z-index:2;display:flex;flex-direction:column;gap:2px;
   padding:8px 12px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink);box-shadow:var(--shadow);pointer-events:none}
 .clockhud b{font:700 20px/1 var(--f-body);font-variant-numeric:tabular-nums;letter-spacing:.01em}
