@@ -88,6 +88,10 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .btn:hover{border-color:var(--muted)}
 .btn svg{width:15px;height:15px}
 
+.clockhud{position:absolute;top:12px;left:max(16px, env(safe-area-inset-left, 0px));z-index:2;display:flex;flex-direction:column;gap:2px;
+  padding:8px 12px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink);box-shadow:var(--shadow);pointer-events:none}
+.clockhud b{font:700 20px/1 var(--f-body);font-variant-numeric:tabular-nums;letter-spacing:.01em}
+.clockhud span{font-size:11px;color:var(--muted);white-space:nowrap}
 .hint{position:absolute;right:max(16px, env(safe-area-inset-right, 0px));bottom:14px;margin:0;padding:7px 11px;border-radius:8px;background:rgba(21,26,32,.62);color:#fff;font-size:12px;pointer-events:none;z-index:1}
 
 .card{position:absolute;left:max(16px, env(safe-area-inset-left, 0px));bottom:16px;width:min(330px, calc(100% - 32px));
@@ -224,6 +228,7 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
 <main id="stage">
   <div id="labels"></div>
+  <div class="clockhud" id="clockHud" aria-live="off"><b id="clkTime">--:--</b><span id="clkDay"></span></div>
   <div class="ctrl">
     <button class="btn" id="reset" type="button" aria-label="Reset view">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
@@ -887,15 +892,58 @@ plant(-2.45, 5.8, 0.85); plant(2.45, 5.8, 0.85); plant(-2.45, -3.7, 0.8); plant(
 
 
 
+/* ---------- wall clock: real time, hands move every frame ---------- */
+var WALLCLOCK = (function(){
+  var g = new T.Group(); g.position.set(-2.772, 2.42, 1.7); scene.add(g);
+  var faceTex = canvasTex(256, 256, function(c, w, h){
+    c.fillStyle = "#fbfaf7"; c.beginPath(); c.arc(128, 128, 124, 0, Math.PI * 2); c.fill();
+    c.strokeStyle = "#2b3038"; c.lineCap = "round";
+    for (var i = 0; i < 60; i++) {
+      var a = i * Math.PI / 30, big = i % 5 === 0, r0 = big ? 96 : 106;
+      c.lineWidth = big ? 7 : 2.5;
+      c.beginPath(); c.moveTo(128 + Math.sin(a) * r0, 128 - Math.cos(a) * r0); c.lineTo(128 + Math.sin(a) * 114, 128 - Math.cos(a) * 114); c.stroke();
+    }
+    c.fillStyle = "#E31837"; c.font = "italic 900 26px " + FONT; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText("Dimplex", 128, 170);
+  });
+  var face = new T.Mesh(new T.CircleGeometry(0.17, 40), new T.MeshStandardMaterial({ map:faceTex, roughness:0.6 }));
+  face.rotation.y = Math.PI / 2; face.userData.dyn = true; g.add(face);
+  var rim = new T.Mesh(new T.TorusGeometry(0.175, 0.014, 8, 40), M("#2b3038", { roughness:0.4, metalness:0.5 }));
+  rim.rotation.y = Math.PI / 2; rim.userData.dyn = true; g.add(rim);
+  var back = add(G.cyl, M("#2b3038", { roughness:0.5 }), 0.175, 0.03, 0.175, -0.016, 0, 0, g, false); back.rotation.z = Math.PI / 2; back.userData.dyn = true;
+  function hand(len, wid, col, x){
+    var hg = new T.Group(); hg.position.x = x; g.add(hg);
+    var m = add(G.box, M(col, { roughness:0.5 }), 0.004, len, wid, 0, len / 2 - 0.02, 0, hg, false); m.userData.dyn = true;
+    return hg;
+  }
+  var hh = hand(0.1, 0.014, "#2b3038", 0.006), mh = hand(0.145, 0.009, "#2b3038", 0.009), sh = hand(0.15, 0.004, "#E31837", 0.012);
+  var pin = add(G.cyl, M("#E31837", { roughness:0.4 }), 0.012, 0.01, 0.012, 0.014, 0, 0, g, false); pin.rotation.z = Math.PI / 2; pin.userData.dyn = true;
+  return { h:hh, m:mh, s:sh };
+})();
+function wallClockTick(){
+  var d = new Date(Date.now() + DAYQ.off), sec = d.getSeconds() + d.getMilliseconds() / 1000, mn = d.getMinutes() + sec / 60, hr = (d.getHours() % 12) + mn / 60;
+  /* the face looks toward +x, so clockwise on screen is a negative turn about x */
+  WALLCLOCK.h.rotation.x = -hr / 12 * Math.PI * 2;
+  WALLCLOCK.m.rotation.x = -mn / 60 * Math.PI * 2;
+  WALLCLOCK.s.rotation.x = -Math.floor(sec) / 60 * Math.PI * 2;
+}
+var clkTime = document.getElementById("clkTime"), clkDay = document.getElementById("clkDay");
+function clockTick(){
+  var d = DAY.d, hh = d.getHours(), mm = d.getMinutes(), h12 = hh % 12 || 12;
+  var txt = h12 + ":" + (mm < 10 ? "0" : "") + mm + (hh < 12 ? " am" : " pm");
+  if (clkTime.textContent !== txt) clkTime.textContent = txt;
+  var sub = DAY.wdName + " \u00b7 " + DAY.label;
+  if (clkDay.textContent !== sub) clkDay.textContent = sub;
+}
+
 /* ---------- seasonal themes ----------
-   Halloween runs from Oct 15 to Nov 1 and Christmas from Dec 1 to Jan 6, picked from today's date, then the office
+   Halloween runs from Oct 15 to Nov 1 and Christmas from Nov 12 (after Remembrance Day) to Jan 6, picked from today's date, then the office
    goes back to normal on its own. ?theme=halloween, ?theme=christmas or ?theme=none overrides the date. */
 var SEASON = (function(){
   var q = /[?&]theme=(halloween|christmas|none)\b/.exec(location.search || "");
   if (q) return q[1];
   var now = new Date(), m = now.getMonth() + 1, d = now.getDate();
   if ((m === 10 && d >= 15) || (m === 11 && d <= 1)) return "halloween";
-  if ((m === 12 && d >= 1) || (m === 1 && d <= 6)) return "christmas";
+  if ((m === 11 && d >= 12) || m === 12 || (m === 1 && d <= 6)) return "christmas";
   return "none";
 })();
 var SEASONS = {
@@ -907,13 +955,14 @@ var SEASONS = {
   },
   christmas:{
     banner:"HAPPY HOLIDAYS", pennants:["#c8202f", "#1f7a45", "#f2efe8"], bulbs:["#ff4d4d", "#ffd36b", "#4dd47e"],
-    says:["Happy holidays!", "Who is bringing cookies?", "Happy holidays!"],
-    replies:["Happy holidays!", "Me, obviously.", "Cookies are on the empty desk!"],
-    costume:{ carla:"santa", marissa:"santa" }
+    says:["Happy holidays!", "Who is bringing cookies?", "Is it snowing again?", "Who put up the stockings?", "Hot chocolate, anyone?"],
+    replies:["Happy holidays!", "Me, obviously.", "Cookies are on the empty desk!", "Love the decorations!", "Yes please!"],
+    costume:{ carla:"santa", marissa:"santa", debbie:"santa", erica:"santa", stephanieb:"santa" }
   }
 };
 var SZ = SEASONS[SEASON] || null;
-var seasonFx = { bats:[], mist:[], bulbMats:[], faceMat:null, next:0, line:null };
+var seasonFx = { bats:[], mist:[], snow:[], bulbMats:[], faceMat:null, next:0, line:null };
+var green2 = null;
 
 /* costume touches, built in the head's bind-pose space like the rest of the hair */
 function costume(p, g){
@@ -1057,6 +1106,7 @@ function batGeo(){
 }
 function buildSeason(){
   if (!SZ) return;
+  green2 = M("#1f6a3c", { roughness:0.8 });
   /* banner above the logo */
   var ban = new T.Mesh(G.plane, new T.MeshBasicMaterial({ map:bannerTex(SZ.banner, SZ.pennants), transparent:true, depthWrite:false, toneMapped:false }));
   ban.scale.set(3.0, 0.47, 1); ban.position.set(0, 2.82, -3.93); ban.renderOrder = 2; scene.add(ban);
@@ -1109,6 +1159,64 @@ function buildSeason(){
       seasonFx.mist.push({ m:m, x:q[0], z:q[1], ph:k * 1.3 });
     });
   } else if (SEASON === "christmas") {
+    /* snow falling past both windows */
+    var snowTex = canvasTex(128, 256, function(g, w, h){
+      var r = seeded(31);
+      for (var i = 0; i < 70; i++) { var sz = 1 + r() * 2.6; g.fillStyle = "rgba(255,255,255," + (0.55 + r() * 0.45).toFixed(2) + ")"; g.beginPath(); g.arc(r() * w, r() * h, sz, 0, Math.PI * 2); g.fill(); }
+    });
+    snowTex.wrapS = snowTex.wrapT = T.RepeatWrapping;
+    [[4.5, 1.5], [-1.05, 1.5]].forEach(function(q, k){
+      var tex = snowTex.clone(); tex.needsUpdate = true; tex.repeat.set(q[1] / 0.6, 1.0 / 0.6);
+      var sm = new T.Mesh(G.plane, new T.MeshBasicMaterial({ map:tex, transparent:true, depthWrite:false, toneMapped:false }));
+      sm.scale.set(q[1], 1.0, 1); sm.position.set(-2.785, 2.15, q[0]); sm.rotation.y = Math.PI / 2; sm.renderOrder = 2; sm.userData.dyn = true; scene.add(sm);
+      seasonFx.snow.push({ tex:tex, ph:k * 0.37 });
+      /* a little snow piled on the sill */
+      add(G.box, M("#ffffff", { roughness:0.9 }), 0.07, 0.025, q[1], -2.76, 2.15 - 0.5 - 0.035, q[0], scene, false);
+    });
+    /* wreaths either side of the logo */
+    [-1.9, 1.9].forEach(function(x){
+      var wg = new T.Group(); wg.position.set(x, 2.05, -4.0); scene.add(wg);
+      var wr = new T.Mesh(new T.TorusGeometry(0.24, 0.075, 10, 28), M("#1f6a3c", { roughness:0.85 })); wr.castShadow = true; wg.add(wr);
+      for (var b = 0; b < 9; b++) { var ba = b * Math.PI * 2 / 9 + 0.3; add(G.lowSph, M(b % 3 ? "#c8202f" : "#ffd36b", { roughness:0.3, metalness:0.2 }), 0.03, 0.03, 0.03, Math.cos(ba) * 0.24, Math.sin(ba) * 0.24, 0.07, wg, false); }
+      add(G.box, M("#c8202f", { roughness:0.6 }), 0.16, 0.07, 0.03, 0, -0.25, 0.08, wg, false);
+      add(G.box, M("#c8202f", { roughness:0.6 }), 0.04, 0.16, 0.025, -0.04, -0.33, 0.07, wg, false).rotation.z = 0.25;
+      add(G.box, M("#c8202f", { roughness:0.6 }), 0.04, 0.16, 0.025, 0.04, -0.33, 0.07, wg, false).rotation.z = -0.25;
+    });
+    /* stockings hanging under the string lights */
+    var sto = ["#c8202f", "#1f7a45", "#c8202f", "#f2efe8", "#1f7a45", "#c8202f"];
+    [0.25, 0.65, 2.2, 2.6, 3.0, 5.6].forEach(function(z, k){
+      var sg = new T.Group(); sg.position.set(-2.78, 2.78, z); scene.add(sg);
+      var col = M(sto[k], { roughness:0.9 }), cuff = M("#f4f1ea", { roughness:1 });
+      add(G.box, col, 0.03, 0.2, 0.09, 0, -0.1, 0, sg, false);
+      add(G.box, col, 0.03, 0.07, 0.14, 0, -0.215, 0.025, sg, false);
+      add(G.box, cuff, 0.035, 0.05, 0.1, 0, 0.0, 0, sg, false);
+    });
+    /* garland with lights along the top of the low right wall */
+    stringLights([new V3(2.9, 0.9, 5.9), new V3(2.9, 0.9, 3.4), new V3(2.9, 0.9, 0.9), new V3(2.9, 0.9, -1.6), new V3(2.9, 0.9, -3.9)], 0.05, 0.32, "#1f6a3c");
+    /* presents under the tree, and a few on desks */
+    var gift = [["#c8202f", "#ffd36b"], ["#1f7a45", "#f2efe8"], ["#f2efe8", "#c8202f"], ["#3b6fd8", "#ffd36b"]];
+    function present(parent, x, y, z, s, k, ry){
+      var pg = new T.Group(); pg.position.set(x, y, z); pg.rotation.y = ry || 0; pg.scale.setScalar(s); parent.add(pg);
+      add(G.box, M(gift[k % 4][0], { roughness:0.6 }), 1, 0.8, 1, 0, 0.4, 0, pg);
+      add(G.box, M(gift[k % 4][1], { roughness:0.5 }), 1.02, 0.82, 0.16, 0, 0.4, 0, pg, false);
+      add(G.box, M(gift[k % 4][1], { roughness:0.5 }), 0.16, 0.82, 1.02, 0, 0.4, 0, pg, false);
+      add(G.sph, M(gift[k % 4][1], { roughness:0.5 }), 0.22, 0.16, 0.22, 0, 0.84, 0, pg, false);
+    }
+    present(scene, -1.62, 0, -3.5, 0.2, 0, 0.3);
+    present(scene, -0.86, 0, -3.45, 0.16, 1, -0.4);
+    present(scene, -1.3, 0, -3.3, 0.13, 2, 0.8);
+    present(scene, -0.95, 0, -3.78, 0.12, 3, 0.1);
+    present(dg0, 0.3, 0.762, -0.7, 0.08, 1, 0.5);
+    present(BY.carla.deskGroup, -0.74, 0.762, -0.9, 0.07, 0, 0.3);
+    present(BY.olivia.deskGroup, -0.74, 0.762, -0.9, 0.06, 3, -0.2);
+    /* a second, taller tree by the entrance */
+    var tg2 = new T.Group(); tg2.position.set(1.25, 0, 5.75); tg2.scale.setScalar(1.25); scene.add(tg2);
+    add(G.cyl, M("#7a2a22", { roughness:0.6 }), 0.13, 0.16, 0.13, 0, 0.08, 0, tg2);
+    [[0.42, 0.5, 0.4], [0.34, 0.45, 0.72], [0.24, 0.38, 1.0]].forEach(function(q){ var c = new T.Mesh(new T.ConeGeometry(q[0], q[1], 18), green2); c.position.y = q[2]; c.castShadow = true; tg2.add(c); });
+    add(G.sph, new T.MeshBasicMaterial({ color:0xffd36b, toneMapped:false }), 0.05, 0.05, 0.05, 0, 1.22, 0, tg2, false);
+    var bulbs2 = SZ.bulbs.map(function(c){ var m = new T.MeshBasicMaterial({ color:c, toneMapped:false }); m.userData.base = new T.Color(c); seasonFx.bulbMats.push(m); return m; });
+    for (i = 0; i < 18; i++) { var ba2 = i * 2.1, bh2 = 0.3 + (i / 18) * 0.8, br2 = 0.4 * (1 - (bh2 - 0.25) / 1.0) + 0.02; add(G.lowSph, bulbs2[i % bulbs2.length], 0.025, 0.025, 0.025, Math.cos(ba2) * br2, bh2, Math.sin(ba2) * br2, tg2, false); }
+    /* the original small tree by the logo wall */
     /* a small tree by the logo wall */
     var tg = new T.Group(); tg.position.set(-1.2, 0, -3.72); scene.add(tg);
     add(G.cyl, M("#7a2a22", { roughness:0.6 }), 0.13, 0.16, 0.13, 0, 0.08, 0, tg);
@@ -1127,6 +1235,7 @@ function seasonTick(t, dt){
     var bm = seasonFx.bulbMats[i], tw = 0.7 + 0.3 * Math.sin(t * 2.2 + i * 2.1);
     bm.color.copy(bm.userData.base).multiplyScalar(tw);
   }
+  for (i = 0; i < seasonFx.snow.length; i++) { var sn = seasonFx.snow[i]; sn.tex.offset.y = (t * 0.09 + sn.ph) % 1; sn.tex.offset.x = 0.04 * Math.sin(t * 0.4 + sn.ph * 5); }
   if (seasonFx.faceMat) { var fl = 0.82 + 0.18 * noise(t * 8); seasonFx.faceMat.color.setRGB(fl, 0.72 * fl, 0.38 * fl); }
   for (i = 0; i < seasonFx.bats.length; i++) {
     var b = seasonFx.bats[i], a = t * b.sp + b.ph;
@@ -1142,7 +1251,7 @@ function seasonTick(t, dt){
   }
   var L = seasonFx.line;
   if (L) {
-    if (t > L.t1 && !L.replied && L.b) { L.replied = true; if (L.a.bubble.textContent === L.text) showBubble(L.a, null); showBubble(L.b, L.reply); L.t2 = t + 2.6; }
+    if (t > L.t1 && !L.replied && L.b) { L.replied = true; if (L.a.bubble.textContent === L.text) showBubble(L.a, null); showBubble(L.b, L.reply); L.t2 = t + 3.6; }
     if (t > L.t2) { if (L.b && L.b.bubble.textContent === L.reply) showBubble(L.b, null); if (!L.b && L.a.bubble.textContent === L.text) showBubble(L.a, null); seasonFx.line = null; }
     return;
   }
@@ -1155,14 +1264,14 @@ function seasonTick(t, dt){
   var b0 = near.length && Math.random() < 0.75 ? choose(near) : null;
   var text = choose(SZ.says);
   showBubble(a0, text);
-  seasonFx.line = { a:a0, b:b0, text:text, reply:choose(SZ.replies), t1:t + 2.6, t2:t + 2.8, replied:false };
+  seasonFx.line = { a:a0, b:b0, text:text, reply:choose(SZ.replies), t1:t + 3.6, t2:t + 3.8, replied:false };
 }
 buildSeason();
 /* ---------- small mishaps: rare, short and harmless ----------
    Every couple of minutes at most, one of: a cat strolls in front of a remote colleague's camera, a book slides off
    the wall shelf, a cup tips over on a desk, or someone leans back too far on their chair and catches themselves. */
 var SAYS = [];
-function sayLater(p, text, t0, dur){ SAYS.push({ p:p, text:text, t0:t0, t1:t0 + dur, on:false }); }
+function sayLater(p, text, t0, dur){ SAYS.push({ p:p, text:text, t0:t0, t1:t0 + dur + 1.2, on:false }); }
 function updateSays(t){
   for (var i = SAYS.length - 1; i >= 0; i--) {
     var s = SAYS[i];
@@ -1218,11 +1327,13 @@ function startMishap(kind, t){
     if (!rp.length) return false;
     m.p = choose(rp); m.cat = m.p.cat; m.dir = Math.random() < 0.5 ? 1 : -1; m.dur = 4.2;
     m.cat.g.visible = true;
+    logEvent("cat", m.p, t);
     sayLater(m.p, choose(["Sorry, that's my cat!", "Someone wants to join the call.", "Meet my coworker, she runs the place."]), t + 1.6, 3.2);
   } else if (kind === "book") {
     if (MISHAP.book.down) return false;
     m.dur = 1.6; MISHAP.book.down = true;
     var w = nearestSitter(-2.4, 1.8);
+    logEvent("book", w, t);
     if (w) { sayLater(w, choose(["Whoa! The shelf strikes again.", "Was that the shelf? I'll grab it in a sec.", "That book jumped. I saw it."]), t + 1.3, 3); startAct(w, "turn", t + 1.0, 3); }
   } else if (kind === "spill") {
     /* left row only: on the right row the cups sit behind the monitors from the usual view */
@@ -1232,12 +1343,14 @@ function startMishap(kind, t){
     MISHAP.puddle.position.set(-0.5, 0.7635, -0.5); MISHAP.puddle.scale.setScalar(0.001); MISHAP.puddle.visible = true;
     m.p.deskGroup.add(MISHAP.puddle);
     sayLater(m.p, "Oops! There goes my " + drinkOf(m.p) + ".", t + 0.7, 3);
+    logEvent("spill", m.p, t);
     startAct(m.p, "point", t + 0.5, 2.4);
   } else if (kind === "chair") {
     var cand = PEOPLE.filter(function(q){ return q.state === "sit" && q.root.visible && !q.chatWith && !q.answering && !q.act; });
     if (!cand.length) return false;
     m.p = choose(cand); m.dur = 2.4;
     startAct(m.p, "wobble", t, m.dur);
+    logEvent("chair", m.p, t);
     sayLater(m.p, choose(["Whoa! Almost lost it there.", "Nope, I'm fine. Totally meant that.", "This chair has opinions."]), t + 0.9, 3);
     var nb = nearestSitter(m.p.seat.x, m.p.seat.z, m.p);
     if (nb && Math.abs(nb.z - m.p.z) < 2.2) sayLater(nb, choose(["Careful!", "Smooth.", "Nice save!"]), t + 2.6, 2.4);
@@ -2086,10 +2199,44 @@ function makeRequest(p, t){
   return [req.say, choose(LUIS_REPLIES)];
 }
 
+/* ---------- real clock and the shape of the day ----------
+   The office runs on the viewer's real clock. Mornings are slow and full of coffee, the slump hits after lunch,
+   everyone perks up near home time, and heavy weekdays (Monday, Thursday) wear people down faster.
+   ?time=16:45 and ?day=fri override the clock for testing. */
+var DAYQ = (function(){
+  var s = location.search || "", q = /[?&]time=(\d{1,2}):(\d{2})/.exec(s), dq = /[?&]day=(sun|mon|tue|wed|thu|fri|sat)/i.exec(s), off = 0;
+  if (q) { var n = new Date(); off = ((+q[1]) * 60 + (+q[2]) - (n.getHours() * 60 + n.getMinutes())) * 60000; }
+  return { off:off, day:dq ? ["sun","mon","tue","wed","thu","fri","sat"].indexOf(dq[1].toLowerCase()) : -1 };
+})();
+var WEEKDAY = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+var DAY_LOAD = [0.9, 1.35, 1.05, 1.2, 1.3, 1.1, 0.9];
+var DAY = {};
+function officeNow(){ var d = new Date(Date.now() + DAYQ.off); return { d:d, h:d.getHours() + d.getMinutes() / 60, wd:DAYQ.day >= 0 ? DAYQ.day : d.getDay() }; }
+function dayTick(){
+  var o = officeNow(), h = o.h, wd = o.wd, fri = wd === 5, wknd = wd === 0 || wd === 6, k, label, bias, coffee, pace;
+  if (h < 9) { k = "early"; label = "Waking up"; bias = -0.4; coffee = 2.6; pace = 0.86; }
+  else if (h < 10.5) { k = "morning"; label = "Morning coffee rush"; bias = -0.22; coffee = 2.1; pace = 0.92; }
+  else if (h < 12) { k = "midmorning"; label = "Getting into it"; bias = 0; coffee = 1; pace = 1; }
+  else if (h < 13.5) { k = "lunch"; label = "Lunch time"; bias = 0.15; coffee = 0.7; pace = 1; }
+  else if (h < 15) { k = "slump"; label = "Post-lunch slump"; bias = -0.18; coffee = 1.5; pace = 0.93; }
+  else if (h < 16.25) { k = "afternoon"; label = fri ? "Friday afternoon" : "Afternoon push"; bias = fri ? 0.15 : 0; coffee = 1; pace = 1; }
+  else if (h < 17) { k = "homesoon"; label = "Almost home time"; bias = fri ? 0.6 : 0.4; coffee = 0.5; pace = 1.08; }
+  else { k = "after"; label = "Overtime"; bias = fri ? 0.5 : 0.3; coffee = 0.4; pace = 1.04; }
+  var load = DAY_LOAD[wd];
+  if (wknd) label = "Weekend shift";
+  DAY = { key:k, label:label, wd:wd, wdName:WEEKDAY[wd], fri:fri, h:h, d:o.d, load:load, coffee:coffee, pace:pace,
+    bias:bias - (load - 1) * 0.55 - (wknd ? 0.1 : 0), homeSoon:k === "homesoon" || k === "after" };
+  return DAY;
+}
+dayTick();
+function moodTarget(p){ return clamp(MOODS[p.mood.base].v + DAY.bias * (p.dayK || 1), -1, 1); }
+
 ALL.forEach(function(p, i){
   p.idx = i; p.pace = 1; p.nextAct = rand(3, 10);
   p.w = PERSONA[p.id];
-  p.needs = { energy:rand(0.45, 1), focus:rand(0.3, 0.9), social:rand(0, 0.6), coffee:rand(0, 0.55) };
+  var early = DAY.key === "early" || DAY.key === "morning";
+  p.dayK = rand(0.7, 1.3);
+  p.needs = { energy:clamp(rand(0.45, 1) - (early ? 0.25 : 0) - (DAY.load - 1) * 0.5, 0.12, 1), focus:rand(0.3, 0.9), social:rand(0, 0.6), coffee:clamp(rand(0, 0.55) + (early ? 0.3 : 0), 0, 1) };
   p.state = "sit"; p.t0 = 0; p.dur = 0;
   p.decideAt = rand(2, 7);
   p.typeOn = Math.random() < 0.7; p.typeNext = rand(0.5, 5); p.typeAmp = 0;
@@ -2135,6 +2282,143 @@ function startAct(p, name, t, dur, target){
   p.act = { n:name, t0:t, dur:dur || rand(2.2, 4.2), target:target || null };
 }
 
+/* ---------- what people actually talk about ----------
+   Every chat is a real exchange: one opens, the other answers, sometimes a third line closes it.
+   Topics come from what just happened in the office, the time of day, the day of the week, the season,
+   how the other person looks, and a bit of everyday life. Recent lines are not repeated. */
+var LINE_GAP = 3.8;
+var OFFICE_EV = [];
+function logEvent(kind, p, t){
+  if (!p) return;
+  OFFICE_EV.push({ kind:kind, p:p, t:t, used:0 });
+  if (OFFICE_EV.length > 12) OFFICE_EV.shift();
+}
+var CHAT_RECENT = [];
+function chatter(a, b, t){
+  var C = [];
+  function add(w, key, lines){ if (CHAT_RECENT.indexOf(key) < 0) C.push({ w:w, key:key, lines:lines }); }
+  var bd = drinkOf(b), ad = drinkOf(a);
+
+  /* 1. things that just happened */
+  OFFICE_EV.forEach(function(e, i){
+    if (t - e.t > 240 || e.used > 1) return;
+    var X = e.p, xn = X.name, mine = X === a, theirs = X === b, key = "ev" + i + e.t.toFixed(0), go = { w:4, ev:e };
+    var L = null;
+    if (e.kind === "spill") L = mine ? ["I just knocked my " + drinkOf(a) + " all over the desk.", "Classic. Need paper towels?", "Already on it. Keyboard survived."]
+      : theirs ? ["How's the desk after the spill?", "Sticky. Very sticky.", "At least it wasn't the laptop."]
+      : ["Did you see " + xn + " spill the " + drinkOf(X) + "?", "Poor " + xn + ". Is the keyboard okay?", "Seems fine. The desk, not so much."];
+    else if (e.kind === "cat") L = ["Did you see " + xn + "'s cat on the call?", "Best coworker on the team, honestly.", "Better attendance than some of us."];
+    else if (e.kind === "chair") L = mine ? ["Please tell me nobody saw my chair move.", "Everybody saw it.", "Great. Just great."]
+      : ["" + xn + " almost went over on that chair.", "I saw that! Smooth save though.", "Ten out of ten landing."];
+    else if (e.kind === "book") L = ["That shelf dropped a book again.", "Someone should fix that shelf.", "Someone. Not me."];
+    else if (e.kind === "coffee" && !mine && !theirs && X.id !== "debbie") L = [xn + " just made a coffee run.", "Without asking us? Rude.", "Next round is on " + xn + "."];
+    else if (e.kind === "coffee" && mine) L = ["Fresh " + ad + ". Feeling human again.", "Lucky. I still need mine.", "The pot is still warm, go!"];
+    else if (e.kind === "longmeeting" && !mine) L = ["That meeting " + xn + " was in ran long.", "They always do on " + DAY.wdName + "s.", "Could have been an email."];
+    else if (e.kind === "meeting" && theirs) L = ["How did the meeting go?", "Good, actually. Short, too.", "A short meeting? Write that down."];
+    if (L && CHAT_RECENT.indexOf(key) < 0) C.push({ w:go.w, key:key, lines:L, ev:e });
+  });
+
+  /* 2. the time of day */
+  var k = DAY.key;
+  if (k === "early" || k === "morning") {
+    add(2.4, "m1", ["Morning. Is it just me or is today slow?", "Not awake yet. " + cap(bd) + " first.", "Same. Talk to me in an hour."]);
+    add(2.2, "m2", ["Did you get your " + bd + " yet?", "Working on my second one.", "Still not enough, right?"]);
+    add(1.8, "m3", ["How was your evening?", "Too short, as usual.", "They always are."]);
+    add(1.6, "m4", ["Traffic was a mess this morning.", "Tell me about it. Took me forever.", "Need a " + ad + " after that."]);
+    add(1.4, "m5", ["Who turned the heat up in here?", "Debbie, probably. Occupational hazard.", "Not complaining, it's cold out."]);
+  } else if (k === "midmorning") {
+    add(1.6, "mm1", ["The " + ad + " finally kicked in.", "Took long enough.", "Now I can actually think."]);
+    add(1.4, "mm2", ["Is it lunch yet?", "It's not even noon.", "A person can dream."]);
+  } else if (k === "lunch") {
+    add(2.4, "l1", ["What are you having for lunch?", "Leftovers. Living the dream.", "Same, honestly."]);
+    add(2.2, "l2", ["Want to grab lunch?", "Give me ten minutes.", "I'll hold you to that."]);
+    add(1.8, "l3", ["Something smells really good in here.", "Someone's lunch is winning today.", "Not mine, sadly."]);
+    add(1.5, "l4", ["Did you bring lunch or are we ordering?", "Ordering. No shame.", "Count me in."]);
+  } else if (k === "slump") {
+    add(2.4, "s1", ["The after lunch slump is real.", "I could nap right here.", "Another " + ad + "?"]);
+    add(2.0, "s2", ["Why is three o'clock so long?", "Physics. Or this week.", "Probably this week."]);
+    add(1.6, "s3", ["Is it me or is it really quiet?", "Everyone is in food coma.", "Fair."]);
+  } else if (k === "afternoon") {
+    add(1.6, "a1", ["How's your afternoon going?", "Getting there. Slowly.", "Slowly is still going."]);
+    add(1.4, "a2", ["Do you want anything from the kitchen?", "A " + bd + " would be amazing.", "On it."]);
+  } else if (DAY.homeSoon) {
+    add(2.8, "h1", ["Almost home time!", "Don't jinx it.", "Too late, I said it."]);
+    add(2.4, "h2", ["Any plans tonight?", "Couch. Big plans.", "Respect."]);
+    add(2.0, "h3", ["I'm already thinking about dinner.", "Me too. Pasta, probably.", "Now I want pasta."]);
+    add(1.8, "h4", ["Five more minutes and I'm out.", "You said that twenty minutes ago.", "And I meant it both times."]);
+  }
+
+  /* 3. the day of the week */
+  if (DAY.wd === 1) { add(2.2, "d1", ["How was your weekend?", "Way too short.", "They always are."]); add(1.8, "d2", ["Is it Friday yet?", "It's Monday. Be strong.", "Ugh."]); }
+  if (DAY.wd === 3) add(1.8, "d3", ["Halfway there.", "Hump day. We made it.", "Downhill from here."]);
+  if (DAY.wd === 4) add(2.0, "d4", ["This week feels so long.", "Almost Friday. Hang in there.", "One more day."]);
+  if (DAY.fri) { add(2.6, "d5", ["Any plans for the weekend?", "Sleeping in. That's the whole plan.", "Great plan."]); add(2.2, "d6", ["Happy Friday!", "Best word of the week.", "Agreed."]); }
+
+  /* 4. the season and the weather */
+  if (SEASON === "christmas") {
+    add(2.2, "x1", ["Did you finish your holiday shopping?", "I haven't even started.", "Same. Every year."]);
+    add(2.0, "x2", ["Are we doing secret Santa this year?", "Count me in!", "I'm making a list."]);
+    add(1.8, "x3", ["The tree looks great this year.", "Now we just need snow outside.", "Look out the window."]);
+    add(1.6, "x4", ["Who keeps playing Christmas music?", "Not me. But don't stop.", "It's officially the season."]);
+    add(1.5, "x5", ["Ugly sweater day is coming up.", "I've been ready since July.", "Of course you have."]);
+  }
+  var mo = DAY.d.getMonth();
+  if (mo >= 10 || mo <= 2) add(1.5, "w1", ["It's freezing out there today.", "Good thing we sell heaters.", "Perks of the job."]);
+  else if (mo >= 5 && mo <= 7) add(1.5, "w2", ["It's so nice out today.", "And we're stuck inside.", "Lunch outside, then?"]);
+
+  /* 5. how the other one looks */
+  var bm = b.mood.kind, am = a.mood.kind;
+  if (bm === "tired") add(2.4, "mt" + b.id, ["You look tired. Long day?", "Long week, more like.", "Want me to grab you a " + bd + "?"]);
+  if (bm === "stressed") add(2.4, "ms" + b.id, ["You okay? You look swamped.", "Just a lot on my plate today.", "Shout if you need a hand."]);
+  if (am === "excited" || am === "great") add(1.8, "mg" + a.id, ["Guess who just finished a big task?", "No way! Nice one.", "Celebrating with a " + ad + "."]);
+  if (bm === "excited" && !DAY.homeSoon) add(1.6, "me" + b.id, ["You're in a good mood today!", "Good things are happening.", "Love that for you."]);
+
+  /* 6. they know each other */
+  var met = (a.met && a.met[b.id]) || 0;
+  if (met >= 2) add(1.6, "again" + a.id + b.id, ["Back again?", "Your desk has the better view.", "Fair point."]);
+
+  /* 7. everyday life */
+  add(1.0, "e1", ["Did you watch anything good last night?", "Started a new series. Big mistake.", "Stayed up too late?"]);
+  add(1.0, "e2", ["Have you tried the new place down the street?", "Not yet. Is it good?", "The sandwiches are huge."]);
+  add(0.9, "e3", ["My plant is finally growing again.", "Wait, the one by the window?", "That's the one. A miracle."]);
+  add(0.9, "e4", ["Do you know a good recipe for dinner?", "Pasta. Always pasta.", "Pasta it is."]);
+  add(0.8, "e5", ["I need a vacation.", "Don't we all.", "Two more months."]);
+  add(0.8, "e6", ["Did someone take my pen?", "Which one?", "The good one. You know the one."]);
+
+  /* 8. what the team is busy with this month */
+  [["Did Ember say anything weird today?", "It still thinks the Sierra has eight ember colors.", "Seven. I think. Ask Stephanie."],
+   ["How many old QR codes are still out there?", "Some point to pages from years ago.", "They need new links, fast."],
+   ["Someone asked for a 60 inch fireplace again.", "Big walls, big flames.", "The Ignite has them covered."],
+   ["The new Downloads pages for Cadet and Convectair are up.", "Finally! No more digging for manuals.", "Sending the links to Debbie."],
+   ["Is the Share the Warmth form back up?", "Almost. One last piece to go.", "Fingers crossed for this week."],
+   ["We should do a Get Inspired gallery for the fireplaces.", "Yes! Real rooms, real installs.", "Olivia would make it look amazing."],
+   ["Which water goes in an Optimyst again?", "Distilled is the safe answer.", "Writing that down."],
+   ["The Revillusion pages are finally in French.", "All three versions?", "All three. US, Canada and French."],
+   ["Did you see the new Models filter on Convectair?", "Opera, Apero, all grouped. So much easier.", "About time!"],
+   ["The Flame landing page needs fresh content.", "New photos would help a lot.", "I'll ask Olivia."],
+   ["Customers keep asking where their manual is.", "The find documents tool should be on more pages.", "Agreed. More pages soon."],
+   ["Do we have a test dealer account for the Hub yet?", "Still waiting on it.", "Of course we are."],
+   ["Is the Vital Sense 6-3/4 or 7-1/8 inches deep?", "Depends which page you ask.", "That's the whole problem."],
+   ["Does the Slim have 4 or 5 brightness levels?", "I counted five.", "The manual says four. Fun."],
+   ["The FOR heaters finally have matching bullets.", "In English and French?", "Both. Live on the site."],
+   ["Which pages get the most visits in French?", "The fireplaces, by far.", "Makes sense in winter."]
+  ].forEach(function(L, i){ add(1.3, "tm" + i, L); });
+
+  /* 9. a bit of work, now as a real back and forth */
+  var wk = LINES[a.id];
+  if (wk) add(0.9, "wk" + a.id + CHAT_RECENT.length % 4, [choose(wk), choose(["Nice. Need a hand?", "Again? Classic.", "Let me know how it goes.", "Ha, of course."]), choose(["I'll shout if I do.", "Every single week.", "Will do."])]);
+
+  if (!C.length) return [choose(LINES[a.id] || ["Hey!"]), "Hey!"];
+  var tot = 0; C.forEach(function(c){ tot += c.w; });
+  var r = Math.random() * tot, pick = C[0];
+  for (var i = 0; i < C.length; i++) { r -= C[i].w; if (r <= 0) { pick = C[i]; break; } }
+  if (pick.ev) pick.ev.used++;
+  CHAT_RECENT.push(pick.key); if (CHAT_RECENT.length > 14) CHAT_RECENT.shift();
+  var out = pick.lines.slice();
+  if (out.length > 2 && Math.random() < 0.3) out.pop();
+  return out;
+}
+
 /* ---------- chats with a rare small bubble ---------- */
 var chats = [];
 function showBubble(p, text){
@@ -2144,8 +2428,15 @@ function showBubble(p, text){
   } else if (p.bubbleOn) { p.bubbleOn = false; p.bubble.classList.remove("show"); }
 }
 function startChat(a, b, t, dur, lines){
-  var talky = !chats.some(function(c){ return c.bubbles; }) && (lines ? true : Math.random() < 0.55);
-  chats.push({ a:a, b:b, t0:t, dur:dur, bubbles:talky, lines:lines || [choose(LINES[a.id]), choose(LINES[b.id])] });
+  var talky = !chats.some(function(c){ return c.bubbles; }) && (lines ? true : Math.random() < 0.8);
+  if (!lines) {
+    lines = chatter(a, b, t);
+    var fit = Math.max(2, Math.floor((dur - 0.6) / LINE_GAP));
+    if (lines.length > fit) lines = lines.slice(0, fit);
+  }
+  a.met = a.met || {}; b.met = b.met || {};
+  a.met[b.id] = (a.met[b.id] || 0) + 1; b.met[a.id] = (b.met[a.id] || 0) + 1;
+  chats.push({ a:a, b:b, t0:t, dur:dur, bubbles:talky, lines:lines });
   if (b.id === "luis" && luisDeepWork(b)) moodShift(b, -0.2, "I got pulled out of the zone");
   else moodShift(b, 0.08, "I just had a good chat with " + a.name);
   moodShift(a, 0.08, "I just had a good chat with " + b.name);
@@ -2159,8 +2450,12 @@ function updateChats(t){
     var u = t - c.t0;
     c.a.rig.nodTarget = u < c.dur ? 0.45 : 0; c.b.rig.nodTarget = u < c.dur ? 0.35 : 0;
     if (c.bubbles) {
-      showBubble(c.a, u > 0.6 && u < 3.0 && c.a.root.visible ? c.lines[0] : null);
-      showBubble(c.b, u > 3.2 && u < 5.6 && c.b.root.visible ? c.lines[1] : null);
+      /* lines alternate between the two, a fresh bubble every LINE_GAP seconds */
+      var i = Math.floor((u - 0.6) / LINE_GAP), inLine = u - 0.6 - i * LINE_GAP < LINE_GAP - 0.25;
+      var sayA = null, sayB = null;
+      if (u > 0.6 && i < c.lines.length && inLine) { if (i % 2 === 0) sayA = c.lines[i]; else sayB = c.lines[i]; }
+      showBubble(c.a, c.a.root.visible ? sayA : null);
+      showBubble(c.b, c.b.root.visible ? sayB : null);
     }
     if (u > c.dur) {
       showBubble(c.a, null); showBubble(c.b, null);
@@ -2186,8 +2481,8 @@ function decide(p, t){
   var sociable = 1 + 0.5 * mv;
   var withdrawn = p.mood.kind === "stressed" && prof.traits.stressTol < 0.6;
   opts.push({ k:"micro", s:(1 - n.energy) * 0.9 * w.breaky + (mv < 0 ? 0.25 : 0) + rand(0, 0.6) });
-  var coffeeTaken = PEOPLE.some(function(q){ return q.trip && q.trip.kind === "coffee"; });
-  if (!coffeeTaken && p.id !== "debbie") opts.push({ k:"coffee", s:n.coffee * 1.3 * w.coffee + rand(0, 0.25) });
+  var coffeeN = PEOPLE.filter(function(q){ return q.trip && q.trip.kind === "coffee"; }).length;
+  if (coffeeN < (DAY.coffee > 1.8 ? 2 : 1) && p.id !== "debbie") opts.push({ k:"coffee", s:n.coffee * 1.3 * w.coffee * (DAY.coffee > 1.8 ? 1.25 : 1) + rand(0, 0.25) });
   var best = null, bs = -1;
   PEOPLE.forEach(function(q){
     if (q === p || !available(q)) return;
@@ -2226,7 +2521,7 @@ function decide(p, t){
   } else if (o.k === "request") {
     var L = BY.luis;
     if (Math.abs(L.z - p.z) < 2.2 || Math.random() < 0.3) {
-      var rd = rand(5.5, 7.5);
+      var rd = rand(8, 9.5);
       startAct(p, "turn", t, rd, L); startAct(L, "turn", t, rd, p);
       startChat(p, L, t, rd + 0.4, makeRequest(p, t));
     } else {
@@ -2235,7 +2530,7 @@ function decide(p, t){
       p.trip.request = true;
     }
   } else if (o.k === "talk") {
-    var dur = rand(5.5, 8);
+    var dur = rand(10, 12.5);
     startAct(p, "turn", t, dur, o.q); startAct(o.q, "turn", t, dur, p);
     startChat(p, o.q, t, dur + 0.4);
   }
@@ -2256,15 +2551,15 @@ function startReturn(p, t){
 var fwd = new V3(), dv = new V3();
 function updateAgent(p, t, dt){
   var n = p.needs, w = p.w, r = p.rig;
-  n.energy = clamp(n.energy - dt * 0.004 * (p.typeOn ? 1.3 : 0.6), 0, 1);
-  n.coffee = clamp(n.coffee + dt * 0.0055 * w.coffee, 0, 1);
+  n.energy = clamp(n.energy - dt * 0.004 * (p.typeOn ? 1.3 : 0.6) * DAY.load, 0, 1);
+  n.coffee = clamp(n.coffee + dt * 0.0055 * w.coffee * DAY.coffee, 0, 1);
   n.social = clamp(n.social + dt * 0.0085 * w.social, 0, 1);
   n.focus = clamp(n.focus + dt * (p.typeOn ? 0.01 : -0.006), 0, 1);
   if (p.act && t - p.act.t0 > p.act.dur + 0.5) p.act = null;
   if (p.answering && t > p.answering) p.answering = 0;
-  p.mood.v += (MOODS[p.mood.base].v - p.mood.v) * dt * 0.003;
+  p.mood.v += (moodTarget(p) - p.mood.v) * dt * 0.01;
   if (Math.random() < dt * 0.2) recomputeMood(p);
-  p.pace = 0.86 + 0.24 * (p.mood.v + 1) / 2 + 0.06 * (p.needs.energy - 0.5);
+  p.pace = (0.86 + 0.24 * (p.mood.v + 1) / 2 + 0.06 * (p.needs.energy - 0.5)) * DAY.pace;
 
   var st = p.state, k = p.dur > 0 ? clamp((t - p.t0) / p.dur, 0, 1) : 1, tr = p.trip;
   p.root.visible = st !== "away" && st !== "coffee";
@@ -2341,7 +2636,7 @@ function updateAgent(p, t, dt){
       else {
         var q = tr.target;
         if (q.state === "sit" && q.visitor === p && !q.answering) {
-          var cd = rand(6, 10);
+          var cd = rand(11, 13.5);
           setState(p, "visit", t, cd);
           startAct(q, q.remote ? "answer" : "turn", t, cd - 0.3, p);
           startAct(p, p.id === "olivia" && !q.remote ? "swatch" : "talk", t + 0.5, cd - 1.2);
@@ -2361,6 +2656,7 @@ function updateAgent(p, t, dt){
         n.coffee = 0; n.energy = Math.min(1, n.energy + 0.45);
         moodShift(p, p.mood.kind === "tired" ? 0.25 : 0.12, p.id === "olivia" ? "a good cup of tea helped" : "the coffee helped");
         p.lastEvent = { kind:"coffee", t:t };
+        if (DAY.coffee > 1.8 || Math.random() < 0.3) logEvent("coffee", p, t);
       }
       if (st === "visit" && tr.target.visitor === p) tr.target.visitor = null;
       startReturn(p, t);
@@ -2372,6 +2668,7 @@ function updateAgent(p, t, dt){
       n.energy = Math.max(0.2, n.energy - 0.1);
       moodShift(p, -0.05 - 0.06 * p.dur / 25, p.dur > 25 ? "that meeting ran long" : "back-to-back meetings");
       p.lastEvent = { kind:"meeting", t:t };
+      logEvent(p.dur > 25 ? "longmeeting" : "meeting", p, t);
       p.cal.next = t + 12 + rand(30, 90);
       startReturn(p, t);
     }
@@ -2520,7 +2817,11 @@ function rollMood(p){
 function recomputeMood(p){
   var m = p.mood, v = m.v, prof = PROFILE[p.id];
   if (m.base === "off" && v < 0.3) { m.kind = "off"; return; }
-  if (v > 0.7) m.kind = m.base === "excited" ? "excited" : "great";
+  if (DAY.homeSoon && v > 0.4) p.moodWhy = DAY.fri ? "the weekend is almost here" : "home time is almost here";
+  else if ((DAY.key === "early" || DAY.key === "morning") && v < 0) p.moodWhy = p.needs.coffee > 0.4 ? "it is early and I have not had my " + drinkOf(p) + " yet" : "mornings are not my thing";
+  else if (DAY.key === "slump" && v < 0) p.moodWhy = "the after lunch slump is real";
+  else if (DAY.load > 1.25 && v < 0) p.moodWhy = DAY.wdName === "Monday" ? "it is Monday, enough said" : "this week has been long";
+  if (v > 0.7) m.kind = m.base === "excited" || DAY.homeSoon ? "excited" : "great";
   else if (v > 0.4) m.kind = "great";
   else if (v > 0.15) m.kind = "good";
   else if (v > -0.15) m.kind = "okay";
@@ -2704,7 +3005,9 @@ var OPEN = {
 function howReply(p){
   var n = p.needs, m = p.mood.kind, prof = PROFILE[p.id], bits = [fresh(p, OPEN[m])], why = p.moodWhy;
   var t = clock.elapsedTime;
-  if (p.lastEvent && t - p.lastEvent.t < 60 && p.lastEvent.kind === "chat" && (m === "great" || m === "good" || m === "excited")) { bits.push("Just had a good chat with " + p.lastEvent.with + "."); why = "talking to " + p.lastEvent.with + " always helps"; }
+  if (DAY.homeSoon && p.mood.v > 0.3) { bits.push(fresh(p, DAY.fri ? ["It's Friday and it's almost five!","Weekend mode is loading."] : ["Almost home time!","The finish line is in sight."])); why = DAY.fri ? "the weekend is almost here" : "home time is almost here"; }
+  else if ((DAY.key === "early" || DAY.key === "morning") && n.energy < 0.55) { bits.push(fresh(p, ["Not fully awake yet.","Still booting up, honestly."])); why = "it is early and the " + drinkOf(p) + " has not kicked in"; }
+  else if (p.lastEvent && t - p.lastEvent.t < 60 && p.lastEvent.kind === "chat" && (m === "great" || m === "good" || m === "excited")) { bits.push("Just had a good chat with " + p.lastEvent.with + "."); why = "talking to " + p.lastEvent.with + " always helps"; }
   else if (n.energy < 0.3 || m === "tired") { bits.push(fresh(p, ["Long day already.","Could use a nap, honestly."])); why = p.moodWhy || "it has been a long day and it is not over"; }
   else if (n.coffee > 0.7 && p.id !== "debbie") { bits.push(fresh(p, ["I really need a " + drinkOf(p) + ".", cap(drinkOf(p)) + " would fix a lot right now."])); why = "I have not had my " + drinkOf(p) + " yet"; }
   else if (n.focus > 0.75 && p.typeOn && p.mood.v >= 0) { bits.push(fresh(p, ["In the zone today.","Head down, getting stuff done."])); why = "I finally have a quiet stretch to work"; }
@@ -3179,7 +3482,8 @@ REMOTE.forEach(function(p, i){
 function updateRemote(p, t, dt){
   var r = p.rig;
   r.sit = 1; r.walkTarget = 0;
-  p.mood.v += (MOODS[p.mood.base].v - p.mood.v) * dt * 0.003;
+  p.mood.v += (moodTarget(p) - p.mood.v) * dt * 0.01;
+  if (Math.random() < dt * 0.2) recomputeMood(p);
   if (t > p.typeNext) { p.typeOn = !p.typeOn; p.typeNext = t + (p.typeOn ? rand(2, 7) : rand(0.8, 3.5)); }
   if (p.act && t - p.act.t0 > p.act.dur + 0.5) p.act = null;
   if (p.answering && t > p.answering) p.answering = 0;
@@ -3277,6 +3581,8 @@ function frame(){
   });
   REMOTE.forEach(function(p){ updateRemote(p, t, dt); });
   updateMishaps(t, dt);
+  if (!(t - (window.__dayT || -9) < 1)) { window.__dayT = t; dayTick(); clockTick(); }
+  wallClockTick();
 
   mark("rigs", m0);
   var busy = false;
