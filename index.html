@@ -2665,7 +2665,7 @@ ALL.forEach(function(p, i){
   p.leaveH = p.id === "luis" ? 16 : rand(16.75, 16.97);
   p.needs = { energy:clamp(rand(0.45, 1) - (early ? 0.25 : 0) - (DAY.load - 1) * 0.5, 0.12, 1), focus:rand(0.3, 0.9), social:rand(0, 0.6), coffee:clamp(rand(0, 0.55) + (early ? 0.3 : 0), 0, 1) };
   p.state = "sit"; p.t0 = 0; p.dur = 0;
-  p.decideAt = rand(2, 7);
+  p.decideAt = rand(4, 45);  /* spread out, so the page never opens with everyone doing the same thing */
   p.typeOn = Math.random() < 0.7; p.typeNext = rand(0.5, 5); p.typeAmp = 0;
   p.act = null; p.trip = null; p.chatWith = null; p.visitor = null; p.log = [];
   if (p.walker) p.cal = { next:rand(3, 20) * 60 };
@@ -2994,7 +2994,10 @@ function decide(p, t){
   var nbs = neighbours(p).filter(function(q){ return !luisDeepWork(q); });
   if (nbs.length && !withdrawn) { var tq = pickByAff(p, nbs); opts.push({ k:"talk", s:n.social * w.shop * 1.1 * sociable * (0.7 + 0.3 * aff(p, tq)) + rand(0, 0.3), q:tq }); }
   /* Carla checks on anyone who seems down */
-  if (p.id === "carla") PEOPLE.forEach(function(q){ if (q !== p && available(q) && q.mood.v < -0.2 && !luisDeepWork(q)) opts.push({ k:"visit", s:1.5 + rand(0, 0.4), q:q, care:true }); });
+  /* Carla checks on someone who seems down, but rarely and never the same person twice within the hour */
+  if (p.id === "carla" && t > 90 && Math.random() < 0.25) PEOPLE.forEach(function(q){
+    if (q !== p && !q.guest && available(q) && q.mood.v < -0.3 && !luisDeepWork(q) && !(q.caredAt && t - q.caredAt < 3600)) opts.push({ k:"visit", s:0.9 + rand(0, 0.4), q:q, care:true });
+  });
   /* walk up to a wall screen and talk to a remote colleague */
   REMOTE.forEach(function(rq){
     if (rq.visitor || rq.chatWith || rq.answering || withdrawn) return;
@@ -3254,7 +3257,11 @@ function updateAgent(p, t, dt){
           startAct(q, q.remote ? "answer" : "turn", t, cd - 0.3, p);
           startAct(p, p.id === "olivia" && !q.remote ? "swatch" : "talk", t + 0.5, cd - 1.2);
           if (tr.request) startChat(p, q, t, cd, makeRequest(p, t));
-          else if (tr.care) { startChat(p, q, t, cd, ["Hey, everything okay?", "Thanks, Carla. Better now."]); moodShift(q, 0.25, "Carla came by to check on me"); }
+          else if (tr.care) {
+            q.caredAt = t;
+            startChat(p, q, t, cd, choose([["Hey, everything okay?", "Long day, but better now. Thanks."], ["You look like you need a break.", "I really do. Thanks for noticing."], ["Want me to grab you something?", "A coffee would save my life."], ["How are you holding up?", "Hanging in there. Thanks, Carla."], ["Need a hand with anything?", "I'm okay, but that's sweet of you."]]));
+            moodShift(q, 0.25, "Carla came by to check on me");
+          }
           else startChat(p, q, t, cd);
         } else setState(p, "visit", t, 1.2);
       }
