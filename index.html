@@ -1042,6 +1042,41 @@ function plant(x, z, s){
   }
   return g;
 }
+/* keyboard: slim dark aluminium body with printed keycaps on top; mouse: rounded shell on a pad */
+var KB = null;
+function kbParts(){
+  if (KB) return KB;
+  var c = document.createElement("canvas"); c.width = 512; c.height = 160; var g = c.getContext("2d");
+  g.fillStyle = "#2a2e35"; g.fillRect(0, 0, 512, 160);
+  var rows = [[15, 1], [14, 1.5], [13, 1.8], [12, 2.3]], u = 512 / 15.6, y = 8;
+  rows.forEach(function(rw){
+    var x = 6, n = rw[0];
+    for (var i = 0; i < n; i++) {
+      var kw = (i === 0 || i === n - 1) ? u * rw[1] : u; if (rw[1] > 1 && i === n - 1) kw = 512 - 6 - x;
+      g.fillStyle = "#454b55"; rrect(g, x + 1.5, y + 1.5, kw - 3, u - 3, 4); g.fill();
+      g.fillStyle = "#525965"; rrect(g, x + 3, y + 2.5, kw - 6, u - 8, 3); g.fill();
+      x += kw;
+    }
+    y += u;
+  });
+  var bx = 6 + u * 3.5; g.fillStyle = "#454b55"; rrect(g, bx + 1.5, y + 1.5, u * 6.5 - 3, 160 - y - 10, 4); g.fill();
+  g.fillStyle = "#525965"; rrect(g, bx + 3, y + 2.5, u * 6.5 - 6, 160 - y - 15, 3); g.fill();
+  var tx = new T.CanvasTexture(c); tx.colorSpace = T.SRGBColorSpace; tx.anisotropy = maxAniso;
+  KB = { body:M("#1f2329", { roughness:0.45, metalness:0.35 }), top:new T.MeshStandardMaterial({ map:tx, roughness:0.7 }),
+         pad:M("#2b2f36", { roughness:0.95 }), mouse:M("#e9eaec", { roughness:0.35 }), btn:M("#cfd2d6", { roughness:0.4 }) };
+  return KB;
+}
+function deskKeyboard(g, x, z){
+  var P = kbParts();
+  add(G.box, P.body, 0.44, 0.014, 0.145, x, 0.769, z, g, false);
+  var top = add(G.plane, P.top, 0.425, 0.13, 1, x, 0.7765, z, g, false); top.rotation.x = -Math.PI / 2;
+}
+function deskMouse(g, x, z){
+  var P = kbParts();
+  add(G.box, P.pad, 0.15, 0.003, 0.17, x, 0.7635, z, g, false);
+  add(G.hcap2, P.mouse, 0.032, 0.022, 0.052, x, 0.765, z + 0.005, g, false);
+  add(G.box, P.btn, 0.002, 0.004, 0.025, x, 0.785, z - 0.02, g, false);
+}
 function desk(p){
   var g = new T.Group(); g.position.set(p.side * 1.6, 0, p.z); g.rotation.y = -p.side * Math.PI / 2; scene.add(g);
   aoDecal(g, 0, -0.78, 1.9, 1.0);
@@ -1049,8 +1084,9 @@ function desk(p){
   add(G.box, M("#d9d6cf", { roughness:0.6 }), 1.7, 0.012, 0.82, 0, 0.712, -0.78, g, false);
   [[-0.8,-0.42],[0.8,-0.42],[-0.8,-1.14],[0.8,-1.14]].forEach(function(q){ add(G.box, metalDark, 0.04, 0.72, 0.04, q[0], 0.36, q[1], g, false); });
   add(G.box, metalDark, 1.56, 0.3, 0.02, 0, 0.52, -1.16, g, false);
-  add(G.box, M("#e8e9eb", { roughness:0.5 }), 0.44, 0.016, 0.14, 0, 0.77, -0.56, g, false);
-  add(G.box, M("#e8e9eb", { roughness:0.5 }), 0.06, 0.02, 0.1, 0.36, 0.772, -0.54, g, false);
+  /* Luis types on the laptop itself (no separate keyboard), mouse to its right */
+  if (p.id !== "luis") deskKeyboard(g, 0, -0.56);
+  deskMouse(g, p.id === "luis" ? 0.3 : 0.32, -0.55);
   p.cup = add(G.cyl, M(p.side > 0 ? "#ffffff" : "#E31837", { roughness:0.4 }), 0.04, 0.1, 0.04, -0.62, 0.81, -0.5, g);
   lunchProps(p, g);
   p.cup.userData.dyn = true;
@@ -1085,9 +1121,10 @@ function laptop(parent, x, z, kind, ry){
   return g;
 }
 /* Luis: two external monitors and his laptop */
-monitor(dg, -0.5, -1.0, 0.56, 0.34, "code", 0.18);
-monitor(dg, 0.08, -1.0, 0.56, 0.34, "chat", -0.12);
-laptop(dg, 0.58, -0.5, "code", -0.25);
+/* his real setup: laptop in front of him, one monitor raised right behind it, the other monitor to the right */
+laptop(dg, 0, -0.6, "code", 0);
+monitor(dg, 0, -1.02, 0.56, 0.34, "code", 0).position.y += 0.1;
+monitor(dg, 0.6, -0.98, 0.56, 0.34, "chat", -0.22);
 /* Debbie: two external monitors and a laptop */
 monitor(BY.debbie.deskGroup, -0.5, -1.0, 0.56, 0.34, "sheet", 0.18);
 monitor(BY.debbie.deskGroup, 0.08, -1.0, 0.56, 0.34, "web", -0.12);
@@ -1109,6 +1146,7 @@ monitor(emptyDesk.deskGroup, 0, -1.0, 0.64, 0.38, "off", 0);
   add(G.box, alu, 0.4, 0.26, 0.012, 0, 0.13, 0, lid, false);
   var scr = new T.Mesh(plane1, new T.MeshBasicMaterial({ map:screenTex("tasks"), toneMapped:false }));
   scr.scale.set(0.37, 0.23, 1); scr.position.set(0, 0.13, 0.007); lid.add(scr);
+  scr.userData.dyn = true; (BY.carla.deskGroup.userData.screens = BY.carla.deskGroup.userData.screens || []).push(scr);
   var pl = new T.Group(); pl.position.set(-0.55, 0.76, -0.95); pl.scale.setScalar(0.45); BY.carla.deskGroup.add(pl);
   add(G.cyl, M("#f2c64d"), 0.18, 0.3, 0.18, 0, 0.15, 0, pl);
   for (var i = 0; i < 6; i++) { var lf = add(G.lowSph, M("#4f9259", { flatShading:true }), 0.12, 0.3, 0.06, Math.cos(i) * 0.08, 0.45, Math.sin(i) * 0.08, pl); lf.rotation.set(0.3, i, 0.4); }
@@ -1290,11 +1328,17 @@ function homeNow(p){ return !p.guest && !p.remote && DAY.wd > 0 && DAY.wd < 6 &&
 var OFFICE_DARK = 0;
 function officeHours(t, dt){
   /* lights dim and monitors switch off once people have gone */
-  var dark = DAY.wd > 0 && DAY.wd < 6 && (DAY.h >= 17 || DAY.h < 7) ? 1 : 0;
+  /* the later it gets, the darker: 5 pm starts low light, full night by 9 pm, dawn between 6 and 7 */
+  var hh = DAY.h, dark = 0;
+  if (DAY.wd > 0 && DAY.wd < 6) {
+    if (hh >= 17) dark = 0.45 + 0.55 * clamp((hh - 17) / 4, 0, 1);
+    else if (hh < 6) dark = 1;
+    else if (hh < 7) dark = 1 - 0.55 * (hh - 6);
+  }
   OFFICE_DARK = lerp(OFFICE_DARK, dark, 1 - Math.exp(-dt * 0.8));
-  var k = 1 - 0.68 * OFFICE_DARK;
+  var k = 1 - 0.8 * OFFICE_DARK;
   if (!officeHours.base) officeHours.base = { sun:sun.intensity, fill:fill.intensity, hemi:hemiL.intensity, logo:logoLight.intensity, exp:renderer.toneMappingExposure, env:scene.environmentIntensity !== undefined ? scene.environmentIntensity : 1 };
-  renderer.toneMappingExposure = officeHours.base.exp * (1 - 0.45 * OFFICE_DARK);
+  renderer.toneMappingExposure = officeHours.base.exp * (1 - 0.55 * OFFICE_DARK);
   var nightEl = officeHours.el || (officeHours.el = document.getElementById("night"));
   var op = (OFFICE_DARK > 0.02 ? OFFICE_DARK : 0).toFixed(2); if (nightEl.style.opacity !== op) nightEl.style.opacity = op;
   sun.intensity = officeHours.base.sun * k; fill.intensity = officeHours.base.fill * k; hemiL.intensity = officeHours.base.hemi * (1 - 0.5 * OFFICE_DARK);
@@ -4537,7 +4581,7 @@ REMOTE.forEach(function(p, i){
   scr.scale.set(1.9, 1.07, 1); scr.position.z = 0.037; scr.userData.pid = p.id; g.add(scr);
   pickables.push(scr);
   var capM = new T.Mesh(G.plane, new T.MeshBasicMaterial({ map:captionTex(p), transparent:true, depthWrite:false, toneMapped:false }));
-  capM.scale.set(1.5, 0.1875, 1); capM.position.set(0, -0.43, 0.04); g.add(capM);
+  capM.scale.set(1.5, 0.1875, 1); capM.position.set(0, -0.43, 0.04); g.add(capM); p.capM = capM;
   var anchor = new T.Object3D(); anchor.position.set(0, 0.74, 0.05); g.add(anchor);
   p.head = anchor; p.screenG = g; p.glowM = glowM;
   p.spot = new V3(p.sx, 0, -3.15);
@@ -4558,9 +4602,14 @@ function updateRemote(p, t, dt){
   p.glowM.opacity = 0.26 + (p.chatWith || p.answering ? 0.18 : 0) + 0.04 * Math.sin(t * 2 + p.sx);
   /* remote colleagues log off at 5 */
   var offline = DAY.wd > 0 && DAY.wd < 6 && (DAY.h >= 17 || DAY.h < 7);
+  if (offline !== !!p.offline) {
+    /* the call ends: screen goes black, the name caption and the name tag disappear */
+    p.offline = offline; p.capM.visible = !offline; p.scrMat.color.setScalar(offline ? 0 : 1);
+    if (!offline) { p.camOff = false; p.scrMat.map = p.liveTex; }
+  }
   if (offline) {
     if (!p.camOff || p.scrMat.map !== p.offTex) { p.camOff = true; p.scrMat.map = p.offTex; }
-    p.glowM.opacity = 0.05; p.camNext = t + 30;
+    p.glowM.opacity = 0; p.camNext = t + 30;
     p.statusNow = DAY.fri ? "Offline for the weekend" : "Offline, back tomorrow";
     return;
   }
@@ -4739,7 +4788,7 @@ function frame(){
     tv.y += p.remote ? 0 : 0.3;
     tv.project(camera);
     p.onScreen = !(tv.z > 1 || tv.x < -1.25 || tv.x > 1.25 || tv.y < -1.25 || tv.y > 1.25);
-    if (!p.onScreen || (!p.root.visible && p !== focus)) { tag.classList.add("off"); showBubble(p, null); return; }
+    if (!p.onScreen || (!p.root.visible && p !== focus) || (p.offline && p !== focus)) { tag.classList.add("off"); showBubble(p, null); return; }
     var x = (tv.x + 1) / 2 * w, y = (1 - tv.y) / 2 * h;
     if (!p.tagW) { p.tagW = tag.offsetWidth || 70; p.tagH = tag.offsetHeight || 24; }
     var rect = { l:x - p.tagW / 2, r:x + p.tagW / 2, t:y - p.tagH - 6, b:y - 6 };
