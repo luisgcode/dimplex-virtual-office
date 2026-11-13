@@ -1364,12 +1364,16 @@ function officeHours(t, dt){
     else if (hh < 8) dark = 1;
   }
   OFFICE_DARK = lerp(OFFICE_DARK, dark, 1 - Math.exp(-dt * 2.2));
-  var k = 1 - 0.93 * OFFICE_DARK;
+  if (TROPHY) TROPHY.spin.rotation.y += dt * 0.6;
+  /* the sky outside the office goes dark too */
+  if (!officeHours.bg) officeHours.bg = { day:scene.background.clone(), night:new T.Color(0x0b0f17) };
+  scene.background.copy(officeHours.bg.day).lerp(officeHours.bg.night, OFFICE_DARK);
+  var k = 1 - 0.96 * OFFICE_DARK;
   if (!officeHours.base) officeHours.base = { sun:sun.intensity, fill:fill.intensity, hemi:hemiL.intensity, logo:logoLight.intensity, exp:renderer.toneMappingExposure, env:scene.environmentIntensity !== undefined ? scene.environmentIntensity : 1 };
   renderer.toneMappingExposure = officeHours.base.exp * (1 - 0.45 * OFFICE_DARK);
   var nightEl = officeHours.el || (officeHours.el = document.getElementById("night"));
   var op = (OFFICE_DARK > 0.02 ? OFFICE_DARK * 0.3 : 0).toFixed(2); if (nightEl.style.opacity !== op) nightEl.style.opacity = op;
-  sun.intensity = officeHours.base.sun * k; fill.intensity = officeHours.base.fill * k; hemiL.intensity = officeHours.base.hemi * (1 - 0.88 * OFFICE_DARK);
+  sun.intensity = officeHours.base.sun * k; fill.intensity = officeHours.base.fill * k; hemiL.intensity = officeHours.base.hemi * (1 - 0.94 * OFFICE_DARK);
   logoLight.intensity = officeHours.base.logo * (1 - 0.75 * OFFICE_DARK);
   /* the room environment light is most of the daylight look: turn it down on every material too */
   if (Math.abs(OFFICE_DARK - (officeHours.envAt === undefined ? -1 : officeHours.envAt)) > 0.01) {
@@ -1378,7 +1382,7 @@ function officeHours(t, dt){
       officeHours.mats = [];
       scene.traverse(function(o){ var ms = o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : []; ms.forEach(function(m){ if (m.envMapIntensity !== undefined && !m.userData.envBase && officeHours.mats.indexOf(m) < 0) { m.userData.envBase = m.envMapIntensity; officeHours.mats.push(m); } }); });
     }
-    var ek = 1 - 0.9 * OFFICE_DARK;
+    var ek = 1 - 0.95 * OFFICE_DARK;
     for (var mi = 0; mi < officeHours.mats.length; mi++) officeHours.mats[mi].envMapIntensity = officeHours.mats[mi].userData.envBase * ek;
   }
   PEOPLE.forEach(function(q){
@@ -1767,6 +1771,91 @@ function updateSays(t){
   }
 }
 var MISHAP = { next:0, cur:null, book:null, puddle:null };
+/* our first place pumpkin: a carousel with an orange and black striped pumpkin roof, bats on top, a carved pumpkin base
+   and little ghosts spinning around the pole, on a wall shelf with a gold "1st place" plaque */
+var TROPHY = null;
+function buildPumpkinTrophy(){
+  var sh = new T.Group(); sh.position.set(-2.79, 1.6, 0.55); scene.add(sh);
+  add(G.box, M("#2b2420", { roughness:0.5 }), 0.3, 0.03, 0.62, 0.15, 0, 0, sh);
+  add(G.box, metalDark, 0.16, 0.06, 0.015, 0.08, -0.045, -0.24, sh, false);
+  add(G.box, metalDark, 0.16, 0.06, 0.015, 0.08, -0.045, 0.24, sh, false);
+  var tg = new T.Group(); tg.position.set(0.15, 0.015, 0); tg.rotation.y = Math.PI / 2; sh.add(tg);
+  /* striped skin shared by the roof and the base */
+  var stripes = canvasTex(256, 64, function(g, w, h){
+    var n = 12, sw = w / n;
+    for (var i = 0; i < n; i++) {
+      var gr = g.createLinearGradient(i * sw, 0, (i + 1) * sw, 0);
+      var c = i % 2 ? ["#120f0e", "#2a2422", "#120f0e"] : ["#b4500f", "#f08a2c", "#b4500f"];
+      gr.addColorStop(0, c[0]); gr.addColorStop(0.5, c[1]); gr.addColorStop(1, c[2]);
+      g.fillStyle = gr; g.fillRect(i * sw, 0, sw + 1, h);
+    }
+  });
+  var skin = new T.MeshStandardMaterial({ map:stripes, roughness:0.45 });
+  var orange = M("#e8731c", { roughness:0.5 }), black = M("#151211", { roughness:0.5 }), white = M("#f6f4ef", { roughness:0.6 });
+  /* black plinth with the gold plaque */
+  add(G.box, black, 0.28, 0.035, 0.24, 0, 0.0175, 0, tg);
+  var plaque = canvasTex(256, 96, function(g, w, h){
+    var gr = g.createLinearGradient(0, 0, w, h); gr.addColorStop(0, "#f6d67a"); gr.addColorStop(0.5, "#c99a2e"); gr.addColorStop(1, "#f3cf6a");
+    g.fillStyle = gr; g.fillRect(0, 0, w, h);
+    g.strokeStyle = "#7a5a14"; g.lineWidth = 4; g.strokeRect(6, 6, w - 12, h - 12);
+    g.fillStyle = "#4a3608"; g.textAlign = "center"; g.textBaseline = "middle";
+    g.font = "800 44px " + FONT; g.fillText("1st PLACE", w / 2, h / 2 - 6);
+    g.font = "600 16px " + FONT; g.fillText("PUMPKIN CONTEST", w / 2, h / 2 + 28);
+  });
+  var pl = new T.Mesh(G.plane, new T.MeshStandardMaterial({ map:plaque, roughness:0.3, metalness:0.6 }));
+  pl.scale.set(0.2, 0.075, 1); pl.position.set(0, 0.07, 0.121); tg.add(pl);
+  add(G.box, black, 0.22, 0.09, 0.02, 0, 0.07, 0.11, tg, false);
+  /* carved pumpkin base: a striped bowl with a zigzag rim */
+  var bowlGeo = new T.SphereGeometry(1, 24, 12, 0, Math.PI * 2, Math.PI * 0.42, Math.PI * 0.58);
+  var bowl = new T.Mesh(bowlGeo, skin); bowl.scale.set(0.12, 0.085, 0.12); bowl.position.y = 0.035 + 0.085 * 0.97; tg.add(bowl);
+  var inner = new T.Mesh(new T.CircleGeometry(1, 24), M("#c9611a", { roughness:0.7 })); inner.rotation.x = -Math.PI / 2; inner.scale.setScalar(0.112); inner.position.y = bowl.position.y + 0.02; tg.add(inner);
+  var spike = new T.ConeGeometry(0.018, 0.035, 4);
+  for (var i = 0; i < 16; i++) {
+    var a = i / 16 * Math.PI * 2, c = new T.Mesh(spike, i % 2 ? black : orange);
+    c.position.set(Math.cos(a) * 0.112, bowl.position.y + 0.035, Math.sin(a) * 0.112); c.rotation.y = -a; tg.add(c);
+  }
+  /* a candle glowing inside, brighter at night */
+  var candle = new T.MeshBasicMaterial({ color:"#ffb347", toneMapped:false });
+  glowBulb(add(G.sph, candle, 0.02, 0.025, 0.02, 0, bowl.position.y + 0.035, 0, tg, false), "#ffb347");
+  /* the pole */
+  add(G.cyl, black, 0.012, 0.24, 0.012, 0, bowl.position.y + 0.14, 0, tg, false);
+  /* the striped pumpkin roof, scalloped edge, curly stem */
+  var roofY = bowl.position.y + 0.26;
+  var roof = new T.Mesh(new T.SphereGeometry(1, 24, 12, 0, Math.PI * 2, 0, Math.PI * 0.5), skin);
+  roof.scale.set(0.15, 0.12, 0.15); roof.position.y = roofY; roof.castShadow = true; tg.add(roof);
+  var under = new T.Mesh(new T.CircleGeometry(1, 24), black); under.rotation.x = Math.PI / 2; under.scale.setScalar(0.15); under.position.y = roofY - 0.001; tg.add(under);
+  var drop = new T.ConeGeometry(0.03, 0.05, 6);
+  for (i = 0; i < 12; i++) {
+    var a2 = (i + 0.5) / 12 * Math.PI * 2, d = new T.Mesh(drop, i % 2 ? black : orange);
+    d.position.set(Math.cos(a2) * 0.142, roofY - 0.02, Math.sin(a2) * 0.142); d.rotation.x = Math.PI; tg.add(d);
+  }
+  var stem = add(G.cyl, M("#6b5a2e", { roughness:0.8 }), 0.016, 0.07, 0.016, 0.005, roofY + 0.145, 0, tg, false); stem.rotation.z = -0.25;
+  /* two bats perched on the roof */
+  [[-0.06, 0.04, 0.5], [0.07, -0.03, -0.6]].forEach(function(q){
+    var bg = new T.Group(); bg.position.set(q[0], roofY + 0.11, q[1]); bg.rotation.y = q[2]; tg.add(bg);
+    add(G.sph, black, 0.016, 0.022, 0.014, 0, 0.02, 0, bg, false);
+    add(G.sph, black, 0.012, 0.012, 0.012, 0, 0.048, 0, bg, false);
+    [-1, 1].forEach(function(sd){
+      var wing = add(G.box, black, 0.075, 0.045, 0.004, sd * 0.045, 0.04, 0, bg, false); wing.rotation.z = sd * 0.45;
+      var tip = add(G.box, black, 0.035, 0.03, 0.004, sd * 0.09, 0.07, 0, bg, false); tip.rotation.z = sd * 0.9;
+      var ear = add(G.box, black, 0.006, 0.012, 0.004, sd * 0.006, 0.062, 0, bg, false); ear.rotation.z = -sd * 0.3;
+    });
+  });
+  /* the carousel: ghosts hanging from the roof on threads, going round and round */
+  var spin = new T.Group(); spin.position.y = 0; tg.add(spin);
+  var thread = M("#d8d8d8", { roughness:0.6 }), eye = M("#151211", { roughness:0.4 });
+  for (i = 0; i < 6; i++) {
+    var a3 = i / 6 * Math.PI * 2, gx = Math.cos(a3) * 0.1, gz = Math.sin(a3) * 0.1, gy = bowl.position.y + 0.075 + (i % 2) * 0.03;
+    add(G.cyl, thread, 0.0015, roofY - gy - 0.03, 0.0015, gx, (roofY + gy + 0.03) / 2, gz, spin, false);
+    var gh = new T.Group(); gh.position.set(gx, gy, gz); gh.rotation.y = -a3 + Math.PI / 2; spin.add(gh);
+    add(G.sph, white, 0.022, 0.026, 0.022, 0, 0.012, 0, gh, false);
+    var sk = new T.Mesh(new T.CylinderGeometry(0.6, 1, 1, 12, 1, true), white); sk.scale.set(0.026, 0.04, 0.026); sk.position.y = -0.008; gh.add(sk);
+    add(G.sph, eye, 0.004, 0.006, 0.003, -0.008, 0.017, 0.02, gh, false);
+    add(G.sph, eye, 0.004, 0.006, 0.003, 0.008, 0.017, 0.02, gh, false);
+  }
+  sh.traverse(function(o){ o.userData.dyn = true; });
+  TROPHY = { spin:spin };
+}
 function buildMishaps(){
   /* a small wall shelf between Debbie's heater and Carla's events calendar */
   var shelfG = new T.Group(); shelfG.position.set(-2.79, 1.52, 1.72); scene.add(shelfG);
@@ -1892,6 +1981,7 @@ function updateMishaps(t, dt){
   }
 }
 buildMishaps();
+buildPumpkinTrophy();
 
 /* focus ring */
 var ringMat = new T.MeshBasicMaterial({ color:0xe31837, transparent:true, opacity:0.85, toneMapped:false, depthWrite:false });
