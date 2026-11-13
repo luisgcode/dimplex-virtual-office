@@ -3139,7 +3139,7 @@ function huddleTick(t, dt){
     if (!available(A) || !available(E) || A.act || E.act || lunchNow(A) || lunchNow(E)) return;
     var lines = choose(BOSS_LINES), dur = 3.5 + lines.length * LINE_GAP + 2;
     HUDDLE.on = H = { t0:t, dur:dur, lines:lines, talk:false };
-    A.rollTo = new V3(E.seat.x, 0, E.seat.z + 0.62); A.rollOn = true;
+    A.rollTo = new V3(E.seat.x, 0, E.seat.z + 0.78); A.rollOn = true;
     A.decideAt = E.decideAt = t + dur + 3;
     A.cal.next = Math.max(A.cal.next, t + dur + 5); E.cal.next = Math.max(E.cal.next, t + dur + 5);
   }
@@ -3170,7 +3170,8 @@ function rollUpdate(p, dt){
 }
 function rollOver(p, q, gap){
   var d = new V3(p.seat.x - q.seat.x, 0, p.seat.z - q.seat.z), L = d.length() || 1;
-  p.rollTo = q.seat.clone().add(d.multiplyScalar((gap || 0.68) / L));
+  /* keep a normal talking distance: knees and chairs never touch */
+  p.rollTo = q.seat.clone().add(d.multiplyScalar(Math.min(L, gap || 1.1) / L));
   p.rollOn = true;
 }
 
