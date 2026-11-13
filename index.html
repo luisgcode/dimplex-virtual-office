@@ -300,32 +300,32 @@ function fail(msg){ loadingEl.hidden = true; fallback.textContent = msg; fallbac
 
 /* ---------- team ---------- */
 var PEOPLE = [
-  { id:"erica", name:"Erica", role:"Manager, Marketing", side:1, z:-1.05, personality:"One of the bosses. Always heading to the next meeting.", topics:"Meetings, calendars and the next call", shirt:"#4a4d52", dot:"#3d6fb0", pants:"#1d1f24", skin:"#efcfbd", hair:"#3b2417", highlight:"#5a3a26", style:"softwave", part:0, eyeColor:"#4a2c1c", vneck:true, alwaysSmile:true, sleeves:true, screen:"cal",
+  { id:"erica", model:"erica", name:"Erica", role:"Manager, Marketing", side:1, z:-1.05, personality:"One of the bosses. Always heading to the next meeting.", topics:"Meetings, calendars and the next call", shirt:"#4a4d52", dot:"#3d6fb0", pants:"#1d1f24", skin:"#efcfbd", hair:"#3b2417", highlight:"#5a3a26", style:"softwave", part:0, eyeColor:"#4a2c1c", vneck:true, alwaysSmile:true, sleeves:true, screen:"cal",
     blurb:"Her calendar has no empty squares. If her chair is empty, check the Meeting Room.",
     walker:{ sit:8, away:9, offset:0, text:{ sit:"Between meetings", out:"Off to another meeting", away:"In a meeting (again)", back:"Back for five minutes" } } },
-  { id:"allyson", name:"Allyson", role:"Manager, Marketing", side:1, z:0.8, personality:"One of the bosses. Back-to-back meetings, every single day.", topics:"Meetings and quick syncs", shirt:"#7a4d9e", pants:"#2b2833", skin:"#f3d2b6", hair:"#c9a05c", style:"wavy", sleeves:true, screen:"cal2",
+  { id:"allyson", model:"allyson", name:"Allyson", role:"Manager, Marketing", side:1, z:0.8, personality:"One of the bosses. Back-to-back meetings, every single day.", topics:"Meetings and quick syncs", shirt:"#7a4d9e", pants:"#2b2833", skin:"#f3d2b6", hair:"#c9a05c", style:"wavy", sleeves:true, screen:"cal2",
     blurb:"Leaves for one meeting, comes back for a coffee, leaves for the next one.",
     walker:{ sit:6, away:11, offset:14, text:{ sit:"Back-to-back meetings", out:"Running to the next call", away:"Back-to-back meetings", back:"Back-to-back meetings" } } },
   { id:"stephanie", name:"Stephanie", model:"stephanie", role:"Flame products", side:1, z:2.65, personality:"Always solving fireplace issues.", topics:"Fireplaces and Flame products", shirt:"#141416", dot:"#e0703a", pants:"#1c2333", skin:"#f0d2c0", hair:"#1e1512", highlight:"#4a1f22", style:"softwave", part:-0.022, sleeves:false, puff:true, alwaysSmile:true, screen:"fire", glasses:true,
     status:"Fixing a fireplace issue", blurb:"Electric fireplaces. If a flame effect looks wrong, she already knows why." },
-  { id:"debbie", name:"Debbie", role:"Heat products", side:-1, z:0.8, personality:"Keeps every room in the catalog warm.", topics:"Baseboards and Heat products", shirt:"#b83c4c", pants:"#2d3138", skin:"#e8c4a4", hair:"#211611", style:"straight", part:0.012, framing:true, eyeShape:"almond", earrings:"drop", alwaysSmile:true, sleeves:true, screen:"sheet",
+  { id:"debbie", model:"debbie", name:"Debbie", role:"Heat products", side:-1, z:0.8, personality:"Keeps every room in the catalog warm.", topics:"Baseboards and Heat products", shirt:"#b83c4c", pants:"#2d3138", skin:"#e8c4a4", hair:"#211611", style:"straight", part:0.012, framing:true, eyeShape:"almond", earrings:"drop", alwaysSmile:true, sleeves:true, screen:"sheet",
     status:"Heat products", blurb:"Baseboards, wall heaters and everything that keeps a room warm in January." },
-  { id:"olivia", name:"Olivia", role:"Designer, web and channel images", side:-1, z:-1.05, personality:"Creates every image for the website and the other channels. Notices every pixel.", topics:"Retouching, lifestyle images, banners and social graphics", shirt:"#2a9d8f", pants:"#22262c", skin:"#f2d6c6", hair:"#e3c16f", style:"straight", part:-0.02, sunglasses:true, earrings:"small", alwaysSmile:true, coat:true, slim:0.9, sleeves:true, screen:"swatch",
+  { id:"olivia", model:"olivia", name:"Olivia", role:"Designer, web and channel images", side:-1, z:-1.05, personality:"Creates every image for the website and the other channels. Notices every pixel.", topics:"Retouching, lifestyle images, banners and social graphics", shirt:"#2a9d8f", pants:"#22262c", skin:"#f2d6c6", hair:"#e3c16f", style:"straight", part:-0.02, sunglasses:true, earrings:"small", alwaysSmile:true, coat:true, slim:0.9, sleeves:true, screen:"swatch",
     status:"Retouching product shots", blurb:"Turns product shots and brand colors into pages people actually want to scroll." },
   { id:"luis", name:"Luis", model:"luis", role:"Web Manager", side:-1, z:4.5, personality:"Headphones on, building the web.", topics:"The Dimplex, Convectair and Cadet sites", shirt:"#34495e", pants:"#23272e", skin:"#b98a68", hair:"#0c0c0e", style:"short", sleeves:false, screen:"code", headphones:true,
     status:"Headphones on, building the web", blurb:"Dimplex, Convectair and Cadet sites. Headphones on means deep in a build." },
   { id:"carla", name:"Carla", model:"carla", role:"Events and tradeshows", side:-1, z:2.65, personality:"Friendly organiser. Runs every tradeshow, booth and event trip.", topics:"Tradeshows, booths and event logistics", shirt:"#e2ac2f", pants:"#2a2f3a", skin:"#e6b38c", hair:"#3a2418", style:"wavy", sleeves:true, screen:"tasks",
     status:"Planning the next show", blurb:"Ask her for anything and the answer is the same: on it." },
   /* visitors from other teams: no desk here, they walk in now and then, talk to someone and leave */
-  { id:"nolan", name:"Nolan", role:"Marketing Director", guest:true, freq:3, hosts:["erica","allyson"], side:1, z:0, personality:"Erica and Allyson's boss. Drops by to talk plans, events and priorities.", topics:"Plans, events and priorities", shirt:"#2f5d8a", pants:"#2b2f36", skin:"#e8bf9e", hair:"#4a3020", style:"short", sleeves:true,
+  { id:"nolan", model:"nolan", name:"Nolan", role:"Marketing Director", guest:true, freq:3, hosts:["erica","allyson"], side:1, z:0, personality:"Erica and Allyson's boss. Drops by to talk plans, events and priorities.", topics:"Plans, events and priorities", shirt:"#2f5d8a", pants:"#2b2f36", skin:"#e8bf9e", hair:"#4a3020", style:"short", sleeves:true,
     status:"Visiting the managers", blurb:"Comes down to catch up with Erica and Allyson on plans and events." },
-  { id:"elena", name:"Elena", role:"Product Manager, Flame", guest:true, freq:3, hosts:["stephanie","luis"], side:1, z:0, personality:"Owns the fireplace lineup. Comes by to work with Stephanie and Luis.", topics:"Fireplace launches, specs and product pages", shirt:"#b0476b", pants:"#262a31", skin:"#d9a27c", hair:"#2b1a12", style:"wavy", sleeves:true, earrings:"small",
+  { id:"elena", model:"elena", name:"Elena", role:"Product Manager, Flame", guest:true, freq:3, hosts:["stephanie","luis"], side:1, z:0, personality:"Owns the fireplace lineup. Comes by to work with Stephanie and Luis.", topics:"Fireplace launches, specs and product pages", shirt:"#b0476b", pants:"#262a31", skin:"#d9a27c", hair:"#2b1a12", style:"wavy", sleeves:true, earrings:"small",
     status:"Visiting about fireplaces", blurb:"If a fireplace is launching, she was there first." },
-  { id:"tessa", name:"Tessa", role:"Product Manager, Heat", guest:true, freq:0.5, hosts:["erica","luis"], side:1, z:0, personality:"Owns the heating lineup. Comes by now and then to see Erica and Luis.", topics:"Heaters, baseboards and heat launches", shirt:"#3e8e6a", pants:"#2a2d35", skin:"#f2d2bf", hair:"#b5733f", style:"straight", sleeves:true,
+  { id:"tessa", model:"tessa", name:"Tessa", role:"Product Manager, Heat", guest:true, freq:0.5, hosts:["erica","luis"], side:1, z:0, personality:"Owns the heating lineup. Comes by now and then to see Erica and Luis.", topics:"Heaters, baseboards and heat launches", shirt:"#3e8e6a", pants:"#2a2d35", skin:"#f2d2bf", hair:"#b5733f", style:"straight", sleeves:true,
     status:"Visiting about heat products", blurb:"Baseboards, wall heaters and everything in between." },
-  { id:"grant", name:"Grant", role:"Operations, visiting", guest:true, freq:0.8, side:1, z:0, personality:"Calm, practical, always checking when things ship.", topics:"Shipping, stock and warehouses", shirt:"#6b6f76", pants:"#23272e", skin:"#c99673", hair:"#18120e", style:"short", sleeves:true, glasses:true,
+  { id:"grant", model:"grant", name:"Grant", role:"Operations, visiting", guest:true, freq:0.8, side:1, z:0, personality:"Calm, practical, always checking when things ship.", topics:"Shipping, stock and warehouses", shirt:"#6b6f76", pants:"#23272e", skin:"#c99673", hair:"#18120e", style:"short", sleeves:true, glasses:true,
     status:"Visiting the marketing floor", blurb:"If it ships, he knows when." },
-  { id:"hana", name:"Hana", role:"Visiting the managers", guest:true, freq:1, hosts:["erica","allyson"], side:1, z:0, personality:"Friendly, precise, and somehow always has snacks.", topics:"Budgets, invoices and approvals", shirt:"#d9d4c7", pants:"#2c3038", skin:"#f0d0b4", hair:"#0f0d0c", style:"straight", sleeves:true, earrings:"small",
+  { id:"hana", model:"hana", name:"Hana", role:"Visiting the managers", guest:true, freq:1, hosts:["erica","allyson"], side:1, z:0, personality:"Friendly, precise, and somehow always has snacks.", topics:"Budgets, invoices and approvals", shirt:"#d9d4c7", pants:"#2c3038", skin:"#f0d0b4", hair:"#0f0d0c", style:"straight", sleeves:true, earrings:"small",
     status:"Visiting the marketing floor", blurb:"Brings snacks and a budget question, in that order." }
 ];
 var LINES = {
@@ -342,7 +342,7 @@ var LINES = {
   tessa:["Specs for the new unit are almost final","Launch date might move"], grant:["Truck comes Thursday","Stock is looking good"], hana:["Approved, you're welcome","I brought cookies"]
 };
 var REMOTE = [
-  { id:"marissa", name:"Marissa", fullName:"Marissa", role:"Designer, remote", remote:true, sx:-1.95, shirt:"#4f7cc4", pants:"#2a2d35", skin:"#e9b996", hair:"#5a3a26", style:"wavy", sleeves:true, glasses:true,
+  { id:"marissa", model:"marissa", name:"Marissa", fullName:"Marissa", role:"Designer, remote", remote:true, sx:-1.95, shirt:"#4f7cc4", pants:"#2a2d35", skin:"#e9b996", hair:"#5a3a26", style:"wavy", sleeves:true, glasses:true,
     status:"Online, working remotely", personality:"Works remotely and is always one message away.", topics:"Team updates and shared files" },
   { id:"stephanieb", name:"Stephanie B.", model:"stephanieb", fullName:"Stephanie Benoit", role:"Design Lead, remote", remote:true, sx:1.95, shirt:"#151618", dot:"#b5543a", pants:"#2b2f36", skin:"#f1d3c2", hair:"#7a3b22", highlight:"#a5583a", style:"curly", sleeves:false, sleeveless:true, lips:"#b3122a", earrings:true, alwaysSmile:true,
     status:"Reviewing the team's designs", personality:"Designer and coordinator of the design team. Olivia and Marissa report to her.", topics:"Design reviews, priorities for the designers and brand look" }
@@ -1531,6 +1531,16 @@ var REAL_MODELS = {
   stephanie:{ url:"models/stephanie.glb", height:1.66, tint:{ Coat:"#2a2a2e", Shirt:"#1d1d20", Pants:"#26304a", SwappedShoes:"#3a3a3a" }, shoesFrom:{ model:"stephanieb", mesh:"Sneakers", hide:["Shoe"] }, glasses:true, ownHair:true, hairScale:[1.0, 0.86, 1.0], hairY:0.13, hairZ:-0.02 },
   luis:{ url:"models/luis.glb", height:1.76, remap:[{ hue:[150, 215], to:"#34495e", minSat:0.05, midL:0.5 }, { hue:[0, 45], to:"#b98a68", minSat:0.12, midL:0.3, maxL:0.8 }] },
   carla:{ url:"models/carla.glb", height:1.64, tint:{ Shirt:"#e8b33a", Zipper:"#d9d4ca", Pants:"#2a2f3a" }, ownHair:true, hairScale:[1.0, 0.88, 1.0], hairY:0.12, hairZ:-0.02 },
+  erica:{ url:"models/erica.glb", height:1.66, tint:{ Suit:"#4a4d52", Shirt:"#e9e6e1", Pants:"#1d1f24", SwappedShoes:"#1a1b1e" }, shoesFrom:{ model:"stephanieb", mesh:"Sneakers", hide:["Heels"] }, ownHair:true, hairScale:[1.0, 0.88, 1.0], hairY:0.12, hairZ:-0.02 },
+  allyson:{ url:"models/allyson.glb", height:1.66, tint:{ Shirt:"#7a4d9e", Pants:"#2c2a33", Shoes:"#5a2830" }, ownHair:true, hairScale:[1.0, 0.88, 1.0], hairY:0.12, hairZ:-0.02 },
+  debbie:{ url:"models/debbie.glb", height:1.63, tint:{ Suit:"#2a2b30", Shirt:"#3a3b40", Pants:"#17181b", SwappedShoes:"#141518" }, shoesFrom:{ model:"stephanieb", mesh:"Sneakers", hide:["Heels"] }, ownHair:true, hairScale:[1.0, 0.88, 1.0], hairY:0.12, hairZ:-0.02, earrings:"#d4af5a" },
+  olivia:{ url:"models/olivia.glb", height:1.66, tint:{ Shirt:"#c9ad84", Pants:"#4a4f58", Shoe:"#ecebe6" }, ownHair:true, hairScale:[1.0, 0.88, 1.0], hairY:0.12, hairZ:-0.02, glasses:true, sunglasses:true, earrings:"#d4af5a" },
+  marissa:{ url:"models/marissa.glb", height:1.65, tint:{ Shirt:"#4f7cc4", Shorts:"#2a2d35" }, ownHair:true, hairScale:[1.0, 0.88, 1.0], hairY:0.12, hairZ:-0.02, glasses:true },
+  nolan:{ url:"models/nolan.glb", height:1.8, tint:{ Suit:"#2b3a52", Shirt:"#e9eef4", Tie:"#8a2432", Pants:"#2b2f36" } },
+  elena:{ url:"models/elena.glb", height:1.65, tint:{ Shirt:"#b0476b", Pants:"#262a31", SwappedShoes:"#1a1b1e" }, shoesFrom:{ model:"stephanieb", mesh:"Sneakers", hide:["Heels"] }, earrings:"#d4af5a" },
+  tessa:{ url:"models/stephanieb.glb", height:1.66, tint:{ Shirt:"#3e8e6a", Pants:"#2a2d35" }, ownHair:true, hairScale:[1.0, 0.88, 1.0], hairY:0.12, hairZ:-0.02 },
+  grant:{ url:"models/grant.glb", height:1.79, tint:{ Shirt:"#6b6f76", Pants:"#23272e" }, ownHair:true, hairScale:[1.0, 0.9, 1.0], hairY:0.1, hairZ:-0.02, glasses:true },
+  hana:{ url:"models/hana.glb", height:1.62, tint:{ Cloth:"#d9d4c7" }, ownHair:true, hairScale:[1.0, 0.88, 1.0], hairY:0.12, hairZ:-0.02, earrings:"#d4af5a" },
   stephanieb:{ url:"models/stephanieb.glb", height:1.66, tint:{ Shirt:"#17181b", Pants:"#2b2f36", Sneakers:"#d9d4ca" }, ownHair:true, hairScale:[1.02, 0.88, 1.02], hairY:0.12, hairZ:-0.02, earrings:"#d4af5a", lips:"#c0283a", hair:"#4a2216", highlight:"#7a3a22", curl:2.4, locks:28, thick:1.15 }
 };
 var REAL = {}, CLIPS_R = {};
@@ -2288,7 +2298,7 @@ function makeRig(p, sc){
   else {
     if (REAL_MODELS[p.model].ownHair) realHair(p, model, b.Head, b.HeadTop_End);
     else realExtras(p, model, b.Head);
-    if (REAL_MODELS[p.model].glasses) realGlasses(model, b.Head, b.HeadTop_End);
+    if (REAL_MODELS[p.model].glasses) realGlasses(model, b.Head, b.HeadTop_End, REAL_MODELS[p.model].sunglasses);
     if (REAL_MODELS[p.model].earrings) realEarrings(p, model, b.Head);
   }
   buildProps(p, model, b.RightHand);
@@ -4201,7 +4211,8 @@ function realGlasses(model, head, top){
   var L = h.distanceTo(tp), k = L / 0.179;
   var g = new T.Group(); g.position.set(h.x, h.y + L * 0.37, h.z + 0.108 * k); model.add(g);
   var fr = new T.MeshStandardMaterial({ color:0x111111, roughness:0.35, metalness:0.2 });
-  var lens = new T.MeshStandardMaterial({ color:0xbfd4e6, roughness:0.05, transparent:true, opacity:0.18 });
+  var sun = arguments[3];
+  var lens = new T.MeshStandardMaterial({ color:sun ? 0x141618 : 0xbfd4e6, roughness:0.05, transparent:true, opacity:sun ? 0.88 : 0.18 });
   [-1, 1].forEach(function(s){
     /* squarish frames: a rounded rectangle rim, slightly wider than tall */
     var w = 0.044 * k, h = 0.03 * k, r = 0.006 * k, t = 0.0032 * k, cx = s * 0.032 * k;
