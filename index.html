@@ -1753,7 +1753,7 @@ var WEAVE = null, TWILL = null;
    Instead of the mannequin surface, the body is rebuilt as continuous skinned tubes that follow the same skeleton:
    a top, trousers, arms, hands, neck, head and shoes, each its own piece with its own material, blended at the joints
    so knees, elbows and shoulders bend without seams. Same skeleton, so every animation keeps working. */
-var SMOOTH = { stephanie:true };
+var SMOOTH = {};
 function smoothBody(p, model, body){
   if (!WEAVE) { WEAVE = fabricNormal(false); TWILL = fabricNormal(true); }
   var sk = body.skeleton, bi = {};
