@@ -1503,8 +1503,8 @@ var MODEL_URL = "https://cdn.jsdelivr.net/gh/mrdoob/three.js@r160/examples/model
 /* pilot: real character models with hair and clothes, same Mixamo skeleton, so the same animations play on them */
 var REAL_MODELS = {
   /* each person: an artist-made character, recoloured per garment to match how they dress */
-  stephanie:{ url:"models/stephanie.glb", height:1.66, tint:{ Coat:"#2a2a2e", Shirt:"#1d1d20", Pants:"#26304a", Shoe:"#3a3a3a" }, glasses:true, ownHair:true, hairScale:[1.0, 0.86, 1.0], hairY:0.13, hairZ:-0.02 },
-  stephanieb:{ url:"models/stephanieb.glb", height:1.66, tint:{ Shirt:"#17181b", Pants:"#2b2f36", Sneakers:"#d9d4ca" }, ownHair:true, hairScale:[1.02, 0.88, 1.02], hairY:0.12, hairZ:-0.02, earrings:"#d4af5a", lips:"#c0283a" }
+  stephanie:{ url:"models/stephanie.glb", height:1.66, tint:{ Coat:"#2a2a2e", Shirt:"#1d1d20", Pants:"#26304a", SwappedShoes:"#3a3a3a" }, shoesFrom:{ model:"stephanieb", mesh:"Sneakers", hide:["Shoe"] }, glasses:true, ownHair:true, hairScale:[1.0, 0.86, 1.0], hairY:0.13, hairZ:-0.02 },
+  stephanieb:{ url:"models/stephanieb.glb", height:1.66, tint:{ Shirt:"#17181b", Pants:"#2b2f36", Sneakers:"#d9d4ca" }, ownHair:true, hairScale:[1.02, 0.88, 1.02], hairY:0.12, hairZ:-0.02, earrings:"#d4af5a", lips:"#c0283a", hair:"#4a2216", highlight:"#7a3a22", curl:2.4, locks:28, thick:1.15 }
 };
 var REAL = {}, CLIPS_R = {};
 var CH_SCALE = 1.70 / 1.806;
@@ -3975,6 +3975,7 @@ function realHair(p, model, head, top){
   var h = model.worldToLocal(head.getWorldPosition(new V3())), tp = model.worldToLocal(top.getWorldPosition(new V3()));
   var k = h.distanceTo(tp) / 0.179, cfg = REAL_MODELS[p.model];
   var g = new T.Group(); model.add(g);
+  var oh = p.hair, ohl = p.highlight; if (cfg.hair) p.hair = cfg.hair; if (cfg.highlight) p.highlight = cfg.highlight;
   var hm = new T.MeshPhysicalMaterial({ color:p.hair, roughness:0.48, sheen:0.7, sheenRoughness:0.45, sheenColor:new T.Color(p.hair).offsetHSL(0, 0, 0.22), envMapIntensity:0.55 });
   var cap = add(G.hcap2, hm, 0.097, 0.114, 0.137, 0, 1.709, -0.008, g);
   cap.rotation.x = -0.42;
@@ -3985,7 +3986,7 @@ function realHair(p, model, head, top){
     var part = p.part || 0;
     add(G.hsph, hm, 0.112, 0.108, 0.13, part * 0.3, 1.69, -0.028, g);
     add(G.hsph, hm, 0.106, 0.072, 0.13, part * 0.6, 1.752, -0.004, g);
-    if (st === "curly") waveLocks(g, [hm, hl, hm], 20, { len:0.44, amp:0.024, freq:10, thick:0.024, sweep:true, seed:42 });
+    if (st === "curly") waveLocks(g, [hm, hl, hm], cfg.locks || 20, { len:0.44, amp:0.024 * (cfg.curl || 1), freq:10, thick:0.024 * (cfg.thick || 1), sweep:true, seed:42 });
     else if (st === "softwave") waveLocks(g, [hm, hm, hl], 16, { len:0.32, amp:0.011, freq:5, thick:0.021, sweep:false, seed:17 });
     else waveLocks(g, [hm, hm, hl], 17, { len:0.4, amp:0.0035, freq:2, thick:0.021, sweep:false, seed:23 });
     if (p.framing) [-1, 1].forEach(function(s){
@@ -4023,7 +4024,12 @@ function realHair(p, model, head, top){
     g.scale.set(k * hs[0], k * hs[1], k * hs[2]);
     g.position.set(h.x, h.y, h.z).sub(new V3(0, 1.596, -0.01).multiply(g.scale));
   }
-  if (SZ && SZ.costume[p.id]) costume(p, g);
+  if (SZ && SZ.costume[p.id]) {
+    var before = g.children.length;
+    costume(p, g);
+    /* the hat sits down over the crown on a real head */
+    g.children.slice(before).forEach(function(c){ c.position.y -= cfg.hatDrop || 0.05; c.position.z += 0.012; c.scale.multiplyScalar(cfg.hatScale || 1.15); });
+  }
   /* on a real head the mannequin cap reads as a helmet: drop the round shells, keep the strands, and lay a thin scalp
      that hugs the skull instead, open over the forehead */
   if (RB) {
@@ -4036,6 +4042,7 @@ function realHair(p, model, head, top){
     scalp.castShadow = true; model.add(scalp);
     model.updateMatrixWorld(true); head.attach(scalp);
   }
+  p.hair = oh; p.highlight = ohl;
   model.updateMatrixWorld(true);
   head.attach(g);
 }
@@ -4065,13 +4072,16 @@ function paintLips(root, RB, color){
     if (!o.isSkinnedMesh || !/Body/.test(o.name) || !o.material.map || !o.material.map.image) return;
     var img = o.material.map.image, W = img.width, H = img.height;
     var c = document.createElement("canvas"); c.width = W; c.height = H; var g = c.getContext("2d"); g.drawImage(img, 0, 0);
-    var pa = o.geometry.attributes.position, uv = o.geometry.attributes.uv, ix = o.geometry.index.array, v = new V3();
+    var pa = o.geometry.attributes.position, uv = o.geometry.attributes.uv, v = new V3();
+    var ix = o.geometry.index ? o.geometry.index.array : Array.from({ length:pa.count }, function(_, i){ return i; });
     var ok = new Uint8Array(pa.count);
     for (var i = 0; i < pa.count; i++) {
       v.fromBufferAttribute(pa, i).applyMatrix4(o.bindMatrix).applyMatrix4(rootInv);
       var fy = (v.y - RB.min.y) / rs.y;
       if (Math.abs(v.x - rc.x) < rs.x * 0.11 && fy > 0.16 && fy < 0.27 && v.z > RB.max.z - rs.z * 0.11) ok[i] = 1;
     }
+    var nOk = 0; for (var i2 = 0; i2 < ok.length; i2++) nOk += ok[i2];
+
     g.globalCompositeOperation = "multiply"; g.fillStyle = color;
     var flip = o.material.map.flipY;
     for (var t = 0; t < ix.length; t += 3) {
@@ -4103,8 +4113,14 @@ function realGlasses(model, head, top){
   var fr = new T.MeshStandardMaterial({ color:0x111111, roughness:0.35, metalness:0.2 });
   var lens = new T.MeshStandardMaterial({ color:0xbfd4e6, roughness:0.05, transparent:true, opacity:0.18 });
   [-1, 1].forEach(function(s){
-    var ring = new T.Mesh(new T.TorusGeometry(0.019 * k, 0.0028 * k, 8, 24), fr); ring.scale.y = 0.8; ring.position.x = s * 0.032 * k; g.add(ring);
-    var ln = new T.Mesh(new T.CircleGeometry(0.019 * k, 20), lens); ln.scale.y = 0.8; ln.position.set(s * 0.032 * k, 0, -0.001 * k); g.add(ln);
+    /* squarish frames: a rounded rectangle rim, slightly wider than tall */
+    var w = 0.044 * k, h = 0.03 * k, r = 0.006 * k, t = 0.0032 * k, cx = s * 0.032 * k;
+    var sh = new T.Shape(); sh.moveTo(-w / 2 + r, -h / 2); sh.lineTo(w / 2 - r, -h / 2); sh.quadraticCurveTo(w / 2, -h / 2, w / 2, -h / 2 + r); sh.lineTo(w / 2, h / 2 - r); sh.quadraticCurveTo(w / 2, h / 2, w / 2 - r, h / 2); sh.lineTo(-w / 2 + r, h / 2); sh.quadraticCurveTo(-w / 2, h / 2, -w / 2, h / 2 - r); sh.lineTo(-w / 2, -h / 2 + r); sh.quadraticCurveTo(-w / 2, -h / 2, -w / 2 + r, -h / 2);
+    var hole = new T.Path(), wi = w - t * 2, hi = h - t * 2, ri = Math.max(r - t, 0.0005 * k);
+    hole.moveTo(-wi / 2 + ri, -hi / 2); hole.lineTo(wi / 2 - ri, -hi / 2); hole.quadraticCurveTo(wi / 2, -hi / 2, wi / 2, -hi / 2 + ri); hole.lineTo(wi / 2, hi / 2 - ri); hole.quadraticCurveTo(wi / 2, hi / 2, wi / 2 - ri, hi / 2); hole.lineTo(-wi / 2 + ri, hi / 2); hole.quadraticCurveTo(-wi / 2, hi / 2, -wi / 2, hi / 2 - ri); hole.lineTo(-wi / 2, -hi / 2 + ri); hole.quadraticCurveTo(-wi / 2, -hi / 2, -wi / 2 + ri, -hi / 2);
+    sh.holes.push(hole);
+    var rim = new T.Mesh(new T.ExtrudeGeometry(sh, { depth:0.003 * k, bevelEnabled:false, curveSegments:4 }), fr); rim.position.x = cx; g.add(rim);
+    var ln = new T.Mesh(new T.PlaneGeometry(wi, hi), lens); ln.position.set(cx, 0, 0.001 * k); g.add(ln);
     var arm = new T.Mesh(new T.BoxGeometry(0.003 * k, 0.003 * k, 0.09 * k), fr); arm.position.set(s * 0.052 * k, 0.004 * k, -0.045 * k); g.add(arm);
   });
   var br = new T.Mesh(new T.BoxGeometry(0.026 * k, 0.003 * k, 0.003 * k), fr); br.position.y = 0.004 * k; g.add(br);
@@ -4148,11 +4164,50 @@ await Promise.all(Object.keys(REAL_MODELS).map(function(k){
     function topY(sc){ sc.updateMatrixWorld(true); var o = sc.getObjectByName("mixamorigHeadTop_End") || sc.getObjectByName("mixamorigHead"), v = new V3(); o.getWorldPosition(v); return v.y; }
     var hx = topY(GLTF.scene), hm = topY(g.scene) || 1;
     REAL[k] = { scene:g.scene, scale:CH_SCALE * (hx / hm) * (REAL_MODELS[k].height / 1.70), headBox:headBoxOf(g.scene) };
-    if (REAL_MODELS[k].lips) paintLips(g.scene, REAL[k].headBox, REAL_MODELS[k].lips);
+    if (REAL_MODELS[k].lips) { try { paintLips(g.scene, REAL[k].headBox, REAL_MODELS[k].lips); } catch (e) { window.__lips = "ERR " + e.message; } }
     g.scene.traverse(function(o){ if (o.isMesh && o.material) { o.material.envMapIntensity = 0.6; } });
   }).catch(function(){ /* if the model fails, that person keeps the current look */ });
 }));
 PEOPLE.forEach(function(p){ if (p.model && !REAL[p.model]) p.model = null; });
+/* swap shoes between characters: e.g. flat sneakers instead of heels. Every vertex keeps its offset from the foot bone it
+   follows (all rigs share the Xbot bone frames after normalizeRig), scaled by foot length, then binds to the new skeleton */
+Object.keys(REAL_MODELS).forEach(function(k){
+  var cfg = REAL_MODELS[k], src = cfg.shoesFrom && REAL[cfg.shoesFrom.model], dst = REAL[k];
+  if (!src || !dst) return;
+  try { swapShoes(dst.scene, src.scene, cfg.shoesFrom); } catch (e) { console.warn("shoes", e); }
+});
+function swapShoes(dstRoot, srcRoot, opt){
+  dstRoot.updateMatrixWorld(true); srcRoot.updateMatrixWorld(true);
+  var srcMesh = null, dstBody = null;
+  srcRoot.traverse(function(o){ if (o.isSkinnedMesh && o.name.indexOf(opt.mesh) >= 0) srcMesh = o; });
+  dstRoot.traverse(function(o){ if (o.isSkinnedMesh && /Body/.test(o.name)) dstBody = o; });
+  if (!srcMesh || !dstBody) return;
+  dstRoot.traverse(function(o){ if (o.isSkinnedMesh && (opt.hide || []).some(function(h){ return o.name.indexOf(h) >= 0; })) o.visible = false; });
+  var sB = {}, dB = {};
+  srcMesh.skeleton.bones.forEach(function(b){ sB[b.name] = b; });
+  dstBody.skeleton.bones.forEach(function(b){ dB[b.name] = b; });
+  function footLen(B, side){ var f = B["mixamorig" + side + "Foot"], t = B["mixamorig" + side + "ToeBase"]; return f && t ? f.getWorldPosition(new V3()).distanceTo(t.getWorldPosition(new V3())) : 1; }
+  var g = srcMesh.geometry.clone(), pa = g.attributes.position, si = g.attributes.skinIndex, sw = g.attributes.skinWeight;
+  var v = new V3(), inv = new T.Matrix4(), dstInv = dstBody.matrixWorld.clone().invert();
+  var newBones = [], idxMap = {};
+  srcMesh.skeleton.bones.forEach(function(b, i){ var d = dB[b.name]; if (!d) return; idxMap[i] = newBones.length; newBones.push(d); });
+  var ratio = { Left:footLen(dB, "Left") / footLen(sB, "Left"), Right:footLen(dB, "Right") / footLen(sB, "Right") };
+  for (var i = 0; i < pa.count; i++) {
+    var best = 0, bw = -1;
+    for (var j = 0; j < 4; j++) if (sw.getComponent(i, j) > bw) { bw = sw.getComponent(i, j); best = si.getComponent(i, j); }
+    var sb = srcMesh.skeleton.bones[best], db = dB[sb.name] || dB["mixamorigHips"], side = /Right/.test(sb.name) ? "Right" : "Left";
+    v.fromBufferAttribute(pa, i).applyMatrix4(srcMesh.bindMatrix);
+    inv.copy(sb.matrixWorld).invert(); v.applyMatrix4(inv).multiplyScalar(ratio[side]);
+    v.applyMatrix4(db.matrixWorld).applyMatrix4(dstInv);
+    pa.setXYZ(i, v.x, v.y, v.z);
+    for (j = 0; j < 4; j++) si.setComponent(i, j, idxMap[si.getComponent(i, j)] || 0);
+  }
+  g.computeVertexNormals();
+  var m = new T.SkinnedMesh(g, srcMesh.material.clone());
+  m.name = "SwappedShoes"; m.castShadow = true; m.frustumCulled = false;
+  dstBody.parent.add(m);
+  m.bind(new T.Skeleton(newBones), dstBody.matrixWorld.clone());
+}
 PEOPLE.forEach(function(p){ makeRig(p); });
 PEOPLE.forEach(function(g){
   if (!g.guest) return;
