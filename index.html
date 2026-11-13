@@ -761,6 +761,7 @@ function desk(p){
   add(G.box, M("#e8e9eb", { roughness:0.5 }), 0.44, 0.016, 0.14, 0, 0.77, -0.56, g, false);
   add(G.box, M("#e8e9eb", { roughness:0.5 }), 0.06, 0.02, 0.1, 0.36, 0.772, -0.54, g, false);
   p.cup = add(G.cyl, M(p.side > 0 ? "#ffffff" : "#E31837", { roughness:0.4 }), 0.04, 0.1, 0.04, -0.62, 0.81, -0.5, g);
+  lunchProps(p, g);
   p.cup.userData.dyn = true;
   p.chairG = chair(g, 0, 0.02);
   p.deskGroup = g;
@@ -941,6 +942,42 @@ function clockTick(){
   var sub = DAY.wdName + " \u00b7 " + DAY.label;
   if (clkDay.textContent !== sub) clkDay.textContent = sub;
 }
+
+/* ---------- lunch, every day ----------
+   12:00 to 12:30: Erica, Allyson and Carla go out, Stephanie, Debbie and Olivia eat at their desks on their phones.
+   1:00 to 1:30: Luis goes out. The empty desks show a "Lunch time" card. */
+function LUNCH_T(){ return { erica:[12, 12.5, "out"], allyson:[12, 12.5, "out"], carla:[12, 12.5, "out"], luis:[13, 13.5, "out"],
+  stephanie:[12, 12.5, "desk"], debbie:[12, 12.5, "desk"], olivia:[12, 12.5, "desk"] }; }
+var LUNCH = LUNCH_T();
+var lunchCardTex = null;
+function lunchProps(p, g){
+  var L = LUNCH_T()[p.id];
+  if (!L) return;
+  if (L[2] === "desk") {
+    var box = new T.Group(); box.position.set(0.2, 0.765, -0.42); g.add(box);
+    add(G.box, M("#2f8f6b", { roughness:0.6 }), 0.2, 0.05, 0.14, 0, 0.025, 0, box, false);
+    add(G.box, M("#f3efe6", { roughness:0.8 }), 0.18, 0.012, 0.12, 0, 0.052, 0, box, false);
+    add(G.box, M("#d9a441", { roughness:0.7 }), 0.06, 0.02, 0.05, -0.04, 0.062, 0.01, box, false);
+    add(G.box, M("#5aa04a", { roughness:0.7 }), 0.05, 0.018, 0.04, 0.05, 0.062, -0.02, box, false);
+    add(G.box, M("#b8bcc2", { roughness:0.3, metalness:0.6 }), 0.01, 0.005, 0.14, 0.12, 0.004, 0, box, false);
+    box.traverse(function(o){ o.userData.dyn = true; });
+    box.visible = false; p.lunchBox = box;
+  } else {
+    if (!lunchCardTex) lunchCardTex = canvasTex(256, 128, function(c, w, h){
+      c.fillStyle = "#ffffff"; rrect(c, 0, 0, w, h, 14); c.fill();
+      c.fillStyle = "#E31837"; c.fillRect(0, 0, w, 22);
+      c.fillStyle = "#2b3038"; c.font = "800 44px " + FONT; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText("Lunch time", w / 2, 66);
+      c.fillStyle = "#6b7280"; c.font = "600 22px " + FONT; c.fillText("Back in 30 min", w / 2, 104);
+    });
+    var cg = new T.Group(); cg.position.set(0, 0.765, -0.32); g.add(cg);
+    var cm = new T.MeshBasicMaterial({ map:lunchCardTex, side:T.DoubleSide, toneMapped:false });
+    var f1 = new T.Mesh(G.plane, cm); f1.scale.set(0.3, 0.15, 1); f1.position.set(0, 0.07, 0.03); f1.rotation.x = -0.35; cg.add(f1);
+    var f2 = new T.Mesh(G.plane, cm); f2.scale.set(0.3, 0.15, 1); f2.position.set(0, 0.07, -0.03); f2.rotation.set(0.35, Math.PI, 0); cg.add(f2);
+    cg.traverse(function(o){ o.userData.dyn = true; });
+    cg.visible = false; p.lunchCard = cg;
+  }
+}
+function lunchNow(p){ var L = LUNCH[p.id]; return L && DAY.h >= L[0] && DAY.h < L[1] && DAY.wd > 0 && DAY.wd < 6 ? L[2] : ""; }
 
 /* ---------- seasonal themes ----------
    Halloween runs from Oct 15 to Nov 1 and Christmas from Nov 12 (after Remembrance Day) to Jan 6, picked from today's date, then the office
@@ -2363,6 +2400,7 @@ function chatter(a, b, t){
     else if (e.kind === "cat") L = ["Did you see " + xn + "'s cat on the call?", "Best coworker on the team, honestly.", "Better attendance than some of us."];
     else if (e.kind === "chair") L = mine ? ["Please tell me nobody saw my chair move.", "Everybody saw it.", "Great. Just great."]
       : ["" + xn + " almost went over on that chair.", "I saw that! Smooth save though.", "Ten out of ten landing."];
+    else if (e.kind === "lunch" && mine) L = ["Back from lunch. I'm so full.", "Where did you go?", "The usual spot. Never disappoints."];
     else if (e.kind === "book") L = ["That shelf dropped a book again.", "Someone should fix that shelf.", "Someone. Not me."];
     else if (e.kind === "guest" && !mine && !theirs) L = ["Was that " + xn + " just now?", "Yep, dropped by to say hi.", "We should give " + xn + " a desk up here."];
     else if (e.kind === "coffee" && !mine && !theirs && X.id !== "debbie") L = [xn + " just made a coffee run.", "Without asking us? Rude.", "Next round is on " + xn + "."];
@@ -2636,7 +2674,15 @@ function updateAgent(p, t, dt){
   if (st === "sit") {
     p.root.position.copy(p.seat);
     r.sit = 1;
-    if (p.pendingCoffee && t >= p.pendingCoffee) {
+    var ln = lunchNow(p);
+    if (p.lunchBox) p.lunchBox.visible = ln === "desk";
+    if (ln === "out" && !p.chatWith && !p.answering && !p.visitor) {
+      p.act = null; p.pendingCoffee = 0;
+      goTrip(p, t, "lunch", null, aislePath(p.seat, p.side, EXIT_SPOT, 0));
+    } else if (ln === "desk") {
+      p.typeOn = false; p.decideAt = Math.max(p.decideAt, t + 4);
+      if (!p.act && !p.chatWith && !p.answering) startAct(p, Math.random() < 0.75 ? "phone" : "sip", t, rand(5, 9));
+    } else if (p.pendingCoffee && t >= p.pendingCoffee) {
       p.pendingCoffee = 0;
       if (!p.chatWith && !PEOPLE.some(function(q){ return q.trip && q.trip.kind === "coffee"; })) { p.act = null; goTrip(p, t, "coffee", null, aislePath(p.seat, p.side, COFFEE_SPOT, 0)); }
     } else if (p.cal && t >= p.cal.next && !p.act && !p.chatWith && !p.answering) {
@@ -2662,7 +2708,7 @@ function updateAgent(p, t, dt){
         swivelTarget = clamp((camYaw(p) + p.swivel) * 0.5, -1.2, 1.2);
       }
       p.swivel = lerp(p.swivel, swivelTarget, 1 - Math.exp(-dt * 5));
-      p.statusNow = p.answering ? "Answering your question" : p.chatWith ? "Chatting with " + p.chatWith.name : p.walker ? p.walker.text.sit : p.status;
+      p.statusNow = p.answering ? "Answering your question" : p.chatWith ? "Chatting with " + p.chatWith.name : ln === "desk" ? "Lunch at the desk, scrolling the phone" : p.walker ? p.walker.text.sit : p.status;
       return;
     }
     st = p.state; k = 0; tr = p.trip;
@@ -2695,11 +2741,12 @@ function updateAgent(p, t, dt){
     var hd = along(path, tr.d);
     p.root.position.copy(tmpPos);
     if (rem > 0.05) smoothTurn(p, hd, dt, 6);
-    if ((tr.kind === "meeting" || tr.kind === "coffee" || p.guest) && Math.abs(p.root.position.x) > 4.4) p.root.visible = false;
+    if ((tr.kind === "meeting" || tr.kind === "coffee" || tr.kind === "lunch" || p.guest) && Math.abs(p.root.position.x) > 4.4) p.root.visible = false;
     if (rem <= 0.04 && r.walkW < 0.25) {
       if (tr.back && p.guest) { p.trip = null; setState(p, "gone", t, 0); GUESTS.cur = null; GUESTS.next = t + rand(180, 420); }
       else if (tr.back) setState(p, "down", t, 0.6);
       else if (tr.kind === "meeting") setState(p, "away", t, rand(15, 35));
+      else if (tr.kind === "lunch") setState(p, "away", t, 99999);
       else if (tr.kind === "coffee") { setState(p, "coffee", t, rand(5, 8)); startAct(p, "sip", t + 1.2, 3); }
       else {
         var q = tr.target;
@@ -2729,6 +2776,10 @@ function updateAgent(p, t, dt){
       if (st === "visit" && tr.target.visitor === p) tr.target.visitor = null;
       startReturn(p, t);
     }
+  } else if (st === "away" && tr && tr.kind === "lunch") {
+    r.sit = 0;
+    p.root.position.copy(EXIT_SPOT);
+    if (lunchNow(p) !== "out") { p.needs.energy = Math.min(1, p.needs.energy + 0.4); moodShift(p, 0.2, "lunch was great"); logEvent("lunch", p, t); startReturn(p, t); }
   } else if (st === "away") {
     r.sit = 0;
     p.root.position.copy(EXIT_SPOT);
@@ -2743,6 +2794,8 @@ function updateAgent(p, t, dt){
   }
 
   var kind = p.trip ? p.trip.kind : "";
+  if (p.lunchCard) p.lunchCard.visible = kind === "lunch" && !p.trip.back;
+  if (kind === "lunch") { p.statusNow = p.state === "away" ? (p.id === "carla" ? "Out for lunch" : "Lunch time") : (p.trip.back ? "Back from lunch" : "Heading out for lunch"); return; }
   if (kind === "meeting") p.statusNow = p.state === "away" ? p.walker.text.away : (p.trip.back ? p.walker.text.back : p.walker.text.out);
   else if (kind === "coffee") p.statusNow = p.id === "olivia" ? (p.trip.back ? "Back with a tea" : "Making a tea") : (p.trip.back ? "Back with a coffee" : "Getting coffee");
   else if (kind === "visit" && p.trip.target.remote) p.statusNow = p.state === "visit" ? "On a video call with " + p.trip.target.name : (p.trip.back ? "Heading back to the desk" : "Walking over to the screens");
