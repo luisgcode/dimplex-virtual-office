@@ -764,6 +764,7 @@ function desk(p){
   lunchProps(p, g);
   p.cup.userData.dyn = true;
   p.chairG = chair(g, 0, 0.02);
+  if (p.id) { p.chairG.traverse(function(o){ o.userData.dyn = true; }); p.chairBase = p.chairG.position.clone(); }
   p.deskGroup = g;
   return g;
 }
@@ -971,11 +972,25 @@ function lunchProps(p, g){
     });
     var cg = new T.Group(); cg.position.set(0, 0.765, -0.32); g.add(cg);
     var cm = new T.MeshBasicMaterial({ map:lunchCardTex, side:T.DoubleSide, toneMapped:false });
+    p.cardMat = cm;
     var f1 = new T.Mesh(G.plane, cm); f1.scale.set(0.3, 0.15, 1); f1.position.set(0, 0.07, 0.03); f1.rotation.x = -0.35; cg.add(f1);
     var f2 = new T.Mesh(G.plane, cm); f2.scale.set(0.3, 0.15, 1); f2.position.set(0, 0.07, -0.03); f2.rotation.set(0.35, Math.PI, 0); cg.add(f2);
     cg.traverse(function(o){ o.userData.dyn = true; });
     cg.visible = false; p.lunchCard = cg;
   }
+}
+var meetCardTex = null;
+function cardFor(p, kind){
+  if (!p.cardMat) return;
+  if (kind === "meeting") {
+    if (!meetCardTex) meetCardTex = canvasTex(256, 128, function(c, w, h){
+      c.fillStyle = "#ffffff"; rrect(c, 0, 0, w, h, 14); c.fill();
+      c.fillStyle = "#3b6fd8"; c.fillRect(0, 0, w, 22);
+      c.fillStyle = "#2b3038"; c.font = "800 40px " + FONT; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText("In a meeting", w / 2, 66);
+      c.fillStyle = "#6b7280"; c.font = "600 22px " + FONT; c.fillText("Back in 30 min", w / 2, 104);
+    });
+    if (p.cardMat.map !== meetCardTex) p.cardMat.map = meetCardTex;
+  } else if (p.cardMat.map !== lunchCardTex) p.cardMat.map = lunchCardTex;
 }
 function lunchNow(p){ var L = LUNCH[p.id]; return L && DAY.h >= L[0] && DAY.h < L[1] && DAY.wd > 0 && DAY.wd < 6 ? L[2] : ""; }
 
@@ -2289,7 +2304,7 @@ ALL.forEach(function(p, i){
   p.decideAt = rand(2, 7);
   p.typeOn = Math.random() < 0.7; p.typeNext = rand(0.5, 5); p.typeAmp = 0;
   p.act = null; p.trip = null; p.chatWith = null; p.visitor = null; p.log = [];
-  if (p.walker) p.cal = { next:rand(20, 60) };
+  if (p.walker) p.cal = { next:rand(3, 20) * 60 };
 });
 
 /* ---------- paths along the aisle (keep right, so people pass each other) ---------- */
@@ -2374,7 +2389,7 @@ function logEvent(kind, p, t){
   if (OFFICE_EV.length > 12) OFFICE_EV.shift();
 }
 var CHAT_RECENT = [];
-function chatter(a, b, t){
+function chatter(a, b, t, casualOnly){
   var C = [];
   function add(w, key, lines){ if (CHAT_RECENT.indexOf(key) < 0) C.push({ w:w, key:key, lines:lines }); }
   var bd = drinkOf(b), ad = drinkOf(a);
@@ -2470,6 +2485,13 @@ function chatter(a, b, t){
   if (met >= 2) add(1.6, "again" + a.id + b.id, ["Back again?", "Your desk has the better view.", "Fair point."]);
 
   /* 7. everyday life */
+  if (aff(a, b) >= 2) {
+    add(1.6, "f1", ["Okay, I need to tell you what happened last night.", "Oh no. Or oh yes?", "Oh yes. Coffee later, full story."]);
+    add(1.5, "f2", ["Did you see the photos I sent you?", "Yes! I laughed so hard.", "I knew you would."]);
+    add(1.4, "f3", ["We need a team lunch soon.", "Thursday? Somewhere new?", "Deal. I'll find a place."]);
+    add(1.3, "f4", ["How's the family?", "Busy, loud, happy.", "Sounds about right."]);
+    add(1.2, "f5", ["I started that show you told me about.", "And? Hooked?", "Three episodes last night. Hooked."]);
+  }
   add(1.0, "e1", ["Did you watch anything good last night?", "Started a new series. Big mistake.", "Stayed up too late?"]);
   add(1.0, "e2", ["Have you tried the new place down the street?", "Not yet. Is it good?", "The sandwiches are huge."]);
   add(0.9, "e3", ["My plant is finally growing again.", "Wait, the one by the window?", "That's the one. A miracle."]);
@@ -2485,6 +2507,7 @@ function chatter(a, b, t){
   if (wk) add(0.9, "wk" + a.id + CHAT_RECENT.length % 4, [choose(wk), choose(["Nice. Need a hand?", "Again? Classic.", "Let me know how it goes.", "Ha, of course."]), choose(["I'll shout if I do.", "Every single week.", "Will do."])]);
 
   if (!C.length) return [choose(LINES[a.id] || ["Hey!"]), "Hey!"];
+  if (casualOnly) { var cc = C.filter(function(c){ return !/^(tm|wk)/.test(c.key); }); if (cc.length) C = cc; }
   var tot = 0; C.forEach(function(c){ tot += c.w; });
   var r = Math.random() * tot, pick = C[0];
   for (var i = 0; i < C.length; i++) { r -= C[i].w; if (r <= 0) { pick = C[i]; break; } }
@@ -2492,6 +2515,7 @@ function chatter(a, b, t){
   CHAT_RECENT.push(pick.key); if (CHAT_RECENT.length > 14) CHAT_RECENT.shift();
   var out = pick.lines.slice();
   if (out.length > 2 && Math.random() < 0.3) out.pop();
+  out.casual = !/^(tm|wk)/.test(pick.key);
   return out;
 }
 
@@ -2544,6 +2568,12 @@ function updateChats(t){
   });
 }
 
+/* ---------- who chats with whom ----------
+   Carla, Stephanie and Debbie talk the most, Olivia and Erica get along, the two managers work as a pair, Luis keeps to himself. */
+var AFF = { "carla|stephanie":3, "carla|debbie":3, "debbie|stephanie":3, "erica|olivia":2.6, "allyson|erica":2.4 };
+function aff(a, b){ var k = a.id < b.id ? a.id + "|" + b.id : b.id + "|" + a.id; var v = AFF[k] || 1; if (a.id === "luis" || b.id === "luis") v *= 0.25; return v; }
+function pickByAff(p, list){ var tot = 0; list.forEach(function(q){ tot += aff(p, q); }); var r = Math.random() * tot; for (var i = 0; i < list.length; i++) { r -= aff(p, list[i]); if (r <= 0) return list[i]; } return list[0]; }
+
 /* ---------- decisions ---------- */
 function available(q){ return q.state === "sit" && q.root.visible && !q.chatWith && !q.visitor && !q.answering; }
 function neighbours(p){ return PEOPLE.filter(function(q){ return q !== p && Math.abs(q.z - p.z) < 2.0 && available(q); }); }
@@ -2566,11 +2596,12 @@ function decide(p, t){
     if (luisDeepWork(q)) sc *= 0.2;
     if (Math.abs(q.z - p.z) < 2.2) sc *= 1.1;
     if (q.walker && p.walker) sc *= 0.6;
+    sc *= 0.6 + 0.4 * aff(p, q);
     if (sc > bs) { bs = sc; best = q; }
   });
   if (best && !withdrawn) opts.push({ k:"visit", s:bs, q:best });
   var nbs = neighbours(p).filter(function(q){ return !luisDeepWork(q); });
-  if (nbs.length && !withdrawn) opts.push({ k:"talk", s:n.social * w.shop * 1.1 * sociable + rand(0, 0.3), q:choose(nbs) });
+  if (nbs.length && !withdrawn) { var tq = pickByAff(p, nbs); opts.push({ k:"talk", s:n.social * w.shop * 1.1 * sociable * (0.7 + 0.3 * aff(p, tq)) + rand(0, 0.3), q:tq }); }
   /* Carla checks on anyone who seems down */
   if (p.id === "carla") PEOPLE.forEach(function(q){ if (q !== p && available(q) && q.mood.v < -0.2 && !luisDeepWork(q)) opts.push({ k:"visit", s:1.5 + rand(0, 0.4), q:q, care:true }); });
   /* walk up to a wall screen and talk to a remote colleague */
@@ -2606,9 +2637,13 @@ function decide(p, t){
       p.trip.request = true;
     }
   } else if (o.k === "talk") {
-    var dur = rand(10, 12.5);
+    /* close friends drift into casual talk and turn their chairs round */
+    var cas = aff(p, o.q) >= 2 && Math.random() < 0.65;
+    var lines = chatter(p, o.q, t, cas);
+    var dur = Math.max(10, 0.9 + lines.length * LINE_GAP);
     startAct(p, "turn", t, dur, o.q); startAct(o.q, "turn", t, dur, p);
-    startChat(p, o.q, t, dur + 0.4);
+    p.act.casual = o.q.act.casual = !!lines.casual;
+    startChat(p, o.q, t, dur + 0.4, lines);
   }
 }
 function goTrip(p, t, kind, target, path){
@@ -2621,6 +2656,49 @@ function startReturn(p, t){
   var tr = p.trip, from = p.root.position.clone();
   tr.path = aislePath(from, 0, p.seat, p.side); tr.d = 0; tr.back = true;
   setState(p, "walk", t, 0);
+}
+
+var HUDDLE = { next:0, on:null };
+var BOSS_LINES = [
+  ["Got a sec? I want to show you something.", "Sure, roll over.", "Look at these numbers.", "Oh, that's good.", "Let's share it with the team."],
+  ["Can you look at this plan with me?", "Pull up a chair.", "This part, here.", "Hmm. Let's move it a week.", "Agreed."],
+  ["Did you see the campaign results?", "Not yet. Show me.", "Right here.", "Okay, now I'm happy.", "Me too."],
+  ["Quick sync before the next call?", "Perfect timing.", "Two things on my list.", "Go, I'm listening.", "Done. That was easy."]
+];
+function huddleTick(t, dt){
+  var A = BY.allyson, E = BY.erica;
+  if (!A || !E || !A.chairG) return;
+  var H = HUDDLE.on;
+  if (!H) {
+    if (!HUDDLE.next) HUDDLE.next = t + rand(90, 200);
+    if (t < HUDDLE.next) { rollTo(A, 0, dt); return; }
+    HUDDLE.next = t + rand(240, 540);
+    if (!available(A) || !available(E) || A.act || E.act || lunchNow(A) || lunchNow(E)) return;
+    var lines = choose(BOSS_LINES), dur = 3.5 + lines.length * LINE_GAP + 2;
+    HUDDLE.on = H = { t0:t, dur:dur, lines:lines, talk:false };
+    A.decideAt = E.decideAt = t + dur + 3;
+    A.cal.next = Math.max(A.cal.next, t + dur + 5); E.cal.next = Math.max(E.cal.next, t + dur + 5);
+  }
+  var u = t - H.t0, rolling = u < H.dur - 2.5;
+  rollTo(A, rolling ? 1 : 0, dt);
+  if (!H.talk && u > 2.6) {
+    H.talk = true;
+    var scr = E.deskGroup.localToWorld(new V3(0, 1.0, -1.0));
+    startAct(A, "screen", t, H.dur - 4, null); A.act.pt = scr;
+    startAct(E, "screen", t, H.dur - 4, null); E.act.pt = scr;
+    startChat(A, E, t, H.dur - 3.5, H.lines.slice());
+  }
+  if (u > H.dur) HUDDLE.on = null;
+}
+/* roll Allyson and her chair toward Erica's desk (k = 1) or back home (k = 0) */
+var _rollW = new V3();
+function rollTo(p, k, dt){
+  p.roll = lerp(p.roll || 0, k, 1 - Math.exp(-dt * 1.6));
+  if (p.roll < 0.001 && k === 0) { p.roll = 0; }
+  var E = BY.erica, dz = (E.seat.z + 0.62 - p.seat.z) * p.roll;
+  p.rollOff = p.rollOff || new V3(); p.rollOff.set(0, 0, dz);
+  _rollW.copy(p.deskGroup.localToWorld(p.chairBase.clone())); _rollW.z += dz;
+  p.chairG.position.copy(p.deskGroup.worldToLocal(_rollW));
 }
 
 /* ---------- visitors: one at a time, Nolan and Elena come by the most ---------- */
@@ -2673,6 +2751,7 @@ function updateAgent(p, t, dt){
 
   if (st === "sit") {
     p.root.position.copy(p.seat);
+    if (p.rollOff) p.root.position.add(p.rollOff);
     r.sit = 1;
     var ln = lunchNow(p);
     if (p.lunchBox) p.lunchBox.visible = ln === "desk";
@@ -2703,11 +2782,16 @@ function updateAgent(p, t, dt){
       smoothTurn(p, p.sitHeading, dt);
       if (p.act && (p.act.n === "turn" || p.act.n === "answer")) {
         var yaw = p.act.n === "answer" ? camYaw(p) + p.swivel : (p.act.target ? yawTo(p, p.act.target) + p.swivel : 0);
-        swivelTarget = (p.act.n === "answer" ? clamp(yaw * 0.5, -1.2, 1.2) : clamp(yaw * 0.35, -0.6, 0.6)) * bump(t - p.act.t0, 0, p.act.dur, 0.6);
+        swivelTarget = (p.act.n === "answer" ? clamp(yaw * 0.5, -1.2, 1.2) : p.act.casual ? clamp(yaw * 0.9, -2.9, 2.9) : clamp(yaw * 0.35, -0.6, 0.6)) * bump(t - p.act.t0, 0, p.act.dur, p.act.casual ? 1.2 : 0.6);
+      } else if (p.act && p.act.n === "screen") {
+        /* looking at a screen together: turn toward a point in the world */
+        var sp = p.act.pt, hd2 = Math.atan2(sp.x - p.root.position.x, sp.z - p.root.position.z) - p.sitHeading;
+        swivelTarget = clamp(Math.atan2(Math.sin(hd2), Math.cos(hd2)), -1.4, 1.4) * bump(t - p.act.t0, 0, p.act.dur, 1.0);
       } else if (focus === p) {
         swivelTarget = clamp((camYaw(p) + p.swivel) * 0.5, -1.2, 1.2);
       }
       p.swivel = lerp(p.swivel, swivelTarget, 1 - Math.exp(-dt * 5));
+      if (p.chairG) p.chairG.rotation.y = p.swivel;
       p.statusNow = p.answering ? "Answering your question" : p.chatWith ? "Chatting with " + p.chatWith.name : ln === "desk" ? "Lunch at the desk, scrolling the phone" : p.walker ? p.walker.text.sit : p.status;
       return;
     }
@@ -2745,7 +2829,7 @@ function updateAgent(p, t, dt){
     if (rem <= 0.04 && r.walkW < 0.25) {
       if (tr.back && p.guest) { p.trip = null; setState(p, "gone", t, 0); GUESTS.cur = null; GUESTS.next = t + rand(180, 420); }
       else if (tr.back) setState(p, "down", t, 0.6);
-      else if (tr.kind === "meeting") setState(p, "away", t, rand(15, 35));
+      else if (tr.kind === "meeting") setState(p, "away", t, 1800);
       else if (tr.kind === "lunch") setState(p, "away", t, 99999);
       else if (tr.kind === "coffee") { setState(p, "coffee", t, rand(5, 8)); startAct(p, "sip", t + 1.2, 3); }
       else {
@@ -2785,16 +2869,17 @@ function updateAgent(p, t, dt){
     p.root.position.copy(EXIT_SPOT);
     if (k >= 1) {
       n.energy = Math.max(0.2, n.energy - 0.1);
-      moodShift(p, -0.05 - 0.06 * p.dur / 25, p.dur > 25 ? "that meeting ran long" : "back-to-back meetings");
+      var longM = Math.random() < 0.4;
+      moodShift(p, longM ? -0.12 : -0.04, longM ? "that meeting ran long" : "back-to-back meetings");
       p.lastEvent = { kind:"meeting", t:t };
-      logEvent(p.dur > 25 ? "longmeeting" : "meeting", p, t);
-      p.cal.next = t + 12 + rand(30, 90);
+      logEvent(longM ? "longmeeting" : "meeting", p, t);
+      p.cal.next = t + rand(20, 60) * 60;
       startReturn(p, t);
     }
   }
 
   var kind = p.trip ? p.trip.kind : "";
-  if (p.lunchCard) p.lunchCard.visible = kind === "lunch" && !p.trip.back;
+  if (p.lunchCard) { var away2 = (kind === "lunch" || kind === "meeting") && !p.trip.back; if (away2) cardFor(p, kind); p.lunchCard.visible = away2; }
   if (kind === "lunch") { p.statusNow = p.state === "away" ? (p.id === "carla" ? "Out for lunch" : "Lunch time") : (p.trip.back ? "Back from lunch" : "Heading out for lunch"); return; }
   if (kind === "meeting") p.statusNow = p.state === "away" ? p.walker.text.away : (p.trip.back ? p.walker.text.back : p.walker.text.out);
   else if (kind === "coffee") p.statusNow = p.id === "olivia" ? (p.trip.back ? "Back with a tea" : "Making a tea") : (p.trip.back ? "Back with a coffee" : "Getting coffee");
@@ -3806,6 +3891,7 @@ function frame(){
   REMOTE.forEach(function(p){ updateRemote(p, t, dt); });
   updateMishaps(t, dt);
   guestTick(t);
+  huddleTick(t, dt);
   if (!(t - (window.__dayT || -9) < 1)) { window.__dayT = t; dayTick(); clockTick(); }
   wallClockTick();
 
