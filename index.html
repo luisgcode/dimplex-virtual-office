@@ -1867,7 +1867,9 @@ var ACTS = {
   call:{ RightArm:[-0.55, -0.3, 0.25], RightForeArm:[0.45, 0.9, -0.1], Head:[0, 1, 0.05] },
   checklist:{ LeftArm:[0.15, -0.85, 0.4], LeftForeArm:[-0.3, 0.5, 1], RightArm:[-0.15, -0.85, 0.4], RightForeArm:[0.3, 0.4, 1], Head:[0, 1, 0.45] },
   wobble:{ Spine1:[0, 1, -0.5], Spine2:[0, 1, -0.4], Head:[0, 1, -0.35], LeftArm:[0.85, 0.8, 0.15], LeftForeArm:[0.3, 1, 0.1], RightArm:[-0.85, 0.8, 0.15], RightForeArm:[-0.3, 1, 0.1] },
-  leanFire:{}, turn:{}
+  leanFire:{},
+  /* turned toward someone to chat: hands come off the keyboard and rest on the lap, one of them gestures a little */
+  turn:{ LeftArm:[0.1, -1, 0.28], LeftForeArm:[0.18, -0.42, 0.9], RightArm:[-0.12, -1, 0.3], RightForeArm:[-0.12, -0.3, 0.95] }
 };
 
 var _a = new V3(), _b = new V3(), _d = new V3(), _t = new V3(), _q = new T.Quaternion(), _wq = new T.Quaternion(), _pq = new T.Quaternion(), _rq = new T.Quaternion(), UP = new V3(0, 1, 0);
@@ -2486,6 +2488,7 @@ function updateRig(p, t, dt){
         if (a.n === "wobble" && (n === "LeftForeArm" || n === "RightForeArm")) dd = v3a(SCR, dd[0] + 0.5 * Math.sin(t * 16 + (n === "LeftForeArm" ? 0 : 1.4)), dd[1], dd[2]);
         if (a.n === "wave" && n === "RightForeArm") dd = v3a(SCR, dd[0] + 0.45 * Math.sin(t * 9), dd[1], dd[2]);
         if ((a.n === "talk" || a.n === "answer") && n === "RightForeArm") dd = v3a(SCR, dd[0] + 0.15 * Math.sin(t * 4.3), dd[1] + 0.2 * Math.sin(t * 3.1), dd[2]);
+        if (a.n === "turn" && n === "RightForeArm" && p.bubbleOn) dd = v3a(SCR, dd[0] + 0.1 * Math.sin(t * 3.7), dd[1] + 0.25 + 0.18 * Math.sin(t * 2.9), dd[2]);
         aim(b[n], b[CHILD[n]], dd, w, _rq);
       }
       if (a.n === "turn" || a.n === "answer") {
