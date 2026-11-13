@@ -807,7 +807,27 @@ var ACT_POOLS = {
   olivia:["slides", "web", "mail"], carla:["sheet", "mail", "call", "web"], luis:["web", "mail"],
   _:["mail", "web", "sheet"]
 };
-function activityScreen(pool, seed, baseImg){
+/* product pages for the heat brands: Debbie works on Cadet and Convectair, not on the Dimplex fireplaces */
+var HEAT_PAGES = {};
+function heatPage(brand){
+  if (HEAT_PAGES[brand]) return HEAT_PAGES[brand];
+  var c = document.createElement("canvas"); c.width = 512; c.height = 320; var g = c.getContext("2d"), r = seeded(brand.length * 41);
+  var col = brand === "Cadet" ? "#c8102e" : "#00558c";
+  g.fillStyle = "#ffffff"; g.fillRect(0, 0, 512, 320);
+  g.fillStyle = col; g.font = "900 22px " + FONT; g.textBaseline = "middle"; g.fillText(brand === "Cadet" ? "CADET" : "Convectair", 18, 22);
+  g.fillStyle = "#c9ced4"; for (var i = 0; i < 5; i++) g.fillRect(230 + i * 52, 18, 38, 7);
+  var gr = g.createLinearGradient(0, 44, 0, 170); gr.addColorStop(0, brand === "Cadet" ? "#f4efe9" : "#e9f1f7"); gr.addColorStop(1, "#ffffff");
+  g.fillStyle = gr; g.fillRect(0, 44, 512, 130);
+  /* the hero product: a baseboard or wall heater */
+  g.fillStyle = "#f7f7f5"; g.strokeStyle = "#c3c9cf"; g.lineWidth = 2;
+  if (brand === "Cadet") { g.fillRect(250, 110, 230, 34); g.strokeRect(250, 110, 230, 34); for (i = 0; i < 18; i++) { g.fillStyle = "#d6dadf"; g.fillRect(258 + i * 12, 116, 6, 22); } }
+  else { g.fillRect(300, 62, 150, 96); g.strokeRect(300, 62, 150, 96); for (i = 0; i < 7; i++) { g.fillStyle = "#d6dadf"; g.fillRect(312, 72 + i * 11, 126, 5); } g.fillStyle = col; g.fillRect(420, 140, 20, 8); }
+  g.fillStyle = "#2b3038"; g.fillRect(24, 80, 170, 14); g.fillStyle = "#8a96a3"; g.fillRect(24, 102, 120, 9);
+  g.fillStyle = col; rrect(g, 24, 124, 86, 24, 5); g.fill();
+  for (i = 0; i < 4; i++) { g.fillStyle = "#eef0f2"; g.fillRect(16 + i * 124, 190, 110, 82); g.fillStyle = "#ffffff"; g.fillRect(30 + i * 124, 220, 82, 16 + (i % 2) * 8); g.fillStyle = "#c3c9cf"; g.fillRect(16 + i * 124, 282, 80, 7); g.fillRect(16 + i * 124, 296, 54, 7); }
+  return (HEAT_PAGES[brand] = c);
+}
+function activityScreen(pool, seed, baseImg, ownerId){
   var L = liveCanvas(512, 320), r = seeded(seed), W = 512, H = 320;
   L.mode = pool[Math.floor(r() * pool.length)]; L.t0 = 0; L.next = 0; L.k = 0;
   L.rows = Array.from({ length:12 }, function(){ return { w:120 + r() * 220, s:60 + r() * 110, unread:r() < 0.4 }; });
@@ -893,7 +913,7 @@ function activityScreen(pool, seed, baseImg){
       g.fillStyle = cols[(cur + 2) % 5]; g.fillRect(390, 130, 90, 90);
     },
     web:function(g, t){
-      var img = L.webImg || (L.webImg = screenTex("web").image);
+      var img = ownerId === "debbie" ? heatPage(Math.floor(t / 20) % 2 ? "Cadet" : "Convectair") : (L.webImg || (L.webImg = screenTex("web").image));
       g.fillStyle = "#ffffff"; g.fillRect(0, 0, W, H);
       var sy = (Math.sin(t * 0.3) * 0.5 + 0.5) * 60;
       g.drawImage(img, 0, sy, 512, 320 - sy, 0, 0, 512, 320 - sy);
@@ -942,8 +962,8 @@ function screensTick(t, dt){
       else if (s.kind === "swatch" && s.owner && s.owner.id === "olivia") { s.live = photoScreen(); s.m.material.map = s.live.tex; }
       else if (s.kind !== "off") {
         var pool = (ACT_POOLS[s.owner ? s.owner.id : "_"] || ACT_POOLS._).slice();
-        if (s.kind !== "web" && s.kind !== "chat") pool.push("base", "base");
-        s.live = activityScreen(pool, LIVE_SCREENS.indexOf(s) * 31 + 7, s.base && s.base.image);
+        if ((s.kind !== "web" || (s.owner && s.owner.id === "debbie")) && s.kind !== "chat") pool.push("base", "base");
+        s.live = activityScreen(pool, LIVE_SCREENS.indexOf(s) * 31 + 7, s.owner && s.owner.id === "debbie" && s.kind === "web" ? heatPage("Convectair") : s.base && s.base.image, s.owner && s.owner.id);
         s.m.material.map = s.live.tex;
       }
       s.m.material.needsUpdate = true;
