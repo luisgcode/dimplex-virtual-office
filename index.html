@@ -1504,7 +1504,7 @@ var MODEL_URL = "https://cdn.jsdelivr.net/gh/mrdoob/three.js@r160/examples/model
 var REAL_MODELS = {
   /* each person: an artist-made character, recoloured per garment to match how they dress */
   stephanie:{ url:"models/stephanie.glb", height:1.66, tint:{ Coat:"#2a2a2e", Shirt:"#1d1d20", Pants:"#26304a", Shoe:"#3a3a3a" }, glasses:true, ownHair:true, hairScale:[1.0, 0.86, 1.0], hairY:0.13, hairZ:-0.02 },
-  stephanieb:{ url:"models/stephanieb.glb", height:1.66, tint:{ Shirt:"#17181b", Pants:"#2b2f36", Sneakers:"#d9d4ca" }, ownHair:true, hairScale:[1.02, 0.88, 1.02], hairY:0.12, hairZ:-0.02, earrings:"#d4af5a" }
+  stephanieb:{ url:"models/stephanieb.glb", height:1.66, tint:{ Shirt:"#17181b", Pants:"#2b2f36", Sneakers:"#d9d4ca" }, ownHair:true, hairScale:[1.02, 0.88, 1.02], hairY:0.12, hairZ:-0.02, earrings:"#d4af5a", lips:"#c0283a" }
 };
 var REAL = {}, CLIPS_R = {};
 var CH_SCALE = 1.70 / 1.806;
@@ -4023,10 +4023,11 @@ function realHair(p, model, head, top){
     g.scale.set(k * hs[0], k * hs[1], k * hs[2]);
     g.position.set(h.x, h.y, h.z).sub(new V3(0, 1.596, -0.01).multiply(g.scale));
   }
+  if (SZ && SZ.costume[p.id]) costume(p, g);
   /* on a real head the mannequin cap reads as a helmet: drop the round shells, keep the strands, and lay a thin scalp
      that hugs the skull instead, open over the forehead */
   if (RB) {
-    g.children.slice().forEach(function(c){ if (c.geometry === G.hcap2 || c.geometry === G.hsph) g.remove(c); });
+    g.children.slice().forEach(function(c){ if ((c.geometry === G.hcap2 || c.geometry === G.hsph) && c.material === hm) g.remove(c); });
     var rs2 = RB.getSize(new V3()), rc2 = RB.getCenter(new V3());
     var scalp = new T.Mesh(new T.SphereGeometry(1, 40, 22, 0, Math.PI * 2, 0, Math.PI * 0.58), hm);
     scalp.scale.set(rs2.x * 0.535, rs2.y * 0.5, rs2.z * 0.545);
@@ -4054,6 +4055,36 @@ function headBoxOf(root){
 }
 var _xbHead = null;
 function xbotHeadBox(){ return _xbHead || (_xbHead = headBoxOf(GLTF.scene) || new T.Box3(new V3(-0.09, 1.55, -0.1), new V3(0.09, 1.78, 0.11))); }
+/* lipstick: find the mouth on the face mesh (front of the skull, the band between chin and nose) and tint those
+   triangles on the face texture with a multiply, so the lips keep their shading */
+function paintLips(root, RB, color){
+  if (!RB) return;
+  root.updateMatrixWorld(true);
+  var rootInv = root.matrixWorld.clone().invert(), rs = RB.getSize(new V3()), rc = RB.getCenter(new V3());
+  root.traverse(function(o){
+    if (!o.isSkinnedMesh || !/Body/.test(o.name) || !o.material.map || !o.material.map.image) return;
+    var img = o.material.map.image, W = img.width, H = img.height;
+    var c = document.createElement("canvas"); c.width = W; c.height = H; var g = c.getContext("2d"); g.drawImage(img, 0, 0);
+    var pa = o.geometry.attributes.position, uv = o.geometry.attributes.uv, ix = o.geometry.index.array, v = new V3();
+    var ok = new Uint8Array(pa.count);
+    for (var i = 0; i < pa.count; i++) {
+      v.fromBufferAttribute(pa, i).applyMatrix4(o.bindMatrix).applyMatrix4(rootInv);
+      var fy = (v.y - RB.min.y) / rs.y;
+      if (Math.abs(v.x - rc.x) < rs.x * 0.11 && fy > 0.16 && fy < 0.27 && v.z > RB.max.z - rs.z * 0.11) ok[i] = 1;
+    }
+    g.globalCompositeOperation = "multiply"; g.fillStyle = color;
+    var flip = o.material.map.flipY;
+    for (var t = 0; t < ix.length; t += 3) {
+      var a = ix[t], b = ix[t + 1], d = ix[t + 2];
+      if (!(ok[a] && ok[b] && ok[d])) continue;
+      g.beginPath();
+      [a, b, d].forEach(function(q, n){ var x = uv.getX(q) * W, y = (flip ? 1 - uv.getY(q) : uv.getY(q)) * H; if (n) g.lineTo(x, y); else g.moveTo(x, y); });
+      g.closePath(); g.fill();
+    }
+    var nt = new T.CanvasTexture(c); nt.flipY = o.material.map.flipY; nt.colorSpace = o.material.map.colorSpace; nt.wrapS = o.material.map.wrapS; nt.wrapT = o.material.map.wrapT;
+    o.material = o.material.clone(); o.material.map = nt;
+  });
+}
 /* small hoop earrings at the sides of the real skull */
 function realEarrings(p, model, head){
   var RB = REAL[p.model].headBox; if (!RB) return;
@@ -4117,6 +4148,7 @@ await Promise.all(Object.keys(REAL_MODELS).map(function(k){
     function topY(sc){ sc.updateMatrixWorld(true); var o = sc.getObjectByName("mixamorigHeadTop_End") || sc.getObjectByName("mixamorigHead"), v = new V3(); o.getWorldPosition(v); return v.y; }
     var hx = topY(GLTF.scene), hm = topY(g.scene) || 1;
     REAL[k] = { scene:g.scene, scale:CH_SCALE * (hx / hm) * (REAL_MODELS[k].height / 1.70), headBox:headBoxOf(g.scene) };
+    if (REAL_MODELS[k].lips) paintLips(g.scene, REAL[k].headBox, REAL_MODELS[k].lips);
     g.scene.traverse(function(o){ if (o.isMesh && o.material) { o.material.envMapIntensity = 0.6; } });
   }).catch(function(){ /* if the model fails, that person keeps the current look */ });
 }));
