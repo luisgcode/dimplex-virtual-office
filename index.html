@@ -3351,9 +3351,40 @@ var TEAM_TOPICS = [
   { own:"olivia", mode:"tell", L:["The holiday banners are done.", "Already? They look great.", "Red and green everywhere."] },
   { own:"carla", mode:"tell", L:["The booth for the next show is booked.", "Already? That's fast.", "Crates ship in two weeks."] },
   { own:"carla", mode:"ask", L:["Which products are going to the next show?", "Still deciding. The best sellers for sure.", "Save me a spot on the booth."] },
-  { own:"carla", mode:"tell", L:["Show badges are ready to pick up.", "Already? You're amazing.", "On it, as always."] }
+  { own:"carla", mode:"tell", L:["Show badges are ready to pick up.", "Already? You're amazing.", "On it, as always."] },
+  /* shared systems: "who" lists everyone who talks about it, any two of them can bring it up */
+  /* Plytix: where every product starts, it touches the whole team */
+  { who:"all", L:["Is the new product in Plytix yet?", "Added it this morning.", "Perfect, I'll check the images."] },
+  { who:"all", L:["Plytix has the new picture but the page still shows the old one.", "Did the sync run last night?", "I'll check first thing tomorrow."] },
+  { who:"all", L:["Who changed the titles in Plytix?", "Guilty. It's the new naming format.", "Looks much cleaner."] },
+  { who:"all", L:["The Plytix import worked overnight!", "Finally. Everything showing?", "Almost everything."] },
+  { who:"all", L:["Can you fill the Web Listing number in Plytix?", "The one that sets the order on the page?", "That one. Empty ones jump to the front."] },
+  { who:"all", L:["Plytix again?", "Plytix always.", "It's basically our second office."] },
+  { who:"all", L:["Which image slots go on the website?", "Only the Web Img ones.", "Good, I was looking at the wrong gallery."] },
+  { who:"all", L:["Did you fix the specs in Plytix or on the site?", "Plytix. Always Plytix first.", "Got it, everything else follows."] },
+  { who:"all", L:["How many products are still missing in Plytix?", "Fewer every week.", "We're getting there."] },
+  { who:"all", L:["The French text is in Plytix now.", "With the accents?", "With the accents."] },
+  /* CommerceTools: the bridge between Plytix and the websites */
+  { who:["luis", "stephanie", "debbie", "olivia"], L:["The product came back from the sync disabled.", "Classic CommerceTools. Enable it and check the category.", "Doing it now."] },
+  { who:["luis", "stephanie", "debbie", "olivia"], L:["Is it live in CommerceTools?", "Published, and I cleared the cache.", "Then it should be on the page."] },
+  { who:["luis", "stephanie", "debbie", "olivia"], L:["CommerceTools kept the old picture.", "Delete it there, the new one comes from Plytix.", "On it."] },
+  { who:["luis", "stephanie", "debbie", "olivia"], L:["Why isn't that product on the listing page?", "It lost its category in CommerceTools.", "Of course it did."] },
+  /* the websites */
+  { who:"all", L:["Is the French page live too?", "All three: US, Canada and French.", "Love it."] },
+  { who:"all", L:["Can you send me the link to the new page?", "Sending it on Teams.", "Thanks!"] },
+  { who:"all", L:["The site looks different today.", "New filter on the product listing.", "Much easier to find things."] },
+  { who:"all", L:["Have you seen the Cadet site lately?", "The new menu?", "So much cleaner."] },
+  { who:"all", L:["A dealer asked where to find the manuals.", "Downloads page, top menu.", "Easy. I'll send it."] },
+  /* Asana: the coordinators, Olivia and Luis */
+  { who:["stephanie", "debbie", "olivia", "luis"], L:["Did you see my comment in Asana?", "Just replied.", "Perfect, I'll close it."] },
+  { who:["stephanie", "debbie", "olivia", "luis"], L:["Can you put that in Asana so I don't forget?", "Already there, assigned to you.", "You're fast."] },
+  { who:["stephanie", "debbie", "olivia", "luis"], L:["I moved your task to done in Asana.", "Finally done!", "One less."] },
+  { who:["stephanie", "debbie", "olivia", "luis"], L:["How many tasks do you have in Asana this week?", "Too many to count.", "Same here."] },
+  { who:["stephanie", "debbie", "olivia", "luis"], L:["Which Asana task is the image one?", "The one with the red tag.", "Found it."] }
 ];
-function topicFits(tp, a, b){ return tp.mode === "tell" ? tp.own === a.id : tp.own === b.id && a.id !== tp.own; }
+function topicFits(tp, a, b){
+  if (tp.who) { if (a.guest || b.guest) return false; return tp.who === "all" || (tp.who.indexOf(a.id) >= 0 && tp.who.indexOf(b.id) >= 0); }
+  return tp.mode === "tell" ? tp.own === a.id : tp.own === b.id && a.id !== tp.own; }
 var OFFICE_EV = [];
 /* things worth looking at: an event pulls the eyes of everyone nearby for a few seconds */
 var POI = [];
@@ -3522,7 +3553,7 @@ function chatter(a, b, t, casualOnly){
   add(0.8, "e6", ["Did someone take my pen?", "Which one?", "The good one. You know the one."]);
 
   /* 8. what the team is busy with this month */
-  TEAM_TOPICS.forEach(function(tp, i){ if (topicFits(tp, a, b)) add(2.2, "tm" + i, tp.L); });
+  TEAM_TOPICS.forEach(function(tp, i){ if (topicFits(tp, a, b)) add(tp.who ? 1.3 : 2.2, "tm" + i, tp.L); });
 
   /* 9. a bit of work, now as a real back and forth */
   var wk = LINES[a.id];
@@ -4613,6 +4644,16 @@ function converseCore(p, raw){
   }
   var last = p.mem[p.mem.length - 1];
   var name = p.name, P = prof.pron;
+  /* the systems we all live in */
+  if (/ plytix /.test(s)) return { text:fresh(p, [
+    p.id === "olivia" ? "Plytix is where my web images go. If it's not in the Web Img slots, it won't show on the site." : p.id === "luis" ? "Plytix is where every product starts: titles, specs, images. It syncs to CommerceTools and from there to the three websites." : "Plytix is where all our product info lives. Titles, specs, images, all of it starts there.",
+    "Plytix? We all live in it. Fix it there first, then the websites follow.",
+    "Honestly, half my day is Plytix. If a product looks wrong on the site, the answer is usually in Plytix."]), intent:"topic", reason:"it is where everything starts" };
+  if (/ (commercetools|commerce tools|commercetool) /.test(s)) return { text:fresh(p, [
+    "CommerceTools sits between Plytix and the websites. Products come back from the sync disabled, so someone has to switch them on.",
+    "CommerceTools is the bridge. Plytix feeds it every night, then the websites read from it.",
+    "If something is in Plytix but not on the site, CommerceTools is the first place to look."]), intent:"topic", reason:"" };
+  if (/ asana /.test(s)) return { text:(["stephanie", "debbie", "olivia", "luis"].indexOf(p.id) >= 0 ? fresh(p, ["Asana is how we keep track of everything. If it's not in Asana, it didn't happen.", "I check Asana first thing every morning.", "My Asana list is long this week, but it's moving."]) : "Asana? That's more the product team's thing, I hear about it all day though."), intent:"topic", reason:"" };
   if (/ (pumpkins?|trophy|contest|first place|1st place|carousel) /.test(s)) {
     return { text:fresh(p, ["It went great, we won first place! The trophy is on the shelf on the left wall, the ghosts actually spin.", "First place! Our striped carousel pumpkin is up on the shelf by the window. Go take a look.", "We took first place in the pumpkin contest. Bats, ghosts, the whole thing. It's on the shelf on the left wall."]), intent:"pumpkin", reason:"we earned that trophy" };
   }
