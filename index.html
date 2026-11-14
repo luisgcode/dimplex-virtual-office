@@ -1488,9 +1488,9 @@ function costume(p, g){
       add(G.cyl, band, 0.094, 0.022, 0.094, 0, 0.018, 0, hg, false);
     } else {
       var red = M("#c8202f", { roughness:0.85 }), fur = M("#f4f1ea", { roughness:1 });
-      add(G.cyl, fur, 0.118, 0.03, 0.118, 0, 0, 0, hg, false);
-      var sc = new T.Mesh(new T.ConeGeometry(0.11, 0.2, 20), red); sc.position.set(0.02, 0.11, -0.02); sc.rotation.z = -0.35; hg.add(sc);
-      add(G.sph, fur, 0.026, 0.026, 0.026, 0.055, 0.19, -0.02, hg, false);
+      add(G.cyl, fur, 0.122, 0.046, 0.122, 0, 0, 0, hg, false);
+      var sc = new T.Mesh(new T.ConeGeometry(0.11, 0.2, 20), red); sc.position.set(0.015, 0.104, -0.01); sc.rotation.z = -0.15; hg.add(sc);
+      add(G.sph, fur, 0.026, 0.026, 0.026, 0.033, 0.205, -0.01, hg, false);
     }
   } else if (kind === "cat") {
     var ear = M("#1d1b20", { roughness:0.7 }), pink = M("#e9a2b4", { roughness:0.8 });
@@ -1969,12 +1969,14 @@ function startMishap(kind, t){
     /* left row only: on the right row the cups sit behind the monitors from the usual view */
     var who = PEOPLE.filter(function(q){ return q.side < 0 && q.state === "sit" && q.root.visible && !q.chatWith && !q.answering && q.cup; });
     if (!who.length) return false;
-    m.p = choose(who); m.dur = 14; m.cup = m.p.cup;
+    m.p = choose(who); m.dur = 18; m.cup = m.p.cup;
     MISHAP.puddle.position.set(-0.5, 0.7635, -0.5); MISHAP.puddle.scale.setScalar(0.001); MISHAP.puddle.visible = true;
     m.p.deskGroup.add(MISHAP.puddle);
     sayLater(m.p, "Oops! There goes my " + drinkOf(m.p) + ".", t + 0.7, 3);
     logEvent("spill", m.p, t);
-    startAct(m.p, "point", t + 0.5, 2.4);
+    startAct(m.p, "point", t + 0.5, 2.0);
+    /* grab napkins and wipe the desk */
+    setTimeout(function(){ if (m.p.state === "sit" && !m.p.chatWith && (!m.p.act || m.p.act.n === "point")) startAct(m.p, "wipe", clock.elapsedTime, 5.5); }, 2600);
   } else if (kind === "chair") {
     var cand = PEOPLE.filter(function(q){ return q.state === "sit" && q.root.visible && !q.chatWith && !q.answering && !q.act; });
     if (!cand.length) return false;
@@ -1993,10 +1995,11 @@ function updateMishaps(t, dt){
   updateSays(t);
   var m = MISHAP.cur;
   if (!m) {
-    if (!MISHAP.next) MISHAP.next = t + rand(50, 100);
+    /* rare on purpose: something small every 10 to 25 minutes, a spilled coffee maybe once every couple of hours */
+    if (!MISHAP.next) MISHAP.next = t + rand(240, 900);
     if (t > MISHAP.next) {
-      MISHAP.next = t + rand(80, 170);
-      startMishap(choose(["cat", "cat", "book", "spill", "chair", "chair"]), t);
+      MISHAP.next = t + rand(600, 1500);
+      startMishap(choose(["cat", "cat", "cat", "cat", "book", "book", "chair", "chair", "spill"]), t);
     }
     if (MISHAP.book.down && t > MISHAP.book.backAt) { MISHAP.book.down = false; MISHAP.book.g.position.copy(MISHAP.book.home); MISHAP.book.g.rotation.set(0, 0, 0); }
     return;
@@ -2085,7 +2088,7 @@ var REAL_MODELS = {
   elena:{ footDrop:0.065, url:"models/elena.glb", height:1.65, tint:{ Shirt:"#b0476b", Pants:"#262a31", SwappedShoes:"#1a1b1e" }, shoesFrom:{ model:"stephanieb", mesh:"Sneakers", hide:["Heels"] }, earrings:"#d4af5a" },
   tessa:{ url:"models/stephanieb.glb", height:1.66, tint:{ Shirt:"#3e8e6a", Pants:"#2a2d35" }, ownHair:true, hairScale:[1.0, 0.88, 1.0], hairY:0.12, hairZ:-0.02 },
   grant:{ url:"models/grant.glb", height:1.79, tint:{ Shirt:"#6b6f76", Pants:"#23272e" }, ownHair:true, hairScale:[1.0, 0.9, 1.0], hairY:0.1, hairZ:-0.02, glasses:true },
-  hana:{ url:"models/hana.glb", height:1.62, tint:{ Cloth:"#d9d4c7" }, ownHair:true, hairScale:[1.0, 0.88, 1.0], hairY:0.12, hairZ:-0.02, earrings:"#d4af5a" },
+  hana:{ url:"models/hana.glb", height:1.62, tint:{ Cloth:"#d9d4c7", SwappedPants:"#2c313b" }, pantsFrom:{ model:"stephanieb", mesh:"Pants", hide:["Socks"] }, ownHair:true, hairScale:[1.0, 0.88, 1.0], hairY:0.12, hairZ:-0.02, earrings:"#d4af5a" },
   stephanieb:{ url:"models/stephanieb.glb", height:1.66, tint:{ Shirt:"#17181b", Pants:"#2b2f36", Sneakers:"#d9d4ca" }, ownHair:true, hairScale:[1.02, 0.88, 1.02], hairY:0.12, hairZ:-0.02, earrings:"#d9dade", hoop:2.1, lips:"#a8101f", lipsAlpha:0.8, hair:"#3d2216", highlight:"#5c3522", curl:1.5, freq:0.45, len:1.25, locks:34, thick:1.45, hatScale:0.95, hatDrop:0.06 }
 };
 var REAL = {}, CLIPS_R = {};
@@ -2115,6 +2118,10 @@ var ACTS = {
   point:{ RightArm:[-0.1, 0.5, 1], RightForeArm:[-0.05, 0.6, 1], Head:[0, 1, -0.2] },
   wave:{ RightArm:[-0.9, 0.4, 0.2], RightForeArm:[-0.1, 1, 0.1] },
   talk:{ RightArm:[-0.2, -0.8, 0.45], RightForeArm:[0.1, 0.25, 1] },
+  /* hand on the chin, thinking something through */
+  chin:{ RightArm:[-0.25, -0.55, 0.6], RightForeArm:[0.22, 0.85, 0.32], Head:[0, 1, 0.18] },
+  /* wiping the desk with a napkin after a spill */
+  wipe:{ LeftArm:[0.3, -0.6, 0.72], LeftForeArm:[0.22, -0.05, 1], LeftHand:[0.08, -0.25, 1], Spine1:[0, 1, 0.2], Head:[0, 1, 0.45] },
   answer:{ RightArm:[-0.2, -0.8, 0.45], RightForeArm:[0.1, 0.3, 1] },
   leanBack:{ Spine1:[0, 1, -0.15], LeftArm:[0.8, 0.55, -0.15], LeftForeArm:[-0.6, 0.45, -0.4], RightArm:[-0.8, 0.55, -0.15], RightForeArm:[0.6, 0.45, -0.4] },
   call:{ RightArm:[-0.55, -0.3, 0.25], RightForeArm:[0.45, 0.9, -0.1], Head:[0, 1, 0.05] },
@@ -2724,7 +2731,7 @@ function updateRig(p, t, dt){
   var b = r.b, i, n;
   /* mood and energy shape posture: low mood slumps, high mood sits up */
   var slump = clamp(-p.mood.v, 0, 1) * 0.6 + (1 - p.needs.energy) * 0.25 - clamp(p.mood.v, 0, 1) * 0.1;
-  var tempo = 8 + 5 * p.needs.energy + 2 * Math.max(0, p.mood.v);
+  var MV = mv(p), tempo = (8 + 5 * p.needs.energy + 2 * Math.max(0, p.mood.v)) * MV.type;
   if (sit > 0.001) {
     var ty = p.typeAmp || 0, ma = p.mouseAmp || 0;
     /* mouse work: slow drifts, quick drags now and then, and short clicks */
@@ -2739,7 +2746,7 @@ function updateRig(p, t, dt){
     for (i = 0; i < ORDER.length; i++) {
       n = ORDER[i];
       var d = SEATED[n];
-      if (n === "Spine1" || n === "Spine2") d = v3a(SCR, d[0], d[1], d[2] + slump * 0.16);
+      if (n === "Spine1" || n === "Spine2") d = v3a(SCR, d[0], d[1], d[2] + slump * 0.16 + MV.lean);
       else if (n === "Head") d = v3a(SCR, d[0], d[1], d[2] + slump * 0.3);
       if (ty > 0.02 && (n === "LeftHand" || n === "RightHand")) {
         var ph = n === "LeftHand" ? 0 : 1.7;
@@ -2752,6 +2759,10 @@ function updateRig(p, t, dt){
       }
       /* fitted to each body: shins angle so the feet rest on the floor (not through it), forearms reach the desk top */
       if (n === "LeftLeg" || n === "RightLeg" || n === "LeftFoot" || n === "RightFoot" || ((n === "LeftForeArm" || n === "RightForeArm") && !(p.act && ACTS[p.act.n] && ACTS[p.act.n][n]))) d = fitSeated(p, b, n, d);
+      if (MV.bounce && (n === "LeftLeg" || n === "RightLeg") && !p.remote) {
+        var spell = Math.max(0, Math.sin(t * 0.11 + (p.mSeed || 0) * 3));
+        if (spell > 0.35 && (n === "RightLeg") === ((p.mSeed || 0) > 3.14)) d = v3a(SCR, d[0], d[1], d[2] + MV.bounce * 0.07 * (spell - 0.35) * Math.sin(t * 15));
+      }
       aim(b[n], b[CHILD[n]], d, n === "Head" ? sit * 0.6 : sit, _rq);
     }
   }
@@ -2774,9 +2785,10 @@ function updateRig(p, t, dt){
         var dd = set[n];
         if (!dd) continue;
         if (a.n === "wobble" && (n === "LeftForeArm" || n === "RightForeArm")) dd = v3a(SCR, dd[0] + 0.5 * Math.sin(t * 16 + (n === "LeftForeArm" ? 0 : 1.4)), dd[1], dd[2]);
+        if (a.n === "wipe" && n === "LeftForeArm") dd = v3a(SCR, dd[0] + 0.32 * Math.sin(t * 7), dd[1], dd[2]);
         if (a.n === "wave" && n === "RightForeArm") dd = v3a(SCR, dd[0] + 0.45 * Math.sin(t * 9), dd[1], dd[2]);
-        if ((a.n === "talk" || a.n === "answer") && n === "RightForeArm") dd = v3a(SCR, dd[0] + 0.15 * Math.sin(t * 4.3), dd[1] + 0.2 * Math.sin(t * 3.1), dd[2]);
-        if (a.n === "turn" && n === "RightForeArm" && p.bubbleOn) dd = v3a(SCR, dd[0] + 0.1 * Math.sin(t * 3.7), dd[1] + 0.25 + 0.18 * Math.sin(t * 2.9), dd[2]);
+        if ((a.n === "talk" || a.n === "answer") && n === "RightForeArm") dd = v3a(SCR, dd[0] + 0.15 * MV.hands * Math.sin(t * 4.3), dd[1] + 0.2 * MV.hands * Math.sin(t * 3.1), dd[2]);
+        if (a.n === "turn" && n === "RightForeArm" && p.bubbleOn) dd = v3a(SCR, dd[0] + 0.1 * MV.hands * Math.sin(t * 3.7), dd[1] + 0.25 * Math.min(1.3, MV.hands) + 0.18 * MV.hands * Math.sin(t * 2.9), dd[2]);
         aim(b[n], b[CHILD[n]], dd, w, _rq);
       }
       if (a.n === "turn" || a.n === "answer") {
@@ -2795,6 +2807,11 @@ function updateRig(p, t, dt){
     if (p.mug) p.mug.visible = false;
     if (p.phone) p.phone.visible = false;
     if (p.swatch) p.swatch.visible = false;
+  }
+  /* looking around: the head (and a little of the chest) follows whatever caught their eye */
+  if (p.gazeYaw && Math.abs(p.gazeYaw) > 0.01 && focus !== p && !(a && (a.n === "turn" || a.n === "answer" || a.n === "leanFire"))) {
+    yawBone(b.Spine1, clamp(p.gazeYaw * 0.18, -0.3, 0.3) * sit);
+    yawBone(b.Head, clamp(p.gazeYaw * 0.6, -1.0, 1.0));
   }
   /* while their card is open, people turn to face the viewer */
   if (focus === p && !a && !p.remote) {
@@ -2865,14 +2882,28 @@ var PERSONA = {
   tessa:{ focus:0.5, social:1.2, shop:1, coffee:1, breaky:0.5 }, grant:{ focus:0.5, social:1.1, shop:1, coffee:1, breaky:0.5 },
   hana:{ focus:0.5, social:1.2, shop:1, coffee:1, breaky:0.5 }
 };
+/* body language, one per person, following their personality:
+   type = typing speed, lean = sits leaning in (+) or upright (-), swivel = rocks the chair while thinking,
+   bounce = jiggles a leg, curious = looks around, walk = walking speed, hands = how much they gesture when talking */
+var MOVE = {
+  carla:{ type:1.2, lean:-0.02, swivel:0.24, bounce:0.7, curious:1.5, walk:1.12, hands:1.7 },
+  stephanie:{ type:1.0, lean:0.03, swivel:0.1, bounce:0, curious:1.0, walk:1.0, hands:1.25 },
+  debbie:{ type:0.82, lean:0.0, swivel:0, bounce:0.35, curious:1.2, walk:0.9, hands:1.0 },
+  olivia:{ type:0.9, lean:0.09, swivel:0.04, bounce:0, curious:0.7, walk:0.95, hands:0.75 },
+  luis:{ type:1.4, lean:0.1, swivel:0, bounce:0.45, curious:0.35, walk:1.08, hands:0.6 },
+  erica:{ type:1.1, lean:-0.05, swivel:0.12, bounce:0, curious:0.9, walk:1.1, hands:1.35 },
+  allyson:{ type:1.0, lean:-0.06, swivel:0.06, bounce:0.2, curious:1.0, walk:1.0, hands:1.0 },
+  _:{ type:1, lean:0, swivel:0.05, bounce:0, curious:1, walk:1, hands:1 }
+};
+function mv(p){ return MOVE[p.id] || MOVE._; }
 var POOLS = {
   luis:["stretch","headphones","sip","leanBack","headphones"],
   carla:["checklist","call","sip","stretch","wave","call"],
-  debbie:["point","sip","phone","point"],
-  olivia:["swatch","stretch","sip","swatch"],
-  stephanie:["leanFire","phone","sip","leanFire"],
+  debbie:["point","sip","phone","point","chin"],
+  olivia:["swatch","stretch","sip","swatch","chin","chin"],
+  stephanie:["leanFire","phone","sip","leanFire","chin"],
   erica:["phone","sip","phone"],
-  allyson:["phone","sip","phone"],
+  allyson:["phone","sip","phone","chin"],
   nolan:["phone"], elena:["phone"], tessa:["phone"], grant:["phone"], hana:["phone"]
 };
 var COFFEE_SPOT = new V3(-6.2, 0, 7.0), EXIT_SPOT = new V3(6.2, 0, 7.0);
@@ -3040,12 +3071,31 @@ var TEAM_TOPICS = [
 ];
 function topicFits(tp, a, b){ return tp.mode === "tell" ? tp.own === a.id : tp.own === b.id && a.id !== tp.own; }
 var OFFICE_EV = [];
+/* things worth looking at: an event pulls the eyes of everyone nearby for a few seconds */
+var POI = [];
+function notice(pos, t, dur, w){ POI.push({ pos:pos.clone(), t1:t + dur, w:w }); if (POI.length > 8) POI.shift(); }
+function yawToPos(p, pos){
+  lookV.copy(pos).sub(p.root.position);
+  _inv.copy(p.root.quaternion).invert();
+  lookV.applyQuaternion(_inv);
+  return Math.atan2(lookV.x, lookV.z);
+}
 function logEvent(kind, p, t){
   if (!p) return;
+  if (kind === "cat" || kind === "book" || kind === "spill" || kind === "chair") {
+    var ep = kind === "book" ? new V3(-2.5, 1.5, 1.8) : p.remote && p.spot ? new V3(p.spot.x, 1.5, p.spot.z) : new V3(p.root.position.x, 1.0, p.root.position.z);
+    notice(ep, t, kind === "spill" ? 7 : 4.5, kind === "chair" ? 0.8 : 1);
+    reactTo(kind, p, t, ep);
+  }
   OFFICE_EV.push({ kind:kind, p:p, t:t, used:0 });
   if (OFFICE_EV.length > 12) OFFICE_EV.shift();
 }
-var CHAT_RECENT = [];
+/* lines already used, kept in this browser so a new visit does not replay the same chats */
+var CHAT_RECENT = (function(){ try { return JSON.parse(localStorage.getItem("vo.said") || "[]"); } catch (e) { return []; } })();
+function saidKey(k){
+  CHAT_RECENT.push(k); if (CHAT_RECENT.length > 60) CHAT_RECENT.shift();
+  try { localStorage.setItem("vo.said", JSON.stringify(CHAT_RECENT)); } catch (e) {}
+}
 function chatter(a, b, t, casualOnly){
   var C = [];
   function add(w, key, lines){ if (CHAT_RECENT.indexOf(key) < 0) C.push({ w:w, key:key, lines:lines }); }
@@ -3068,7 +3118,7 @@ function chatter(a, b, t, casualOnly){
     hana:[["Hi! Quick sync?", "Sure, what's up?", "Just two things, I promise."], ["Do you have five minutes?", "For you, yes.", "I'll be quick."]],
     grant:[["Hey. The truck comes Thursday.", "Good to know, thanks.", "Thought you'd want to hear it from me."], ["Quick heads up, stock is looking good.", "That's the best news all week.", "Don't jinx it."]]
   };
-  if (GV[a.id]) { var gs = GV[a.id], gl = choose(Array.isArray(gs) ? gs : (gs[b.id] || gs[Object.keys(gs)[0]])); CHAT_RECENT.push("g" + a.id); if (CHAT_RECENT.length > 14) CHAT_RECENT.shift(); return gl.slice(); }
+  if (GV[a.id]) { var gs = GV[a.id], gl = choose(Array.isArray(gs) ? gs : (gs[b.id] || gs[Object.keys(gs)[0]])); saidKey("g" + a.id + Math.floor(Math.random() * 3)); return gl.slice(); }
 
   /* 1. things that just happened */
   OFFICE_EV.forEach(function(e, i){
@@ -3192,15 +3242,20 @@ function chatter(a, b, t, casualOnly){
 
   /* 9. a bit of work, now as a real back and forth */
   var wk = LINES[a.id];
-  if (wk) add(0.9, "wk" + a.id + CHAT_RECENT.length % 4, [choose(wk), choose(["Nice. Need a hand?", "Again? Classic.", "Let me know how it goes.", "Ha, of course."]), choose(["I'll shout if I do.", "Every single week.", "Will do."])]);
+  if (wk) add(0.9, "wk" + a.id + Math.floor(Math.random() * 4), [choose(wk), choose(["Nice. Need a hand?", "Again? Classic.", "Let me know how it goes.", "Ha, of course."]), choose(["I'll shout if I do.", "Every single week.", "Will do."])]);
 
+  if (!C.length && CHAT_RECENT.length && !chatter.retry) {
+    /* used them all: forget the oldest half and pick again */
+    CHAT_RECENT.splice(0, Math.ceil(CHAT_RECENT.length / 2)); chatter.retry = true;
+    var again = chatter(a, b, t, casualOnly); chatter.retry = false; return again;
+  }
   if (!C.length) return [choose(LINES[a.id] || ["Hey!"]), "Hey!"];
   if (casualOnly) { var cc = C.filter(function(c){ return !/^(tm|wk)/.test(c.key); }); if (cc.length) C = cc; }
   var tot = 0; C.forEach(function(c){ tot += c.w; });
   var r = Math.random() * tot, pick = C[0];
   for (var i = 0; i < C.length; i++) { r -= C[i].w; if (r <= 0) { pick = C[i]; break; } }
   if (pick.ev) pick.ev.used++;
-  CHAT_RECENT.push(pick.key); if (CHAT_RECENT.length > 14) CHAT_RECENT.shift();
+  saidKey(pick.key);
   var out = pick.lines.slice();
   if (out.length > 2 && Math.random() < 0.3) out.pop();
   out.casual = !/^(tm|wk)/.test(pick.key);
@@ -3223,6 +3278,18 @@ function startChat(a, b, t, dur, lines){
     if (lines.length > fit) lines = lines.slice(0, fit);
   }
   a.met = a.met || {}; b.met = b.met || {};
+  bond(a, b, 0.02);
+  if (!b.remote && b.typeOn && b.needs.focus > 0.7) {
+    b.interrupts = (b.interrupts || []).filter(function(x){ return t - x < 900; }); b.interrupts.push(t);
+    bond(a, b, -0.06);
+    if (b.interrupts.length >= 3) {
+      b.interrupts = []; b.dnd = t + dur + 360;
+      sayLater(b, choose(["Okay, headphones on. I need to focus for a bit.", "Headphones on, back in a few minutes.", "I really need to finish this. Headphones on."]), t + dur + 0.4, 3.2);
+      startAct(b, "headphones", t + dur + 0.6, 1.8);
+      moodShift(b, -0.1, "I kept getting interrupted");
+      (b.memo = b.memo || []).push({ t:t, text:"I kept getting interrupted this morning, so I put my headphones on for a while." });
+    }
+  }
   a.met[b.id] = (a.met[b.id] || 0) + 1; b.met[a.id] = (b.met[a.id] || 0) + 1;
   chats.push({ a:a, b:b, t0:t, dur:dur, bubbles:talky, lines:lines });
   if (b.id === "luis" && luisDeepWork(b)) moodShift(b, -0.2, "I got pulled out of the zone");
@@ -3259,22 +3326,43 @@ function updateChats(t){
 /* ---------- who chats with whom ----------
    Carla, Stephanie and Debbie talk the most, Olivia and Erica get along, the two managers work as a pair, Luis keeps to himself. */
 var AFF = { "carla|stephanie":3, "carla|debbie":3, "debbie|stephanie":3, "erica|olivia":2.6, "allyson|erica":2.4, "olivia|stephanieb":2.6, "marissa|stephanieb":2.2 };
-function aff(a, b){ var k = a.id < b.id ? a.id + "|" + b.id : b.id + "|" + a.id; var v = AFF[k] || 1; if (a.id === "luis" || b.id === "luis") v *= 0.25; return v; }
+/* bonds change with what happens: help brings people closer, interruptions push them apart.
+   Kept in this browser and fading slowly, so the office remembers last week a little. */
+var BOND = (function(){
+  try {
+    var o = JSON.parse(localStorage.getItem("vo.bond") || "{}"), days = o._at ? (Date.now() - o._at) / 864e5 : 0;
+    for (var k in o) if (k !== "_at") o[k] *= Math.pow(0.85, days);
+    return o;
+  } catch (e) { return {}; }
+})();
+function bondKey(a, b){ return a.id < b.id ? a.id + "|" + b.id : b.id + "|" + a.id; }
+/* remember something: changes the bond, and each side keeps a line they can bring up in a chat */
+function bond(a, b, dv, memA, memB){
+  if (!a || !b || a.guest || b.guest || a === b) return;
+  var k = bondKey(a, b), t = clock.elapsedTime;
+  BOND[k] = clamp((BOND[k] || 0) + dv, -0.8, 1.5);
+  if (memA) (a.memo = a.memo || []).push({ t:t, text:memA });
+  if (memB) (b.memo = b.memo || []).push({ t:t, text:memB });
+  try { BOND._at = Date.now(); localStorage.setItem("vo.bond", JSON.stringify(BOND)); } catch (e) {}
+}
+function recentMemo(p){ var m = p.memo && p.memo[p.memo.length - 1]; return m && clock.elapsedTime - m.t < 1800 ? m.text : ""; }
+function aff(a, b){ var k = bondKey(a, b); var v = Math.max(0.3, (AFF[k] || 1) + (BOND[k] || 0)); if (a.id === "luis" || b.id === "luis") v *= 0.25; return v; }
 function pickByAff(p, list){ var tot = 0; list.forEach(function(q){ tot += aff(p, q); }); var r = Math.random() * tot; for (var i = 0; i < list.length; i++) { r -= aff(p, list[i]); if (r <= 0) return list[i]; } return list[0]; }
 
 /* ---------- decisions ---------- */
-function available(q){ return q.state === "sit" && q.root.visible && !q.chatWith && !q.visitor && !q.answering; }
+function available(q){ return q.state === "sit" && q.root.visible && !q.chatWith && !q.visitor && !q.answering && !(q.dnd > clock.elapsedTime) && !(q.act && q.act.plan); }
 function neighbours(p){ return PEOPLE.filter(function(q){ return q !== p && Math.abs(q.z - p.z) < 2.0 && available(q); }); }
 function bossAway(p){ return PEOPLE.some(function(q){ return q !== p && q.trip && q.trip.kind === "meeting"; }); }
 function luisDeepWork(q){ return q.id === "luis" && q.typeOn && q.needs.focus > 0.5; }
 
 function decide(p, t){
   var n = p.needs, w = p.w, opts = [];
-  opts.push({ k:"work", s:0.85 * w.focus * (0.6 + n.energy * 0.6) + n.focus * 0.3 + rand(0, 0.3) });
+  var gl = goalNow(p), urg = gl ? gl.urg : 0;
+  opts.push({ k:"work", s:0.85 * w.focus * (0.6 + n.energy * 0.6) + n.focus * 0.3 + urg * 0.6 + rand(0, 0.3) });
   var mv = p.mood.v, prof = PROFILE[p.id];
-  var sociable = 1 + 0.5 * mv;
+  var sociable = (1 + 0.5 * mv) * (1 - 0.55 * urg) * (DAY.fri && DAY.h > 14 ? 1.25 : 1);
   var withdrawn = p.mood.kind === "stressed" && prof.traits.stressTol < 0.6;
-  opts.push({ k:"micro", s:(1 - n.energy) * 0.9 * w.breaky + (mv < 0 ? 0.25 : 0) + rand(0, 0.6) });
+  opts.push({ k:"micro", s:(1 - n.energy) * 0.9 * w.breaky + (mv < 0 ? 0.25 : 0) + (DAY.h > 14.4 && DAY.h < 15.6 ? 0.25 : 0) + rand(0, 0.6) });
   var coffeeN = PEOPLE.filter(function(q){ return q.trip && q.trip.kind === "coffee"; }).length;
   if (coffeeN < (DAY.coffee > 1.8 ? 2 : 1) && p.id !== "debbie") opts.push({ k:"coffee", s:n.coffee * 1.3 * w.coffee * (DAY.coffee > 1.8 ? 1.25 : 1) + rand(0, 0.25) });
   var best = null, bs = -1;
@@ -3339,6 +3427,103 @@ function decide(p, t){
     p.act.casual = o.q.act.casual = !!lines.casual || roll;
     startChat(p, o.q, t + (roll ? 2.5 : 0), dur + 0.4 - (roll ? 2.5 : 0), lines);
   }
+}
+/* reactions: somebody says something, a neighbour comes over to help with a spill */
+function reactTo(kind, p, t, ep){
+  var w = nearestSitter(ep.x, ep.z, p);
+  if (!w || w.remote || homeNow(w)) return;
+  if (kind === "cat" && Math.random() < 0.8) sayLater(w, choose(["Aww, a cat!", "Is that a cat? Best meeting ever.", "Hi kitty!", "The cat is the real boss there."]), t + 2.4, 2.6);
+  else if (kind === "chair") sayLater(w, choose(["Whoa, you okay?", "Careful there!", "Nice save!"]), t + 1.6, 2.4);
+  else if (kind === "spill" && Math.abs(w.seat.z - p.seat.z) < 3.2) { w.helpAt = t + 3; w.helpFor = p; sayLater(w, choose(["Oh no! Hang on.", "I've got napkins, one sec."]), t + 1.6, 2.4); }
+}
+/* every frame: who looks where. Calm people look around more, focused people barely look up. */
+function perceive(t, dt){
+  POI = POI.filter(function(o){ return t < o.t1; });
+  /* weather changes outside: somebody near a window notices */
+  var wk = WX_FORCE || WX.kind;
+  if (perceive.wx !== wk) {
+    var first = perceive.wx === undefined; perceive.wx = wk;
+    if ((wk === "snow" || wk === "rain") && !OFFICE_DARK_NOW()) {
+      var wz = Math.random() < 0.5 ? 4.5 : -1.05, wp = new V3(-2.78, 2.1, wz);
+      notice(wp, t + (first ? 15 : 0), 6, 0.7);
+      var ws = nearestSitter(-2.2, wz);
+      if (ws && !ws.remote) sayLater(ws, wk === "snow" ? choose(["Look, it's snowing!", "Snow! It's really coming down.", "Is that snow? Already?"]) : choose(["Oh, it started raining.", "Rain again. Glad I'm inside.", "Listen to that rain."]), t + (first ? 16 : 1.5), 3);
+    }
+  }
+  PEOPLE.forEach(function(p){
+    if (p.remote) return;
+    /* going over to help with a spill */
+    if (p.helpAt && t > p.helpAt) {
+      var q = p.helpFor; p.helpAt = 0; p.helpFor = null;
+      if (q && p.state === "sit" && !p.trip && !p.chatWith && !p.answering && !p.visitor && q.state === "sit" && !q.visitor && !q.chatWith) {
+        p.act = null; q.visitor = p;
+        goTrip(p, t, "visit", q, aislePath(p.seat, p.side, new V3(q.side * 0.95, 0, q.seat.z + rand(-0.12, 0.12)), 0));
+        p.trip.help = true;
+      }
+    }
+    var free = p.state === "sit" && p.root.visible && !p.chatWith && !p.answering && focus !== p && !(p.act && (p.act.n === "turn" || p.act.n === "answer" || p.act.n === "leanFire"));
+    if (!free) { p.gazeAt = null; p.gazeNext = 0; }
+    else if (!p.gazeNext || t > p.gazeNext) {
+      p.gazeNext = t + rand(1.2, 3.4); p.gazeAt = null;
+      var calm = Math.min(1, (1 - (p.typeOn ? p.needs.focus : p.needs.focus * 0.5)) * mv(p).curious);
+      if (p.dnd > t) calm *= 0.2;
+      var ev = null, es = 0;
+      POI.forEach(function(o){ var d = Math.hypot(o.pos.x - p.root.position.x, o.pos.z - p.root.position.z), sc = o.w * (1 - d / 9); if (sc > es) { es = sc; ev = o; } });
+      if (ev && es > 0.15 && Math.random() < 0.55 + 0.45 * es) p.gazeAt = { pos:ev.pos };
+      else {
+        var wq = null, wd = 2.6;
+        PEOPLE.forEach(function(q){ if (q === p || q.state !== "walk" || !q.root.visible) return; var d = q.root.position.distanceTo(p.root.position); if (d < wd) { wd = d; wq = q; } });
+        if (wq && Math.random() < 0.2 + 0.6 * calm) { p.gazeAt = { who:wq }; p.gazeNext = t + rand(1.5, 3); }
+        else if (Math.random() < 0.16 * calm) {
+          var nbs = neighbours(p);
+          if (nbs.length) { p.gazeAt = { who:pickByAff(p, nbs) }; p.gazeNext = t + rand(0.7, 1.5); }
+        }
+      }
+    }
+    var target = 0;
+    if (p.gazeAt) target = clamp(yawToPos(p, p.gazeAt.who ? p.gazeAt.who.root.position : p.gazeAt.pos), -1.9, 1.9);
+    p.gazeYaw = lerp(p.gazeYaw || 0, target, 1 - Math.exp(-dt * 4.5));
+  });
+}
+function OFFICE_DARK_NOW(){ return OFFICE_DARK > 0.5; }
+
+/* ---------- agenda: every person starts the day with their own plan ----------
+   Two pieces of work with a deadline (different every day), and for most a call at the desk.
+   Deadlines make them focus and skip chats as the time gets close; finishing one lifts the mood. */
+function makePlan(p){
+  var d = DAY.d || new Date(), key = d.getFullYear() * 1000 + d.getMonth() * 40 + d.getDate();
+  var hs = 0; for (var i = 0; i < p.id.length; i++) hs = (hs * 31 + p.id.charCodeAt(i)) % 100000;
+  var r = seeded((key * 6271 + hs * 15485863) % 2147483646 + 1); r(); r();
+  var pool = (PROFILE[p.id] && PROFILE[p.id].work || ["Working through my list"]).slice();
+  var g1 = pool.splice(Math.floor(r() * pool.length), 1)[0], g2 = pool.length ? pool[Math.floor(r() * pool.length)] : g1;
+  var call = null;
+  if (!p.walker && !p.remote && !p.guest && r() < 0.8) { var at = 9.5 + r() * 6; if (at > 11.8 && at < 13.6) at += 1.9; call = { at:at, dur:150 + r() * 150, done:false }; }
+  p.plan = { goals:[{ label:g1, due:9.75 + r() * 1.5, done:false }, { label:g2, due:14 + r() * 2.2, done:false }], call:call, key:key };
+  return p.plan;
+}
+function planOf(p){ var d = DAY.d || new Date(), key = d.getFullYear() * 1000 + d.getMonth() * 40 + d.getDate(); return p.plan && p.plan.key === key ? p.plan : makePlan(p); }
+function fmtH(h){ var hh = Math.floor(h), mm = Math.floor((h - hh) * 60 / 15) * 15; return (hh % 12 || 12) + ":" + (mm < 10 ? "0" : "") + mm; }
+/* the goal on the table right now, and how urgent it is (0 relaxed, 1 due any minute) */
+function goalNow(p){
+  if (p.remote || p.guest) return null;
+  var pl = planOf(p);
+  for (var i = 0; i < pl.goals.length; i++) {
+    var g = pl.goals[i];
+    if (g.done) continue;
+    var left = g.due - DAY.h;
+    if (left <= 0) {
+      g.done = true;
+      if (left > -0.3 && p.state === "sit" && p.root.visible) {
+        moodShift(p, 0.18, "I finally wrapped up " + g.label.charAt(0).toLowerCase() + g.label.slice(1));
+        (p.memo = p.memo || []).push({ t:clock.elapsedTime, text:"I just wrapped up " + g.label.charAt(0).toLowerCase() + g.label.slice(1) + ". One less thing." });
+        p.workNow = null;
+      }
+      continue;
+    }
+    if (i > 0 && left > 4) return null;
+    return { g:g, urg:clamp(1 - left / 1.25, 0, 1) };
+  }
+  return null;
 }
 function goTrip(p, t, kind, target, path){
   p.trip = { kind:kind, target:target, path:path, d:0, back:false };
@@ -3410,12 +3595,13 @@ function rollOver(p, q, gap){
 var GUESTS = { next:0, cur:null };
 function guestTick(t){
   if (GUESTS.cur) return;
-  if (!GUESTS.next) GUESTS.next = t + (/[?&]guest=now/.test(location.search) ? 3 : rand(60, 120));
+  var gWant = (/[?&]guest=([a-z]+)/.exec(location.search) || [])[1];
+  if (!GUESTS.next) GUESTS.next = t + (gWant ? 3 : rand(60, 120));
   if (t < GUESTS.next) return;
   GUESTS.next = t + rand(30, 60);
   if (DAY.h < 8.5 || DAY.h > 16.6) return;
   function okHost(q){ return !q.guest && available(q) && !q.visitor && !lunchNow(q); }
-  var pool = PEOPLE.filter(function(g){ return g.guest && g.state === "gone" && PEOPLE.some(function(q){ return okHost(q) && (!g.hosts || g.hosts.indexOf(q.id) >= 0); }); });
+  var pool = PEOPLE.filter(function(g){ return g.guest && g.state === "gone" && (!gWant || gWant === "now" || g.id === gWant || GUESTS.wantDone) && PEOPLE.some(function(q){ return okHost(q) && (!g.hosts || g.hosts.indexOf(q.id) >= 0); }); });
   if (!pool.length) return;
   var tot = 0; pool.forEach(function(g){ tot += g.freq; });
   var r = Math.random() * tot, g = pool[0];
@@ -3427,7 +3613,7 @@ function guestTick(t){
   g.act = null; g.rig.sit = 0; g.rig.walkW = 1; g.root.position.copy(EXIT_SPOT);
   setState(g, "walk", t, 0);
   logEvent("guest", g, t);
-  GUESTS.cur = g;
+  GUESTS.cur = g; GUESTS.wantDone = true;
 }
 
 /* ---------- per-frame update ---------- */
@@ -3443,7 +3629,7 @@ function updateAgent(p, t, dt){
   p.mood.v += (moodTarget(p) - p.mood.v) * dt * 0.01;
   moodDrift(p, t);
   if (Math.random() < dt * 0.2) recomputeMood(p);
-  p.pace = (0.86 + 0.24 * (p.mood.v + 1) / 2 + 0.06 * (p.needs.energy - 0.5)) * DAY.pace;
+  p.pace = (0.86 + 0.24 * (p.mood.v + 1) / 2 + 0.06 * (p.needs.energy - 0.5)) * DAY.pace * mv(p).walk;
 
   var st = p.state, k = p.dur > 0 ? clamp((t - p.t0) / p.dur, 0, 1) : 1, tr = p.trip;
   if (p.guest) {
@@ -3483,6 +3669,9 @@ function updateAgent(p, t, dt){
     } else if (p.cal && t >= p.cal.next && !p.act && !p.chatWith && !p.answering) {
       if (bossAway(p) && Math.random() < 0.85) p.cal.next = t + rand(10, 25);
       else goTrip(p, t, "meeting", null, aislePath(p.seat, p.side, EXIT_SPOT, 0));
+    } else if (!p.guest && planOf(p).call && !p.plan.call.done && DAY.h >= p.plan.call.at && !p.act && !p.chatWith && !p.visitor && !p.answering) {
+      var pc = p.plan.call; pc.done = true;
+      if (DAY.h - pc.at < 0.2) { p.typeOn = false; p.mouseOn = false; startAct(p, "call", t, pc.dur); p.act.plan = true; p.decideAt = t + pc.dur + 2; }
     } else if (t >= p.decideAt && !p.act && !p.chatWith && !p.visitor && !p.answering) {
       p.decideAt = t + rand(9, 18);
       decide(p, t);
@@ -3512,6 +3701,7 @@ function updateAgent(p, t, dt){
       } else if (focus === p) {
         swivelTarget = clamp((camYaw(p) + p.swivel) * 0.5, -1.2, 1.2);
       }
+      if (!p.act && focus !== p && !p.typeOn && !p.mouseOn && !p.chatWith) swivelTarget += mv(p).swivel * Math.sin(t * 0.7 + (p.mSeed || 0));
       p.swivel = lerp(p.swivel, swivelTarget, 1 - Math.exp(-dt * 5));
       if (p.chairG) p.chairG.rotation.y = p.swivel;
       p.statusNow = p.answering ? "Answering your question" : p.chatWith ? "Chatting with " + p.chatWith.name : ln === "desk" ? "Lunch at the desk, scrolling the phone" : p.walker ? p.walker.text.sit : p.status;
@@ -3567,6 +3757,12 @@ function updateAgent(p, t, dt){
             q.caredAt = t;
             startChat(p, q, t, cd, choose([["Hey, everything okay?", "Long day, but better now. Thanks."], ["You look like you need a break.", "I really do. Thanks for noticing."], ["Want me to grab you something?", "A coffee would save my life."], ["How are you holding up?", "Hanging in there. Thanks, Carla."], ["Need a hand with anything?", "I'm okay, but that's sweet of you."]]));
             moodShift(q, 0.25, "Carla came by to check on me");
+            bond(p, q, 0.25, "", "Carla came by to check on me earlier, that was sweet.");
+          }
+          else if (tr.help) {
+            startChat(p, q, t, cd, choose([["Need napkins? I grabbed some.", "You're a lifesaver, thank you."], ["Here, paper towels. Happens to everyone.", "Thanks! My keyboard survived, barely."], ["Hold on, I've got tissues.", "Thank you! What a mess."]]));
+            moodShift(q, 0.2, p.name + " helped me clean up my spill");
+            bond(p, q, 0.35, "I helped " + q.name + " clean up a spilled " + drinkOf(q) + " earlier.", p.name + " helped me clean up my spilled " + drinkOf(q) + " earlier. So nice.");
           }
           else startChat(p, q, t, cd);
         } else setState(p, "visit", t, 1.2);
@@ -3946,9 +4142,11 @@ function personIn(s){
   return null;
 }
 function fresh(p, arr){
+  if (!p.usedLoaded) { p.usedLoaded = true; try { p.used = JSON.parse(localStorage.getItem("vo.used." + p.id) || "[]"); } catch (e) {} }
   var opts = arr.filter(function(x){ return p.used.indexOf(x) < 0; });
   var pick = choose(opts.length ? opts : arr);
-  p.used.push(pick); if (p.used.length > 8) p.used.shift();
+  p.used.push(pick); if (p.used.length > 24) p.used.shift();
+  try { localStorage.setItem("vo.used." + p.id, JSON.stringify(p.used)); } catch (e) {}
   return pick;
 }
 function pr(q){ return PROFILE[q.id].pron; }
@@ -3958,7 +4156,7 @@ var ACT_TEXT = {
   phone:"Checking a message real quick", sip:"Having a sip of coffee", stretch:"Stretching, too much screen time",
   leanBack:"Taking a ten second breather", headphones:"Fixing my headphones", swatch:"Comparing colour swatches",
   leanFire:"Staring at this flame effect, something is off", point:"Checking on the wall heater", wave:"Waving at someone",
-  checklist:"Going through the booth checklist", call:"On the phone with a venue"
+  checklist:"Going through the booth checklist", chin:"Thinking this one through", wipe:"Cleaning up my spilled drink, don't ask", call:"On the phone with a venue"
 };
 function doingNow(p){
   var tr = p.trip, t = clock.elapsedTime;
@@ -3970,11 +4168,15 @@ function doingNow(p){
   }
   if (p.chatWith) return "Chatting with " + p.chatWith.name;
   if (p.act && p.act.n === "sip") return "Having a sip of " + drinkOf(p);
+  if (p.act && p.act.plan) return "On a call, back in a few minutes";
+  if (p.dnd > t) return "Headphones on, trying to focus";
   if (p.act && ACT_TEXT[p.act.n]) return ACT_TEXT[p.act.n];
   if (p.lastEvent && t - p.lastEvent.t < 25) {
     if (p.lastEvent.kind === "meeting") return "Just got back from a meeting";
     if (p.lastEvent.kind === "coffee") return "Just got back with a " + drinkOf(p);
   }
+  var gn = goalNow(p);
+  if (gn) return gn.g.label + (gn.urg > 0.2 ? ", it has to be done by " + fmtH(gn.g.due) : "");
   return p.workNow || (p.workNow = choose(PROFILE[p.id].work));
 }
 function locate(q){
@@ -4085,7 +4287,10 @@ function converseCore(p, raw){
   }
   var last = p.mem[p.mem.length - 1];
   var name = p.name, P = prof.pron;
-  if (SZ && / (trick or treat|halloween|candy|costume|pumpkins?|christmas|holidays?|happy holidays|cookies) /.test(s)) {
+  if (/ (pumpkins?|trophy|contest|first place|1st place|carousel) /.test(s)) {
+    return { text:fresh(p, ["It went great, we won first place! The trophy is on the shelf on the left wall, the ghosts actually spin.", "First place! Our striped carousel pumpkin is up on the shelf by the window. Go take a look.", "We took first place in the pumpkin contest. Bats, ghosts, the whole thing. It's on the shelf on the left wall."]), intent:"pumpkin", reason:"we earned that trophy" };
+  }
+  if (SZ && / (trick or treat|happy halloween|candy|costume|happy holidays|merry christmas|cookies) /.test(s)) {
     return { text:SEASON === "halloween" ? fresh(p, ["Treat! The candy bowl is on the empty desk by the entrance.", "Happy Halloween! Take a candy from the bowl by the entrance.", "Trick or treat! The good chocolate goes fast, check the empty desk."]) : fresh(p, ["Happy holidays! Cookies are on the empty desk by the entrance.", "Happy holidays! The tree by the logo wall turned out great."]), intent:"season", reason:"it is that time of year" };
   }
 
@@ -4145,7 +4350,7 @@ function converseCore(p, raw){
         "Hey. " + doingNow(p) + ", but go ahead."]), intent:"greet", reason:"" };
     case "bye": return { text:fresh(p, ["See you!","Bye! Come back anytime.","Later!","Talk soon."]), intent:"bye", reason:"" };
     case "thanks": return { text:fresh(p, ["Anytime!","Happy to help.","Of course.","No problem at all."]), intent:"thanks", reason:"" };
-    case "how": r = howReply(p); return { text:pre + r.text, intent:"how", reason:r.reason };
+    case "how": r = howReply(p); var mem = recentMemo(p); return { text:pre + r.text + (mem && Math.random() < 0.6 ? " " + mem : ""), intent:"how", reason:r.reason };
     case "day":
       r = howReply(p);
       var dayBits = p.walker ? (prof.traits.humour > 0.7 ? " " + prof.joke : " Lots of meetings, as usual.") : "";
@@ -4155,6 +4360,9 @@ function converseCore(p, raw){
       return { text:pre + d + "." + (p.chatWith && Math.random() < 0.5 ? " Talking shop, as usual." : ""), intent:"doing", reason:"it is the top thing on my list today" };
     case "busy":
       if (p.walker && p.cal && p.cal.next - t < 45) return { text:"I have a meeting in a minute, so make it quick.", intent:"busy", reason:"my next meeting starts any second" };
+      var gb = goalNow(p);
+      if (gb && gb.urg > 0.3) return { text:pre + "Kind of. " + gb.g.label + ", and it has to be done by " + fmtH(gb.g.due) + ".", intent:"busy", reason:"that deadline is close" };
+      if (p.dnd > t) return { text:"Headphones were on for a reason, but go ahead. Quick one?", intent:"busy", reason:"I kept getting interrupted" };
       if (deep || (p.typeOn && p.needs.focus > 0.65)) return { text:pre + fresh(p, ["Pretty busy, deep in something. Can it wait a bit?","Kind of. " + doingNow(p) + "."]), intent:"busy", reason:"I am in the middle of " + doingNow(p).toLowerCase() };
       if (p.mood.kind === "stressed") return { text:"Honestly, yes. But go ahead.", intent:"busy", reason:p.moodWhy || "deadlines everywhere" };
       return { text:fresh(p, ["Not really, what's up?","I have a minute. Shoot.","For you? Never."]), intent:"busy", reason:"it is a calm moment for once" };
@@ -4725,6 +4933,64 @@ Object.keys(REAL_MODELS).forEach(function(k){
   if (!src || !dst) return;
   try { swapShoes(dst.scene, src.scene, cfg.shoesFrom); } catch (e) { console.warn("shoes", e); }
 });
+Object.keys(REAL_MODELS).forEach(function(k){
+  var cfg = REAL_MODELS[k], src = cfg.pantsFrom && REAL[cfg.pantsFrom.model], dst = REAL[k];
+  if (!src || !dst) return;
+  try { swapPants(dst.scene, src.scene, cfg.pantsFrom); } catch (e) { console.warn("pants", e); }
+});
+/* borrow a whole garment (trousers) from another model: every vertex is carried over through the bones it is
+   skinned to, scaled to the new legs, and pushed out a few millimetres so the skin underneath never shows */
+function swapPants(dstRoot, srcRoot, opt){
+  dstRoot.updateMatrixWorld(true); srcRoot.updateMatrixWorld(true);
+  var srcMesh = null, dstBody = null;
+  srcRoot.traverse(function(o){ if (o.isSkinnedMesh && o.name.indexOf(opt.mesh) >= 0) srcMesh = o; });
+  dstRoot.traverse(function(o){ if (o.isSkinnedMesh && /Body/.test(o.name)) dstBody = o; });
+  if (!srcMesh || !dstBody) return;
+  dstRoot.traverse(function(o){ if (o.isSkinnedMesh && (opt.hide || []).some(function(h){ return o.name.indexOf(h) >= 0; })) o.visible = false; });
+  var sB = {}, dB = {};
+  srcMesh.skeleton.bones.forEach(function(b){ sB[b.name] = b; });
+  dstBody.skeleton.bones.forEach(function(b){ dB[b.name] = b; });
+  function legLen(B){ var a = B.mixamorigLeftUpLeg, f = B.mixamorigLeftFoot; return a && f ? a.getWorldPosition(new V3()).distanceTo(f.getWorldPosition(new V3())) : 1; }
+  var sc = legLen(dB) / legLen(sB);
+  var newBones = [], idxMap = {}, rel = [];
+  srcMesh.skeleton.bones.forEach(function(b, i){
+    var d = dB[b.name]; if (!d) return;
+    idxMap[i] = newBones.length; newBones.push(d);
+    /* source bone space -> scaled -> destination bone space */
+    rel[i] = new T.Matrix4().copy(d.matrixWorld).multiply(new T.Matrix4().makeScale(sc, sc, sc)).multiply(b.matrixWorld.clone().invert());
+  });
+  var g = srcMesh.geometry.clone(), pa = g.attributes.position, si = g.attributes.skinIndex, sw = g.attributes.skinWeight;
+  var v = new V3(), acc = new V3(), tv = new V3(), dstInv = dstBody.matrixWorld.clone().invert();
+  for (var i = 0; i < pa.count; i++) {
+    v.fromBufferAttribute(pa, i).applyMatrix4(srcMesh.bindMatrix);
+    acc.set(0, 0, 0); var wsum = 0;
+    for (var j = 0; j < 4; j++) {
+      var wj = comp(sw, i, j), bj = comp(si, i, j);
+      if (wj <= 0 || !rel[bj]) continue;
+      tv.copy(v).applyMatrix4(rel[bj]); acc.addScaledVector(tv, wj); wsum += wj;
+    }
+    if (wsum > 0) acc.multiplyScalar(1 / wsum); else acc.copy(v);
+    acc.applyMatrix4(dstInv);
+    pa.setXYZ(i, acc.x, acc.y, acc.z);
+    for (j = 0; j < 4; j++) { var nb = idxMap[comp(si, i, j)]; setComp(si, i, j, nb === undefined ? 0 : nb); if (nb === undefined) setComp(sw, i, j, 0); }
+  }
+  g.computeVertexNormals();
+  var push = legLen(dB) * 0.012 / dstBody.matrixWorld.getMaxScaleOnAxis(), nr = g.attributes.normal;
+  for (i = 0; i < pa.count; i++) pa.setXYZ(i, pa.getX(i) + nr.getX(i) * push, pa.getY(i) + nr.getY(i) * push, pa.getZ(i) + nr.getZ(i) * push);
+  g.computeBoundingSphere();
+  /* the shorts and the bare legs under the new trousers are cut away, so nothing pokes through */
+  dstRoot.traverse(function(o){
+    if (!o.isSkinnedMesh || !/Body|Cloth|Shorts/.test(o.name) || !o.geometry.index) return;
+    var bones = o.skeleton.bones, gi = o.geometry.index, si2 = o.geometry.attributes.skinIndex, sw2 = o.geometry.attributes.skinWeight, keep = [];
+    function onLeg(vi){ var bi = 0, bw = -1; for (var q = 0; q < 4; q++) if (comp(sw2, vi, q) > bw) { bw = comp(sw2, vi, q); bi = comp(si2, vi, q); } return /UpLeg|LeftLeg|RightLeg/.test(bones[bi].name); }
+    for (var f = 0; f < gi.count; f += 3) { var A = gi.getX(f), B = gi.getX(f + 1), C = gi.getX(f + 2); if (!(onLeg(A) && onLeg(B) && onLeg(C))) keep.push(A, B, C); }
+    o.geometry = o.geometry.clone(); o.geometry.setIndex(keep);
+  });
+  var m = new T.SkinnedMesh(g, srcMesh.material.clone());
+  m.name = "SwappedPants"; m.castShadow = true; m.frustumCulled = false;
+  dstBody.parent.add(m);
+  m.bind(new T.Skeleton(newBones), dstBody.matrixWorld.clone());
+}
 function swapShoes(dstRoot, srcRoot, opt){
   dstRoot.updateMatrixWorld(true); srcRoot.updateMatrixWorld(true);
   var srcMesh = null, dstBody = null;
@@ -4995,6 +5261,7 @@ function frame(){
   var m0 = performance.now();
   PEOPLE.forEach(function(p){ updateAgent(p, t, dt); });
   updateChats(t);
+  perceive(t, dt);
   mark("agents", m0); m0 = performance.now();
   /* people off screen animate at a third of the rate */
   PEOPLE.forEach(function(p){
