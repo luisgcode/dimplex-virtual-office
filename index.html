@@ -4881,6 +4881,7 @@ try {
 } catch (e) { composer = null; aoPass = null; }
 loadingEl.hidden = true;
 window.__voReady = true;
+window.__dbg = { renderer:renderer, scene:scene, sun:sun, T:T, seasonFx:seasonFx };
 window.__vo = { people:BY, focus:function(id){ focusOn(BY[id]); }, ask:function(id, q){ ask(BY[id], q); }, converse:function(id, q){ return converse(BY[id], q).text; }, goal:goal, view:view, season:function(){ seasonFx.next = 1; return SEASON; }, mishap:function(k){ MISHAP.cur = null; return startMishap(k, clock.elapsedTime); }, mishaps:MISHAP };
 var snapCam = 0;
 /* a link like #p-luis opens that person's card on load */
