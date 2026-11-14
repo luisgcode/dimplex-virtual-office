@@ -1066,8 +1066,8 @@ function chair(parent, x, z){
   }
   add(G.cyl, chairFrame, 0.05, 0.06, 0.05, 0, 0.1, 0, g, false);
   add(G.cyl, chrome, 0.022, 0.26, 0.022, 0, 0.25, 0, g, false);
-  add(G.box, chairFrame, 0.3, 0.04, 0.3, 0, 0.39, 0.02, g, false);
-  add(G.box, chairFrame, 0.46, 0.03, 0.44, 0, 0.42, 0.03, g);
+  add(G.cyl, chairFrame, 0.12, 0.04, 0.12, 0, 0.39, 0.02, g, false);
+  add(G.cyl, chairFrame, 0.2, 0.03, 0.2, 0, 0.42, 0.03, g);
   add(G.sph, chairMesh, 0.25, 0.05, 0.235, 0, 0.45, 0.03, g);
   add(G.box, chairFrame, 0.05, 0.36, 0.035, 0, 0.6, 0.29, g, false).rotation.x = -0.12;
   var back = add(G.sph, chairMesh, 0.235, 0.27, 0.05, 0, 0.86, 0.31, g);
@@ -2140,6 +2140,23 @@ function v3a(a, x, y, z){ a[0] = x; a[1] = y; a[2] = z; return a; }
 /* seated fit: bone lengths are measured once per person, heights are read live from the posed skeleton */
 var _fa = new V3(), _fb = new V3(), FIT = [0, 0, 0];
 var ANKLE_Y = 0.095, TOE_Y = 0.03, WRIST_Y = 0.805;
+/* a different outfit every day: same clothes, a new colour picked from an office palette (sometimes the usual one) */
+var DAY_PALETTE = {
+  top:["#f2f0eb", "#c9ad84", "#2a9d8f", "#b0476b", "#3d6fb0", "#e2ac2f", "#7a4d9e", "#6b8f71", "#c8553d", "#1d1d20", "#8a9bb0", "#d9d4c7", "#9c2f3a", "#2f5d8a"],
+  pants:["#1d1f24", "#26304a", "#4a4f58", "#2c313b", "#3a3330", "#5b5f66", "#1b2a3f"],
+  jacket:["#2a2b30", "#a3a8b0", "#2a2a2e", "#3b4a5e", "#5a4636", "#6b6f76", "#7a2e35"]
+};
+function dayTint(p, key, base){
+  var kind = /Pants|Shorts/.test(key) ? "pants" : /Suit|Coat/.test(key) ? "jacket" : /Shirt|Cloth|Top/.test(key) ? "top" : null;
+  if (!kind) return base;
+  /* ?outfit=3 jumps 3 days ahead, to preview other outfits */
+  var d = new Date(), m = /[?&]outfit=(\d+)/.exec(location.search || "");
+  var key2 = d.getFullYear() * 1000 + d.getMonth() * 40 + d.getDate() + (m ? +m[1] * 37 : 0);
+  var hs = 7; (p.id + key).split("").forEach(function(ch){ hs = (hs * 31 + ch.charCodeAt(0)) % 100003; });
+  var r = seeded((key2 * 4801 + hs * 7919) % 2147483646 + 1); r(); r();
+  if (r() < 0.3) return base;
+  var pal = DAY_PALETTE[kind]; return pal[Math.floor(r() * pal.length)];
+}
 function boneLen(p, n){
   var L = p.boneLen || (p.boneLen = {});
   if (!L[n]) { p.rig.b[n].getWorldPosition(_fa); p.rig.b[CHILD[n]].getWorldPosition(_fb); L[n] = _fa.distanceTo(_fb) || 0.3; }
@@ -2148,8 +2165,13 @@ function boneLen(p, n){
 function fitSeated(p, b, n, d){
   var len = boneLen(p, n), dy;
   b[n].getWorldPosition(_fa);
-  if (n === "LeftLeg" || n === "RightLeg") dy = clamp(ANKLE_Y - _fa.y, -len * 0.985, -len * 0.35);
-  else if (n === "LeftFoot" || n === "RightFoot") dy = clamp(TOE_Y - _fa.y, -len * 0.7, 0);
+  if (n === "LeftUpLeg" || n === "RightUpLeg") {
+    /* thighs slope down just enough for the shins to reach the floor from the seat */
+    var shin = boneLen(p, n === "LeftUpLeg" ? "LeftLeg" : "RightLeg");
+    dy = clamp(ANKLE_Y + (p.toeAdj || 0) + shin * 0.96 - _fa.y, -len * 0.6, -len * 0.08);
+  }
+  else if (n === "LeftLeg" || n === "RightLeg") dy = clamp(ANKLE_Y + (p.toeAdj || 0) - _fa.y, -len * 0.985, -len * 0.35);
+  else if (n === "LeftFoot" || n === "RightFoot") dy = clamp(TOE_Y + (p.toeAdj || 0) - _fa.y, -len * 0.7, 0);
   else dy = clamp(WRIST_Y - _fa.y, -len * 0.5, len * 0.6);
   var hx = d[0], hz = d[2], hl = Math.sqrt(hx * hx + hz * hz) || 1, h = Math.sqrt(Math.max(len * len - dy * dy, 0.0001));
   FIT[0] = hx / hl * h; FIT[1] = dy; FIT[2] = hz / hl * h;
@@ -2652,7 +2674,7 @@ function makeRig(p, sc){
       o.castShadow = /Body|Shirt|Suit|Coat|Cloth|Pants|Shorts/.test(o.name); o.receiveShadow = false; o.frustumCulled = false;
       if (REAL_MODELS[p.model].ownHair && /Hair/.test(o.name)) { o.visible = false; return; }
       var tint = REAL_MODELS[p.model].tint || {}, key = Object.keys(tint).find(function(k){ return o.name.indexOf(k) >= 0; });
-      if (key) { o.material = o.material.clone(); o.material.color.set(tint[key]); }
+      if (key) { o.material = o.material.clone(); o.material.color.set(dayTint(p, key, tint[key])); }
       return;
     }
     if (o.isSkinnedMesh) {
@@ -2719,7 +2741,7 @@ function updateRig(p, t, dt){
   r.nod.setEffectiveWeight(r.nodW);
   r.mixer.update(dt);
   var sit = ease(r.sit);
-  r.model.position.y = -(p.seatDrop || SEAT_DROP) * sit - (p.footDrop || 0);
+  r.model.position.y = -(p.seatDrop || SEAT_DROP) * sit - (p.footDrop || 0) - (p.footFix || 0) * (1 - sit) + (p.seatFix || 0) * sit;
   r.proxy.scale.y = 1 - 0.3 * sit; r.proxy.position.y = 0.9 * (1 - 0.3 * sit);
   r.root.rotation.y = p.heading + p.swivel;
   /* leaning back too far on the chair: the whole body tips, wobbles and comes back */
@@ -2758,7 +2780,7 @@ function updateRig(p, t, dt){
         d = v3a(SCR, lerp(d[0], mp[0] + mx, ma), lerp(d[1], mp[1] + my, ma), lerp(d[2], mp[2] + (n === "RightForeArm" ? mDz : 0), ma));
       }
       /* fitted to each body: shins angle so the feet rest on the floor (not through it), forearms reach the desk top */
-      if (n === "LeftLeg" || n === "RightLeg" || n === "LeftFoot" || n === "RightFoot" || ((n === "LeftForeArm" || n === "RightForeArm") && !(p.act && ACTS[p.act.n] && ACTS[p.act.n][n]))) d = fitSeated(p, b, n, d);
+      if (n === "LeftUpLeg" || n === "RightUpLeg" || n === "LeftLeg" || n === "RightLeg" || n === "LeftFoot" || n === "RightFoot" || ((n === "LeftForeArm" || n === "RightForeArm") && !(p.act && ACTS[p.act.n] && ACTS[p.act.n][n]))) d = fitSeated(p, b, n, d);
       if (MV.bounce && (n === "LeftLeg" || n === "RightLeg") && !p.remote) {
         var spell = Math.max(0, Math.sin(t * 0.11 + (p.mSeed || 0) * 3));
         if (spell > 0.35 && (n === "RightLeg") === ((p.mSeed || 0) > 3.14)) d = v3a(SCR, d[0], d[1], d[2] + MV.bounce * 0.07 * (spell - 0.35) * Math.sin(t * 15));
@@ -3452,6 +3474,7 @@ function perceive(t, dt){
   }
   PEOPLE.forEach(function(p){
     if (p.remote) return;
+    calibrate(p, t);
     /* going over to help with a spill */
     if (p.helpAt && t > p.helpAt) {
       var q = p.helpFor; p.helpAt = 0; p.helpFor = null;
@@ -3481,9 +3504,49 @@ function perceive(t, dt){
       }
     }
     var target = 0;
-    if (p.gazeAt) target = clamp(yawToPos(p, p.gazeAt.who ? p.gazeAt.who.root.position : p.gazeAt.pos), -1.9, 1.9);
+    /* nobody twists round to look behind them: anything further back than about 75 degrees is ignored */
+    if (p.gazeAt) { target = yawToPos(p, p.gazeAt.who ? p.gazeAt.who.root.position : p.gazeAt.pos); if (Math.abs(target) > 1.3) { target = 0; p.gazeAt = null; } }
     p.gazeYaw = lerp(p.gazeYaw || 0, target, 1 - Math.exp(-dt * 4.5));
   });
+}
+/* ---------- self calibration ----------
+   Every body is different, so each person measures their own mesh once and corrects itself:
+   seated, the lowest point of the seat area goes on top of the cushion (no chair through the body),
+   then the shoes go on the floor; standing, the soles go on the floor. */
+var _calV = new V3(), _calC = new V3(), SEAT_TOP = 0.5;
+function lowestSkin(p, cx, cz, rad, ymin){
+  var low = 9; p.rig.model.updateMatrixWorld(true);
+  p.rig.model.traverse(function(o){
+    if (!o.isSkinnedMesh || !o.visible) return;
+    var n = o.geometry.attributes.position.count, st = Math.max(1, Math.floor(n / 1200));
+    for (var i = 0; i < n; i += st) {
+      o.getVertexPosition(i, _calV); _calV.applyMatrix4(o.matrixWorld);
+      if (cx !== undefined && (Math.hypot(_calV.x - cx, _calV.z - cz) > rad || _calV.y < ymin)) continue;
+      if (_calV.y < low) low = _calV.y;
+    }
+  });
+  return low;
+}
+function calibrate(p, t){
+  if (p.remote || !p.rig || !p.root.visible) return;
+  var r = p.rig;
+  if (p.state === "sit" && r.sit > 0.995 && !p.act && !(p.roll > 0.01) && p.chairG && (p.seatCal || 0) < 2 && t > (p.seatCalT || 0)) {
+    if (!p.seatCal) {
+      r.b.Hips.getWorldPosition(_calC);
+      var lo = lowestSkin(p, _calC.x, _calC.z, 0.12, _calC.y - 0.3);
+      if (lo < 1) p.seatFix = clamp((p.seatFix || 0) + SEAT_TOP - lo, -0.1, 0.35);
+      p.seatCal = 1; p.seatCalT = t + 0.6;
+    } else {
+      var lf = lowestSkin(p);
+      if (lf < 0.002 || lf > 0.03) p.toeAdj = clamp((p.toeAdj || 0) + 0.008 - lf, -0.1, 0.12);
+      p.seatCal = 2;
+    }
+  }
+  if (p.state === "walk" && r.sit < 0.01 && (r.walkW || 0) > 0.6 && !p.footCal) {
+    var lw = lowestSkin(p);
+    if (Math.abs(lw) > 0.006 && Math.abs(lw) < 0.2) p.footFix = (p.footFix || 0) + lw;
+    p.footCal = true;
+  }
 }
 function OFFICE_DARK_NOW(){ return OFFICE_DARK > 0.5; }
 
