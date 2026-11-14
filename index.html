@@ -468,10 +468,10 @@ var carpetTex = canvasTex(512, 512, function(g, w, h){
   var r = seeded(19), ts = 256;
   for (var ty = 0; ty < 2; ty++) for (var tx = 0; tx < 2; tx++) {
     var x0 = tx * ts, y0 = ty * ts, vert = (tx + ty) % 2 === 0;
-    g.fillStyle = "#83878c"; g.fillRect(x0, y0, ts, ts);
+    g.fillStyle = "#6e7277"; g.fillRect(x0, y0, ts, ts);
     /* fine stripes: alternating darker and lighter rows of loops */
     for (var k = 0; k < ts; k += 4) {
-      var c = k % 8 === 0 ? "rgba(70,74,80,0.55)" : "rgba(170,174,178,0.35)";
+      var c = k % 8 === 0 ? "rgba(52,55,60,0.6)" : "rgba(160,164,168,0.3)";
       g.fillStyle = c;
       if (vert) g.fillRect(x0 + k, y0, 2, ts); else g.fillRect(x0, y0 + k, ts, 2);
     }
