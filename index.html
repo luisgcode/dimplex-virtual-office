@@ -4940,7 +4940,8 @@ var aoFailed = false, DT_MAX = 0.12;
 var frameNo = 0, LBL = null;
 var PERF = { t0:0, frames:0, done:false };
 var SHADOW_EVERY = 2;
-var DYN = { t0:performance.now(), frames:0, cap:Math.min(window.devicePixelRatio || 1, 1.5) };
+/* never below the screen's own resolution (1x): lower than that looks pixelated */
+var DYN = { t0:performance.now(), frames:0, cap:Math.min(window.devicePixelRatio || 1, 1.5), min:1 };
 function degrade(){
   if (composer) { composer = null; return true; }
   if (renderer.getPixelRatio() > 1) { renderer.setPixelRatio(1); return true; }
@@ -4987,7 +4988,7 @@ function frame(){
   DYN.frames++;
   if (nowMs - DYN.t0 > 1500) {
     var dfps = DYN.frames * 1000 / (nowMs - DYN.t0), pr = renderer.getPixelRatio();
-    if (dfps < 38 && pr > 0.7) renderer.setPixelRatio(Math.max(0.7, pr - 0.15));
+    if (dfps < 38 && pr > DYN.min) renderer.setPixelRatio(Math.max(DYN.min, pr - 0.15));
     else if (dfps > 56 && pr < DYN.cap) renderer.setPixelRatio(Math.min(DYN.cap, pr + 0.1));
     DYN.t0 = nowMs; DYN.frames = 0;
   }
