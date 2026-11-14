@@ -1408,9 +1408,14 @@ function chairBag(c){
 function desk(p){
   var g = new T.Group(); g.position.set(p.side * 1.6, 0, p.z); g.rotation.y = -p.side * Math.PI / 2; scene.add(g);
   aoDecal(g, 0, -0.78, 1.9, 1.0);
+  /* standing desk: the top and everything on it sit on a lift that rises; the legs telescope */
+  var outer = g; g = new T.Group(); g.userData.lift = true; outer.add(g); p.deskOuter = outer;
   add(G.box, deskTop, 1.7, 0.045, 0.82, 0, 0.74, -0.78, g);
   add(G.box, M("#d9d6cf", { roughness:0.6 }), 1.7, 0.012, 0.82, 0, 0.712, -0.78, g, false);
-  [[-0.8,-0.42],[0.8,-0.42],[-0.8,-1.14],[0.8,-1.14]].forEach(function(q){ add(G.box, metalDark, 0.04, 0.72, 0.04, q[0], 0.36, q[1], g, false); });
+  [[-0.8,-0.42],[0.8,-0.42],[-0.8,-1.14],[0.8,-1.14]].forEach(function(q){
+    add(G.box, metalDark, 0.05, 0.56, 0.05, q[0], 0.28, q[1], outer, false);
+    add(G.box, metalDark, 0.036, 0.54, 0.036, q[0], 0.45, q[1], g, false);
+  });
   add(G.box, metalDark, 1.56, 0.3, 0.02, 0, 0.52, -1.16, g, false);
   /* Luis types on the laptop itself (no separate keyboard), mouse to its right */
   if (p.id !== "luis") deskKeyboard(g, 0, -0.56);
@@ -1418,7 +1423,7 @@ function desk(p){
   p.cup = add(G.cyl, M(p.side > 0 ? "#ffffff" : "#E31837", { roughness:0.4 }), 0.04, 0.1, 0.04, -0.62, 0.81, -0.5, g);
   lunchProps(p, g);
   p.cup.userData.dyn = true;
-  p.chairG = chair(g, 0, 0.02);
+  p.chairG = chair(outer, 0, 0.02);
   if (p.id === "luis") chairBag(p.chairG);
   if (p.id) { mergeByMaterial(p.chairG); p.chairG.traverse(function(o){ o.userData.dyn = true; if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } }); p.chairBase = p.chairG.position.clone(); }
   p.deskGroup = g;
@@ -1452,6 +1457,21 @@ function laptop(parent, x, z, kind, ry){
 /* Luis: two external monitors and his laptop */
 /* his real setup: laptop in front of him, one monitor raised right behind it, the other monitor to the right */
 laptop(dg, 0, -0.6, "code", 0);
+/* his notebook: comes out of the bag now and then, he writes in it, then puts it away */
+(function(){
+  var nb = new T.Group(); nb.position.set(0.25, 0.7625, -0.48); nb.rotation.y = -0.3; nb.visible = false; dg.add(nb);
+  add(G.box, M("#1f2a3a", { roughness:0.7 }), 0.15, 0.014, 0.21, 0, 0.007, 0, nb, false);
+  add(G.box, M("#f4f1e8", { roughness:0.9 }), 0.138, 0.004, 0.2, 0.004, 0.0155, 0, nb, false);
+  var lines = canvasTex(64, 96, function(g, w, h){ g.fillStyle = "#f4f1e8"; g.fillRect(0, 0, w, h); g.strokeStyle = "#c9d4e2"; g.lineWidth = 1; for (var y = 10; y < h; y += 7) { g.beginPath(); g.moveTo(4, y); g.lineTo(w - 4, y); g.stroke(); } g.strokeStyle = "#3a4a66"; g.lineWidth = 1.4; for (y = 10; y < 60; y += 7) { g.beginPath(); g.moveTo(6, y - 1); for (var x = 6; x < 20 + (y * 7) % 34; x += 4) g.lineTo(x, y - 1 - ((x * 3 + y) % 3)); g.stroke(); } });
+  var pg = new T.Mesh(G.plane, new T.MeshStandardMaterial({ map:lines, roughness:0.9 })); pg.rotation.x = -Math.PI / 2; pg.scale.set(0.13, 0.19, 1); pg.position.set(0.004, 0.0181, 0); nb.add(pg);
+  add(G.box, M("#c9a227", { roughness:0.4, metalness:0.6 }), 0.004, 0.016, 0.21, -0.073, 0.008, 0, nb, false);
+  var pen = new T.Group(); pen.visible = false; scene.add(pen);
+  add(G.cyl, M("#14161a", { roughness:0.35 }), 0.0045, 0.13, 0.0045, 0, 0, 0, pen, false);
+  add(G.cyl, M("#c9a227", { roughness:0.3, metalness:0.7 }), 0.0047, 0.012, 0.0047, 0, 0.06, 0, pen, false);
+  /* moving props: keep them out of the static merge */
+  nb.traverse(function(o){ o.userData.dyn = true; }); pen.traverse(function(o){ o.userData.dyn = true; });
+  BY.luis.notebook = nb; BY.luis.pen = pen;
+})();
 monitor(dg, 0, -1.02, 0.56, 0.34, "code", 0).position.y += 0.1;
 monitor(dg, 0.6, -0.98, 0.56, 0.34, "chat", -0.22);
 /* Debbie: two external monitors and a laptop */
@@ -2240,7 +2260,7 @@ function startMishap(kind, t){
     /* grab napkins and wipe the desk */
     setTimeout(function(){ if (m.p.state === "sit" && !m.p.chatWith && (!m.p.act || m.p.act.n === "point")) startAct(m.p, "wipe", clock.elapsedTime, 5.5); }, 2600);
   } else if (kind === "chair") {
-    var cand = PEOPLE.filter(function(q){ return q.state === "sit" && q.root.visible && !q.chatWith && !q.answering && !q.act; });
+    var cand = PEOPLE.filter(function(q){ return q.state === "sit" && q.root.visible && !q.chatWith && !q.answering && !q.act && !(q.standW > 0); });
     if (!cand.length) return false;
     m.p = choose(cand); m.dur = 2.4;
     startAct(m.p, "wobble", t, m.dur);
@@ -2312,6 +2332,28 @@ focusRing.rotation.x = -Math.PI / 2; focusRing.visible = false; scene.add(focusR
 flames.forEach(function(f){ f.m.userData.dyn = true; });
 heatMotes.forEach(function(h){ h.m.userData.dyn = true; });
 focusRing.userData.dyn = true;
+(function mergeLifts(){
+  scene.children.forEach(function(outer){
+    outer.children.forEach(function(lift){
+      if (!lift.userData.lift) return;
+      lift.updateMatrixWorld(true);
+      var inv = lift.matrixWorld.clone().invert(), buckets = new Map(), victims = [];
+      lift.traverse(function(o){
+        if (!o.isMesh || o.isSkinnedMesh || Array.isArray(o.material) || o.renderOrder !== 0 || !o.visible) return;
+        for (var a = o; a && a !== lift; a = a.parent) if (a.userData.dyn) return;
+        var at = o.geometry.attributes; if (!at.position || !at.normal || !at.uv || Object.keys(at).length !== 3) return;
+        var geo = o.geometry.clone().applyMatrix4(new T.Matrix4().multiplyMatrices(inv, o.matrixWorld));
+        if (geo.index) geo = geo.toNonIndexed();
+        var key = o.material.uuid + (o.castShadow ? "c" : "");
+        (buckets.get(key) || buckets.set(key, { mat:o.material, cast:o.castShadow, geos:[] }).get(key)).geos.push(geo);
+        victims.push(o);
+      });
+      victims.forEach(function(o){ o.parent.remove(o); });
+      buckets.forEach(function(bk){ var mg = BufferGeometryUtils.mergeGeometries(bk.geos, false); if (!mg) return; var m = new T.Mesh(mg, bk.mat); m.castShadow = bk.cast; m.receiveShadow = true; lift.add(m); });
+      lift.traverse(function(o){ o.userData.dyn = true; });
+    });
+  });
+})();
 (function freezeStatic(){
   scene.updateMatrixWorld(true);
   var groups = {}, victims = [];
@@ -2380,6 +2422,8 @@ var ACTS = {
   point:{ RightArm:[-0.1, 0.5, 1], RightForeArm:[-0.05, 0.6, 1], Head:[0, 1, -0.2] },
   wave:{ RightArm:[-0.9, 0.4, 0.2], RightForeArm:[-0.1, 1, 0.1] },
   talk:{ RightArm:[-0.2, -0.8, 0.45], RightForeArm:[0.1, 0.25, 1] },
+  /* writing in a notebook on the desk (the forearm is fitted to the desk, the hand scribbles) */
+  write:{ RightArm:[-0.12, -0.62, 0.72], LeftArm:[0.2, -0.65, 0.7], Spine1:[0, 1, 0.2], Spine2:[0, 1, 0.14], Head:[0, 1, 0.55] },
   /* hand on the chin, thinking something through */
   chin:{ RightArm:[-0.25, -0.55, 0.6], RightForeArm:[0.22, 0.85, 0.32], Head:[0, 1, 0.18] },
   /* wiping the desk with a napkin after a spill */
@@ -2434,7 +2478,7 @@ function fitSeated(p, b, n, d){
   }
   else if (n === "LeftLeg" || n === "RightLeg") dy = clamp(ANKLE_Y + (p.toeAdj || 0) - _fa.y, -len * 0.985, -len * 0.35);
   else if (n === "LeftFoot" || n === "RightFoot") dy = clamp(TOE_Y + (p.toeAdj || 0) - _fa.y, -len * 0.7, 0);
-  else dy = clamp(WRIST_Y - _fa.y, -len * 0.5, len * 0.6);
+  else dy = clamp(WRIST_Y + (p.deskGroup ? p.deskGroup.position.y : 0) - _fa.y, -len * 0.5, len * 0.6);
   var hx = d[0], hz = d[2], hl = Math.sqrt(hx * hx + hz * hz) || 1, h = Math.sqrt(Math.max(len * len - dy * dy, 0.0001));
   FIT[0] = hx / hl * h; FIT[1] = dy; FIT[2] = hz / hl * h;
   return FIT;
@@ -3016,7 +3060,8 @@ function updateRig(p, t, dt){
   /* mood and energy shape posture: low mood slumps, high mood sits up */
   var slump = clamp(-p.mood.v, 0, 1) * 0.6 + (1 - p.needs.energy) * 0.25 - clamp(p.mood.v, 0, 1) * 0.1;
   var MV = mv(p), tempo = (8 + 5 * p.needs.energy + 2 * Math.max(0, p.mood.v)) * MV.type;
-  if (sit > 0.001) {
+  var atDesk = Math.max(sit, p.standW || 0);
+  if (atDesk > 0.001) {
     var ty = p.typeAmp || 0, ma = p.mouseAmp || 0;
     /* mouse work: slow drifts, quick drags now and then, and short clicks */
     var mDx = 0.07 * Math.sin(t * 0.9 + (p.mSeed || (p.mSeed = Math.random() * 6.28))) + 0.05 * Math.sin(t * 2.3) * Math.max(0, Math.sin(t * 0.37 + (p.mSeed || (p.mSeed = Math.random() * 6.28))));
@@ -3024,7 +3069,7 @@ function updateRig(p, t, dt){
     var mClick = Math.max(0, Math.sin(t * 5.1 + (p.mSeed || (p.mSeed = Math.random() * 6.28)))) > 0.97 ? 0.12 : 0;
     if (p.mouseM) {
       var mb = p.mouseM.userData.base;
-      p.mouseM.position.set(mb.x - mDx * 0.25 * ma, mb.y, mb.z - mDz * 0.25 * ma);
+      p.mouseM.position.set(mb.x - mDx * 0.25 * ma + (p.act && p.act.n === "write" ? 0.14 : 0), mb.y, mb.z - mDz * 0.25 * ma + (p.act && p.act.n === "write" ? -0.12 : 0));
       p.mouseM.rotation.y = -mDx * 0.6 * ma;
     }
     for (i = 0; i < ORDER.length; i++) {
@@ -3037,6 +3082,8 @@ function updateRig(p, t, dt){
         d = v3a(SCR, d[0], d[1] + ty * 0.22 * Math.max(0, Math.sin(t * tempo + ph + Math.sin(t * 1.7 + ph) * 2)), d[2]);
       }
       if (ty > 0.02 && (n === "LeftForeArm" || n === "RightForeArm")) d = v3a(SCR, d[0], d[1] + ty * 0.03 * Math.sin(t * 7 + (n === "LeftForeArm" ? 0 : 2)), d[2]);
+      if (p.act && p.act.n === "write" && n === "RightForeArm") d = v3a(SCR, d[0] + 0.05 * Math.sin(t * 9) + 0.03 * Math.sin(t * 2.3), d[1], d[2] + 0.02 * Math.sin(t * 4.1));
+      if (p.act && p.act.n === "write" && n === "RightHand") d = v3a(SCR, d[0], d[1] - 0.12 + 0.05 * Math.sin(t * 13), d[2]);
       if (ma > 0.02 && MOUSE_POSE[n]) {
         var mp = MOUSE_POSE[n], mx = n === "RightForeArm" ? mDx : 0, my = n === "RightHand" ? -mClick : 0;
         d = v3a(SCR, lerp(d[0], mp[0] + mx, ma), lerp(d[1], mp[1] + my, ma), lerp(d[2], mp[2] + (n === "RightForeArm" ? mDz : 0), ma));
@@ -3049,7 +3096,9 @@ function updateRig(p, t, dt){
         var spell = Math.max(0, Math.sin(t * 0.11 + (p.mSeed || 0) * 3));
         if (spell > 0.35 && (n === "RightLeg") === ((p.mSeed || 0) > 3.14)) d = v3a(SCR, d[0], d[1], d[2] + MV.bounce * 0.07 * (spell - 0.35) * Math.sin(t * 15));
       }
-      aim(b[n], b[CHILD[n]], d, n === "Head" ? sit * 0.6 : sit, _rq);
+      /* standing at the desk: the arms and the back still work at the desk, the legs stand */
+      var wn = (n.indexOf("Leg") >= 0 || n.indexOf("Foot") >= 0) ? sit : atDesk;
+      if (wn > 0.001) aim(b[n], b[CHILD[n]], d, n === "Head" ? wn * 0.6 : wn, _rq);
     }
   }
   if (sit < 0.99) {
@@ -3087,10 +3136,22 @@ function updateRig(p, t, dt){
       }
     }
     if (p.mug) p.mug.visible = a.n === "sip" && w > 0.3;
+    if (p.notebook) {
+      var nbOn = a.n === "write" && w > 0.04;
+      p.notebook.visible = nbOn;
+      /* slides up from below the desk edge (out of the bag) and back down at the end */
+      if (nbOn) { var e = clamp(w * 1.6, 0, 1); p.notebook.position.set(0.25 + 0.25 * (1 - e), 0.7625 - 0.25 * (1 - e), -0.48 + 0.2 * (1 - e)); }
+      if (p.pen) {
+        p.pen.visible = nbOn && w > 0.5;
+        if (p.pen.visible) { b.RightHand.getWorldPosition(_fa); b.RightHandMiddle1.getWorldPosition(_fb); p.pen.position.copy(_fa).lerp(_fb, 0.6); p.pen.position.y -= 0.035; p.pen.rotation.set(0.5, p.root.rotation.y + p.swivel, 0.35); }
+      }
+    }
     if (p.phone) p.phone.visible = a.n === "phone" && w > 0.3;
     if (p.swatch) p.swatch.visible = (a.n === "swatch" || a.n === "checklist") && w > 0.2;
   } else {
     if (p.mug) p.mug.visible = false;
+    if (p.notebook) p.notebook.visible = false;
+    if (p.pen) p.pen.visible = false;
     if (p.phone) p.phone.visible = false;
     if (p.swatch) p.swatch.visible = false;
   }
@@ -3200,9 +3261,35 @@ var SITS = {
   luis:{ every:[180, 420], opts:[["", 3], ["edge", 3.5], ["recline", 1], ["tuck", 1.5]] },
   _:{ every:[300, 700], opts:[["", 5], ["crossR", 1], ["recline", 1]] }
 };
+/* ---------- standing desks ----------
+   Now and then Olivia, Erica, Allyson and Luis raise the desk and work standing for a while (10 to 30 minutes),
+   then lower it and sit again. Stand up first, then the desk motor runs; on the way back, desk down first. */
+var STANDERS = { olivia:[1500, 4200], erica:[1800, 5400], allyson:[1800, 5400], luis:[1200, 3600] };
+var LIFT_H = 0.27, _standV = new V3();
+var STAND_FORCE = /[?&]stand=1/.test(location.search || "");
+function standTick(p, t, dt){
+  var range = STANDERS[p.id], lift = p.deskGroup;
+  if (!range || !lift || !lift.userData.lift) return;
+  var canStand = p.state === "sit" && p.root.visible && !p.chatWith && !p.visitor && !p.answering && !(p.roll > 0.01) && !lunchNow(p) && !homeNow(p);
+  if (!p.standNext) p.standNext = t + (STAND_FORCE ? 4 : rand(60, range[0]));
+  if (!p.standOn && canStand && !p.act && t > p.standNext) { p.standOn = true; p.standEnd = t + (STAND_FORCE ? 9999 : rand(600, 1800)); p.posture = null; }
+  if (p.standOn && (t > p.standEnd || p.state !== "sit" || lunchNow(p) || homeNow(p))) { p.standOn = false; p.standNext = t + rand(range[0], range[1]); }
+  /* order: stand, then desk up; desk down, then sit */
+  var lh = lift.position.y;
+  if (p.standOn) {
+    p.standW = Math.min(1, (p.standW || 0) + dt / 1.4);
+    if (p.standW >= 1) lift.position.y = Math.min(LIFT_H, lh + dt * 0.045);
+  } else {
+    if (lh > 0) lift.position.y = Math.max(0, lh - dt * (p.state === "sit" ? 0.045 : 0.09));
+    if (lift.position.y <= 0.02 || p.state !== "sit") p.standW = Math.max(0, (p.standW || 0) - dt / (p.state === "sit" ? 1.4 : 0.3));
+  }
+  if (p.state !== "sit" && p.standW > 0) p.rig.sit = 0;
+  if (p.chairG && p.chairBase && !(p.roll > 0.01) && (p.standW > 0 || p.standWas)) { p.chairG.position.copy(p.chairBase); p.chairG.position.z += 0.42 * ease(p.standW || 0); }
+  p.standWas = p.standW > 0;
+}
 var POSTURE_FORCE = (/[?&]posture=(\w+)/.exec(location.search || "") || [])[1];
 function postureTick(p, t, dt){
-  var seated = p.state === "sit" && p.root.visible && !p.remote && !(p.roll > 0.01) && !(p.act && p.act.n === "wobble");
+  var seated = p.state === "sit" && p.root.visible && !p.remote && !(p.roll > 0.01) && !(p.act && p.act.n === "wobble") && !(p.standW > 0.02);
   if (!seated) { p.posture = null; p.postNext = 0; }
   else if (POSTURE_FORCE && POSTURE[POSTURE_FORCE]) p.posture = POSTURE_FORCE;
   else if (!p.postNext || t > p.postNext) {
@@ -3231,7 +3318,7 @@ var MOVE = {
 };
 function mv(p){ return MOVE[p.id] || MOVE._; }
 var POOLS = {
-  luis:["stretch","headphones","sip","leanBack","headphones"],
+  luis:["stretch","headphones","sip","leanBack","headphones","write","write","write"],
   carla:["checklist","call","sip","stretch","wave","call"],
   debbie:["point","sip","phone","point","chin"],
   olivia:["swatch","stretch","sip","swatch","chin","chin"],
@@ -3764,7 +3851,12 @@ function decide(p, t){
   opts.sort(function(a, b){ return b.s - a.s; });
   var o = opts[0];
   if (o.k === "work") { p.typeOn = true; p.typeNext = t + rand(3, 8); n.focus = Math.min(1, n.focus + 0.15); }
-  else if (o.k === "micro") { startAct(p, choose(POOLS[p.id]), t); n.energy = Math.min(1, n.energy + 0.12); }
+  else if (o.k === "micro") {
+    var mk = choose(POOLS[p.id]);
+    if (mk === "write") { p.typeOn = false; p.mouseOn = false; startAct(p, "write", t, rand(25, 70)); }
+    else startAct(p, mk, t);
+    n.energy = Math.min(1, n.energy + 0.12);
+  }
   else if (o.k === "coffee") goTrip(p, t, "coffee", null, aislePath(p.seat, p.side, COFFEE_SPOT, 0));
   else if (o.k === "visit") {
     var q = o.q, spot = q.remote ? q.spot.clone() : new V3(q.side * 0.95, 0, q.seat.z + rand(-0.12, 0.12));
@@ -3818,6 +3910,7 @@ function perceive(t, dt){
   }
   PEOPLE.forEach(function(p){
     if (p.remote) return;
+    standTick(p, t, dt);
     postureTick(p, t, dt);
     calibrate(p, t);
     /* going over to help with a spill */
@@ -3886,6 +3979,11 @@ function calibrate(p, t){
       if (lf < 0.002 || lf > 0.03) p.toeAdj = clamp((p.toeAdj || 0) + 0.008 - lf, -0.1, 0.12);
       p.seatCal = 2;
     }
+  }
+  if (p.state === "sit" && p.standW >= 1 && r.sit < 0.01 && !p.footCal && !p.act) {
+    var ls = lowestSkin(p);
+    if (Math.abs(ls) > 0.006 && Math.abs(ls) < 0.2) p.footFix = (p.footFix || 0) + ls;
+    p.footCal = true;
   }
   if (p.state === "walk" && r.sit < 0.01 && (r.walkW || 0) > 0.6 && !p.footCal) {
     var lw = lowestSkin(p);
@@ -4054,7 +4152,9 @@ function updateAgent(p, t, dt){
     if (p.rollEnd && t > p.rollEnd) { p.rollEnd = 0; p.rollOn = false; }
     if (p.roll > 0.01) { p.typeOn = false; p.typeNext = t + 1; }
     if (p.roll > 0.01) p.decideAt = Math.max(p.decideAt, t + 2);
-    r.sit = 1;
+    r.sit = 1 - ease(p.standW || 0);
+    /* standing: a step closer to the desk, the chair pushed back */
+    if (p.standW > 0.001) p.root.position.add(_standV.set(Math.sin(p.sitHeading), 0, Math.cos(p.sitHeading)).multiplyScalar(0.1 * p.standW));
     var ln = lunchNow(p);
     if (p.lunchBox) p.lunchBox.visible = ln === "desk";
     if (homeNow(p) && !p.chatWith && !p.answering && !p.visitor && !(p.roll > 0.01)) {
@@ -4564,7 +4664,7 @@ var ACT_TEXT = {
   phone:"Checking a message real quick", sip:"Having a sip of coffee", stretch:"Stretching, too much screen time",
   leanBack:"Taking a ten second breather", headphones:"Fixing my headphones", swatch:"Comparing colour swatches",
   leanFire:"Staring at this flame effect, something is off", point:"Checking on the wall heater", wave:"Waving at someone",
-  checklist:"Going through the booth checklist", chin:"Thinking this one through", wipe:"Cleaning up my spilled drink, don't ask", call:"On the phone with a venue"
+  checklist:"Going through the booth checklist", write:"Writing it down in my notebook", chin:"Thinking this one through", wipe:"Cleaning up my spilled drink, don't ask", call:"On the phone with a venue"
 };
 function doingNow(p){
   var tr = p.trip, t = clock.elapsedTime;
@@ -5611,6 +5711,9 @@ window.__vo = { people:BY, focus:function(id){ focusOn(BY[id]); }, ask:function(
 (function(){
   var f = /[?&]mishap=(cat|book|spill|chair)/.exec(location.search || "");
   if (f) setTimeout(function(){ MISHAP.cur = null; startMishap(f[1], clock.elapsedTime); }, 7000);
+  /* ?act=luis.write makes someone do an action after a few seconds, for checking */
+  var fa = /[?&]act=(\w+)\.(\w+)/.exec(location.search || "");
+  if (fa && BY[fa[1]]) setTimeout(function(){ var q = BY[fa[1]]; q.typeOn = false; q.mouseOn = false; startAct(q, fa[2], clock.elapsedTime, 40); }, 7000);
 })();
 var snapCam = 0;
 /* a link like #p-luis opens that person's card on load */
