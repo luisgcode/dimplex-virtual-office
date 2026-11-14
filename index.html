@@ -1993,6 +1993,9 @@ function updateMishaps(t, dt){
   if (!m) {
     if (reduceMotion) return;
     if (!MISHAP.next) MISHAP.next = t + rand(50, 100);
+    /* ?mishap=cat (or book, spill, chair) makes it happen a few seconds after the page opens, to watch it on demand */
+    var forced = /[?&]mishap=(cat|book|spill|chair)/.exec(location.search || "");
+    if (forced && !MISHAP.forcedDone && t > 6) { MISHAP.forcedDone = true; MISHAP.next = t + rand(80, 170); startMishap(forced[1], t); return; }
     if (t > MISHAP.next) {
       MISHAP.next = t + rand(80, 170);
       startMishap(choose(["cat", "cat", "book", "spill", "chair", "chair"]), t);
