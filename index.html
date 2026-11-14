@@ -3043,7 +3043,9 @@ function updateRig(p, t, dt){
       }
       /* fitted to each body: shins angle so the feet rest on the floor (not through it), forearms reach the desk top */
       if (n === "LeftUpLeg" || n === "RightUpLeg" || n === "LeftLeg" || n === "RightLeg" || n === "LeftFoot" || n === "RightFoot" || ((n === "LeftForeArm" || n === "RightForeArm") && !(p.act && ACTS[p.act.n] && ACTS[p.act.n][n]))) d = fitSeated(p, b, n, d);
-      if (MV.bounce && (n === "LeftLeg" || n === "RightLeg") && !p.remote) {
+      /* the way they sit right now: legs crossed, feet up on the chair, leaning back or in */
+      if (p.postCur && p.postW > 0.001) { var pd = POSTURE[p.postCur][n]; if (pd) d = v3a(SCR, lerp(d[0], pd[0], p.postW), lerp(d[1], pd[1], p.postW), lerp(d[2], pd[2], p.postW)); }
+      if (MV.bounce && !p.postCur && (n === "LeftLeg" || n === "RightLeg") && !p.remote) {
         var spell = Math.max(0, Math.sin(t * 0.11 + (p.mSeed || 0) * 3));
         if (spell > 0.35 && (n === "RightLeg") === ((p.mSeed || 0) > 3.14)) d = v3a(SCR, d[0], d[1], d[2] + MV.bounce * 0.07 * (spell - 0.35) * Math.sin(t * 15));
       }
@@ -3169,6 +3171,54 @@ var PERSONA = {
 /* body language, one per person, following their personality:
    type = typing speed, lean = sits leaning in (+) or upright (-), swivel = rocks the chair while thinking,
    bounce = jiggles a leg, curious = looks around, walk = walking speed, hands = how much they gesture when talking */
+/* ---------- how each person sits ----------
+   Postures override the legs (and the back) while they keep working with their hands.
+   Directions are in the body's own space: x to their left, y up, z forward. */
+var POSTURE = {
+  /* right leg over the left */
+  crossR:{ RightUpLeg:[0.3, 0.12, 1], RightLeg:[0.22, -0.9, 0.15], RightFoot:[0.1, -0.25, 1] },
+  /* left leg over the right */
+  crossL:{ LeftUpLeg:[-0.3, 0.12, 1], LeftLeg:[-0.22, -0.9, 0.15], LeftFoot:[-0.1, -0.25, 1] },
+  /* both feet up on the seat, cross-legged: Erica's favourite when she wants to be comfy */
+  feetUp:{ LeftUpLeg:[0.78, 0.02, 0.62], LeftLeg:[-0.86, -0.12, 0.22], LeftFoot:[-0.55, -0.3, -0.6],
+           RightUpLeg:[-0.78, 0.06, 0.62], RightLeg:[0.86, 0.0, 0.18], RightFoot:[0.55, -0.3, -0.6], Spine1:[0, 1, 0.05] },
+  /* sitting back in the chair */
+  recline:{ Spine1:[0, 1, -0.16], Spine2:[0, 1, -0.1], Head:[0, 1, 0.12] },
+  /* perched forward, close to the screen */
+  edge:{ Spine1:[0, 1, 0.24], Spine2:[0, 1, 0.2], Head:[0, 1, 0.35] },
+  /* one ankle tucked behind the other under the chair */
+  tuck:{ LeftLeg:[0.05, -1, -0.45], LeftFoot:[0.05, -0.6, 0.8], RightLeg:[-0.02, -1, -0.3] }
+};
+/* each person: how often they shift (seconds between changes) and what they like, with weights ("" = plain sitting) */
+var SITS = {
+  erica:{ every:[240, 600], opts:[["", 5], ["crossR", 2.5], ["feetUp", 1.6], ["recline", 1]] },
+  allyson:{ every:[150, 360], opts:[["", 3], ["crossL", 3], ["crossR", 1.5], ["recline", 1.5]] },
+  stephanie:{ every:[180, 420], opts:[["", 4], ["crossR", 2], ["crossL", 1.5], ["tuck", 1.5]] },
+  debbie:{ every:[420, 900], opts:[["", 7], ["tuck", 1.5], ["recline", 1]] },
+  olivia:{ every:[200, 480], opts:[["", 3], ["crossL", 2.5], ["edge", 2], ["tuck", 1]] },
+  carla:{ every:[60, 170], opts:[["", 2], ["crossR", 2], ["crossL", 2], ["recline", 1.5], ["edge", 1.5], ["tuck", 1.5]] },
+  luis:{ every:[180, 420], opts:[["", 3], ["edge", 3.5], ["recline", 1], ["tuck", 1.5]] },
+  _:{ every:[300, 700], opts:[["", 5], ["crossR", 1], ["recline", 1]] }
+};
+var POSTURE_FORCE = (/[?&]posture=(\w+)/.exec(location.search || "") || [])[1];
+function postureTick(p, t, dt){
+  var seated = p.state === "sit" && p.root.visible && !p.remote && !(p.roll > 0.01) && !(p.act && p.act.n === "wobble");
+  if (!seated) { p.posture = null; p.postNext = 0; }
+  else if (POSTURE_FORCE && POSTURE[POSTURE_FORCE]) p.posture = POSTURE_FORCE;
+  else if (!p.postNext || t > p.postNext) {
+    var h = SITS[p.id] || SITS._, tot = 0, i, pick = "";
+    if (!p.postNext) { p.postNext = t + rand(5, h.every[1] * 0.5); }
+    else {
+      h.opts.forEach(function(o){ tot += o[1]; });
+      var r = Math.random() * tot; for (i = 0; i < h.opts.length; i++) { r -= h.opts[i][1]; if (r <= 0) { pick = h.opts[i][0]; break; } }
+      p.posture = pick || null;
+      p.postNext = t + rand(h.every[0], h.every[1]) * (pick === "feetUp" ? 0.7 : 1);
+    }
+  }
+  /* settle out of the old posture before moving into the new one */
+  if (p.postCur !== (p.posture || null)) { p.postW = Math.max(0, (p.postW || 0) - dt * 1.4); if (p.postW <= 0) p.postCur = p.posture || null; }
+  else if (p.postCur) p.postW = Math.min(1, (p.postW || 0) + dt * 1.2);
+}
 var MOVE = {
   carla:{ type:1.2, lean:-0.02, swivel:0.24, bounce:0.7, curious:1.5, walk:1.12, hands:1.7 },
   stephanie:{ type:1.0, lean:0.03, swivel:0.1, bounce:0, curious:1.0, walk:1.0, hands:1.25 },
@@ -3768,6 +3818,7 @@ function perceive(t, dt){
   }
   PEOPLE.forEach(function(p){
     if (p.remote) return;
+    postureTick(p, t, dt);
     calibrate(p, t);
     /* going over to help with a spill */
     if (p.helpAt && t > p.helpAt) {
@@ -3824,7 +3875,7 @@ function lowestSkin(p, cx, cz, rad, ymin){
 function calibrate(p, t){
   if (p.remote || !p.rig || !p.root.visible) return;
   var r = p.rig;
-  if (p.state === "sit" && r.sit > 0.995 && !p.act && !(p.roll > 0.01) && p.chairG && (p.seatCal || 0) < 2 && t > (p.seatCalT || 0)) {
+  if (p.state === "sit" && r.sit > 0.995 && !p.act && !p.postCur && !p.posture && !(p.roll > 0.01) && p.chairG && (p.seatCal || 0) < 2 && t > (p.seatCalT || 0)) {
     if (!p.seatCal) {
       r.b.Hips.getWorldPosition(_calC);
       var lo = lowestSkin(p, _calC.x, _calC.z, 0.12, _calC.y - 0.3);

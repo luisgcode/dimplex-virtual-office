@@ -31,7 +31,7 @@ window.__qaRun = async function(seconds){
         var low = lowest(p), seatedStill = p.state === "sit" && p.rig.sit > 0.99;
         if (low < (p.state === "walk" ? -0.035 : -0.02)) flag("below-floor", id + "(" + p.state + ")", +low.toFixed(3));
         if (!seatedStill && p.rig.sit < 0.01 && low > (p.state === "walk" ? 0.05 : 0.03)) flag("feet-floating", id + "(" + p.state + ")", +low.toFixed(3));
-        if (seatedStill && low > 0.07 && !p.act) flag("feet-floating", id + "(sit)", +low.toFixed(3));
+        if (seatedStill && low > 0.07 && !p.act && !p.postCur) flag("feet-floating", id + "(sit)", +low.toFixed(3));
         if (seatedStill && p.chairG && !p.act && !(p.roll > 0.01)) {
           p.rig.b.Hips.getWorldPosition(c);
           var seat = lowest(p, c.x, c.z, 0.12, c.y - 0.3);
