@@ -2203,20 +2203,20 @@ function waveLocks(g, mats, n, o){
       if (sweep) { x += k * 0.06; z += k * 0.09; }
       pts.push(new T.Vector3(x, y, z));
     }
-    var geo = new T.TubeGeometry(new T.CatmullRomCurve3(pts), 40, o.thick * (0.85 + r() * 0.3), 8, false);
+    var geo = new T.TubeGeometry(new T.CatmullRomCurve3(pts), 18, o.thick * (0.85 + r() * 0.3), 6, false);
     var m = new T.Mesh(geo, mats[i % mats.length]);
     m.castShadow = false; g.add(m);
   }
 }
 function buildHead(p, model, head){
   var g = new T.Group(); model.add(g);
-  var hm = new T.MeshPhysicalMaterial({ color:p.hair, roughness:0.48, sheen:0.7, sheenRoughness:0.45, sheenColor:new T.Color(p.hair).offsetHSL(0, 0, 0.22), envMapIntensity:0.55 });
+  var hm = new T.MeshStandardMaterial({ color:p.hair, roughness:0.48, envMapIntensity:0.55 });
   var cap = add(G.hcap2, hm, 0.097, 0.114, 0.137, 0, 1.709, -0.008, g);
   cap.rotation.x = -0.42;
   var st = p.style;
   if (st === "curly" || st === "softwave" || st === "straight") {
     /* smooth, flowing locks: tube strands along wavy paths around the back and sides */
-    var hl = new T.MeshPhysicalMaterial({ color:p.highlight || p.hair, roughness:0.45, sheen:0.7, sheenRoughness:0.45, sheenColor:new T.Color(p.highlight || p.hair).offsetHSL(0, 0, 0.18), envMapIntensity:0.55 });
+    var hl = new T.MeshStandardMaterial({ color:p.highlight || p.hair, roughness:0.45, envMapIntensity:0.55 });
     var part = p.part || 0;
     add(G.hsph, hm, 0.112, 0.108, 0.13, part * 0.3, 1.69, -0.028, g);
     add(G.hsph, hm, 0.106, 0.072, 0.13, part * 0.6, 1.752, -0.004, g);
@@ -4450,13 +4450,13 @@ function realHair(p, model, head, top){
   var k = h.distanceTo(tp) / 0.179, cfg = REAL_MODELS[p.model];
   var g = new T.Group(); model.add(g);
   var oh = p.hair, ohl = p.highlight; if (cfg.hair) p.hair = cfg.hair; if (cfg.highlight) p.highlight = cfg.highlight;
-  var hm = new T.MeshPhysicalMaterial({ color:p.hair, roughness:0.48, sheen:0.7, sheenRoughness:0.45, sheenColor:new T.Color(p.hair).offsetHSL(0, 0, 0.22), envMapIntensity:0.55 });
+  var hm = new T.MeshStandardMaterial({ color:p.hair, roughness:0.48, envMapIntensity:0.55 });
   var cap = add(G.hcap2, hm, 0.097, 0.114, 0.137, 0, 1.709, -0.008, g);
   cap.rotation.x = -0.42;
   var st = p.style;
   if (st === "curly" || st === "softwave" || st === "straight") {
     /* smooth, flowing locks: tube strands along wavy paths around the back and sides */
-    var hl = new T.MeshPhysicalMaterial({ color:p.highlight || p.hair, roughness:0.45, sheen:0.7, sheenRoughness:0.45, sheenColor:new T.Color(p.highlight || p.hair).offsetHSL(0, 0, 0.18), envMapIntensity:0.55 });
+    var hl = new T.MeshStandardMaterial({ color:p.highlight || p.hair, roughness:0.45, envMapIntensity:0.55 });
     var part = p.part || 0;
     add(G.hsph, hm, 0.112, 0.108, 0.13, part * 0.3, 1.69, -0.028, g);
     add(G.hsph, hm, 0.106, 0.072, 0.13, part * 0.6, 1.752, -0.004, g);
@@ -4923,9 +4923,10 @@ var aoFailed = false, DT_MAX = 0.12;
 var frameNo = 0, LBL = null;
 var PERF = { t0:0, frames:0, done:false };
 var SHADOW_EVERY = 2;
+var DYN = { t0:performance.now(), frames:0, cap:Math.min(window.devicePixelRatio || 1, 1.5) };
 function degrade(){
   if (composer) { composer = null; return true; }
-  if (renderer.getPixelRatio() > 1) { renderer.setPixelRatio(1); resize && resize(); return true; }
+  if (renderer.getPixelRatio() > 1) { renderer.setPixelRatio(1); return true; }
   if (SHADOW_EVERY < 4) { SHADOW_EVERY = 4; return true; }
   if (sun.shadow.mapSize.x > 1024) { sun.shadow.mapSize.set(1024, 1024); if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; } return true; }
   return false;
@@ -4964,6 +4965,15 @@ function frame(){
     }
   }
 
+  /* dynamic resolution: when frames get slow (zooming in on people fills the screen with them) the render resolution
+     steps down a little, and steps back up once it is smooth again */
+  DYN.frames++;
+  if (nowMs - DYN.t0 > 1500) {
+    var dfps = DYN.frames * 1000 / (nowMs - DYN.t0), pr = renderer.getPixelRatio();
+    if (dfps < 38 && pr > 0.7) renderer.setPixelRatio(Math.max(0.7, pr - 0.15));
+    else if (dfps > 56 && pr < DYN.cap) renderer.setPixelRatio(Math.min(DYN.cap, pr + 0.1));
+    DYN.t0 = nowMs; DYN.frames = 0;
+  }
   var m0 = performance.now();
   PEOPLE.forEach(function(p){ updateAgent(p, t, dt); });
   updateChats(t);
