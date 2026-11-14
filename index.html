@@ -234,6 +234,10 @@ body > header{display:none !important}
   <div id="labels"></div>
   <div class="clockhud" id="clockHud" aria-live="off"><b id="clkTime">--:--</b><span id="clkDay"></span></div>
   <div class="ctrl">
+    <button class="btn" id="sound" type="button" aria-pressed="false" aria-label="Office sound">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></svg>
+      <span>Sound</span>
+    </button>
     <button class="btn" id="reset" type="button" aria-label="Reset view">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
       <span>Reset view</span>
@@ -633,10 +637,10 @@ var signTex = canvasTex(512, 160, function(g, w, h){
 });
 var floorSign = new T.Mesh(G.plane, new T.MeshBasicMaterial({ map:signTex, transparent:true, toneMapped:false, depthWrite:false }));
 floorSign.rotation.x = -Math.PI / 2; floorSign.scale.set(1.5, 0.47, 1); floorSign.position.set(1.7, 0.012, 7.0);
-floorSign.renderOrder = 2; scene.add(floorSign);
+floorSign.renderOrder = 2; /* (the meeting rooms sign is gone: the printers live across the corridor now) */
 var roomLampMat = new T.MeshBasicMaterial({ color:0x29c46b, toneMapped:false });
 var lampDot = new T.Mesh(new T.CircleGeometry(0.05, 20), roomLampMat);
-lampDot.rotation.x = -Math.PI / 2; lampDot.position.set(0.82, 0.016, 7.0); scene.add(lampDot);
+lampDot.rotation.x = -Math.PI / 2; lampDot.position.set(0.82, 0.016, 7.0);
 
 /* ---------- screens ---------- */
 function screenTex(kind){
@@ -1230,6 +1234,24 @@ function activityScreen(pool, seed, baseImg, ownerId){
       var sy = (Math.sin(t * 0.25) * 0.5 + 0.5) * 40;
       g.drawImage(img, 0, sy, 512, 320 - sy, 0, 0, 512, 320 - sy); g.drawImage(img, 0, 0, 512, sy, 0, 320 - sy, 512, sy);
     },
+    /* Plytix will not load: the spinner, then the error */
+    down:function(g, t){
+      g.fillStyle = "#f4f5f7"; g.fillRect(0, 0, W, H);
+      g.fillStyle = "#1f2a44"; g.fillRect(0, 0, W, 34);
+      g.fillStyle = "#ffffff"; g.font = "700 15px " + FONT; g.textAlign = "left"; g.textBaseline = "middle"; g.fillText("Plytix", 14, 18);
+      var ph = (t % 6) / 6;
+      if (ph < 0.55) {
+        g.strokeStyle = "#c3c8d2"; g.lineWidth = 6; g.beginPath(); g.arc(W / 2, H / 2 + 10, 22, 0, 7); g.stroke();
+        g.strokeStyle = "#3d6fb0"; g.beginPath(); g.arc(W / 2, H / 2 + 10, 22, t * 6, t * 6 + 1.6); g.stroke();
+        g.fillStyle = "#6b7280"; g.font = "13px " + FONT; g.textAlign = "center"; g.fillText("Loading...", W / 2, H / 2 + 56);
+      } else {
+        g.fillStyle = "#d64545"; g.beginPath(); g.arc(W / 2, H / 2 - 10, 20, 0, 7); g.fill();
+        g.fillStyle = "#ffffff"; g.font = "700 24px " + FONT; g.textAlign = "center"; g.fillText("!", W / 2, H / 2 - 9);
+        g.fillStyle = "#1f2937"; g.font = "700 16px " + FONT; g.fillText("Something went wrong", W / 2, H / 2 + 30);
+        g.fillStyle = "#6b7280"; g.font = "12px " + FONT; g.fillText("Please try again in a few minutes", W / 2, H / 2 + 52);
+      }
+      g.textAlign = "left";
+    },
     chat:function(g, t){
       g.fillStyle = "#f5f5f5"; g.fillRect(0, 0, W, H);
       g.fillStyle = "#464775"; g.fillRect(0, 0, 60, H); g.fillStyle = "#ffffff"; g.fillRect(60, 0, 140, H);
@@ -1247,6 +1269,10 @@ function activityScreen(pool, seed, baseImg, ownerId){
     if (!L.next) L.next = t + rand(25, 70);
     if (t > L.next) {
       var m = Math.random() < 0.14 ? "call1" : pool[Math.floor(Math.random() * pool.length)];
+      /* what is on the screen matches what they say they are working on */
+      var gm = ownerId && typeof goalMode === "function" ? goalMode(BY[ownerId]) : null;
+      if (gm && Math.random() < 0.5) m = gm;
+      if (DAY.eom && Math.random() < 0.3) m = Math.random() < 0.5 ? "report" : "dash";
       if (m === L.mode) m = pool[(pool.indexOf(m) + 1) % pool.length];
       L.mode = m; L.peer = null; L.next = t + (m === "call1" ? rand(40, 90) : rand(60, 150)); L.k = 0;
     }
@@ -1254,7 +1280,7 @@ function activityScreen(pool, seed, baseImg, ownerId){
     if (SCREEN_FORCE && DRAW[SCREEN_FORCE]) L.mode = SCREEN_FORCE;
     else if (SCREEN_FORCE === "all") { var dk = Object.keys(DRAW); L.mode = dk[Math.floor(t / 1.5) % dk.length]; }
     /* a broken drawing never takes the office down: fall back to the inbox */
-    try { (DRAW[L.mode] || DRAW.mail)(L.g, t); } catch (e) { console.warn("screen " + L.mode, e); L.mode = "mail"; }
+    try { (DRAW[typeof PLYTIX !== "undefined" && PLYTIX.on && ownerId && ownerId !== "erica" && ownerId !== "allyson" ? "down" : L.mode] || DRAW.mail)(L.g, t); } catch (e) { console.warn("screen " + L.mode, e); L.mode = "mail"; }
     L.tex.needsUpdate = true;
   };
   L.tick(0, 0);
@@ -1676,19 +1702,57 @@ function arriveH(p){
   if (p.arriveKey !== key) {
     var hs = 0; for (var i = 0; i < p.id.length; i++) hs = (hs * 31 + p.id.charCodeAt(i)) % 100000;
     var r = seeded((key * 7919 + hs * 104729) % 2147483646 + 1); r(); r();
-    p.arriveKey = key; p.arriveAt = 8 + 0.5 * Math.pow(r(), 1.8);
+    var S = SCHEDULE[p.id];
+    p.arriveKey = key; p.arriveAt = S ? lerp(S.arrive[0], S.arrive[1], Math.pow(r(), 1.5)) : 8 + 0.5 * Math.pow(r(), 1.8);
   }
   return p.arriveAt;
 }
-function homeNow(p){ return !p.guest && !p.remote && DAY.wd > 0 && DAY.wd < 6 && (DAY.h >= (p.leaveH || 17) || DAY.h < arriveH(p)); }
+/* each person's week: when they usually come in and leave, and the day they work from home */
+var SCHEDULE = {
+  luis:{ arrive:[7.5, 7.8], leave:[16, 16.05] },
+  stephanie:{ arrive:[7.85, 8.15], leave:[16.5, 16.8] },
+  debbie:{ arrive:[7.75, 8.05], leave:[16.25, 16.6] },
+  olivia:{ arrive:[8.15, 8.45], leave:[16.75, 16.97] },
+  carla:{ arrive:[8.05, 8.45], leave:[16.6, 16.95], wfh:[3] },
+  erica:{ arrive:[8.2, 8.55], leave:[16.7, 16.97], wfh:[5] },
+  allyson:{ arrive:[8.0, 8.35], leave:[16.6, 16.9], wfh:[1] }
+};
+var NO_WFH = /[?&]wfh=off/.test(location.search || "");
+/* Ontario holidays the office closes for */
+var HOLIDAYS = { "2026-01-01":"New Year's Day", "2026-02-16":"Family Day", "2026-04-03":"Good Friday", "2026-05-18":"Victoria Day", "2026-07-01":"Canada Day", "2026-08-03":"Civic Holiday",
+  "2026-09-07":"Labour Day", "2026-10-12":"Thanksgiving", "2026-12-24":"Christmas Eve", "2026-12-25":"Christmas Day", "2026-12-28":"Boxing Day", "2026-12-31":"New Year's Eve",
+  "2027-01-01":"New Year's Day", "2027-02-15":"Family Day", "2027-03-26":"Good Friday", "2027-05-24":"Victoria Day", "2027-07-01":"Canada Day", "2027-08-02":"Civic Holiday",
+  "2027-09-06":"Labour Day", "2027-10-11":"Thanksgiving", "2027-12-24":"Christmas Eve", "2027-12-27":"Christmas Day", "2027-12-28":"Boxing Day", "2027-12-31":"New Year's Eve" };
+function holidayNow(){
+  if (/[?&]holiday=1/.test(location.search || "")) return "Holiday";
+  var d = DAY.d || new Date(), k = d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2);
+  return DAYQ.day >= 0 ? "" : (HOLIDAYS[k] || "");
+}
+function dayRand(p, salt){
+  var d = DAY.d || new Date(), key = d.getFullYear() * 1000 + d.getMonth() * 40 + d.getDate();
+  var hs = salt; for (var i = 0; i < p.id.length; i++) hs = (hs * 31 + p.id.charCodeAt(i)) % 100000;
+  var r = seeded((key * 7919 + hs * 104729) % 2147483646 + 1); r(); r(); return r();
+}
+function wfhToday(p){ var S = SCHEDULE[p.id]; return !NO_WFH && !!S && !!S.wfh && S.wfh.indexOf(DAY.wd) >= 0; }
+/* now and then someone stays late to finish one last thing */
+function lateToday(p){ return !p.remote && !p.guest && p.id !== "luis" && dayRand(p, 77) < 0.12; }
+function leaveOf(p){
+  var S = SCHEDULE[p.id];
+  var h = S ? lerp(S.leave[0], S.leave[1], dayRand(p, 13)) : (p.leaveH || 17);
+  return lateToday(p) ? 17.2 + 0.45 * dayRand(p, 5) : h;
+}
+function homeNow(p){ return !p.guest && !p.remote && DAY.wd > 0 && DAY.wd < 6 && (!!DAY.holiday || wfhToday(p) || DAY.h >= leaveOf(p) || DAY.h < arriveH(p)); }
 var OFFICE_DARK = 0;
 function officeHours(t, dt){
   /* at 5 pm the office lights go off and it is properly dark (only the Christmas lights stay on), a bit darker as the
      night goes on; at 8 am the office lights come back on and the Christmas lights go off */
   var hh = DAY.h, dark = 0;
-  if (DAY.wd > 0 && DAY.wd < 6) {
+  if (DAY.holiday) dark = 1;
+  else if (DAY.wd > 0 && DAY.wd < 6) {
     if (hh >= 17) dark = 0.88 + 0.12 * clamp((hh - 17) / 3, 0, 1);
     else if (hh < 8) dark = 1;
+    /* someone still working: half the lights stay on over the desks */
+    if (dark > 0.5 && PEOPLE.some(function(q){ return !q.guest && !q.remote && q.state === "sit" && q.root.visible; })) dark = 0.5;
   }
   OFFICE_DARK = lerp(OFFICE_DARK, dark, 1 - Math.exp(-dt * 2.2));
   weatherTick(t);
@@ -2332,6 +2396,104 @@ focusRing.rotation.x = -Math.PI / 2; focusRing.visible = false; scene.add(focusR
 flames.forEach(function(f){ f.m.userData.dyn = true; });
 heatMotes.forEach(function(h){ h.m.userData.dyn = true; });
 focusRing.userData.dyn = true;
+/* ---------- props for everyday life ---------- */
+var LIFE = { printers:[], counter:null, tray:null, box:null, can:null, robot:null, sheet:null };
+(function(){
+  var body = M("#ecebe7", { roughness:0.6 }), dark = M("#2b2e33", { roughness:0.5 }), paperM = M("#fbfbf8", { roughness:0.9 });
+  /* two printers across the corridor, facing the hallway */
+  [-1.3, -0.45].forEach(function(x){
+    var g = new T.Group(); g.position.set(x, 0, 7.8); scene.add(g);
+    aoDecal(g, 0, 0, 0.85, 0.7);
+    add(G.box, body, 0.68, 0.6, 0.56, 0, 0.3, 0, g);
+    add(G.box, dark, 0.6, 0.012, 0.012, 0, 0.42, -0.282, g, false);
+    add(G.box, dark, 0.6, 0.012, 0.012, 0, 0.2, -0.282, g, false);
+    add(G.box, M("#dcdbd6", { roughness:0.6 }), 0.62, 0.3, 0.52, 0, 0.75, 0, g);
+    add(G.box, dark, 0.56, 0.035, 0.42, 0, 0.92, 0.02, g, false);
+    add(G.box, dark, 0.36, 0.016, 0.2, 0, 0.66, -0.3, g, false);
+    var panel = add(G.box, new T.MeshBasicMaterial({ color:0x3a7bd5, toneMapped:false }), 0.14, 0.01, 0.08, 0.2, 0.905, -0.23, g, false);
+    var led = add(G.box, new T.MeshBasicMaterial({ color:0x29c46b, toneMapped:false }), 0.025, 0.012, 0.012, 0.27, 0.86, -0.262, g, false);
+    var sheet = add(G.box, paperM, 0.21, 0.004, 0.28, 0, 0.672, -0.28, g, false);
+    led.userData.dyn = true; sheet.userData.dyn = true; panel.userData.dyn = true; sheet.visible = false;
+    LIFE.printers.push({ g:g, led:led, sheet:sheet, spot:new V3(x, 0, 7.15), job:null });
+  });
+  /* a supply counter next to them: paper, and where the treats go */
+  var cg = new T.Group(); cg.position.set(0.45, 0, 7.8); scene.add(cg);
+  aoDecal(cg, 0, 0, 0.75, 0.6);
+  add(G.box, oakMat, 0.6, 0.78, 0.48, 0, 0.39, 0, cg);
+  add(G.box, M("#f7f5ef", { roughness:0.8 }), 0.22, 0.1, 0.3, 0.15, 0.83, 0.05, cg, false);
+  add(G.box, M("#3d6fb0", { roughness:0.6 }), 0.22, 0.02, 0.3, 0.15, 0.89, 0.05, cg, false);
+  LIFE.counter = { g:cg, spot:new V3(0.45, 0, 7.15) };
+  var tray = new T.Group(); tray.position.set(-0.12, 0.79, -0.04); cg.add(tray);
+  add(G.cyl, M("#d9dde2", { roughness:0.3, metalness:0.5 }), 0.17, 0.012, 0.17, 0, 0, 0, tray, false);
+  var ck = M("#b07a3e", { roughness:0.8 }), ck2 = M("#5a3820", { roughness:0.8 });
+  for (var i = 0; i < 9; i++) { var a = i * 2.4, rr = i ? 0.09 : 0; add(G.cyl, i % 3 ? ck : ck2, 0.035, 0.012, 0.035, Math.cos(a) * rr, 0.012, Math.sin(a) * rr, tray, false); }
+  tray.traverse(function(o){ o.userData.dyn = true; }); tray.visible = false; LIFE.tray = tray;
+  /* the delivery box: a new product sample */
+  var bx = new T.Group(); bx.position.set(0.1, 0, 3.65); scene.add(bx);
+  var card = M("#b98a55", { roughness:0.9 }), tape = M("#d9c39a", { roughness:0.6 });
+  add(G.box, card, 0.62, 0.36, 0.42, 0, 0.18, 0, bx);
+  add(G.box, M("#ffffff", { roughness:0.7 }), 0.2, 0.1, 0.005, 0.12, 0.22, -0.212, bx, false);
+  var f1 = new T.Group(); f1.position.set(0, 0.36, -0.21); bx.add(f1); add(G.box, card, 0.62, 0.008, 0.21, 0, 0, 0.105, f1, false); add(G.box, tape, 0.08, 0.01, 0.21, 0, 0.002, 0.105, f1, false);
+  var f2 = new T.Group(); f2.position.set(0, 0.36, 0.21); bx.add(f2); add(G.box, card, 0.62, 0.008, 0.21, 0, 0, -0.105, f2, false); add(G.box, tape, 0.08, 0.01, 0.21, 0, 0.002, -0.105, f2, false);
+  add(G.box, M("#1d1f24", { roughness:0.4 }), 0.5, 0.06, 0.3, 0, 0.31, 0, bx, false);
+  bx.traverse(function(o){ o.userData.dyn = true; }); bx.visible = false; LIFE.box = { g:bx, f1:f1, f2:f2 };
+  /* a watering can */
+  var can = new T.Group(); scene.add(can);
+  var cm = M("#2a9d8f", { roughness:0.5 });
+  add(G.cyl, cm, 0.07, 0.15, 0.07, 0, 0, 0, can, false);
+  var sp = add(G.cyl, cm, 0.012, 0.18, 0.012, 0, 0.03, -0.1, can, false); sp.rotation.x = 1.0;
+  can.traverse(function(o){ o.userData.dyn = true; }); can.visible = false; LIFE.can = can;
+  /* the robot vacuum and its dock by the entrance */
+  add(G.box, M("#2a2e35", { roughness:0.5 }), 0.24, 0.1, 0.07, 2.62, 0.05, 5.35, scene, false);
+  var rb = new T.Group(); rb.position.set(2.6, 0, 5.15); scene.add(rb);
+  add(G.cyl, M("#24272c", { roughness:0.4 }), 0.17, 0.05, 0.17, 0, 0.03, 0, rb, false);
+  add(G.cyl, M("#4a4f58", { roughness:0.3, metalness:0.4 }), 0.06, 0.015, 0.06, 0, 0.062, 0.04, rb, false);
+  var rled = add(G.box, new T.MeshBasicMaterial({ color:0x2fd0ff, toneMapped:false }), 0.04, 0.006, 0.01, 0, 0.058, -0.12, rb, false);
+  rb.traverse(function(o){ o.userData.dyn = true; }); LIFE.robot = { g:rb, led:rled, home:rb.position.clone(), d:0 };
+  /* a sheet of paper carried back from the printer */
+  var sh = add(G.box, paperM, 0.21, 0.004, 0.28, 0, 0, 0, scene, false); sh.userData.dyn = true; sh.visible = false; LIFE.sheet = sh;
+  /* per person: a jacket over the chair, a bag under the desk, a bag and an umbrella to carry, desk clutter, desk lamps */
+  var lampOn = new T.MeshBasicMaterial({ color:0xffd98a, toneMapped:false }), lampOff = M("#3a3d42", { roughness:0.4 });
+  PEOPLE.forEach(function(p, pi){
+    if (p.guest || p.remote || !p.chairG) return;
+    var jc = M(choose(["#2a2b30", "#3b4a5e", "#5a4636", "#6b6f76", "#1d2a3a", "#7a2e35"]), { roughness:0.85 });
+    if (p.id !== "luis") {
+      var jk = new T.Group(); jk.position.set(0, 0.86, 0.36); jk.rotation.x = -0.1; p.chairG.add(jk);
+      add(G.box, jc, 0.42, 0.34, 0.035, 0, 0.02, 0, jk, false);
+      add(G.box, jc, 0.4, 0.06, 0.07, 0, 0.17, -0.02, jk, false);
+      add(G.box, jc, 0.07, 0.3, 0.03, -0.18, -0.04, 0.03, jk, false); add(G.box, jc, 0.07, 0.3, 0.03, 0.18, -0.04, 0.03, jk, false);
+      jk.traverse(function(o){ o.userData.dyn = true; }); p.jacket = jk;
+      var bg = new T.Group(); bg.position.set(0.55, 0, -0.95); p.deskOuter.add(bg);
+      add(G.box, M(choose(["#2b2420", "#3a2a22", "#1f1f22", "#5b4636", "#7a6a5a"]), { roughness:0.7 }), 0.32, 0.26, 0.14, 0, 0.13, 0, bg, false);
+      add(G.box, M("#1b1b1d", { roughness:0.6 }), 0.2, 0.08, 0.02, 0, 0.3, 0, bg, false);
+      bg.traverse(function(o){ o.userData.dyn = true; }); p.bagDesk = bg;
+    }
+    var cb = new T.Group(); scene.add(cb);
+    add(G.box, M("#2b2420", { roughness:0.7 }), 0.3, 0.24, 0.12, 0, 0, 0, cb, false);
+    cb.traverse(function(o){ o.userData.dyn = true; }); cb.visible = false; p.carryBag = cb;
+    var um = new T.Group(); scene.add(um);
+    var umM = M(choose(["#1d1f24", "#2f3f5c", "#7a2e35"]), { roughness:0.5 });
+    add(G.cyl, umM, 0.035, 0.62, 0.035, 0, -0.34, 0, um, false);
+    add(G.cyl, metalDark, 0.008, 0.12, 0.008, 0, -0.71, 0, um, false);
+    um.traverse(function(o){ o.userData.dyn = true; }); um.visible = false; p.umbrella = um;
+    /* desk clutter that piles up during the day */
+    var cl = new T.Group(); p.deskGroup.add(cl);
+    var pp = add(G.box, paperM, 0.21, 0.01, 0.28, 0.42, 0.768, -0.4, cl, false); pp.rotation.y = 0.3;
+    var pp2 = add(G.box, paperM, 0.21, 0.006, 0.28, 0.46, 0.776, -0.42, cl, false); pp2.rotation.y = -0.15;
+    var cup2 = add(G.cyl, M(choose(["#ffffff", "#e8d9c4", "#2f5d8a"]), { roughness:0.4 }), 0.037, 0.09, 0.037, -0.4, 0.808, -0.66, cl, false);
+    cl.traverse(function(o){ o.userData.dyn = true; }); p.clutter = { g:cl, papers:[pp, pp2], cup:cup2 };
+    if (p.cup) p.cupBase = p.cup.position.clone();
+    /* a desk lamp on the far corner */
+    var lp = new T.Group(); lp.position.set(0.74, 0.765, -1.02); p.deskGroup.add(lp);
+    add(G.cyl, metalDark, 0.07, 0.015, 0.07, 0, 0.008, 0, lp, false);
+    var arm = add(G.cyl, metalDark, 0.008, 0.36, 0.008, 0, 0.18, 0.03, lp, false); arm.rotation.x = 0.25;
+    var shade = add(G.cyl, lampOff, 0.07, 0.07, 0.07, 0, 0.35, 0.12, lp, false); shade.rotation.x = 0.6;
+    var pool2 = new T.Mesh(new T.CircleGeometry(0.24, 24), new T.MeshBasicMaterial({ color:0xffd98a, transparent:true, opacity:0, depthWrite:false, toneMapped:false, blending:T.AdditiveBlending }));
+    pool2.rotation.x = -Math.PI / 2; pool2.position.set(-0.12, 0.0045, 0.3); lp.add(pool2);
+    lp.traverse(function(o){ o.userData.dyn = true; }); p.lamp = { shade:shade, pool:pool2, on:false, mOn:lampOn, mOff:lampOff };
+  });
+})();
+
 (function mergeLifts(){
   scene.children.forEach(function(outer){
     outer.children.forEach(function(lift){
@@ -2424,6 +2586,28 @@ var ACTS = {
   talk:{ RightArm:[-0.2, -0.8, 0.45], RightForeArm:[0.1, 0.25, 1] },
   /* writing in a notebook on the desk (the forearm is fitted to the desk, the hand scribbles) */
   write:{ RightArm:[-0.12, -0.62, 0.72], LeftArm:[0.2, -0.65, 0.7], Spine1:[0, 1, 0.2], Spine2:[0, 1, 0.14], Head:[0, 1, 0.55] },
+  /* eating lunch at the desk: fork from the box to the mouth */
+  eat:{ RightArm:[-0.22, -0.55, 0.65], RightForeArm:[0.25, 0.6, 0.55], Head:[0, 1, 0.35] },
+  /* a yawn behind the hand */
+  yawn:{ RightArm:[-0.22, -0.4, 0.62], RightForeArm:[0.28, 0.95, 0.15], Head:[0, 1, -0.32], Spine1:[0, 1, -0.05] },
+  /* tired eyes after hours on the screen */
+  rubeyes:{ LeftArm:[0.2, -0.45, 0.65], LeftForeArm:[-0.32, 0.9, 0.28], RightArm:[-0.2, -0.45, 0.65], RightForeArm:[0.32, 0.9, 0.28], Head:[0, 1, 0.3] },
+  /* head in hands: Plytix is down, the printer jammed */
+  facepalm:{ LeftArm:[0.2, -0.5, 0.7], LeftForeArm:[-0.3, 0.85, 0.4], RightArm:[-0.2, -0.5, 0.7], RightForeArm:[0.3, 0.85, 0.4], Head:[0, 1, 0.7], Spine1:[0, 1, 0.28] },
+  /* "yes!" a little fist pump */
+  fist:{ RightArm:[-0.35, -0.2, 0.55], RightForeArm:[0.05, 1, 0.2], Head:[0, 1, -0.1] },
+  /* rubbing hands together to warm up */
+  warmhands:{ LeftArm:[0.1, -0.75, 0.65], LeftForeArm:[-0.65, 0.25, 0.75], RightArm:[-0.1, -0.75, 0.65], RightForeArm:[0.65, 0.25, 0.75], Head:[0, 1, 0.2] },
+  /* looking down at the keyboard for a second */
+  lookdown:{ Head:[0, 1, 0.75] },
+  /* tidying the desk before going home */
+  tidy:{ LeftArm:[0.25, -0.6, 0.72], LeftForeArm:[0.1, -0.05, 1], RightArm:[-0.25, -0.6, 0.72], RightForeArm:[-0.1, -0.05, 1], Spine1:[0, 1, 0.2], Head:[0, 1, 0.5] },
+  /* reaching into the printer for a jammed sheet */
+  fixprinter:{ LeftArm:[0.12, -0.3, 1], LeftForeArm:[0, -0.35, 1], RightArm:[-0.12, -0.3, 1], RightForeArm:[0, -0.35, 1], Spine1:[0, 1, 0.45], Head:[0, 1, 0.6] },
+  /* watering a plant */
+  water:{ RightArm:[-0.15, -0.35, 1], RightForeArm:[0, -0.15, 1], Head:[0, 1, 0.45] },
+  /* looking out of the window */
+  gazeup:{ Head:[0, 1, -0.22] },
   /* hand on the chin, thinking something through */
   chin:{ RightArm:[-0.25, -0.55, 0.6], RightForeArm:[0.22, 0.85, 0.32], Head:[0, 1, 0.18] },
   /* wiping the desk with a napkin after a spill */
@@ -2450,6 +2634,8 @@ var ANKLE_Y = 0.095, TOE_Y = 0.03, WRIST_Y = 0.805;
 var DAY_PALETTE = {
   top:["#f2f0eb", "#c9ad84", "#2a9d8f", "#b0476b", "#3d6fb0", "#e2ac2f", "#7a4d9e", "#6b8f71", "#c8553d", "#1d1d20", "#8a9bb0", "#d9d4c7", "#9c2f3a", "#2f5d8a"],
   pants:["#1d1f24", "#26304a", "#4a4f58", "#2c313b", "#3a3330", "#5b5f66", "#1b2a3f"],
+  /* winter: knits in deeper, warmer colours */
+  topWinter:["#5a2a2f", "#2f3f5c", "#3b4a3a", "#6b4a35", "#2a2b30", "#7a6a5a", "#8a2f3a", "#4a3a5c", "#c9b89c", "#1f2a3a"],
   jacket:["#2a2b30", "#a3a8b0", "#2a2a2e", "#3b4a5e", "#5a4636", "#6b6f76", "#7a2e35"]
 };
 function dayTint(p, key, base){
@@ -2461,7 +2647,8 @@ function dayTint(p, key, base){
   var hs = 7; (p.id + key).split("").forEach(function(ch){ hs = (hs * 31 + ch.charCodeAt(0)) % 100003; });
   var r = seeded((key2 * 4801 + hs * 7919) % 2147483646 + 1); r(); r();
   if (r() < 0.3) return base;
-  var pal = DAY_PALETTE[kind]; return pal[Math.floor(r() * pal.length)];
+  var mo = d.getMonth(), pal = kind === "top" && (mo >= 10 || mo <= 2) ? DAY_PALETTE.topWinter : DAY_PALETTE[kind];
+  return pal[Math.floor(r() * pal.length)];
 }
 function boneLen(p, n){
   var L = p.boneLen || (p.boneLen = {});
@@ -3054,12 +3241,16 @@ function updateRig(p, t, dt){
   var tilt = 0;
   if (p.act && p.act.n === "wobble") { var wu = t - p.act.t0; tilt = -0.2 * bump(wu, 0.05, p.act.dur - 0.5, 0.35) * (1 + 0.35 * Math.sin(wu * 13)); }
   r.root.rotation.x = tilt;
+  /* standing still: the weight moves from one foot to the other */
+  var standing = (p.state === "visit" || p.state === "stay" || (p.standW || 0) > 0.6) && !p.remote;
+  r.root.rotation.z = standing ? 0.022 * Math.sin(t * 0.42 + (p.mSeed || 0)) : 0;
   r.root.updateMatrixWorld(true);
   _rq.copy(r.root.quaternion);
   var b = r.b, i, n;
   /* mood and energy shape posture: low mood slumps, high mood sits up */
-  var slump = clamp(-p.mood.v, 0, 1) * 0.6 + (1 - p.needs.energy) * 0.25 - clamp(p.mood.v, 0, 1) * 0.1;
-  var MV = mv(p), tempo = (8 + 5 * p.needs.energy + 2 * Math.max(0, p.mood.v)) * MV.type;
+  /* upright and quick in the morning, sinking into the chair late in the afternoon */
+  var slump = clamp(-p.mood.v, 0, 1) * 0.6 + (1 - p.needs.energy) * 0.25 - clamp(p.mood.v, 0, 1) * 0.1 + (DAY.h > 15 ? 0.12 : DAY.h < 10 ? -0.06 : 0);
+  var MV = mv(p), tempo = (8 + 5 * p.needs.energy + 2 * Math.max(0, p.mood.v)) * MV.type * (p.lateToday && DAY.h > 16.3 ? 1.3 : 1);
   var atDesk = Math.max(sit, p.standW || 0);
   if (atDesk > 0.001) {
     var ty = p.typeAmp || 0, ma = p.mouseAmp || 0;
@@ -3121,6 +3312,12 @@ function updateRig(p, t, dt){
         if (!dd) continue;
         if (a.n === "wobble" && (n === "LeftForeArm" || n === "RightForeArm")) dd = v3a(SCR, dd[0] + 0.5 * Math.sin(t * 16 + (n === "LeftForeArm" ? 0 : 1.4)), dd[1], dd[2]);
         if (a.n === "wipe" && n === "LeftForeArm") dd = v3a(SCR, dd[0] + 0.32 * Math.sin(t * 7), dd[1], dd[2]);
+        if (a.n === "eat" && n === "RightForeArm") { var ec = Math.max(0, Math.sin(t * 1.6)); dd = v3a(SCR, dd[0], dd[1] + 0.35 * ec - 0.25, dd[2] - 0.3 * ec); }
+        if (a.n === "fist" && n === "RightForeArm") dd = v3a(SCR, dd[0], dd[1], dd[2] + 0.25 * Math.max(0, Math.sin(t * 11)));
+        if (a.n === "warmhands" && (n === "LeftForeArm" || n === "RightForeArm")) dd = v3a(SCR, dd[0], dd[1] + 0.12 * Math.sin(t * 14 + (n === "LeftForeArm" ? 0 : Math.PI)), dd[2]);
+        if (a.n === "tidy" && (n === "LeftForeArm" || n === "RightForeArm")) dd = v3a(SCR, dd[0] + 0.25 * Math.sin(t * 2.2 + (n === "LeftForeArm" ? 0 : 1.5)), dd[1], dd[2]);
+        if (a.n === "fixprinter" && n === "RightForeArm") dd = v3a(SCR, dd[0] + 0.15 * Math.sin(t * 5), dd[1], dd[2]);
+        if (a.n === "rubeyes" && (n === "LeftForeArm" || n === "RightForeArm")) dd = v3a(SCR, dd[0] + 0.06 * Math.sin(t * 9), dd[1], dd[2]);
         if (a.n === "wave" && n === "RightForeArm") dd = v3a(SCR, dd[0] + 0.45 * Math.sin(t * 9), dd[1], dd[2]);
         if ((a.n === "talk" || a.n === "answer") && n === "RightForeArm") dd = v3a(SCR, dd[0] + 0.15 * MV.hands * Math.sin(t * 4.3), dd[1] + 0.2 * MV.hands * Math.sin(t * 3.1), dd[2]);
         if (a.n === "turn" && n === "RightForeArm" && p.bubbleOn) dd = v3a(SCR, dd[0] + 0.1 * MV.hands * Math.sin(t * 3.7), dd[1] + 0.25 * Math.min(1.3, MV.hands) + 0.18 * MV.hands * Math.sin(t * 2.9), dd[2]);
@@ -3136,6 +3333,7 @@ function updateRig(p, t, dt){
       }
     }
     if (p.mug) p.mug.visible = a.n === "sip" && w > 0.3;
+    if (p.cup && a.n === "sip" && !(MISHAP.cur && MISHAP.cur.cup === p.cup)) { p.cup.visible = !p.mug.visible; p.cupHid = !p.cup.visible; }
     if (p.notebook) {
       var nbOn = a.n === "write" && w > 0.04;
       p.notebook.visible = nbOn;
@@ -3150,10 +3348,19 @@ function updateRig(p, t, dt){
     if (p.swatch) p.swatch.visible = (a.n === "swatch" || a.n === "checklist") && w > 0.2;
   } else {
     if (p.mug) p.mug.visible = false;
+    if (p.cupHid) { p.cupHid = false; p.cup.visible = true; }
     if (p.notebook) p.notebook.visible = false;
     if (p.pen) p.pen.visible = false;
     if (p.phone) p.phone.visible = false;
     if (p.swatch) p.swatch.visible = false;
+  }
+  /* breathing */
+  if (r.walkW < 0.5) { b.Spine2.rotation.x += 0.014 * Math.sin(t * 1.45 + (p.mSeed || 0)); }
+  /* a laugh: head back, shoulders bouncing */
+  if (p.laughUntil && t < p.laughUntil) {
+    var lw = bump(p.laughUntil - t, 0, 1.6, 0.3);
+    aim(b.Head, b.HeadTop_End, [0, 1, -0.25 + 0.1 * Math.sin(t * 17)], 0.45 * lw, _rq);
+    b.Spine2.rotation.x += 0.04 * lw * Math.sin(t * 17);
   }
   /* looking around: the head (and a little of the chest) follows whatever caught their eye */
   if (p.gazeYaw && Math.abs(p.gazeYaw) > 0.01 && focus !== p && !(a && (a.n === "turn" || a.n === "answer" || a.n === "leanFire"))) {
@@ -3394,6 +3601,12 @@ function dayTick(){
   if (wknd) label = "Weekend shift";
   DAY = { key:k, label:label, wd:wd, wdName:WEEKDAY[wd], fri:fri, h:h, d:o.d, load:load, coffee:coffee, pace:pace,
     bias:bias - (load - 1) * 0.55 - (wknd ? 0.1 : 0), homeSoon:k === "homesoon" || k === "after" };
+  DAY.holiday = holidayNow();
+  if (DAY.holiday) DAY.label = DAY.holiday + ", office closed";
+  /* the last three working days of the month: reports, pressure, less chatting */
+  var dd = new Date(o.d), left = 0; for (var i = 1; i <= 6; i++) { dd.setDate(dd.getDate() + 1); if (dd.getMonth() !== o.d.getMonth()) break; if (dd.getDay() > 0 && dd.getDay() < 6) left++; }
+  DAY.eom = !wknd && left < 3 && !DAY.holiday;
+  if (DAY.eom && !DAY.holiday && k !== "lunch") DAY.label = "Month end crunch";
   return DAY;
 }
 dayTick();
@@ -3406,6 +3619,7 @@ ALL.forEach(function(p, i){
   p.dayK = rand(0.7, 1.3);
   /* end of the day: Luis leaves at 4, everyone else between 4:45 and 5 */
   p.leaveH = p.id === "luis" ? 16 : rand(16.75, 16.97);
+  if (!p.guest && !p.remote) p.leaveH = leaveOf(p);
   p.needs = { energy:clamp(rand(0.45, 1) - (early ? 0.25 : 0) - (DAY.load - 1) * 0.5, 0.12, 1), focus:rand(0.3, 0.9), social:rand(0, 0.6), coffee:clamp(rand(0, 0.55) + (early ? 0.3 : 0), 0, 1) };
   p.state = "sit"; p.t0 = 0; p.dur = 0;
   p.decideAt = rand(4, 45);  /* spread out, so the page never opens with everyone doing the same thing */
@@ -3638,6 +3852,16 @@ function chatter(a, b, t, casualOnly){
     add(1.5, "x5", ["Ugly sweater day is coming up.", "I've been ready since July.", "Of course you have."]);
   }
   /* what is really happening outside right now */
+  /* news going round the office: whoever knows tells whoever doesn't yet */
+  NEWS.forEach(function(nw){
+    if (Date.now() > nw.until || !knowsNews(a, nw.id) || knowsNews(b, nw.id) || a.guest || b.guest || a.remote) return;
+    var nk = "nw" + nw.id + b.id; if (CHAT_RECENT.indexOf(nk) < 0) C.push({ w:3, key:nk, lines:nw.lines, learn:[b, nw.id] });
+  });
+  /* what they were on yesterday */
+  if (b.yday && !b.remote) add(1.2, "yd" + b.id + dayKey(), ["Did you finish " + lc(b.yday) + " yesterday?", choose(["Yes! Finally.", "Almost lol. Today for sure.", "Don't ask.", "Mostly. Small fixes left."])]);
+  if (DAY.eom) add(1.4, "eom" + a.id, choose([["Month end. Send help.", "Reports due again?", "Every. Single. Month."], ["How's month end treating you?", "Ask me on Monday lol", "That bad, huh."]]));
+  if (PLYTIX.lastAt && clock.elapsedTime - PLYTIX.lastAt < 1800) add(2, "pd" + a.id, ["That Plytix outage though.", "I lost twenty minutes lol", "At least it came back."]);
+  if (TREATS.on && b.hadTreat) add(1.6, "tr" + a.id + b.id, ["Did you try the cookies?", "Two of them. Don't judge.", "No judgement here lol"]);
   var wk = WX_FORCE || WX.kind, tc = WX.temp;
   if (wk === "snow") add(2.4, "wr1", ["Is that snow? Look out the window.", "Oh no, the drive home is going to be fun.", "Good thing we sell heaters."]);
   if (wk === "rain") add(2.2, "wr2", ["It's pouring out there.", "And I left my umbrella in the car.", "Classic."]);
@@ -3708,6 +3932,7 @@ function chatter(a, b, t, casualOnly){
   for (var i = 0; i < C.length; i++) { r -= C[i].w; if (r <= 0) { pick = C[i]; break; } }
   if (pick.ev) pick.ev.used++;
   saidKey(pick.key);
+  if (pick.learn) learnNews(pick.learn[0], pick.learn[1]);
   var out = pick.lines.slice();
   if (out.length > 2 && Math.random() < 0.3) out.pop();
   out.casual = !/^(tm|wk)/.test(pick.key);
@@ -3760,14 +3985,37 @@ function updateChats(t){
     if (c.bubbles) {
       /* lines alternate between the two, a fresh bubble every LINE_GAP seconds */
       var i = Math.floor((u - 0.6) / LINE_GAP), inLine = u - 0.6 - i * LINE_GAP < LINE_GAP - 0.25;
+      /* the one listening laughs now and then at a casual line, and a laugh is catching */
+      if (i !== c.li && i >= 0 && i < c.lines.length) {
+        c.li = i;
+        if (c.lines.casual && i > 0 && Math.random() < 0.3) { var lq = i % 2 === 0 ? c.b : c.a; lq.laughUntil = t + 1.8; lq.smileUntil = t + 3; catchLaugh(lq, t); }
+      }
       var sayA = null, sayB = null;
       if (u > 0.6 && i < c.lines.length && inLine) { if (i % 2 === 0) sayA = c.lines[i]; else sayB = c.lines[i]; }
       showBubble(c.a, c.a.root.visible ? sayA : null);
       showBubble(c.b, c.b.root.visible ? sayB : null);
     }
+    if (u > c.dur && c.bubbles && !c.chimed && !c.a.remote && !c.b.remote && c.a.state === "sit" && c.b.state === "sit" && Math.random() < 0.3) {
+      c.chimed = true;
+      var mx = (c.a.seat.x + c.b.seat.x) / 2, mz = (c.a.seat.z + c.b.seat.z) / 2;
+      var ear = PEOPLE.filter(function(q){ return q !== c.a && q !== c.b && !q.guest && !q.remote && available(q) && !q.act && Math.hypot(q.seat.x - mx, q.seat.z - mz) < 2.4 && !luisDeepWork(q) && !tooBusy(q) && q.needs.social > 0.3; });
+      if (ear.length) {
+        var eq = ear.sort(function(x, y){ return aff(y, c.a) + aff(y, c.b) - aff(x, c.a) - aff(x, c.b); })[0], who = aff(eq, c.a) >= aff(eq, c.b) ? c.a : c.b;
+        startAct(eq, "turn", t + 0.6, 6, who); startAct(who, "turn", t + 0.4, 6, eq);
+        var line = choose(c.lines.casual ? ["Wait, what did I miss?", "Ha, same here.", "Okay now I'm listening.", "Count me in on that.", "I heard that!", "Oh I have opinions on this."]
+          : ["Sorry, couldn't help overhearing. I can help with that.", "I ran into the same thing yesterday.", "Loop me in on that one?", "I've got notes on that if you need them."]);
+        sayLater(eq, line, t + 0.9, 2.8);
+        sayLater(who, choose(c.lines.casual ? ["Ha, of course you heard.", "Join the club!", "You're always listening lol"] : ["Oh perfect, thanks!", "Yes please, I'll send it over.", "Great, let's sync after."]), t + 4.2, 2.6);
+        bond(eq, who, 0.05);
+        eq.needs.social = Math.max(0, eq.needs.social - 0.3);
+        eq.decideAt = Math.max(eq.decideAt, t + 8); who.decideAt = Math.max(who.decideAt, t + 8);
+      }
+    }
     if (u > c.dur) {
       showBubble(c.a, null); showBubble(c.b, null);
       c.a.rig.nodTarget = 0; c.b.rig.nodTarget = 0;
+      if (!c.a.remote) c.a.restSwivel = clamp((c.a.swivel || 0) * 0.3, -0.18, 0.18);
+      if (!c.b.remote) c.b.restSwivel = clamp((c.b.swivel || 0) * 0.3, -0.18, 0.18);
       if (c.a.chatWith === c.b) c.a.chatWith = null;
       if (c.b.chatWith === c.a) c.b.chatWith = null;
       return false;
@@ -3807,13 +4055,18 @@ function available(q){ return q.state === "sit" && q.root.visible && !q.chatWith
 function neighbours(p){ return PEOPLE.filter(function(q){ return q !== p && Math.abs(q.z - p.z) < 2.0 && available(q); }); }
 function bossAway(p){ return PEOPLE.some(function(q){ return q !== p && q.trip && q.trip.kind === "meeting"; }); }
 function luisDeepWork(q){ return q.id === "luis" && q.typeOn && q.needs.focus > 0.5; }
+function lc(s){ return s ? s.charAt(0).toLowerCase() + s.slice(1) : ""; }
+/* too busy to talk right now: a deadline close, or deep in it */
+function tooBusy(q){ if (q.remote || q.guest) return false; var g = goalNow(q); return !!g && (g.urg > 0.55 || (q.typeOn && q.needs.focus > 0.85 && g.urg > 0.3)); }
+function invite(p, q, t, lines, dur){ var d = dur || Math.max(5, 0.9 + lines.length * LINE_GAP); startAct(p, "turn", t, d, q); startAct(q, "turn", t, d, p); startChat(p, q, t, d + 0.4, lines); return d; }
 
 function decide(p, t){
   var n = p.needs, w = p.w, opts = [];
   var gl = goalNow(p), urg = gl ? gl.urg : 0;
-  opts.push({ k:"work", s:0.85 * w.focus * (0.6 + n.energy * 0.6) + n.focus * 0.3 + urg * 0.6 + rand(0, 0.3) });
+  opts.push({ k:"work", s:0.85 * w.focus * (0.6 + n.energy * 0.6) + n.focus * 0.3 + urg * 0.6 + (DAY.eom ? 0.25 : 0) + (p.lateToday && DAY.h > 16.3 ? 0.5 : 0) + rand(0, 0.3) });
   var mv = p.mood.v, prof = PROFILE[p.id];
-  var sociable = (1 + 0.5 * mv) * (1 - 0.55 * urg) * (DAY.fri && DAY.h > 14 ? 1.25 : 1);
+  /* quieter on Monday, chattier on Friday, heads down at month end */
+  var sociable = (1 + 0.5 * mv) * (1 - 0.55 * urg) * (DAY.fri && DAY.h > 14 ? 1.25 : 1) * (DAY.wd === 1 ? 0.75 : DAY.fri ? 1.12 : 1) * (DAY.eom ? 0.8 : 1);
   var withdrawn = p.mood.kind === "stressed" && prof.traits.stressTol < 0.6;
   opts.push({ k:"micro", s:(1 - n.energy) * 0.9 * w.breaky + (mv < 0 ? 0.25 : 0) + (DAY.h > 14.4 && DAY.h < 15.6 ? 0.25 : 0) + rand(0, 0.6) });
   var coffeeN = PEOPLE.filter(function(q){ return q.trip && q.trip.kind === "coffee"; }).length;
@@ -3842,6 +4095,29 @@ function decide(p, t){
     if (rq.visitor || rq.chatWith || rq.answering || withdrawn) return;
     opts.push({ k:"visit", s:(n.social * w.social * 0.95 * sociable + rand(0, 0.3)) * 0.4, q:rq });
   });
+  /* stuck on something with a deadline: ask the person they trust most */
+  if (gl && gl.urg > 0.45 && !(p.askedAt && t - p.askedAt < 1500) && !p.walker) {
+    var helpers = PEOPLE.filter(function(q){ return q !== p && !q.guest && !q.remote && available(q) && !luisDeepWork(q) && !lunchNow(q); });
+    if (helpers.length) {
+      var hq = helpers.sort(function(a, b){ return aff(p, b) - aff(p, a); })[0];
+      opts.push({ k:"askhelp", s:(gl.urg - 0.35) * 1.6 * (p.mood.kind === "stressed" ? 1.4 : 1) + rand(0, 0.3), q:hq, g:gl.g });
+    }
+  }
+  /* a promise from earlier: "I'll come find you". Kept once the deadline is off their back */
+  if (p.owe && t > p.owe.at && !tooBusy(p)) {
+    var oq = p.owe.to;
+    if (homeNow(oq) || oq.state === "away" || t - p.owe.at > 2400) p.owe = null;
+    else if (available(oq)) opts.push({ k:"visit", s:2.5, q:oq, owe:true });
+  }
+  /* printing something: a couple of times a day */
+  p.printNeed = (p.printNeed === undefined ? rand(0, 0.5) : p.printNeed);
+  if (!p.remote && LIFE.printers.length) opts.push({ k:"print", s:p.printNeed * 0.9 + rand(0, 0.2) });
+  /* treats on the counter */
+  if (TREATS.on && !p.hadTreat && !p.remote) opts.push({ k:"treat", s:0.75 + n.social * 0.3 + rand(0, 0.4) });
+  /* friends look after whoever is having a rough day, not only Carla */
+  if (p.id !== "carla" && t > 120 && Math.random() < 0.15) PEOPLE.forEach(function(q){
+    if (q !== p && !q.guest && available(q) && q.mood.v < -0.3 && aff(p, q) >= 2.2 && !luisDeepWork(q) && !(q.caredAt && t - q.caredAt < 3600)) opts.push({ k:"visit", s:0.8 + rand(0, 0.4), q:q, care:true });
+  });
   /* requests for Luis: walk over or ask from the desk */
   if (REQUESTS[p.id] && available(BY.luis)) {
     if (p.lastReqAt === undefined) p.lastReqAt = -rand(40, 140);
@@ -3850,19 +4126,56 @@ function decide(p, t){
   }
   opts.sort(function(a, b){ return b.s - a.s; });
   var o = opts[0];
-  if (o.k === "work") { p.typeOn = true; p.typeNext = t + rand(3, 8); n.focus = Math.min(1, n.focus + 0.15); }
+  if (o.k === "work") {
+    p.typeOn = true; p.typeNext = t + rand(3, 8); n.focus = Math.min(1, n.focus + 0.15);
+    /* a typo, a glance at the keys */
+    if (Math.random() < 0.14) startAct(p, "lookdown", t + rand(1, 4), rand(1.2, 2.2));
+  }
   else if (o.k === "micro") {
-    var mk = choose(POOLS[p.id]);
-    if (mk === "write") { p.typeOn = false; p.mouseOn = false; startAct(p, "write", t, rand(25, 70)); }
-    else startAct(p, mk, t);
+    var tired = (1 - n.energy) + (DAY.h > 15 ? 0.3 : 0) + (DAY.key === "slump" ? 0.2 : 0), cold = WX.temp !== null && WX.temp <= 1 && DAY.h < 11.5, rb = Math.random();
+    if (rb < 0.06 && !p.walker && !PEOPLE.some(function(q){ return q.trip && q.trip.label === WIN_LABEL; })) lifeWindow(p, t);
+    else if (rb < 0.12) lifeStretch(p, t);
+    else if (rb < 0.15 && !p.walker && !p.plan.call) lifePhoneWalk(p, t);
+    else if (cold && Math.random() < 0.35) startAct(p, "warmhands", t, rand(3, 5));
+    else if (Math.random() < tired * 0.35) { var ty2 = Math.random() < 0.6 ? "yawn" : "rubeyes"; startAct(p, ty2, t, ty2 === "yawn" ? 2.6 : 3.2); catchAct(p, ty2, t); }
+    else if (DAY.key === "slump" && Math.random() < 0.35) { p.typeOn = false; startAct(p, "phone", t, rand(18, 45)); }
+    else {
+      var mk = choose(POOLS[p.id]);
+      if (mk === "write") { p.typeOn = false; p.mouseOn = false; startAct(p, "write", t, rand(25, 70)); }
+      else { startAct(p, mk, t); if (mk === "stretch") catchAct(p, mk, t); }
+    }
     n.energy = Math.min(1, n.energy + 0.12);
   }
-  else if (o.k === "coffee") goTrip(p, t, "coffee", null, aislePath(p.seat, p.side, COFFEE_SPOT, 0));
+  else if (o.k === "print") lifePrint(p, t);
+  else if (o.k === "treat") lifeTreat(p, t);
+  else if (o.k === "coffee") {
+    /* ask a desk neighbour along; they say yes or no for their own reasons */
+    var mates = neighbours(p).filter(function(q){ return !q.walker && !luisDeepWork(q) && !lunchNow(q) && aff(p, q) >= 1.2; });
+    if (mates.length && Math.random() < 0.55) {
+      var cq = pickByAff(p, mates), cg = goalNow(cq), d1 = drinkOf(cq);
+      var yes = !tooBusy(cq) && (cq.needs.coffee > 0.3 || cq.needs.energy < 0.5 || Math.random() < 0.35);
+      var ask = choose(["Coffee run, want to come?", "I'm getting a " + drinkOf(p) + ". Coming?", "Break time. Join me?", "Kitchen? I need to move a bit."]);
+      var ans = yes ? choose(d1 === "water" ? ["Sure, I'll refill my water.", "Yes, my bottle is empty anyway."] : ["Yes please, I'm fading.", "Oh yes, perfect timing.", "Sure, let me grab my mug.", "Twist my arm. Let's go."])
+        : cg && tooBusy(cq) ? "Can't, I need " + lc(cg.g.label) + " done by " + fmtH(cg.g.due) + "."
+        : choose(["I'm good, thanks!", "Just had one, but thanks.", "Next time, I promise.", "I'll pass, I'm on a roll here."]);
+      var dd = invite(p, cq, t, [ask, ans], 6);
+      p.decideAt = t + dd + 1;
+      p.pendingCoffee = t + dd + 0.6; p.coffeeWith = cq;
+      if (yes) { cq.pendingCoffee = t + dd + 2.2; cq.coffeeWith = p; bond(p, cq, 0.05); }
+    } else goTrip(p, t, "coffee", null, aislePath(p.seat, p.side, COFFEE_SPOT, 0));
+  }
+  else if (o.k === "askhelp") {
+    var hq2 = o.q; p.askedAt = t;
+    hq2.visitor = p;
+    goTrip(p, t, "visit", hq2, aislePath(p.seat, p.side, new V3(hq2.side * 0.95, 0, hq2.seat.z + rand(-0.12, 0.12)), 0));
+    p.trip.askHelp = o.g;
+  }
   else if (o.k === "visit") {
     var q = o.q, spot = q.remote ? q.spot.clone() : new V3(q.side * 0.95, 0, q.seat.z + rand(-0.12, 0.12));
     q.visitor = p;
     goTrip(p, t, "visit", q, aislePath(p.seat, p.side, spot, 0));
-    p.trip.care = !!o.care;
+    p.trip.care = !!o.care; p.trip.owe = !!o.owe;
+    if (o.owe) p.owe = null;
   } else if (o.k === "request") {
     var L = BY.luis;
     if (Math.abs(L.z - p.z) < 2.2 || Math.random() < 0.3) {
@@ -4005,6 +4318,12 @@ function makePlan(p){
   var call = null;
   if (!p.walker && !p.remote && !p.guest && r() < 0.8) { var at = 9.5 + r() * 6; if (at > 11.8 && at < 13.6) at += 1.9; call = { at:at, dur:150 + r() * 150, done:false }; }
   p.plan = { goals:[{ label:g1, due:9.75 + r() * 1.5, done:false }, { label:g2, due:14 + r() * 2.2, done:false }], call:call, key:key };
+  try {
+    var prev = JSON.parse(localStorage.getItem("vo.plan." + p.id) || "null");
+    if (prev && prev.key !== key) p.yday = prev.g[1] || prev.g[0];
+    else if (prev && prev.yday) p.yday = prev.yday;
+    localStorage.setItem("vo.plan." + p.id, JSON.stringify({ key:key, g:[g1, g2], yday:p.yday || null }));
+  } catch (e) {}
   return p.plan;
 }
 function planOf(p){ var d = DAY.d || new Date(), key = d.getFullYear() * 1000 + d.getMonth() * 40 + d.getDate(); return p.plan && p.plan.key === key ? p.plan : makePlan(p); }
@@ -4021,6 +4340,7 @@ function goalNow(p){
       g.done = true;
       if (left > -0.3 && p.state === "sit" && p.root.visible) {
         moodShift(p, 0.18, "I finally wrapped up " + g.label.charAt(0).toLowerCase() + g.label.slice(1));
+        if (!p.act && !p.chatWith) { startAct(p, "fist", clock.elapsedTime, 2.2); if (Math.random() < 0.5) sayLater(p, choose(["Done!!", "Finally!", "And... done.", "Yes! Off my list."]), clock.elapsedTime + 0.3, 2.4); }
         (p.memo = p.memo || []).push({ t:clock.elapsedTime, text:"I just wrapped up " + g.label.charAt(0).toLowerCase() + g.label.slice(1) + ". One less thing." });
         p.workNow = null;
       }
@@ -4034,6 +4354,7 @@ function goalNow(p){
 function goTrip(p, t, kind, target, path){
   p.trip = { kind:kind, target:target, path:path, d:0, back:false };
   p.act = null; p.typeOn = false;
+  p.walkPhone = !p.guest && (kind === "coffee" || kind === "spot" || kind === "lunch") && Math.random() < 0.15;
   setState(p, "up", t, 0.6);
 }
 function setState(p, st, t, dur){ p.state = st; p.t0 = t; p.dur = dur; }
@@ -4097,6 +4418,265 @@ function rollOver(p, q, gap){
   p.rollOn = true;
 }
 
+/* ---------- everyday life: errands, rituals, shared moments ---------- */
+function dayKey(){ var d = DAY.d || new Date(); return d.getFullYear() * 1000 + d.getMonth() * 40 + d.getDate(); }
+var WIN_LABEL = "Looking out the window for a minute";
+/* walk to a spot, stand there a while (with an optional act or a little script), walk back */
+function goSpot(p, t, spot, face, stay, label, act, onArrive, onLeave){
+  goTrip(p, t, "spot", null, aislePath(p.seat, p.side, spot, 0));
+  var tr = p.trip; tr.face = face; tr.stay = stay; tr.label = label; tr.stayAct = act; tr.onArrive = onArrive; tr.onLeave = onLeave;
+  return tr;
+}
+function idleAtDesk(q){ return q && !q.remote && !q.guest && available(q) && !q.act && !lunchNow(q) && !homeNow(q) && !q.trip; }
+/* yawns and stretches are catching */
+function catchAct(p, name, t){
+  PEOPLE.forEach(function(q){ if (q !== p && idleAtDesk(q) && Math.hypot(q.seat.x - p.seat.x, q.seat.z - p.seat.z) < 2.3 && Math.random() < 0.35) startAct(q, name, t + rand(1.5, 3.2), name === "yawn" ? 2.6 : undefined); });
+}
+function catchLaugh(p, t){
+  PEOPLE.forEach(function(q){ if (q !== p && !q.remote && q.state === "sit" && q.root.visible && Math.hypot(q.seat.x - p.seat.x, q.seat.z - p.seat.z) < 2.3 && Math.random() < 0.2) { q.laughUntil = t + 1.5; q.smileUntil = t + 2.5; } });
+}
+function lifeWindow(p, t){ goSpot(p, t, new V3(choose([-0.55, 0.55]), 0, -2.85), new V3(-2.9, 1.9, -1.6), rand(18, 35), WIN_LABEL, "gazeup"); }
+function lifeStretch(p, t){ var tr = goSpot(p, t, new V3(p.side * 0.95, 0, p.seat.z + 0.35), new V3(0, 1, p.seat.z + 0.35), 7, "Stretching my back", "stretch"); }
+function lifePhoneWalk(p, t){
+  var z = choose([-2.8, -2.3, 5.0]);
+  goSpot(p, t, new V3(rand(-0.25, 0.25), 0, z), new V3(rand(-2, 2), 0, z + rand(-2, 2)), rand(35, 75), "Taking a call", "call");
+}
+/* the printers: send it, walk over, sometimes it jams */
+function lifePrint(p, t){
+  var pr = LIFE.printers.filter(function(x){ return !x.job; }); if (!pr.length) return;
+  pr = choose(pr); p.printNeed = 0;
+  var jam = Math.random() < 0.13;
+  pr.job = { p:p, t0:t, jam:jam };
+  var tr = goSpot(p, t, pr.spot.clone(), pr.g.position, jam ? 16 : 4.5, jam ? "Fighting with the printer" : "Grabbing a printout", null, function(q, t2){
+    if (jam) { sayLater(q, choose(["Of course it jammed.", "Paper jam. Again.", "Why. Every time.", "Okay printer, we can do this the easy way..."]), t2 + 0.5, 2.8); sayLater(q, choose(["Got it!", "Fixed. I'm basically IT now lol", "There we go."]), t2 + 13, 2.4); }
+  }, function(q){ pr.job = null; pr.sheet.visible = false; q.carryPaper = true; });
+  if (jam) tr.seq = [[0.3, "facepalm", 2.6], [3.2, "fixprinter", 9], [12.6, "fist", 2]];
+}
+function lifeTreat(p, t){
+  p.hadTreat = true;
+  goSpot(p, t, LIFE.counter.spot.clone().add(new V3(rand(-0.15, 0.15), 0, 0)), LIFE.counter.g.position, rand(6, 10), "Grabbing a cookie", "eat", function(q, t2){
+    if (Math.random() < 0.4) sayLater(q, choose(["Oh these are good.", "Just one. Okay, two.", "Who made these?? Amazing", "Cookie break!"]), t2 + 1.5, 2.6);
+  });
+}
+var TREATS = { on:false, day:0, until:0 };
+var PLYTIX = { on:false, next:0, until:0, lastAt:0 };
+var BOXEV = { day:0, next:0, on:false };
+var NEWS = [
+  { id:"pizza", until:new Date(2026, 10, 24, 18).getTime(), lines:["Did you hear? Pizza on the 24th, from the Halloween win!", "Wait really?? Yay!", "Same week as the Christmas lunch too."] },
+  { id:"votes", until:new Date(2026, 10, 30, 18).getTime(), lines:["Did you see the final votes? The pumpkin won by a landslide.", "And the costume missed a tie by ONE vote.", "Robbed lol"] }
+];
+var KNOW = (function(){ try { return JSON.parse(localStorage.getItem("vo.news") || "{}"); } catch (e) { return {}; } })();
+function knowsNews(p, id){ return (KNOW[id] || []).indexOf(p.id) >= 0; }
+function learnNews(p, id){ (KNOW[id] = KNOW[id] || []); if (KNOW[id].indexOf(p.id) < 0) KNOW[id].push(p.id); try { localStorage.setItem("vo.news", JSON.stringify(KNOW)); } catch (e) {} }
+/* screens follow the task in the status */
+function goalMode(p){
+  if (!p || p.remote || p.guest) return null;
+  var g = goalNow(p), L = g ? g.g.label : ""; if (!L) return null;
+  if (/fireplace|flame|Optimyst/i.test(L)) return "flame";
+  if (/page|site|menu|Convectair|Cadet/i.test(L)) return "cms";
+  if (/sell sheet|copy|answer|specs|write/i.test(L)) return "doc";
+  if (/dashboard|report|numbers|budget/i.test(L)) return "dash";
+  if (/image|photo|banner|design/i.test(L)) return "design";
+  if (/booth|event|show/i.test(L)) return "floor";
+  if (/ticket/i.test(L)) return "ticket";
+  return null;
+}
+/* rituals: small habits each person keeps (made up, easy to change) */
+var RITUALS = [
+  { id:"luis", at:"arrive", act:"tidy", dur:5 },
+  { id:"stephanie", h:9.1, act:"leanFire", dur:6 },
+  { id:"olivia", h:10.2, kind:"coffee" },
+  { id:"debbie", h:11.0, kind:"coffee" }, { id:"debbie", h:14.75, kind:"coffee" },
+  { id:"carla", h:15.5, kind:"stretch" },
+  { id:"erica", h:13.6, kind:"window" },
+  { id:"allyson", h:9.0, act:"checklist", dur:12 }
+];
+var RIT_DONE = {};
+function lifeTick(t, dt){
+  var dk = dayKey(), present = PEOPLE.filter(function(q){ return !q.guest && !q.remote && q.state === "sit" && q.root.visible; });
+  /* the sun moves across the sky with the real hour */
+  var sh = clamp((DAY.h - 7) / 11, 0, 1);
+  sun.position.set(lerp(16, -8, sh), 18 + 4 * Math.sin(sh * Math.PI), lerp(12, 17, sh));
+  /* dusk: desk lamps come on (earlier in winter) */
+  var mo = (DAY.d || new Date()).getMonth(), dusk = [16.9, 17.5, 18.9, 19.6, 20.3, 20.7, 20.7, 20.2, 19.3, 18.3, 16.9, 16.6][mo] - 0.6;
+  var wxDark = (WX_FORCE || WX.kind) === "rain" || (WX_FORCE || WX.kind) === "snow";
+  PEOPLE.forEach(function(p){
+    if (p.guest || p.remote) return;
+    var here = !(p.state === "away" && p.trip && p.trip.kind === "home"), carrying = p.trip && p.trip.kind === "home" && p.state !== "away";
+    if (p.lateToday === undefined) p.lateToday = lateToday(p);
+    if (p.lamp) {
+      var want = here && p.state === "sit" && (DAY.h > dusk || OFFICE_DARK > 0.3 || (wxDark && DAY.h > dusk - 1.5)) && p.idx % 2 === 0;
+      if (want !== p.lamp.on) { p.lamp.on = want; p.lamp.shade.material = want ? p.lamp.mOn : p.lamp.mOff; }
+      p.lamp.pool.material.opacity = lerp(p.lamp.pool.material.opacity, want ? 0.16 : 0, 1 - Math.exp(-dt * 4));
+      p.lamp.pool.visible = p.lamp.pool.material.opacity > 0.005;
+    }
+    /* jacket on the chair and the bag under the desk while they are in; carried in and out */
+    if (p.jacket) p.jacket.visible = here && !carrying;
+    if (p.bagDesk) p.bagDesk.visible = here && !carrying;
+    var b = p.rig && p.rig.b;
+    if (p.carryBag) { p.carryBag.visible = !!carrying && p.root.visible && p.id !== "luis"; if (p.carryBag.visible) { b.RightHand.getWorldPosition(p.carryBag.position); p.carryBag.position.y -= 0.14; p.carryBag.rotation.y = p.heading + Math.PI / 2; } }
+    if (p.umbrella) { p.umbrella.visible = !!carrying && p.root.visible && (WX_FORCE || WX.kind) === "rain"; if (p.umbrella.visible) { b.LeftHand.getWorldPosition(p.umbrella.position); } }
+    /* clutter builds up, gone after the evening tidy */
+    if (p.clutter) {
+      var tidied = p.tidyDay === dk && (!p.act || p.act.n !== "tidy" || t - p.act.t0 > 2.5);
+      p.clutter.papers[0].visible = DAY.h > 10.5 && !tidied && here;
+      p.clutter.papers[1].visible = DAY.h > 13.8 && !tidied && here;
+      p.clutter.cup.visible = DAY.h > 14.5 && !tidied && here && p.id !== "debbie";
+    }
+    /* printout in hand on the way back */
+    if (p.carryPaper) { if (p.state === "sit") p.carryPaper = false; else if (b) { b.RightHand.getWorldPosition(LIFE.sheet.position); LIFE.sheet.position.y -= 0.04; LIFE.sheet.rotation.set(1.2, p.heading, 0); LIFE.sheet.visible = true; } }
+    /* the cup empties sip by sip; empty sends them to the kitchen */
+    if (p.cupLevel === undefined) p.cupLevel = rand(0.3, 1);
+    if (p.trip && p.trip.kind === "coffee") p.cupLevel = 1;
+    if (p.act && p.act.n === "sip" && p.act !== p.lastSip && p.state === "sit") {
+      p.lastSip = p.act; p.cupLevel -= rand(0.15, 0.3);
+      if (p.cupLevel <= 0.05) { p.needs.coffee = Math.max(p.needs.coffee, 0.95); if (Math.random() < 0.3) sayLater(p, choose(["Empty already?", "Out of " + drinkOf(p) + ". Refill time.", "Who drank my " + drinkOf(p) + "? Oh right, me."]), t + 3.2, 2.4); }
+    }
+    if (p.lastSip && p.act !== p.lastSip && p.cup && p.cupBase && !(MISHAP.cur && MISHAP.cur.cup === p.cup)) { p.lastSip = null; p.cup.position.set(p.cupBase.x + rand(-0.06, 0.06), p.cupBase.y, p.cupBase.z + rand(-0.05, 0.04)); }
+    /* chair left at whatever angle they last had it */
+    p.printNeed = Math.min(1.2, (p.printNeed || 0) + dt * 0.00011);
+    /* rituals */
+    if (p.state === "sit" && idleAtDesk(p)) RITUALS.forEach(function(ri, k){
+      if (ri.id !== p.id) return;
+      var key = k + ":" + dk; if (RIT_DONE[key]) return;
+      var h0 = ri.at === "arrive" ? arriveH(p) + 0.03 : ri.h;
+      if (DAY.h < h0 || DAY.h > h0 + 0.5) return;
+      RIT_DONE[key] = true;
+      if (ri.act) startAct(p, ri.act, t, ri.dur);
+      else if (ri.kind === "coffee" && !PEOPLE.some(function(q){ return q.trip && q.trip.kind === "coffee"; })) goTrip(p, t, "coffee", null, aislePath(p.seat, p.side, COFFEE_SPOT, 0));
+      else if (ri.kind === "stretch") lifeStretch(p, t);
+      else if (ri.kind === "window") lifeWindow(p, t);
+    });
+  });
+  if (!LIFE.sheet.visible || !PEOPLE.some(function(q){ return q.carryPaper; })) LIFE.sheet.visible = PEOPLE.some(function(q){ return q.carryPaper && q.state !== "sit"; });
+  /* printers: the sheet slides out, the light blinks; red while jammed */
+  LIFE.printers.forEach(function(pr){
+    var j = pr.job;
+    if (!j) { pr.led.material.color.setHex(0x29c46b); pr.sheet.visible = false; return; }
+    var u = t - j.t0;
+    pr.led.material.color.setHex(j.jam && u > 3 ? (Math.sin(t * 8) > 0 ? 0xff3b30 : 0x551111) : (Math.sin(t * 10) > 0 ? 0x29c46b : 0x0d3d20));
+    pr.sheet.visible = !j.jam && u > 2;
+    if (pr.sheet.visible) pr.sheet.position.z = -0.12 - 0.16 * clamp((u - 2) / 3, 0, 1);
+    if (u > 120) pr.job = null;
+  });
+  /* Plytix goes down for everyone, now and then */
+  if (!PLYTIX.next) PLYTIX.next = t + (/[?&]plytix=down/.test(location.search) ? 6 : rand(1500, 5400));
+  if (!PLYTIX.on && t > PLYTIX.next && present.length >= 3 && !DAY.holiday && DAY.h > 8.5 && DAY.h < 16.5) {
+    PLYTIX.on = true; PLYTIX.until = t + rand(60, 120); PLYTIX.next = t + rand(7200, 14400);
+    var who = present.filter(function(q){ return !q.walker && !q.act && !q.chatWith; }).sort(function(){ return Math.random() - 0.5; });
+    if (who[0]) { sayLater(who[0], choose(["Is Plytix down for you too?", "Uh, is Plytix loading for anyone?", "Plytix just died on me. Anyone else?"]), t + 2, 3); startAct(who[0], "facepalm", t + 1, 3); }
+    if (who[1]) sayLater(who[1], choose(["Yep, down for me too.", "Same here lol", "Not again..."]), t + 5.5, 2.6);
+    if (who[2]) { sayLater(who[2], choose(["Mine too. Coffee break?", "Down. Great timing.", "I was SO close to finishing."]), t + 8.5, 2.6); startAct(who[2], "facepalm", t + 8, 2.5); }
+    present.forEach(function(q){ q.typeOn = false; q.mouseOn = false; });
+  }
+  if (PLYTIX.on) {
+    present.forEach(function(q){ if (q.id !== "erica" && q.id !== "allyson") { q.typeOn = false; q.typeNext = t + 2; } });
+    if (t > PLYTIX.until) {
+      PLYTIX.on = false; PLYTIX.lastAt = t;
+      var bk = present.filter(function(q){ return !q.chatWith; });
+      if (bk[0]) { sayLater(bk[0], choose(["It's back!!", "Plytix is back, everyone!", "Okay we're back. Phew."]), t + 0.5, 2.6); startAct(bk[0], "fist", t + 0.4, 2); }
+      if (bk[1] && Math.random() < 0.7) sayLater(bk[1], choose(["Finally!", "Woohoo!", "Back to it."]), t + 3.2, 2.2);
+    }
+  }
+  /* treats: some days someone brings cookies and leaves them on the counter */
+  if (TREATS.day !== dk) { TREATS.day = dk; TREATS.on = false; TREATS.at = Math.random() < 0.3 || /[?&]treats=1/.test(location.search) ? (/[?&]treats=1/.test(location.search) ? DAY.h : rand(9.5, 15)) : 99; PEOPLE.forEach(function(q){ q.hadTreat = false; }); }
+  if (!TREATS.on && DAY.h >= TREATS.at && DAY.h < TREATS.at + 0.2 && present.length >= 2) {
+    var tb = choose(present); TREATS.on = true; TREATS.until = DAY.h + 2; tb.hadTreat = true;
+    LIFE.tray.visible = true;
+    sayLater(tb, choose(["I brought cookies! They're on the counter by the printers.", "Cookies by the printers, help yourselves!", "Treats on the counter, go go go!"]), t + 1, 3.4);
+  }
+  if (TREATS.on && (DAY.h > TREATS.until || homeNow(PEOPLE[0]) && DAY.h > 16.9)) { TREATS.on = false; TREATS.at = 99; }
+  LIFE.tray.visible = TREATS.on;
+  /* a box arrives: a new product sample, and the team gathers round */
+  if (BOXEV.day !== dk) { BOXEV.day = dk; BOXEV.at = /[?&]box=1/.test(location.search) ? DAY.h + 0.003 : (dayRand({ id:"box" }, 3) < 0.25 ? 9.5 + 6 * dayRand({ id:"box" }, 4) : 99); BOXEV.done = false; }
+  if (!BOXEV.done && !BOXEV.on && DAY.h >= BOXEV.at && DAY.h < BOXEV.at + 0.5) {
+    var own = [BY.stephanie, BY.debbie].filter(idleAtDesk);
+    if (own.length) {
+      BOXEV.on = true; BOXEV.done = true; BOXEV.t0 = t; LIFE.box.g.visible = true; LIFE.box.f1.rotation.x = 0; LIFE.box.f2.rotation.x = 0;
+      var ow = own[0], C0 = LIFE.box.g.position;
+      sayLater(ow, choose(["The new sample is here!", "Ooh, the box with the new unit came!", "Delivery! Come see the new one."]), t + 0.5, 3);
+      goSpot(ow, t + 0.1, new V3(C0.x, 0, C0.z - 0.55), C0, 40, "Opening the new sample box", null, function(q, t2){ BOXEV.open = t2 + 2; sayLater(q, choose(["Okay, let's see it.", "Moment of truth..."]), t2 + 1, 2.4); }, function(){ BOXEV.on = false; LIFE.box.g.visible = false; BOXEV.open = 0; });
+      var spots = [new V3(C0.x - 0.62, 0, C0.z + 0.1), new V3(C0.x + 0.05, 0, C0.z + 0.6), new V3(C0.x + 0.62, 0, C0.z + 0.15)];
+      var fans = PEOPLE.filter(function(q){ return q !== ow && idleAtDesk(q) && !luisDeepWork(q); }).sort(function(){ return Math.random() - 0.5; }).slice(0, 3);
+      fans.forEach(function(q, k){
+        q.decideAt = t + 60;
+        goSpot(q, t + 2 + k * 2, spots[k], C0, rand(26, 34), "Checking out the new sample", null, function(q2, t2){
+          sayLater(q2, choose(["Ooh, the finish looks great.", "It's heavier than I thought.", "Can we keep it here? lol", "Okay that's nice.", "I need one for my living room."]), t2 + 4 + k * 3.5, 2.6);
+        });
+      });
+    }
+  }
+  if (BOXEV.open) { var bo = clamp((t - BOXEV.open) / 1.6, 0, 1); LIFE.box.f1.rotation.x = 2.2 * ease(bo); LIFE.box.f2.rotation.x = -2.2 * ease(bo); }
+  /* Fridays: the plants get watered */
+  var waterer = BY.carla;
+  if (DAY.fri && waterer && DAY.h > 10 && DAY.h < 11.5 && RIT_DONE["water" + dk] === undefined && idleAtDesk(waterer)) {
+    RIT_DONE["water" + dk] = 1;
+    goSpot(waterer, t, new V3(1.95, 0, 5.75), new V3(2.45, 0, 5.8), 9, "Watering the plants", "water", null, function(q){ RIT_DONE["water" + dk] = 2; });
+  }
+  if (waterer && waterer.trip && waterer.trip.label === "Watering the plants" && waterer.state === "stay") { waterer.rig.b.RightHand.getWorldPosition(LIFE.can.position); LIFE.can.position.y -= 0.06; LIFE.can.rotation.y = waterer.heading; LIFE.can.visible = true; } else LIFE.can.visible = false;
+  /* cold mornings: someone borrows Stephanie's desk fireplace for a minute */
+  var S = BY.stephanie, cold = (WX.temp !== null && WX.temp <= 0) || /[?&]cold=1/.test(location.search);
+  if (cold && S && DAY.h < 10.5 && !RIT_DONE["fire" + dk] && S.state === "sit" && S.root.visible) {
+    var vis = [BY.carla, BY.allyson].filter(function(q){ return q && idleAtDesk(q); });
+    if (vis.length && Math.random() < dt * 0.02) {
+      RIT_DONE["fire" + dk] = true; var vq = vis[0];
+      goSpot(vq, t, new V3(0.95, 0, S.seat.z + 0.5), new V3(2.2, 0.9, S.seat.z + 0.3), 16, "Warming up by Stephanie's fireplace", "warmhands", function(q, t2){
+        sayLater(q, "Can I borrow your fireplace for a sec? It's freezing!", t2 + 0.6, 3);
+        sayLater(S, choose(["Ha, go ahead!", "That's what it's for!", "Best seat in the house."]), t2 + 4, 2.6);
+      });
+    }
+  }
+  /* the robot vacuum does its round after everyone has left */
+  var R = LIFE.robot, night = OFFICE_DARK > 0.8 && !present.length && DAY.h >= 17.5 && DAY.h < 22 && !DAY.holiday;
+  if (night) {
+    R.d += dt * 0.18;
+    var lap = (R.d % 2) < 1 ? R.d % 1 : 2 - R.d % 2, x = 0.55 * Math.sin(R.d * 3.1), z = lerp(5.0, -3.4, lap);
+    var nx = lerp(R.g.position.x, x, 1 - Math.exp(-dt * 2)), nz = lerp(R.g.position.z, z, 1 - Math.exp(-dt * 2));
+    if (Math.hypot(nx - R.g.position.x, nz - R.g.position.z) > 1e-4) R.g.rotation.y = Math.atan2(nx - R.g.position.x, nz - R.g.position.z);
+    R.g.position.set(nx, 0, nz);
+  } else if (R.g.position.distanceTo(R.home) > 0.01) { R.g.position.lerp(R.home, 1 - Math.exp(-dt * 1.5)); }
+  R.led.visible = night ? Math.sin(t * 3) > -0.3 : true;
+  ambientTick(t, dt, present);
+}
+/* handles for the QA probe */
+window.__life = { LIFE:LIFE, TREATS:TREATS, PLYTIX:PLYTIX, BOXEV:BOXEV, print:lifePrint, window:lifeWindow, phone:lifePhoneWalk, stretch:lifeStretch, treat:lifeTreat };
+/* ---------- optional office sound (off until the viewer turns it on) ---------- */
+var AMB = { on:false, ctx:null, clickAcc:0 };
+function ambientStart(){
+  if (AMB.ctx) return;
+  var C = new (window.AudioContext || window.webkitAudioContext)(); AMB.ctx = C;
+  var len = C.sampleRate * 2, buf = C.createBuffer(1, len, C.sampleRate), d = buf.getChannelData(0), last = 0;
+  for (var i = 0; i < len; i++) { var w = Math.random() * 2 - 1; last = (last + 0.02 * w) / 1.02; d[i] = last * 3.5; }
+  AMB.noise = buf;
+  AMB.master = C.createGain(); AMB.master.gain.value = 0; AMB.master.connect(C.destination);
+  var room = C.createBufferSource(); room.buffer = buf; room.loop = true;
+  var rf = C.createBiquadFilter(); rf.type = "lowpass"; rf.frequency.value = 400;
+  var rg = C.createGain(); rg.gain.value = 0.12; room.connect(rf); rf.connect(rg); rg.connect(AMB.master); room.start();
+  var mur = C.createBufferSource(); mur.buffer = buf; mur.loop = true;
+  var mf = C.createBiquadFilter(); mf.type = "bandpass"; mf.frequency.value = 700; mf.Q.value = 1.2;
+  AMB.murG = C.createGain(); AMB.murG.gain.value = 0; mur.connect(mf); mf.connect(AMB.murG); AMB.murG.connect(AMB.master); mur.start();
+  var white = C.createBuffer(1, C.sampleRate * 0.03, C.sampleRate), wd = white.getChannelData(0);
+  for (i = 0; i < wd.length; i++) wd[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / wd.length, 6);
+  AMB.click = white;
+}
+function ambientTick(t, dt, present){
+  if (!AMB.ctx) return;
+  var C = AMB.ctx, on = AMB.on && !document.hidden;
+  AMB.master.gain.setTargetAtTime(on ? 0.5 : 0, C.currentTime, 0.3);
+  if (!on) return;
+  var talking = chats.filter(function(c){ return c.bubbles; }).length;
+  AMB.murG.gain.setTargetAtTime(talking ? 0.35 : 0.04, C.currentTime, 0.4);
+  var typing = present.filter(function(q){ return q.typeOn && !q.act; }).length;
+  AMB.clickAcc += dt * typing * 5.5;
+  while (AMB.clickAcc > 1) {
+    AMB.clickAcc -= 1;
+    var s = C.createBufferSource(); s.buffer = AMB.click; s.playbackRate.value = rand(0.8, 1.4);
+    var f = C.createBiquadFilter(); f.type = "highpass"; f.frequency.value = 1800;
+    var g = C.createGain(); g.gain.value = rand(0.05, 0.16);
+    s.connect(f); f.connect(g); g.connect(AMB.master); s.start(C.currentTime + Math.random() * 0.05);
+  }
+}
+
 /* ---------- visitors: one at a time, Nolan and Elena come by the most ---------- */
 var GUESTS = { next:0, cur:null };
 function guestTick(t){
@@ -4157,7 +4737,9 @@ function updateAgent(p, t, dt){
     if (p.standW > 0.001) p.root.position.add(_standV.set(Math.sin(p.sitHeading), 0, Math.cos(p.sitHeading)).multiplyScalar(0.1 * p.standW));
     var ln = lunchNow(p);
     if (p.lunchBox) p.lunchBox.visible = ln === "desk";
-    if (homeNow(p) && !p.chatWith && !p.answering && !p.visitor && !(p.roll > 0.01)) {
+    if (homeNow(p) && !p.chatWith && !p.answering && !p.visitor && !(p.roll > 0.01) && p.tidyDay !== dayKey() && !DAY.holiday && !wfhToday(p) && DAY.h > 12) {
+      p.tidyDay = dayKey(); p.typeOn = false; p.mouseOn = false; startAct(p, "tidy", t, 4.5);
+    } else if (homeNow(p) && !p.chatWith && !p.answering && !p.visitor && !(p.roll > 0.01) && !(p.act && p.act.n === "tidy")) {
       /* time to go: say goodbye to whoever is near, then walk out */
       var bye = DAY.fri ? "See you next week!" : "See you tomorrow!";
       sayLater(p, choose([bye, "Okay, I'm out. " + bye, "Bye everyone! " + bye]), t, 3.6);
@@ -4170,10 +4752,11 @@ function updateAgent(p, t, dt){
       goTrip(p, t, "lunch", null, aislePath(p.seat, p.side, EXIT_SPOT, 0));
     } else if (ln === "desk") {
       p.typeOn = false; p.decideAt = Math.max(p.decideAt, t + 4);
-      if (!p.act && !p.chatWith && !p.answering) startAct(p, Math.random() < 0.75 ? "phone" : "sip", t, rand(5, 9));
+      if (!p.act && !p.chatWith && !p.answering) { var lr = Math.random(); startAct(p, lr < 0.6 ? "eat" : lr < 0.88 ? "phone" : "sip", t, rand(5, 9)); }
     } else if (p.pendingCoffee && t >= p.pendingCoffee) {
       p.pendingCoffee = 0;
-      if (!p.chatWith && !PEOPLE.some(function(q){ return q.trip && q.trip.kind === "coffee"; })) { p.act = null; goTrip(p, t, "coffee", null, aislePath(p.seat, p.side, COFFEE_SPOT, 0)); }
+      var buddy = p.coffeeWith; p.coffeeWith = null;
+      if (!p.chatWith && (buddy || !PEOPLE.some(function(q){ return q.trip && q.trip.kind === "coffee"; }))) { p.act = null; goTrip(p, t, "coffee", null, aislePath(p.seat, p.side, COFFEE_SPOT, 0)); }
     } else if (p.cal && t >= p.cal.next && !p.act && !p.chatWith && !p.answering) {
       if (bossAway(p) && Math.random() < 0.85) p.cal.next = t + rand(10, 25);
       else goTrip(p, t, "meeting", null, aislePath(p.seat, p.side, EXIT_SPOT, 0));
@@ -4210,9 +4793,11 @@ function updateAgent(p, t, dt){
         swivelTarget = clamp((camYaw(p) + p.swivel) * 0.5, -1.2, 1.2);
       }
       if (!p.act && focus !== p && !p.typeOn && !p.mouseOn && !p.chatWith) swivelTarget += mv(p).swivel * Math.sin(t * 0.7 + (p.mSeed || 0));
+      /* the chair stays at whatever angle it was left after a chat */
+      if (!p.act && focus !== p && !p.chatWith) swivelTarget += (p.restSwivel || 0) * (p.typeOn || p.mouseOn ? 0.4 : 1);
       p.swivel = lerp(p.swivel, swivelTarget, 1 - Math.exp(-dt * 5));
       if (p.chairG) p.chairG.rotation.y = p.swivel;
-      p.statusNow = p.answering ? "Answering your question" : p.chatWith ? "Chatting with " + p.chatWith.name : ln === "desk" ? "Lunch at the desk, scrolling the phone" : p.walker ? p.walker.text.sit : p.status;
+      p.statusNow = p.answering ? "Answering your question" : p.chatWith ? "Chatting with " + p.chatWith.name : ln === "desk" ? (p.act && p.act.n === "eat" ? "Lunch at the desk" : "Lunch at the desk, scrolling the phone") : PLYTIX.on ? "Waiting for Plytix to come back" : p.lateToday && DAY.h >= 16.9 ? "Finishing one last thing" : p.walker ? p.walker.text.sit : p.status;
       return;
     }
     st = p.state; k = 0; tr = p.trip;
@@ -4241,6 +4826,9 @@ function updateAgent(p, t, dt){
       var dist = dv.length();
       if (dist < 0.85 && dv.dot(fwd) > dist * 0.3 && (q.state !== "walk" || q.idx < p.idx)) want = Math.min(want, 0.08);
     });
+    /* slow down before a corner */
+    if (rem > 0.35) { var hA = along(path, Math.min(path.L, tr.d + 0.55)), dA = Math.abs(Math.atan2(Math.sin(hA - p.heading), Math.cos(hA - p.heading))); if (dA > 0.6) want = Math.min(want, 0.6); }
+    if (p.walkPhone && !p.act && !p.guest) startAct(p, "phone", t, 2.5);
     r.walkTarget = want;
     tr.d = Math.min(path.L, tr.d + WALK_V * (p.k || 1) * p.pace * r.walkW * dt);
     var hd = along(path, tr.d);
@@ -4249,10 +4837,15 @@ function updateAgent(p, t, dt){
     if ((tr.kind === "meeting" || tr.kind === "coffee" || tr.kind === "lunch" || tr.kind === "home" || p.guest) && Math.abs(p.root.position.x) > 4.4) p.root.visible = false;
     if (rem <= 0.04 && r.walkW < 0.25) {
       if (tr.back && p.guest) { p.trip = null; setState(p, "gone", t, 0); GUESTS.cur = null; GUESTS.next = t + rand(180, 420); }
-      else if (tr.back) setState(p, "down", t, 0.6);
+      else if (tr.back) { setState(p, "down", t, 0.6); p.walkPhone = false; p.act = null; }
       else if (tr.kind === "meeting") { setState(p, "away", t, 1800); try { localStorage.setItem("vo.meet." + p.id, String(Date.now() + 1800000)); } catch (e) {} }
       else if (tr.kind === "lunch" || tr.kind === "home") setState(p, "away", t, 99999);
-      else if (tr.kind === "coffee") { setState(p, "coffee", t, rand(5, 8)); startAct(p, "sip", t + 1.2, 3); }
+      else if (tr.kind === "coffee") {
+        /* someone already at the machine: wait in line */
+        var wait = PEOPLE.some(function(q){ return q !== p && q.state === "coffee"; }) ? rand(5, 9) : 0;
+        setState(p, "coffee", t, rand(5, 8) + wait); p.coffeeWait = wait ? t + wait : 0; startAct(p, "sip", t + 1.2 + wait, 3);
+      }
+      else if (tr.kind === "spot") { p.walkPhone = false; p.act = null; setState(p, "stay", t, tr.stay); if (tr.stayAct) startAct(p, tr.stayAct, t + 0.4, tr.stay - 0.8); if (tr.onArrive) tr.onArrive(p, t); }
       else {
         var q = tr.target;
         if (q.state === "sit" && q.visitor === p && !q.answering) {
@@ -4260,12 +4853,41 @@ function updateAgent(p, t, dt){
           setState(p, "visit", t, cd);
           startAct(q, q.remote ? "answer" : "turn", t, cd - 0.3, p);
           startAct(p, p.id === "olivia" && !q.remote ? "swatch" : "talk", t + 0.5, cd - 1.2);
-          if (tr.request) startChat(p, q, t, cd, makeRequest(p, t));
+          var busyG = goalNow(q);
+          if (!tr.request && !tr.care && !tr.help && !tr.askHelp && !q.remote && tooBusy(q) && busyG) {
+            /* not now: a short answer, and a promise to come back once it is done */
+            cd = 7; p.dur = cd;
+            q.act.dur = cd - 0.3; p.act.dur = cd - 1.2;
+            startChat(p, q, t, cd, [choose(["Got a minute?", "Hey, quick thing?", "Do you have a sec?"]),
+              choose(["Can it wait? I need " + lc(busyG.g.label) + " done by " + fmtH(busyG.g.due) + ". I'll come find you.",
+                "Not right now, sorry. I'm in the middle of " + lc(busyG.g.label) + ". I'll come over after.",
+                "Ten minutes? I'm racing a " + fmtH(busyG.g.due) + " deadline. I'll find you!"])]);
+            q.owe = { to:p, at:t + rand(360, 900) };
+            moodShift(p, -0.04, q.name + " was too busy to talk");
+          }
+          else if (tr.askHelp) {
+            var gl2 = tr.askHelp;
+            startChat(p, q, t, cd, [choose(["Got five minutes? I'm stuck " + lc(gl2.label) + ".", "Can I steal you for a sec? I'm stuck " + lc(gl2.label) + ".", "Help? I'm stuck " + lc(gl2.label) + " and it's due at " + fmtH(gl2.due) + "."]),
+              choose(["Sure, show me.", "Of course. What's going on?", "Yes, pull it up.", "Happy to. Where are you stuck?"]),
+              choose(["This part here, it won't behave.", "I tried twice and it still looks wrong lol", "It's this one step that keeps failing."]),
+              choose(["Ah, try it the other way round.", "Oh I've seen this. Check the settings first.", "Easy fix, I'll show you.", "That one got me last week too."]),
+              choose(["That's it!! Thank you!", "You just saved my afternoon.", "Okay that makes sense. Thanks!"])]);
+            startAct(q, "screen", t + 3, cd - 3.5, null); q.act.pt = q.deskGroup.localToWorld(new V3(0, 1.0, -1.0));
+            moodShift(p, 0.22, q.name + " helped me get unstuck");
+            bond(p, q, 0.3, q.name + " helped me get unstuck on " + lc(gl2.label) + ".", "I helped " + p.name + " get unstuck earlier.");
+            moodShift(q, 0.08, "I helped " + p.name);
+          }
+          else if (tr.owe) {
+            startChat(p, q, t, cd, [choose(["Okay, I'm free now. Sorry about earlier! What did you need?", "Done with my deadline! What was it you wanted?", "Sorry for brushing you off. I'm all yours now."]),
+              choose(["No worries! Just a quick question.", "Thanks for coming back!", "All good, it was a small thing.", "Oh you remembered! Okay so..."])]);
+            bond(p, q, 0.12, "", p.name + " came back to me after their deadline, like they said.");
+          }
+          else if (tr.request) startChat(p, q, t, cd, makeRequest(p, t));
           else if (tr.care) {
             q.caredAt = t;
-            startChat(p, q, t, cd, choose([["Hey, everything okay?", "Long day, but better now. Thanks."], ["You look like you need a break.", "I really do. Thanks for noticing."], ["Want me to grab you something?", "A coffee would save my life."], ["How are you holding up?", "Hanging in there. Thanks, Carla."], ["Need a hand with anything?", "I'm okay, but that's sweet of you."]]));
-            moodShift(q, 0.25, "Carla came by to check on me");
-            bond(p, q, 0.25, "", "Carla came by to check on me earlier, that was sweet.");
+            startChat(p, q, t, cd, choose([["Hey, everything okay?", "Long day, but better now. Thanks."], ["You look like you need a break.", "I really do. Thanks for noticing."], ["Want me to grab you something?", "A coffee would save my life."], ["How are you holding up?", "Hanging in there. Thanks, " + p.name + "."], ["Need a hand with anything?", "I'm okay, but that's sweet of you."]]));
+            moodShift(q, 0.25, p.name + " came by to check on me");
+            bond(p, q, 0.25, "", p.name + " came by to check on me earlier, that was sweet.");
           }
           else if (tr.help) {
             startChat(p, q, t, cd, choose([["Need napkins? I grabbed some.", "You're a lifesaver, thank you."], ["Here, paper towels. Happens to everyone.", "Thanks! My keyboard survived, barely."], ["Hold on, I've got tissues.", "Thank you! What a mess."]]));
@@ -4276,6 +4898,14 @@ function updateAgent(p, t, dt){
         } else setState(p, "visit", t, 1.2);
       }
     }
+  } else if (st === "stay") {
+    r.sit = 0;
+    var sp2 = tr.path.pts[tr.path.pts.length - 1];
+    p.root.position.copy(sp2);
+    smoothTurn(p, tr.face ? Math.atan2(tr.face.x - sp2.x, tr.face.z - sp2.z) : p.heading, dt, 5);
+    /* a little script of moves while standing there */
+    if (tr.seq) tr.seq.forEach(function(sq){ if (!sq.done && t - p.t0 >= sq[0]) { sq.done = true; startAct(p, sq[1], t, sq[2]); } });
+    if (k >= 1) { if (tr.onLeave) tr.onLeave(p, t); p.act = null; startReturn(p, t); }
   } else if (st === "visit" || st === "coffee") {
     r.sit = 0;
     var spot = tr.path.pts[tr.path.pts.length - 1];
@@ -4316,9 +4946,11 @@ function updateAgent(p, t, dt){
 
   var kind = p.trip ? p.trip.kind : "";
   if (p.lunchCard) { var away2 = (kind === "lunch" || kind === "meeting") && !p.trip.back; if (away2) cardFor(p, kind); p.lunchCard.visible = away2; }
-  if (kind === "home") { p.statusNow = p.state === "away" ? (DAY.fri ? "Gone for the weekend" : "Gone for the day") : "Heading home"; return; }
+  if (kind === "home") { p.statusNow = p.state === "away" ? (DAY.holiday ? "Holiday, the office is closed" : wfhToday(p) ? "Working from home today" : DAY.h < 12 ? "Not in yet" : DAY.fri ? "Gone for the weekend" : "Gone for the day") : "Heading home"; return; }
   if (kind === "lunch") { p.statusNow = p.state === "away" ? (p.id === "carla" ? "Out for lunch" : "Lunch time") : (p.trip.back ? "Back from lunch" : "Heading out for lunch"); return; }
   if (kind === "meeting") p.statusNow = p.state === "away" ? p.walker.text.away : (p.trip.back ? p.walker.text.back : p.walker.text.out);
+  else if (kind === "spot") p.statusNow = p.trip.back ? "Heading back to the desk" : p.trip.label;
+  else if (kind === "coffee" && p.state === "coffee" && t < (p.coffeeWait || 0)) p.statusNow = "Waiting for the coffee machine";
   else if (kind === "coffee") p.statusNow = p.id === "olivia" ? (p.trip.back ? "Back with a tea" : "Making a tea") : (p.trip.back ? "Back with a coffee" : "Getting coffee");
   else if (kind === "visit" && p.trip.target.remote) p.statusNow = p.state === "visit" ? "On a video call with " + p.trip.target.name : (p.trip.back ? "Heading back to the desk" : "Walking over to the screens");
   else if (kind === "visit") p.statusNow = p.state === "visit" ? "Chatting with " + p.trip.target.name : (p.trip.back ? "Heading back to the desk" : "Walking over to " + p.trip.target.name);
@@ -4664,7 +5296,7 @@ var ACT_TEXT = {
   phone:"Checking a message real quick", sip:"Having a sip of coffee", stretch:"Stretching, too much screen time",
   leanBack:"Taking a ten second breather", headphones:"Fixing my headphones", swatch:"Comparing colour swatches",
   leanFire:"Staring at this flame effect, something is off", point:"Checking on the wall heater", wave:"Waving at someone",
-  checklist:"Going through the booth checklist", write:"Writing it down in my notebook", chin:"Thinking this one through", wipe:"Cleaning up my spilled drink, don't ask", call:"On the phone with a venue"
+  checklist:"Going through the booth checklist", eat:"Lunch at the desk", yawn:"Fighting a yawn", rubeyes:"Resting my eyes for a second", facepalm:"Why is this happening", fist:"Done! Feels good", warmhands:"Warming up my hands", tidy:"Tidying up the desk", lookdown:"Typing away", write:"Writing it down in my notebook", chin:"Thinking this one through", wipe:"Cleaning up my spilled drink, don't ask", call:"On the phone with a venue"
 };
 function doingNow(p){
   var tr = p.trip, t = clock.elapsedTime;
@@ -5076,6 +5708,8 @@ askForm.addEventListener("submit", function(e){
 
 function focusOn(p){
   if (p && p.guest) return;
+  /* the same person clicked again and again: they notice the viewer */
+  if (p) { p.viewClicks = (p.viewClicks || 0) + 1; if (p.viewClicks >= 3 && !p.remote && p.root.visible && !p.chatWith && Math.random() < 0.6) sayLater(p, choose(["You again? lol", "Hi again!", "Okay, I know you're watching me.", "Back so soon?", "We have to stop meeting like this."]), clock.elapsedTime + 0.5, 2.6); }
   focus = p;
   lastInteract = performance.now() / 1000;
   goal.r = aspect < 0.9 ? Math.max(2.6, 1.9 / aspect) : 2.7;
@@ -5100,6 +5734,10 @@ function clearFocus(){
   defaultGoal();
 }
 document.getElementById("reset").addEventListener("click", clearFocus);
+document.getElementById("sound").addEventListener("click", function(){
+  try { ambientStart(); AMB.on = !AMB.on; if (AMB.ctx.state === "suspended") AMB.ctx.resume(); } catch (e) { AMB.on = false; }
+  this.setAttribute("aria-pressed", AMB.on ? "true" : "false");
+});
 var collapseBtn = document.getElementById("collapse");
 if (collapseBtn) collapseBtn.addEventListener("click", function(){
   var mini = document.body.classList.toggle("mini");
@@ -5658,7 +6296,7 @@ function updateRemote(p, t, dt){
   p.typeAmp = lerp(p.typeAmp, p.typeOn && !p.act ? 1 : 0, 1 - Math.exp(-dt * 4));
   p.glowM.opacity = 0.26 + (p.chatWith || p.answering ? 0.18 : 0) + 0.04 * Math.sin(t * 2 + p.sx);
   /* remote colleagues log off at 5 */
-  var offline = DAY.wd > 0 && DAY.wd < 6 && (DAY.h >= 17 || DAY.h < arriveH(p));
+  var offline = DAY.wd > 0 && DAY.wd < 6 && (!!DAY.holiday || DAY.h >= 17 || DAY.h < arriveH(p));
   if (offline !== !!p.offline) {
     /* the call ends: screen goes black, the name caption and the name tag disappear */
     p.offline = offline; p.capM.visible = !offline; p.scrMat.color.setScalar(offline ? 0 : 1);
@@ -5797,6 +6435,7 @@ function frame(){
   officeHours(t, dt);
   screensTick(t, dt);
   huddleTick(t, dt);
+  lifeTick(t, dt);
   PEOPLE.forEach(function(p){ rollUpdate(p, dt); });
   if (!(t - (window.__dayT || -9) < 1)) { window.__dayT = t; dayTick(); clockTick(); }
   wallClockTick();

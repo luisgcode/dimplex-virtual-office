@@ -11,4 +11,4 @@ How the office gets checked and fixed, round after round.
 4. Fix, re-run until the report is clean, then push.
 
 Self-correcting at runtime: every avatar measures its own mesh once (seat on the cushion, shoes on the floor), see `calibrate()`.
-Test params: `?time=`, `?day=fri`, `?guest=hana`, `?mishap=cat|book|spill|chair`, `?wx=snow|rain|cloud|clear`, `?outfit=3`, `?screen=dash` (or `?screen=all` to cycle every screen activity), `?stand=1` (standing desks up), `?posture=feetUp`, `?act=luis.write`, `?fps=1`.
+Test params: `?time=`, `?day=fri`, `?guest=hana`, `?mishap=cat|book|spill|chair`, `?wx=snow|rain|cloud|clear`, `?outfit=3`, `?screen=dash` (or `?screen=all` to cycle every screen activity), `?stand=1` (standing desks up), `?posture=feetUp`, `?act=luis.write`, `?fps=1`, `?plytix=down` (Plytix outage in a few seconds), `?treats=1` (cookies now), `?box=1` (sample box arrives), `?cold=1` (cold morning), `?holiday=1` (office closed), `?wfh=off` (nobody works from home). In the console, `window.__life` holds the printers, treats and events.
