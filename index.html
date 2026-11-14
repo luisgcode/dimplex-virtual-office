@@ -559,8 +559,10 @@ function weatherTick(t){
   var kind = WX_FORCE || WX.kind;
   var day = WX.isDay !== null ? WX.isDay : (DAY.h >= 7 && DAY.h < 17);
   /* window colour: daylight tinted by the clouds, deep blue at night */
-  var tint = kind === "clear" ? 1 : kind === "cloud" ? 0.82 : 0.7;
-  var target = day ? new T.Color(tint, tint, tint * 1.02) : new T.Color(0.13, 0.16, 0.24);
+  /* (linear colour values: 0.5 already reads as a mid grey) */
+  var tint = kind === "clear" ? 1 : kind === "cloud" ? 0.6 : 0.42;
+  var target = WX.col || (WX.col = new T.Color());
+  if (day) target.setRGB(tint, tint, tint * 1.03); else target.setRGB(0.025, 0.035, 0.07);
   winMat.color.lerp(target, 0.03);
   WX.rain.forEach(function(r){ r.m.visible = kind === "rain"; if (r.m.visible) { r.tex.offset.y = (t * 0.9 + r.ph) % 1; r.tex.offset.x = (t * 0.05) % 1; } });
   seasonFx.snow.forEach(function(sn){ if (sn.m) sn.m.visible = kind === "snow"; });
