@@ -1991,7 +1991,6 @@ function updateMishaps(t, dt){
   updateSays(t);
   var m = MISHAP.cur;
   if (!m) {
-    if (reduceMotion) return;
     if (!MISHAP.next) MISHAP.next = t + rand(50, 100);
     /* ?mishap=cat (or book, spill, chair) makes it happen a few seconds after the page opens, to watch it on demand */
     var forced = /[?&]mishap=(cat|book|spill|chair)/.exec(location.search || "");
@@ -3554,7 +3553,7 @@ function updateAgent(p, t, dt){
     if (rem <= 0.04 && r.walkW < 0.25) {
       if (tr.back && p.guest) { p.trip = null; setState(p, "gone", t, 0); GUESTS.cur = null; GUESTS.next = t + rand(180, 420); }
       else if (tr.back) setState(p, "down", t, 0.6);
-      else if (tr.kind === "meeting") setState(p, "away", t, 1800);
+      else if (tr.kind === "meeting") { setState(p, "away", t, 1800); try { localStorage.setItem("vo.meet." + p.id, String(Date.now() + 1800000)); } catch (e) {} }
       else if (tr.kind === "lunch" || tr.kind === "home") setState(p, "away", t, 99999);
       else if (tr.kind === "coffee") { setState(p, "coffee", t, rand(5, 8)); startAct(p, "sip", t + 1.2, 3); }
       else {
@@ -3607,6 +3606,7 @@ function updateAgent(p, t, dt){
       p.lastEvent = { kind:"meeting", t:t };
       logEvent(longM ? "longmeeting" : "meeting", p, t);
       p.cal.next = t + rand(20, 60) * 60;
+      try { localStorage.removeItem("vo.meet." + p.id); } catch (e) {}
       startReturn(p, t);
     }
   }
@@ -4767,6 +4767,16 @@ PEOPLE.forEach(function(p){
   if (p.guest || !homeNow(p)) return;
   p.trip = { kind:"home", target:null, path:aislePath(p.seat, p.side, EXIT_SPOT, 0), d:0, back:false };
   p.state = "away"; p.t0 = 0; p.dur = 99999; p.root.visible = false; p.rig.sit = 0; p.rig.walkW = 1;
+});
+/* real time survives a reload: whoever is in a 30 minute meeting stays in it until it really ends, and whoever is
+   out for lunch is simply out (lunch follows the clock) */
+PEOPLE.forEach(function(p){
+  if (p.guest || p.state === "away") return;
+  var end = 0; try { end = +localStorage.getItem("vo.meet." + p.id) || 0; } catch (e) {}
+  var left = (end - Date.now()) / 1000, out = lunchNow(p) === "out";
+  if (!out && left < 20) { if (end) try { localStorage.removeItem("vo.meet." + p.id); } catch (e) {} return; }
+  p.trip = { kind:out ? "lunch" : "meeting", target:null, path:aislePath(p.seat, p.side, EXIT_SPOT, 0), d:0, back:false };
+  p.state = "away"; p.t0 = 0; p.dur = out ? 99999 : left; p.root.visible = false; p.rig.sit = 0; p.rig.walkW = 1;
 });
 PEOPLE.forEach(function(g){
   if (!g.guest) return;
