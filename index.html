@@ -2078,7 +2078,7 @@ var REAL_MODELS = {
   erica:{ footDrop:0.065, url:"models/erica.glb", height:1.66, tint:{ Suit:"#a3a8b0", Shirt:"#a8adb5", Pants:"#1d1f24", SwappedShoes:"#1a1b1e" }, hair:"#3a2418", highlight:"#8a6040", len:1.45, curl:1.6, locks:22, thick:1.1, shoesFrom:{ model:"stephanieb", mesh:"Sneakers", hide:["Heels"] }, ownHair:true, hairScale:[1.0, 0.88, 1.0], hairY:0.12, hairZ:-0.02 },
   allyson:{ url:"models/allyson.glb", height:1.66, tint:{ Shirt:"#7a4d9e", Pants:"#2c2a33", Shoes:"#5a2830" }, ownHair:true, hairScale:[1.0, 0.88, 1.0], hairY:0.12, hairZ:-0.02 },
   debbie:{ footDrop:0.065, url:"models/debbie.glb", height:1.63, tint:{ Suit:"#2a2b30", Shirt:"#3a3b40", Pants:"#17181b", SwappedShoes:"#141518" }, shoesFrom:{ model:"stephanieb", mesh:"Sneakers", hide:["Heels"] }, ownHair:true, hairScale:[1.0, 0.88, 1.0], hairY:0.12, hairZ:-0.02, earrings:"#d4af5a" },
-  olivia:{ url:"models/olivia.glb", height:1.66, tint:{ Shirt:"#c9ad84", Pants:"#4a4f58", Shoe:"#ecebe6" }, ownHair:true, hairScale:[1.0, 0.88, 1.0], hairY:0.12, hairZ:-0.02, glasses:true, sunglasses:true, earrings:"#d4af5a" },
+  olivia:{ footDrop:0.065, url:"models/olivia.glb", height:1.66, tint:{ Shirt:"#c9ad84", Pants:"#4a4f58", SwappedShoes:"#ecebe6" }, shoesFrom:{ model:"stephanieb", mesh:"Sneakers", hide:["Shoe"] }, ownHair:true, hairScale:[1.0, 0.88, 1.0], hairY:0.12, hairZ:-0.02, glasses:true, earrings:"#d4af5a" },
   marissa:{ url:"models/marissa.glb", height:1.65, tint:{ Shirt:"#4f7cc4", Shorts:"#2a2d35" }, ownHair:true, hairScale:[1.0, 0.88, 1.0], hairY:0.12, hairZ:-0.02, glasses:true },
   nolan:{ url:"models/nolan.glb", height:1.8, tint:{ Suit:"#2b3a52", Shirt:"#e9eef4", Tie:"#8a2432", Pants:"#2b2f36" } },
   elena:{ footDrop:0.065, url:"models/elena.glb", height:1.65, tint:{ Shirt:"#b0476b", Pants:"#262a31", SwappedShoes:"#1a1b1e" }, shoesFrom:{ model:"stephanieb", mesh:"Sneakers", hide:["Heels"] }, earrings:"#d4af5a" },
@@ -2129,6 +2129,24 @@ var SCR = [0, 0, 0];
 /* right hand on the mouse, to the right of the keyboard */
 var MOUSE_POSE = { RightArm:[-0.32, -0.62, 0.7], RightForeArm:[-0.22, 0.02, 1], RightHand:[-0.08, -0.2, 1] };
 function v3a(a, x, y, z){ a[0] = x; a[1] = y; a[2] = z; return a; }
+/* seated fit: bone lengths are measured once per person, heights are read live from the posed skeleton */
+var _fa = new V3(), _fb = new V3(), FIT = [0, 0, 0];
+var ANKLE_Y = 0.095, TOE_Y = 0.03, WRIST_Y = 0.805;
+function boneLen(p, n){
+  var L = p.boneLen || (p.boneLen = {});
+  if (!L[n]) { p.rig.b[n].getWorldPosition(_fa); p.rig.b[CHILD[n]].getWorldPosition(_fb); L[n] = _fa.distanceTo(_fb) || 0.3; }
+  return L[n];
+}
+function fitSeated(p, b, n, d){
+  var len = boneLen(p, n), dy;
+  b[n].getWorldPosition(_fa);
+  if (n === "LeftLeg" || n === "RightLeg") dy = clamp(ANKLE_Y - _fa.y, -len * 0.985, -len * 0.35);
+  else if (n === "LeftFoot" || n === "RightFoot") dy = clamp(TOE_Y - _fa.y, -len * 0.7, 0);
+  else dy = clamp(WRIST_Y - _fa.y, -len * 0.5, len * 0.6);
+  var hx = d[0], hz = d[2], hl = Math.sqrt(hx * hx + hz * hz) || 1, h = Math.sqrt(Math.max(len * len - dy * dy, 0.0001));
+  FIT[0] = hx / hl * h; FIT[1] = dy; FIT[2] = hz / hl * h;
+  return FIT;
+}
 function aim(bone, child, dir, w, rq){
   if (w <= 0.001 || !bone || !child) return;
   _a.setFromMatrixPosition(bone.matrixWorld); _b.setFromMatrixPosition(child.matrixWorld);
@@ -2731,6 +2749,8 @@ function updateRig(p, t, dt){
         var mp = MOUSE_POSE[n], mx = n === "RightForeArm" ? mDx : 0, my = n === "RightHand" ? -mClick : 0;
         d = v3a(SCR, lerp(d[0], mp[0] + mx, ma), lerp(d[1], mp[1] + my, ma), lerp(d[2], mp[2] + (n === "RightForeArm" ? mDz : 0), ma));
       }
+      /* fitted to each body: shins angle so the feet rest on the floor (not through it), forearms reach the desk top */
+      if (n === "LeftLeg" || n === "RightLeg" || n === "LeftFoot" || n === "RightFoot" || ((n === "LeftForeArm" || n === "RightForeArm") && !(p.act && ACTS[p.act.n] && ACTS[p.act.n][n]))) d = fitSeated(p, b, n, d);
       aim(b[n], b[CHILD[n]], d, n === "Head" ? sit * 0.6 : sit, _rq);
     }
   }
