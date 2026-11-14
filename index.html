@@ -1992,9 +1992,6 @@ function updateMishaps(t, dt){
   var m = MISHAP.cur;
   if (!m) {
     if (!MISHAP.next) MISHAP.next = t + rand(50, 100);
-    /* ?mishap=cat (or book, spill, chair) makes it happen a few seconds after the page opens, to watch it on demand */
-    var forced = /[?&]mishap=(cat|book|spill|chair)/.exec(location.search || "");
-    if (forced && !MISHAP.forcedDone && t > 6) { MISHAP.forcedDone = true; MISHAP.next = t + rand(80, 170); startMishap(forced[1], t); return; }
     if (t > MISHAP.next) {
       MISHAP.next = t + rand(80, 170);
       startMishap(choose(["cat", "cat", "book", "spill", "chair", "chair"]), t);
@@ -4923,6 +4920,11 @@ loadingEl.hidden = true;
 window.__voReady = true;
 window.__dbg = { renderer:renderer, scene:scene, sun:sun, T:T, seasonFx:seasonFx };
 window.__vo = { people:BY, focus:function(id){ focusOn(BY[id]); }, ask:function(id, q){ ask(BY[id], q); }, converse:function(id, q){ return converse(BY[id], q).text; }, goal:goal, view:view, season:function(){ seasonFx.next = 1; return SEASON; }, mishap:function(k){ MISHAP.cur = null; return startMishap(k, clock.elapsedTime); }, mishaps:MISHAP };
+/* ?mishap=cat (or book, spill, chair) makes it happen a few seconds after the page opens, to watch it on demand */
+(function(){
+  var f = /[?&]mishap=(cat|book|spill|chair)/.exec(location.search || "");
+  if (f) setTimeout(function(){ MISHAP.cur = null; startMishap(f[1], clock.elapsedTime); }, 7000);
+})();
 var snapCam = 0;
 /* a link like #p-luis opens that person's card on load */
 function focusFromHash(){ var m = /^#p-([a-z]+)$/.exec(location.hash || ""); if (m && BY[m[1]]) { focusOn(BY[m[1]]); snapCam = 3; } }
