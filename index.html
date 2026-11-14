@@ -4914,6 +4914,14 @@ var STATS = { calls:0, tris:0, ms:0, n:0, last:0, sec:{ agents:0, rigs:0, render
 function mark(name, t0){ STATS.sec[name] += performance.now() - t0; }
 window.__voStats = function(){ var n = Math.max(1, STATS.n), sec = {}; Object.keys(STATS.sec).forEach(function(k){ sec[k] = +(STATS.sec[k] / n).toFixed(2); }); return { drawCalls:STATS.calls, triangles:STATS.tris, frameMs:+(STATS.ms / n).toFixed(1), frames:STATS.n, msPerSection:sec, pixelRatio:renderer.getPixelRatio(), ao:!!composer, shadowMap:sun.shadow.mapSize.x, geometries:renderer.info.memory.geometries, textures:renderer.info.memory.textures }; };
 renderer.info.autoReset = false;
+/* ?fps=1 shows a small frames-per-second counter, to check smoothness on a real screen */
+var FPS_EL = null;
+if (/[?&]fps=1/.test(location.search || "")) {
+  FPS_EL = document.createElement("div");
+  FPS_EL.style.cssText = "position:fixed;right:12px;bottom:44px;z-index:99;background:rgba(0,0,0,.65);color:#fff;font:600 12px/1.4 monospace;padding:4px 8px;border-radius:6px;pointer-events:none";
+  document.body.appendChild(FPS_EL);
+  (function(){ var n0 = 0, t0 = performance.now(); setInterval(function(){ var t1 = performance.now(), n1 = STATS.n; FPS_EL.textContent = Math.round((n1 - n0) * 1000 / (t1 - t0)) + " fps · " + STATS.calls + " draws"; n0 = n1; t0 = t1; }, 1000); })();
+}
 function frame(){
   requestAnimationFrame(frame);
   if (document.hidden) return;
