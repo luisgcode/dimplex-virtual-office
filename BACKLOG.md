@@ -74,6 +74,17 @@ Approved ideas. Everything stays inside the office scene: no rooms or events out
 - Outfit compliments: a new look of the day gets noticed in conversation.
 - Snow piles up on the window sills and against the glass, more with each snowy day in a row; melts on a warm day.
 
+## Smarter people (15 Nov)
+- They mention to a colleague what the viewer asked them (quoted only for the suggested questions).
+- Ask the right person: stuck on a fireplace thing goes to Stephanie, web to Luis, heaters to Debbie, images to Olivia, events to Carla.
+- Frustration with a cause (a task that keeps breaking, a printer jam): less chatty, it comes up in talk, fades in about 20 min or when someone helps.
+- Reading the room: nobody walks up to someone frustrated or mid celebration; they wait and come over later.
+- Plans together: friends agree on a break at a set time and keep it.
+- Opinions: favourite fireplace, pineapple on pizza, winter or summer, cameras on in calls. Small disagreements that end fine.
+- The viewer is remembered: asking the same thing again gets "You asked me that earlier today!", across visits too.
+- Delegation: Erica and Allyson hand out up to 2 tasks a day each, the task goes into the person's day, and they report back when done.
+- Rumours: news grows a little with every retelling, and they say who told them.
+
 ## Not wanted
 - Robot vacuum or night cleaner.
 - Meetings in another room.

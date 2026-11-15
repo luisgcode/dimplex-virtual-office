@@ -3974,7 +3974,7 @@ function saidKey(k){
 }
 function chatter(a, b, t, casualOnly){
   var C = [];
-  function add(w, key, lines){ if (CHAT_RECENT.indexOf(key) < 0) C.push({ w:w, key:key, lines:lines }); }
+  function add(w, key, lines, vq){ if (CHAT_RECENT.indexOf(key) < 0) C.push({ w:w, key:key, lines:lines, vq:vq }); }
   var bd = drinkOf(b), ad = drinkOf(a);
   /* the outfit of the day gets noticed (not on the usual days) */
   if (!a.remote && !b.remote && !a.guest && !b.guest && REAL_MODELS[b.model] && REAL_MODELS[b.model].tint) {
@@ -4072,11 +4072,39 @@ function chatter(a, b, t, casualOnly){
     add(1.5, "x5", ["Ugly sweater day is coming up.", "I've been ready since July.", "Of course you have."]);
   }
   /* what is really happening outside right now */
-  /* news going round the office: whoever knows tells whoever doesn't yet */
+  /* news going round the office: whoever knows tells whoever doesn't yet. It grows a little with every retelling */
   NEWS.forEach(function(nw){
     if (Date.now() > nw.until || !knowsNews(a, nw.id) || knowsNews(b, nw.id) || a.guest || b.guest || a.remote) return;
-    var nk = "nw" + nw.id + b.id; if (CHAT_RECENT.indexOf(nk) < 0) C.push({ w:3, key:nk, lines:nw.lines, learn:[b, nw.id] });
+    var nk = "nw" + nw.id + b.id; if (CHAT_RECENT.indexOf(nk) < 0) {
+      var hop = (KNOW[nw.id] || []).indexOf(a.id), NL = nw.lines.slice(), src = KNOWFROM[nw.id] && BY[KNOWFROM[nw.id][a.id]];
+      if (nw.drift && hop > 0) NL[0] = nw.drift[Math.min(hop, nw.drift.length) - 1];
+      if (src && hop > 0) NL[2] = choose(["At least that's what " + src.name + " told me.", src.name + " said so, anyway lol", "Don't quote me. Ask " + src.name + "."]);
+      C.push({ w:3, key:nk, lines:NL, learn:[b, nw.id, a] });
+    }
   });
+  /* opinions: a small disagreement, then they make peace */
+  if (!a.remote && !b.remote && !a.guest && !b.guest) {
+    var OA = OPINIONS;
+    if (OA.fireplace[a.id] && OA.fireplace[b.id]) {
+      if (OA.fireplace[a.id] !== OA.fireplace[b.id]) add(1.1, "opf" + bondKey(a, b), ["Best fireplace we make? The " + OA.fireplace[a.id] + ", easy.", "No way. The " + OA.fireplace[b.id] + " wins.", choose(["Agree to disagree lol", "Okay, they're both great.", "We'll settle this at the next show."])]);
+      else add(0.5, "opf" + bondKey(a, b), ["The " + OA.fireplace[a.id] + " is still the best one we make.", "Finally, someone with taste.", "Ha!"]);
+    }
+    if (OA.pineapple[a.id] !== undefined && OA.pineapple[b.id] !== undefined && OA.pineapple[a.id] !== OA.pineapple[b.id])
+      add(1.2, "opp" + bondKey(a, b), OA.pineapple[a.id] ? ["Pineapple on the pizza on the 24th. Just saying.", "Absolutely not.", "One day you'll see lol"] : ["Please tell me nobody orders pineapple on the 24th.", "I'm ordering pineapple.", "Of course you are lol"]);
+    if (OA.season[a.id] && OA.season[b.id] && OA.season[a.id] !== OA.season[b.id])
+      add(0.9, "ops" + bondKey(a, b), OA.season[a.id] === "winter" ? ["Honestly I love this time of year. Snow, cozy, all of it.", "Summer forever. I'm already counting the days.", "We'll never agree on this lol"] : ["I miss summer so much.", "Not me. Winter is the best season.", "You work at a heating company, of course you'd say that lol"]);
+    if (OA.cameras[a.id] !== undefined && OA.cameras[b.id] !== undefined && OA.cameras[a.id] !== OA.cameras[b.id])
+      add(0.8, "opc" + bondKey(a, b), OA.cameras[a.id] ? ["Cameras on for Friday's call, right?", "Do we have to? lol", "Yes! It's nicer to see everyone."] : ["Can we keep cameras off on Friday?", "No! I like seeing everyone.", "Fine. Hair day it is lol"]);
+  }
+  /* what the visitor on the screen asked them */
+  if (a.viewerQs && !a.remote) {
+    var vq = a.viewerQs.filter(function(x){ return !x.told && t - x.t < 1800; })[0];
+    if (vq) add(3.2, "vq" + a.id + vq.t.toFixed(0), [vq.quote ? "Someone just asked me \"" + vq.quote + "\" lol" : "Someone was asking me questions earlier" + (vq.about ? ", about " + vq.about : "") + ".",
+      choose(["Ha, what did you say?", "They asked me stuff too!", "We're popular today.", "Who was it?"]), choose(["I gave them the short version.", "I hope I helped lol", "No idea, but they were nice."])], vq);
+  }
+  /* frustrated: it comes up */
+  if (a.frus > 0.5 && a.frusWhy) add(3, "fr" + a.id + (a.frusAt || 0).toFixed(0), ["Sorry if I'm grumpy. " + a.frusWhy.charAt(0).toUpperCase() + a.frusWhy.slice(1) + ".",
+    choose(["Oh no. Want me to take a look?", "Ugh, been there. Take a break?", "That's the worst. You've got this."]), choose(["Thanks. I needed that.", "Maybe after lunch lol", "Okay, deep breath."])]);
   /* what they were on yesterday */
   if (b.yday && !b.remote) add(1.2, "yd" + b.id + dayKey(), ["Did you finish " + lc(b.yday) + " yesterday?", choose(["Yes! Finally.", "Almost lol. Today for sure.", "Don't ask.", "Mostly. Small fixes left."])]);
   if (DAY.eom) add(1.4, "eom" + a.id, choose([["Month end. Send help.", "Reports due again?", "Every. Single. Month."], ["How's month end treating you?", "Ask me on Monday lol", "That bad, huh."]]));
@@ -4152,7 +4180,10 @@ function chatter(a, b, t, casualOnly){
   for (var i = 0; i < C.length; i++) { r -= C[i].w; if (r <= 0) { pick = C[i]; break; } }
   if (pick.ev) pick.ev.used++;
   saidKey(pick.key);
-  if (pick.learn) learnNews(pick.learn[0], pick.learn[1]);
+  if (pick.learn) { learnNews(pick.learn[0], pick.learn[1]); if (pick.learn[2]) { (KNOWFROM[pick.learn[1]] = KNOWFROM[pick.learn[1]] || {})[pick.learn[0].id] = pick.learn[2].id; } }
+  if (pick.vq) pick.vq.told = true;
+  /* talking it through takes the edge off */
+  if (/^fr/.test(pick.key)) a.frus = (a.frus || 0) * 0.5;
   var out = pick.lines.slice();
   if (out.length > 2 && Math.random() < 0.3) out.pop();
   out.casual = !/^(tm|wk)/.test(pick.key);
@@ -4275,6 +4306,44 @@ function available(q){ return q.state === "sit" && q.root.visible && !q.chatWith
 function neighbours(p){ return PEOPLE.filter(function(q){ return q !== p && Math.abs(q.z - p.z) < 2.0 && available(q); }); }
 function bossAway(p){ return PEOPLE.some(function(q){ return q !== p && q.trip && q.trip.kind === "meeting"; }); }
 function luisDeepWork(q){ return q.id === "luis" && q.typeOn && q.needs.focus > 0.5; }
+/* ---------- smarter people ----------
+   who knows what, frustration with a cause, reading the room, plans made together,
+   opinions, delegation from the managers, what the viewer asked, rumours that grow */
+var EXPERTS = [
+  { re:/fireplace|flame|Optimyst|Revillusion|Ignite|electric fire/i, id:"stephanie", topic:"fireplace" },
+  { re:/heat|baseboard|heater|wattage|convector|thermostat/i, id:"debbie", topic:"heater" },
+  { re:/page|site|web|menu|link|Convectair|Cadet|SEO|QR|download/i, id:"luis", topic:"website" },
+  { re:/image|photo|banner|design|picture|retouch/i, id:"olivia", topic:"image" },
+  { re:/booth|event|show|tradeshow|dealer visit/i, id:"carla", topic:"events" },
+  { re:/budget|report|plan|forecast|numbers|quarter/i, id:"erica", topic:"numbers" }
+];
+function expertFor(text, p){
+  for (var i = 0; i < EXPERTS.length; i++) { var e = EXPERTS[i]; if (e.re.test(text || "") && e.id !== p.id && BY[e.id]) return { q:BY[e.id], topic:e.topic }; }
+  return null;
+}
+/* frustration: something went wrong, it shows, and it fades or gets fixed */
+function frustrate(p, t, why, amt){
+  if (!p || p.remote || p.guest) return;
+  p.frus = Math.max(p.frus || 0, amt || 0.85); p.frusWhy = why; p.frusAt = t;
+  moodShift(p, -0.15, why);
+}
+/* reading the room: don't walk up to someone mid frustration or mid celebration */
+function moodyNow(q){ return (q.frus || 0) > 0.6 || !!(q.act && /^(facepalm|fist|rubeyes)$/.test(q.act.n)); }
+/* opinions they hold, and argue about a little */
+var OPINIONS = {
+  fireplace:{ stephanie:"Revillusion", olivia:"Revillusion", allyson:"Revillusion", carla:"Optimyst", debbie:"Optimyst", luis:"Ignite XL", erica:"Ignite XL" },
+  pineapple:{ carla:1, luis:1, debbie:1, stephanie:0, olivia:0, erica:0, allyson:0 },
+  season:{ stephanie:"winter", debbie:"winter", olivia:"winter", carla:"summer", luis:"summer", erica:"summer", allyson:"summer" },
+  cameras:{ erica:1, allyson:1, carla:1, stephanie:0, debbie:0, olivia:0, luis:0 }
+};
+/* the managers hand out work that fits each person */
+var DELEGATE = {
+  stephanie:["Update the flame specs sheet", "Check the Revillusion dealer questions", "Review the new fireplace photos"],
+  debbie:["Check the heater wattages", "Answer the baseboard dealer email", "Update the heater price list"],
+  olivia:["Resize the banner for the dealers", "Pick photos for the newsletter", "Retouch the new product shots"],
+  carla:["Send the booth list to the dealers", "Book the trailer for the next show", "Confirm the event dates"],
+  luis:["Fix a link on the Cadet page", "Add the new manual to the downloads page", "Update the homepage banner"]
+};
 function lc(s){ return s ? s.charAt(0).toLowerCase() + s.slice(1) : ""; }
 /* too busy to talk right now: a deadline close, or deep in it */
 function tooBusy(q){ if (q.remote || q.guest) return false; var g = goalNow(q); return !!g && (g.urg > 0.55 || (q.typeOn && q.needs.focus > 0.85 && g.urg > 0.3)); }
@@ -4286,7 +4355,7 @@ function decide(p, t){
   opts.push({ k:"work", s:0.85 * w.focus * (0.6 + n.energy * 0.6) + n.focus * 0.3 + urg * 0.6 + (DAY.eom ? 0.25 : 0) + (p.lateToday && DAY.h > 16.3 ? 0.5 : 0) + rand(0, 0.3) });
   var mv = p.mood.v, prof = PROFILE[p.id];
   /* quieter on Monday, chattier on Friday, heads down at month end */
-  var sociable = (1 + 0.5 * mv) * (1 - 0.55 * urg) * (DAY.fri && DAY.h > 14 ? 1.25 : 1) * (DAY.wd === 1 ? 0.75 : DAY.fri ? 1.12 : 1) * (DAY.eom ? 0.8 : 1);
+  var sociable = (1 - 0.6 * (p.frus || 0)) * (1 + 0.5 * mv) * (1 - 0.55 * urg) * (DAY.fri && DAY.h > 14 ? 1.25 : 1) * (DAY.wd === 1 ? 0.75 : DAY.fri ? 1.12 : 1) * (DAY.eom ? 0.8 : 1);
   var withdrawn = p.mood.kind === "stressed" && prof.traits.stressTol < 0.6;
   opts.push({ k:"micro", s:(1 - n.energy) * 0.9 * w.breaky + (mv < 0 ? 0.25 : 0) + (DAY.h > 14.4 && DAY.h < 15.6 ? 0.25 : 0) + rand(0, 0.6) });
   var coffeeN = PEOPLE.filter(function(q){ return q.trip && q.trip.kind === "coffee"; }).length;
@@ -4294,6 +4363,7 @@ function decide(p, t){
   var best = null, bs = -1;
   PEOPLE.forEach(function(q){
     if (q === p || !available(q)) return;
+    if (moodyNow(q) && !q.remote) { if (!p.waitFor && aff(p, q) >= 1.2 && Math.random() < 0.3) p.waitFor = { q:q, at:t + rand(150, 360) }; return; }
     var sc = n.social * w.social * 1.35 * sociable + rand(0, 0.3);
     if (luisDeepWork(q)) sc *= 0.2;
     if (Math.abs(q.z - p.z) < 2.2) sc *= 1.1;
@@ -4303,7 +4373,7 @@ function decide(p, t){
     if (sc > bs) { bs = sc; best = q; }
   });
   if (best && !withdrawn) opts.push({ k:"visit", s:bs * 0.45, q:best });
-  var nbs = neighbours(p).filter(function(q){ return !luisDeepWork(q); });
+  var nbs = neighbours(p).filter(function(q){ return !luisDeepWork(q) && !moodyNow(q); });
   if (nbs.length && !withdrawn) { var tq = pickByAff(p, nbs); opts.push({ k:"talk", s:n.social * w.shop * 1.1 * sociable * (0.7 + 0.3 * aff(p, tq)) + rand(0, 0.3), q:tq }); }
   /* Carla checks on anyone who seems down */
   /* Carla checks on someone who seems down, but rarely and never the same person twice within the hour */
@@ -4317,10 +4387,11 @@ function decide(p, t){
   });
   /* stuck on something with a deadline: ask the person they trust most */
   if (gl && gl.urg > 0.45 && !(p.askedAt && t - p.askedAt < 1500) && !p.walker) {
-    var helpers = PEOPLE.filter(function(q){ return q !== p && !q.guest && !q.remote && available(q) && !luisDeepWork(q) && !lunchNow(q); });
+    var helpers = PEOPLE.filter(function(q){ return q !== p && !q.guest && !q.remote && available(q) && !luisDeepWork(q) && !lunchNow(q) && !moodyNow(q); });
     if (helpers.length) {
-      var hq = helpers.sort(function(a, b){ return aff(p, b) - aff(p, a); })[0];
-      opts.push({ k:"askhelp", s:(gl.urg - 0.35) * 1.6 * (p.mood.kind === "stressed" ? 1.4 : 1) + rand(0, 0.3), q:hq, g:gl.g });
+      /* whoever knows the subject best; if they are not around, the colleague they trust most */
+      var ex = expertFor(gl.g.label, p), hq = ex && helpers.indexOf(ex.q) >= 0 ? ex.q : helpers.sort(function(a, b){ return aff(p, b) - aff(p, a); })[0];
+      opts.push({ k:"askhelp", s:(gl.urg - 0.35) * 1.6 * (p.mood.kind === "stressed" ? 1.4 : 1) + (p.frus || 0) * 0.8 + rand(0, 0.3), q:hq, g:gl.g, topic:ex && ex.q === hq ? ex.topic : null });
     }
   }
   /* a promise from earlier: "I'll come find you". Kept once the deadline is off their back */
@@ -4328,6 +4399,33 @@ function decide(p, t){
     var oq = p.owe.to;
     if (homeNow(oq) || oq.state === "away" || t - p.owe.at > 2400) p.owe = null;
     else if (available(oq)) opts.push({ k:"visit", s:2.5, q:oq, owe:true });
+  }
+  /* waited for someone to calm down: now go over */
+  if (p.waitFor && t > p.waitFor.at) {
+    var wq = p.waitFor.q;
+    if (homeNow(wq) || t - p.waitFor.at > 1800) p.waitFor = null;
+    else if (available(wq) && !moodyNow(wq)) opts.push({ k:"visit", s:1.6 + rand(0, 0.3), q:wq, waited:true });
+  }
+  /* a break they agreed on earlier: time to go */
+  if (p.appt && p.appt.lead && DAY.h >= p.appt.h) {
+    var aq = p.appt.with;
+    if (homeNow(aq) || aq.state === "away" || DAY.h > p.appt.h + 0.4) {
+      sayLater(p, choose(["Guess our " + fmtH(p.appt.h) + " break isn't happening lol", "Missed our break. Tomorrow!"]), t, 2.6);
+      aq.appt = null; p.appt = null;
+    } else if (available(aq)) opts.push({ k:"visit", s:3, q:aq, appt:true });
+  }
+  /* a task done for a manager: report back */
+  if (p.report && t > p.report.at) {
+    var mq = p.report.to;
+    if (available(mq) && !moodyNow(mq)) opts.push({ k:"visit", s:2.2, q:mq, report:true });
+    else if (homeNow(mq) || mq.state === "away" || t - p.report.at > 900) {
+      sayLater(p, "Sent " + lc(p.report.label) + " to " + mq.name + " on Teams.", t, 3); p.report = null;
+    }
+  }
+  /* the managers hand out a task or two a day, to whoever it fits and has room */
+  if (p.walker && DAY.h > 9.3 && DAY.h < 15.5 && (p.delegated || 0) < 2 && !(p.delegatedAt && t - p.delegatedAt < 1500)) {
+    var team = PEOPLE.filter(function(q){ return DELEGATE[q.id] && available(q) && !tooBusy(q) && !moodyNow(q) && !lunchNow(q) && !homeNow(q); });
+    if (team.length) opts.push({ k:"visit", s:0.9 + rand(0, 0.5), q:choose(team), delegate:true });
   }
   /* printing something: a couple of times a day */
   p.printNeed = (p.printNeed === undefined ? rand(0, 0.5) : p.printNeed);
@@ -4348,6 +4446,13 @@ function decide(p, t){
   var o = opts[0];
   if (o.k === "work") {
     p.typeOn = true; p.typeNext = t + rand(3, 8); n.focus = Math.min(1, n.focus + 0.15);
+    /* under pressure things break now and then: frustration, with a reason */
+    if (gl && gl.urg > 0.45 && !(p.frus > 0.3) && Math.random() < 0.06) {
+      frustrate(p, t, lc(gl.g.label) + " keeps breaking");
+      p.typeOn = false; startAct(p, "facepalm", t + 0.3, 2.6);
+      sayLater(p, choose(["Ugh. Not again.", "Why won't this work??", "Seriously?!", "It was working five minutes ago..."]), t + 0.6, 2.6);
+      return;
+    }
     /* a typo, a glance at the keys */
     if (Math.random() < 0.14) startAct(p, "lookdown", t + rand(1, 4), rand(1.2, 2.2));
   }
@@ -4388,14 +4493,16 @@ function decide(p, t){
     var hq2 = o.q; p.askedAt = t;
     hq2.visitor = p;
     goTrip(p, t, "visit", hq2, aislePath(p.seat, p.side, new V3(hq2.side * 0.95, 0, hq2.seat.z + rand(-0.12, 0.12)), 0));
-    p.trip.askHelp = o.g;
+    p.trip.askHelp = o.g; p.trip.topic = o.topic;
   }
   else if (o.k === "visit") {
     var q = o.q, spot = q.remote ? q.spot.clone() : new V3(q.side * 0.95, 0, q.seat.z + rand(-0.12, 0.12));
     q.visitor = p;
     goTrip(p, t, "visit", q, aislePath(p.seat, p.side, spot, 0));
-    p.trip.care = !!o.care; p.trip.owe = !!o.owe;
+    p.trip.care = !!o.care; p.trip.owe = !!o.owe; p.trip.waited = !!o.waited; p.trip.appt = !!o.appt; p.trip.report = !!o.report; p.trip.delegate = !!o.delegate;
     if (o.owe) p.owe = null;
+    if (o.waited) p.waitFor = null;
+    if (o.delegate) { p.delegated = (p.delegated || 0) + 1; p.delegatedAt = t; }
   } else if (o.k === "request") {
     var L = BY.luis;
     if (Math.abs(L.z - p.z) < 2.2 || Math.random() < 0.3) {
@@ -4411,6 +4518,15 @@ function decide(p, t){
     /* close friends drift into casual talk and turn their chairs round */
     var cas = aff(p, o.q) >= 2 && Math.random() < 0.65;
     var lines = chatter(p, o.q, t, cas);
+    /* friends sometimes agree on a break later, and keep it */
+    if (cas && !p.appt && !o.q.appt && !p.remote && !o.q.remote && DAY.h > 9 && DAY.h < 15 && !lunchNow(p) && Math.random() < 0.18) {
+      var ah = Math.ceil((DAY.h + rand(0.6, 1.4)) * 4) / 4;
+      if (ah > 11.75 && ah < 13.6) ah = 13.75;
+      lines = [choose(["Break together at " + fmtH(ah) + "? I'm going to need it.", "Coffee at " + fmtH(ah) + "? My treat.", "Walk to the kitchen at " + fmtH(ah) + "?"]),
+        choose(["Deal. " + fmtH(ah) + " it is.", "Yes! Come get me.", "It's a date lol"]), choose(["Don't let me forget!", "Perfect."])];
+      lines.casual = true;
+      p.appt = { with:o.q, h:ah, lead:true }; o.q.appt = { with:p, h:ah, lead:false };
+    }
     var roll = !p.walker && !o.q.walker && Math.random() < 0.5 && !p.roll;
     var dur = Math.max(10, 0.9 + lines.length * LINE_GAP) + (roll ? 3 : 0);
     if (roll) { rollOver(p, o.q); p.rollEnd = t + dur - 1.5; }
@@ -4562,6 +4678,7 @@ function goalNow(p){
         moodShift(p, 0.18, "I finally wrapped up " + g.label.charAt(0).toLowerCase() + g.label.slice(1));
         if (!p.act && !p.chatWith) { startAct(p, "fist", clock.elapsedTime, 2.2); if (Math.random() < 0.5) sayLater(p, choose(["Done!!", "Finally!", "And... done.", "Yes! Off my list."]), clock.elapsedTime + 0.3, 2.4); }
         (p.memo = p.memo || []).push({ t:clock.elapsedTime, text:"I just wrapped up " + g.label.charAt(0).toLowerCase() + g.label.slice(1) + ". One less thing." });
+        if (g.from && !p.report) p.report = { to:g.from, label:g.label, at:clock.elapsedTime + rand(20, 90) };
         p.workNow = null;
       }
       continue;
@@ -4668,7 +4785,7 @@ function lifePrint(p, t){
   var jam = Math.random() < 0.13;
   pr.job = { p:p, t0:t, jam:jam };
   var tr = goSpot(p, t, pr.spot.clone(), pr.g.position, jam ? 16 : 4.5, jam ? "Fighting with the printer" : "Grabbing a printout", null, function(q, t2){
-    if (jam) { sayLater(q, choose(["Of course it jammed.", "Paper jam. Again.", "Why. Every time.", "Okay printer, we can do this the easy way..."]), t2 + 0.5, 2.8); sayLater(q, choose(["Got it!", "Fixed. I'm basically IT now lol", "There we go."]), t2 + 13, 2.4); }
+    if (jam) { frustrate(q, t2, "the printer jammed on me", 0.65); sayLater(q, choose(["Of course it jammed.", "Paper jam. Again.", "Why. Every time.", "Okay printer, we can do this the easy way..."]), t2 + 0.5, 2.8); sayLater(q, choose(["Got it!", "Fixed. I'm basically IT now lol", "There we go."]), t2 + 13, 2.4); }
   }, function(q){ pr.job = null; pr.sheet.visible = false; q.carryPaper = true; });
   if (jam) tr.seq = [[0.3, "facepalm", 2.6], [3.2, "fixprinter", 9], [12.6, "fist", 2]];
 }
@@ -4682,9 +4799,12 @@ var TREATS = { on:false, day:0, until:0 };
 var PLYTIX = { on:false, next:0, until:0, lastAt:0 };
 var BOXEV = { day:0, next:0, on:false };
 var NEWS = [
-  { id:"pizza", until:new Date(2026, 10, 24, 18).getTime(), lines:["Did you hear? Pizza on the 24th, from the Halloween win!", "Wait really?? Yay!", "Same week as the Christmas lunch too."] },
-  { id:"votes", until:new Date(2026, 10, 30, 18).getTime(), lines:["Did you see the final votes? The pumpkin won by a landslide.", "And the costume missed a tie by ONE vote.", "Robbed lol"] }
+  { id:"pizza", until:new Date(2026, 10, 24, 18).getTime(),
+    drift:["I heard it's pizza AND wings on the 24th!", "Apparently it's pizza, wings and dessert on the 24th.", "Someone said it's a full party on the 24th, pizza, wings, dessert, everything!"], lines:["Did you hear? Pizza on the 24th, from the Halloween win!", "Wait really?? Yay!", "Same week as the Christmas lunch too."] },
+  { id:"votes", until:new Date(2026, 10, 30, 18).getTime(),
+    drift:["Did you hear the pumpkin won by like twenty votes?", "Apparently the pumpkin won by a crazy amount.", "I heard the pumpkin got almost every single vote lol"], lines:["Did you see the final votes? The pumpkin won by a landslide.", "And the costume missed a tie by ONE vote.", "Robbed lol"] }
 ];
+var KNOWFROM = {};
 var KNOW = (function(){ try { return JSON.parse(localStorage.getItem("vo.news") || "{}"); } catch (e) { return {}; } })();
 function knowsNews(p, id){ return (KNOW[id] || []).indexOf(p.id) >= 0; }
 function learnNews(p, id){ (KNOW[id] = KNOW[id] || []); if (KNOW[id].indexOf(p.id) < 0) KNOW[id].push(p.id); try { localStorage.setItem("vo.news", JSON.stringify(KNOW)); } catch (e) {} }
@@ -4724,6 +4844,8 @@ function lifeTick(t, dt){
     if (p.guest || p.remote) return;
     var here = !(p.state === "away" && p.trip && p.trip.kind === "home"), carrying = p.trip && p.trip.kind === "home" && p.state !== "away";
     if (p.lateToday === undefined) p.lateToday = lateToday(p);
+    /* frustration fades on its own in about twenty minutes */
+    if (p.frus > 0) p.frus = Math.max(0, p.frus - dt * 0.0007);
     if (p.lamp) {
       var want = here && p.state === "sit" && (DAY.h > dusk || OFFICE_DARK > 0.3 || (wxDark && DAY.h > dusk - 1.5)) && p.idx % 2 === 0;
       if (want !== p.lamp.on) { p.lamp.on = want; p.lamp.shade.material = want ? p.lamp.mOn : p.lamp.mOff; }
@@ -5102,7 +5224,7 @@ function updateAgent(p, t, dt){
           startAct(q, q.remote ? "answer" : "turn", t, cd - 0.3, p);
           startAct(p, p.id === "olivia" && !q.remote ? "swatch" : "talk", t + 0.5, cd - 1.2);
           var busyG = goalNow(q);
-          if (!tr.request && !tr.care && !tr.help && !tr.askHelp && !q.remote && tooBusy(q) && busyG) {
+          if (!tr.request && !tr.care && !tr.help && !tr.askHelp && !tr.appt && !tr.report && !tr.delegate && !q.remote && tooBusy(q) && busyG) {
             /* not now: a short answer, and a promise to come back once it is done */
             cd = 7; p.dur = cd;
             q.act.dur = cd - 0.3; p.act.dur = cd - 1.2;
@@ -5115,15 +5237,45 @@ function updateAgent(p, t, dt){
           }
           else if (tr.askHelp) {
             var gl2 = tr.askHelp;
-            startChat(p, q, t, cd, [choose(["Got five minutes? I'm stuck " + lc(gl2.label) + ".", "Can I steal you for a sec? I'm stuck " + lc(gl2.label) + ".", "Help? I'm stuck " + lc(gl2.label) + " and it's due at " + fmtH(gl2.due) + "."]),
+            var opener = tr.topic ? choose(["You're the " + tr.topic + " person. ", "You know " + tr.topic + " stuff better than anyone. ", "Only you can save me here. "]) : "";
+            startChat(p, q, t, cd, [opener + choose(["Got five minutes? I'm stuck " + lc(gl2.label) + ".", "Can I steal you for a sec? I'm stuck " + lc(gl2.label) + ".", "Help? I'm stuck " + lc(gl2.label) + " and it's due at " + fmtH(gl2.due) + "."]),
               choose(["Sure, show me.", "Of course. What's going on?", "Yes, pull it up.", "Happy to. Where are you stuck?"]),
               choose(["This part here, it won't behave.", "I tried twice and it still looks wrong lol", "It's this one step that keeps failing."]),
               choose(["Ah, try it the other way round.", "Oh I've seen this. Check the settings first.", "Easy fix, I'll show you.", "That one got me last week too."]),
               choose(["That's it!! Thank you!", "You just saved my afternoon.", "Okay that makes sense. Thanks!"])]);
             startAct(q, "screen", t + 3, cd - 3.5, null); q.act.pt = q.deskGroup.localToWorld(new V3(0, 1.0, -1.0));
-            moodShift(p, 0.22, q.name + " helped me get unstuck");
+            moodShift(p, 0.22, q.name + " helped me get unstuck"); p.frus = 0;
             bond(p, q, 0.3, q.name + " helped me get unstuck on " + lc(gl2.label) + ".", "I helped " + p.name + " get unstuck earlier.");
             moodShift(q, 0.08, "I helped " + p.name);
+          }
+          else if (tr.waited) {
+            startChat(p, q, t, cd, [choose(["I saw you were fighting with something earlier, didn't want to bother you. Got a sec now?", "You looked busy before, so I waited. All good now?", "Didn't want to interrupt earlier. Better now?"]),
+              choose(["Ha, yes. Crisis over. What's up?", "Thanks for waiting, that was not a good moment lol", "All good now. Go ahead!"])]);
+            bond(p, q, 0.08, "", p.name + " waited until I calmed down to come over. Nice of them.");
+          }
+          else if (tr.appt) {
+            startChat(p, q, t, cd, [choose(["It's " + fmtH(DAY.h) + "! Break time, like we said.", "Ready? Our break, remember?", "Okay, " + fmtH(DAY.h) + ". Let's go!"]),
+              choose(["Yes! I was waiting for this.", "You remembered! Let's go.", "Perfect timing. I need it."])]);
+            p.appt = null; q.appt = null;
+            p.pendingCoffee = t + cd + 0.5; p.coffeeWith = q; q.pendingCoffee = t + cd + 2; q.coffeeWith = p;
+            bond(p, q, 0.08);
+          }
+          else if (tr.report && p.report) {
+            var rl = p.report.label; p.report = null;
+            startChat(p, q, t, cd, [choose(["Done! " + rl + ", sent it over.", "That thing you asked me for, " + lc(rl) + "? Done.", "All set with " + lc(rl) + "."]),
+              choose(["That was fast. Thank you!", "Amazing, thanks " + p.name + "!", "Perfect. You're a star."])]);
+            bond(p, q, 0.12, q.name + " was happy I got " + lc(rl) + " done so fast.", p.name + " got " + lc(rl) + " done for me today.");
+            moodShift(p, 0.1, q.name + " thanked me");
+          }
+          else if (tr.delegate) {
+            var tasks = DELEGATE[q.id] || ["Take a look at something for me"], task = choose(tasks), pl2 = planOf(q);
+            if (pl2.goals.some(function(g){ return g.label === task; })) task = tasks[(tasks.indexOf(task) + 1) % tasks.length];
+            var due = Math.min(16.6, DAY.h + rand(1, 2.4));
+            startChat(p, q, t, cd, [choose(["Could you take " + lc(task) + "? Today if possible.", "Quick favour: " + lc(task) + ", by " + fmtH(due) + "?", "Can I give you one more? " + task + "."]),
+              choose(["Sure, I'll add it to my list.", "On it. By " + fmtH(due) + ".", "Yep, leave it with me."]),
+              choose(["Thank you!", "You're the best.", "Appreciate it!"])]);
+            pl2.goals.push({ label:task, due:due, done:false, from:p });
+            pl2.goals.sort(function(a, b){ return (a.done ? 99 : a.due) - (b.done ? 99 : b.due); });
           }
           else if (tr.owe) {
             startChat(p, q, t, cd, [choose(["Okay, I'm free now. Sorry about earlier! What did you need?", "Done with my deadline! What was it you wanted?", "Sorry for brushing you off. I'm all yours now."]),
@@ -5559,6 +5711,7 @@ function doingNow(p){
   if (p.chatWith) return "Chatting with " + p.chatWith.name;
   if (p.act && p.act.n === "sip") return "Having a sip of " + drinkOf(p);
   if (p.act && p.act.n === "vcall") return "In the Friday team call";
+  if (p.frus > 0.5 && p.frusWhy) return "A bit frustrated, " + p.frusWhy;
   if (p.act && p.act.plan) return "On a call, back in a few minutes";
   if (p.dnd > t) return "Headphones on, trying to focus";
   if (p.act && ACT_TEXT[p.act.n]) return ACT_TEXT[p.act.n];
@@ -5925,6 +6078,7 @@ function renderSugg(p){
     suggEl.appendChild(b);
   });
 }
+var SESSION_ID = Math.random().toString(36).slice(2, 8);
 function ask(p, text){
   text = text.trim();
   if (!text) return;
@@ -5933,6 +6087,25 @@ function ask(p, text){
   p.log.push(typing);
   if (focus === p) renderLog(p);
   var res = converse(p, text), reply = res.text;
+  /* asked before? they notice. Remembered across visits, per person */
+  var norm = text.toLowerCase().replace(/[^a-z0-9 ]/g, "").replace(/\s+/g, " ").trim(), today = dayKey(), past = [];
+  try { past = JSON.parse(localStorage.getItem("vo.asked." + p.id) || "[]"); } catch (e) {}
+  var seen = past.filter(function(x){ return x.q === norm; })[0];
+  if (seen && !res.system && norm.length > 3) {
+    var ago = seen.d === today ? (seen.s === SESSION_ID && clock.elapsedTime - (seen.t || 0) < 600 ? "a minute ago" : "earlier today") : "the other day";
+    reply = choose(["You asked me that " + ago + "! ", "Déjà vu! You asked me that " + ago + ". ", "Ha, you asked me that " + ago + ". "]) + reply;
+  }
+  past = past.filter(function(x){ return x.q !== norm; }); past.push({ q:norm, d:today, t:clock.elapsedTime, s:SESSION_ID }); past = past.slice(-40);
+  try { localStorage.setItem("vo.asked." + p.id, JSON.stringify(past)); } catch (e) {}
+  /* and they may mention it to a colleague later: quoted only when it is one of the suggested questions */
+  if (!res.system && !p.remote) {
+    var sugg = ["How are you?", "What are you doing?", "Want a coffee?"].concat((KB[p.id] ? KB[p.id].qa : []).map(function(e){ return e.q; }));
+    var quoted = sugg.filter(function(sq){ return sq.toLowerCase() === text.toLowerCase(); })[0];
+    var ABOUT = { coffee:"coffee", work:"what I'm working on", mood:"how I'm doing", week:"the week", weather:"the weather", lunch:"lunch", xmas:"Christmas", weekend:"the weekend" };
+    if (!(p.viewerQs || []).some(function(x){ return !x.told && x.quote === (quoted || null) && x.about === (ABOUT[res.intent] || null); }))
+    (p.viewerQs = p.viewerQs || []).push({ t:clock.elapsedTime, quote:quoted || null, about:ABOUT[res.intent] || null, told:false });
+    if (p.viewerQs.length > 5) p.viewerQs.shift();
+  }
   p.mem.push({ q:text, intent:res.intent, reason:res.reason }); if (p.mem.length > 3) p.mem.shift();
   var delay = 650 + Math.random() * 650 + Math.min(900, reply.length * 6);
   var now = clock.elapsedTime;
