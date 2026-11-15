@@ -70,6 +70,10 @@ Approved ideas. Everything stays inside the office scene: no rooms or events out
 - More outfits: each person gets a matching look for the day (neutral, earthy, cool, bold, soft, smart, all black, denim, plus 4 winter looks); usual clothes about 1 day in 8.
 - Stephanie, Debbie and Olivia eat at the desk for the whole 12:00 to 12:30 lunch, Stephanie a sandwich, Olivia a wrap, Debbie a salad with a fork; the food gets smaller with each bite.
 
+- Background office murmur (recorded), low, louder with more people in, silent when empty. Starts with the first click; Sound button mutes.
+- Outfit compliments: a new look of the day gets noticed in conversation.
+- Snow piles up on the window sills and against the glass, more with each snowy day in a row; melts on a warm day.
+
 ## Not wanted
 - Robot vacuum or night cleaner.
 - Meetings in another room.

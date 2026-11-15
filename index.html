@@ -234,7 +234,7 @@ body > header{display:none !important}
   <div id="labels"></div>
   <div class="clockhud" id="clockHud" aria-live="off"><b id="clkTime">--:--</b><span id="clkDay"></span></div>
   <div class="ctrl">
-    <button class="btn" id="sound" type="button" aria-pressed="false" aria-label="Office sound">
+    <button class="btn" id="sound" type="button" aria-pressed="true" aria-label="Office sound">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></svg>
       <span>Sound</span>
     </button>
@@ -561,7 +561,50 @@ wxFetch(); setInterval(wxFetch, 15 * 60 * 1000);
     WX.rain.push({ m:m, tex:tex, ph:k * 0.41 });
   });
 })();
+/* snow piles up on the window sills and against the glass, more with every snowy day in a row; ?snowdays=3 previews it */
+var SNOWPILE = { days:0, at:-99, sills:[] };
+(function(){
+  var drift = canvasTex(256, 64, function(g, w, h){
+    var gr = g.createLinearGradient(0, h, 0, 0); gr.addColorStop(0, "rgba(255,255,255,0.95)"); gr.addColorStop(0.55, "rgba(245,248,255,0.8)"); gr.addColorStop(1, "rgba(245,248,255,0)");
+    g.fillStyle = gr; g.beginPath(); g.moveTo(0, h);
+    for (var x = 0; x <= w; x += 8) g.lineTo(x, h * (0.25 + 0.3 * Math.sin(x * 0.045) * Math.sin(x * 0.013 + 1) + 0.25 * (Math.abs(x - w / 2) / (w / 2))));
+    g.lineTo(w, h); g.closePath(); g.fill();
+  });
+  [[4.5, 1.5], [-1.05, 1.5]].forEach(function(q){
+    var sill = add(G.box, M("#ffffff", { roughness:0.9 }), 0.07, 1, q[1], -2.76, 0, q[0], scene, false);
+    var gl = new T.Mesh(G.plane, new T.MeshBasicMaterial({ map:drift, transparent:true, depthWrite:false, toneMapped:false }));
+    gl.position.set(-2.786, 0, q[0]); gl.rotation.y = Math.PI / 2; gl.renderOrder = 3;
+    sill.userData.dyn = gl.userData.dyn = true; sill.visible = gl.visible = false; scene.add(gl);
+    SNOWPILE.sills.push({ sill:sill, glass:gl, w:q[1] });
+  });
+})();
+function snowDaysNow(){
+  var q = /[?&]snowdays=(\d+)/.exec(location.search || ""); if (q) return +q[1];
+  var kind = WX_FORCE || WX.kind, today = dayKey(), log = [];
+  try { log = JSON.parse(localStorage.getItem("vo.snow") || "[]"); } catch (e) {}
+  if (kind === "snow" && log.indexOf(today) < 0) { log.push(today); log = log.slice(-20); try { localStorage.setItem("vo.snow", JSON.stringify(log)); } catch (e) {} }
+  /* count back from today: days in a row it snowed; a warm day melts it */
+  var n = 0, d = new Date(DAY.d || new Date());
+  for (var i = 0; i < 14; i++) {
+    var k = d.getFullYear() * 1000 + d.getMonth() * 40 + d.getDate();
+    if (log.indexOf(k) >= 0) n++; else if (i > 0) break;
+    d.setDate(d.getDate() - 1);
+  }
+  if (WX.temp !== null && WX.temp > 4 && kind !== "snow") n = 0;
+  return n;
+}
+function snowPileTick(t){
+  if (t - SNOWPILE.at > 60 || SNOWPILE.at < 0) { SNOWPILE.at = t; SNOWPILE.days = snowDaysNow(); }
+  var n = SNOWPILE.days, hS = n ? [0, 0.015, 0.03, 0.045][Math.min(3, n)] + 0.004 * Math.max(0, n - 3) : 0, hG = n ? [0, 0.06, 0.13, 0.22][Math.min(3, n)] + 0.02 * Math.max(0, n - 3) : 0;
+  SNOWPILE.sills.forEach(function(s){
+    s.sill.visible = s.glass.visible = n > 0;
+    if (!n) return;
+    s.sill.scale.y = hS; s.sill.position.y = 2.15 - 0.5 - 0.045 + hS / 2;
+    s.glass.scale.set(s.w, Math.min(0.4, hG), 1); s.glass.position.y = 2.15 - 0.5 + Math.min(0.4, hG) / 2;
+  });
+}
 function weatherTick(t){
+  snowPileTick(t);
   var kind = WX_FORCE || WX.kind;
   var day = WX.isDay !== null ? WX.isDay : (DAY.h >= 7 && DAY.h < 17);
   /* window colour: daylight tinted by the clouds, deep blue at night */
@@ -2110,8 +2153,6 @@ function buildSeason(){
       var sm = new T.Mesh(G.plane, new T.MeshBasicMaterial({ map:tex, transparent:true, depthWrite:false, toneMapped:false }));
       sm.scale.set(q[1], 1.0, 1); sm.position.set(-2.785, 2.15, q[0]); sm.rotation.y = Math.PI / 2; sm.renderOrder = 2; sm.userData.dyn = true; scene.add(sm);
       seasonFx.snow.push({ tex:tex, ph:k * 0.37, m:sm });
-      /* a little snow piled on the sill */
-      add(G.box, M("#ffffff", { roughness:0.9 }), 0.07, 0.025, q[1], -2.76, 2.15 - 0.5 - 0.035, q[0], scene, false);
     });
     /* wreaths either side of the logo, with a ring of warm lights */
     var wreathBulb = null;
@@ -2790,7 +2831,8 @@ function dayOutfitSeed(p, salt){
 function dayLook(p){
   var r = dayOutfitSeed(p, "#look"), mo = new Date().getMonth(), winter = mo >= 10 || mo <= 2;
   var usual = r() < 0.12, pool = winter && r() < 0.6 ? WINTER_LOOKS : DAY_LOOKS, names = Object.keys(pool);
-  return { usual:usual, look:pool[names[Math.floor(r() * names.length)]] };
+  var nm = names[Math.floor(r() * names.length)];
+  return { usual:usual, name:nm, look:pool[nm] };
 }
 function dayTint(p, key, base){
   var kind = /Pants|Shorts/.test(key) ? "pants" : /Suit|Coat/.test(key) ? "jacket" : /Shirt|Cloth|Top/.test(key) ? "top" : /Shoe|Sneaker/.test(key) ? "shoe" : null;
@@ -3934,6 +3976,16 @@ function chatter(a, b, t, casualOnly){
   var C = [];
   function add(w, key, lines){ if (CHAT_RECENT.indexOf(key) < 0) C.push({ w:w, key:key, lines:lines }); }
   var bd = drinkOf(b), ad = drinkOf(a);
+  /* the outfit of the day gets noticed (not on the usual days) */
+  if (!a.remote && !b.remote && !a.guest && !b.guest && REAL_MODELS[b.model] && REAL_MODELS[b.model].tint) {
+    var lk = dayLook(b);
+    if (!lk.usual) {
+      var FIT_LINE = { neutral:"Love the outfit today!", earthy:"That color looks great on you.", cool:"Nice shirt! Is it new?", bold:"Ooh, bold color today!", soft:"That color is so nice on you.",
+        smart:"Look at you, all dressed up! Big meeting?", black:"All black today. Very chic.", denim:"Nice jeans! Casual day?", knit:"Love that sweater!", forest:"That green looks great on you.", navy:"Cozy sweater! Where's it from?", plum:"Love that color on you." };
+      var FIT_BACK = lk.name === "smart" ? ["Ha, no meeting. Just felt like it.", "Thank you! Dressing for the job I want lol"] : ["Thank you!! It's new.", "Aw thanks! Found it on sale.", "Thanks! I almost didn't wear it.", "Haha thanks, it's my favorite."];
+      add(1.3, "fit" + b.id + dayKey(), [FIT_LINE[lk.name] || "Love the outfit today!", choose(FIT_BACK), choose(["It really suits you.", "Totally works.", "I need one."])]);
+    }
+  }
 
   /* 0. a visitor always comes with a reason */
   var GV = {
@@ -4813,7 +4865,22 @@ function lifeTick(t, dt){
 /* handles for the QA probe */
 window.__life = { LIFE:LIFE, TREATS:TREATS, PLYTIX:PLYTIX, BOXEV:BOXEV, print:lifePrint, window:lifeWindow, phone:lifePhoneWalk, stretch:lifeStretch, treat:lifeTreat };
 /* ---------- optional office sound (off until the viewer turns it on) ---------- */
-var AMB = { on:false, ctx:null, clickAcc:0 };
+/* sound is on by default (?sound=off turns it off); browsers only let it start after the first click or key press.
+   Background: a recorded office murmur, kept low, louder the more people are in, silent when the office is empty */
+var AMB = { on:!/[?&]sound=off/.test(location.search || ""), ctx:null, clickAcc:0, bg:null, bgVol:0 };
+function ambientBg(){
+  if (AMB.bg) return AMB.bg;
+  var a = new Audio("audio/office-murmur.mp3"); a.loop = true; a.volume = 0; a.preload = "auto"; AMB.bg = a; return a;
+}
+function ambientUnlock(e){
+  /* a first click on the Sound button itself is handled by the button */
+  if (e && e.target && e.target.closest && e.target.closest("#sound")) return;
+  ["pointerdown", "keydown", "touchstart"].forEach(function(ev){ window.removeEventListener(ev, ambientUnlock, true); });
+  if (!AMB.on) return;
+  try { ambientStart(); if (AMB.ctx.state === "suspended") AMB.ctx.resume(); } catch (e) {}
+  var p = ambientBg().play(); if (p && p.catch) p.catch(function(){});
+}
+["pointerdown", "keydown", "touchstart"].forEach(function(ev){ window.addEventListener(ev, ambientUnlock, true); });
 function ambientStart(){
   if (AMB.ctx) return;
   var C = new (window.AudioContext || window.webkitAudioContext)(); AMB.ctx = C;
@@ -4832,9 +4899,16 @@ function ambientStart(){
   AMB.click = white;
 }
 function ambientTick(t, dt, present){
+  if (AMB.bg) {
+    var want = AMB.on && !document.hidden && present.length ? 0.06 + 0.1 * Math.min(1, present.length / 6) : 0;
+    AMB.bgVol += (want - AMB.bgVol) * (1 - Math.exp(-dt * 0.8));
+    AMB.bg.volume = clamp(AMB.bgVol, 0, 1);
+    if (AMB.on && AMB.bg.paused && want > 0 && AMB.bg.dataset.played) { var pp = AMB.bg.play(); if (pp && pp.catch) pp.catch(function(){}); }
+    if (!AMB.bg.paused) AMB.bg.dataset.played = "1";
+  }
   if (!AMB.ctx) return;
   var C = AMB.ctx, on = AMB.on && !document.hidden;
-  AMB.master.gain.setTargetAtTime(on ? 0.5 : 0, C.currentTime, 0.3);
+  AMB.master.gain.setTargetAtTime(on ? 0.3 : 0, C.currentTime, 0.3);
   if (!on) return;
   var talking = chats.filter(function(c){ return c.bubbles; }).length;
   AMB.murG.gain.setTargetAtTime(talking ? 0.35 : 0.04, C.currentTime, 0.4);
@@ -5913,7 +5987,9 @@ function clearFocus(){
 }
 document.getElementById("reset").addEventListener("click", clearFocus);
 document.getElementById("sound").addEventListener("click", function(){
-  try { ambientStart(); AMB.on = !AMB.on; if (AMB.ctx.state === "suspended") AMB.ctx.resume(); } catch (e) { AMB.on = false; }
+  var first = !AMB.ctx;
+  try { ambientStart(); AMB.on = first ? true : !AMB.on; if (AMB.ctx.state === "suspended") AMB.ctx.resume(); } catch (e) { AMB.on = false; }
+  var bgp = AMB.on ? ambientBg().play() : null; if (bgp && bgp.catch) bgp.catch(function(){});
   this.setAttribute("aria-pressed", AMB.on ? "true" : "false");
 });
 var collapseBtn = document.getElementById("collapse");
