@@ -1685,6 +1685,48 @@ function LUNCH_T(){ return { erica:[12, 12.5, "out"], allyson:[12, 12.5, "out"],
   stephanie:[12, 12.5, "desk"], debbie:[12, 12.5, "desk"], olivia:[12, 12.5, "desk"] }; }
 var LUNCH = LUNCH_T();
 var lunchCardTex = null;
+/* what each of them eats at the desk: Stephanie a sandwich, Olivia a wrap, Debbie a salad with a fork */
+function lunchFood(p){
+  var f = new T.Group(), kind = p.id === "stephanie" ? "sandwich" : p.id === "olivia" ? "wrap" : "fork";
+  f.userData.kind = kind;
+  var body = new T.Group(); f.add(body); f.userData.body = body;
+  if (kind === "sandwich") {
+    var bread = M("#d9a865", { roughness:0.9 }), crust = M("#a86a32", { roughness:0.9 });
+    add(G.box, bread, 0.1, 0.016, 0.075, 0, -0.016, 0.03, body, false);
+    add(G.box, M("#5aa04a", { roughness:0.7 }), 0.106, 0.008, 0.08, 0, -0.004, 0.03, body, false);
+    add(G.box, M("#d9534f", { roughness:0.7 }), 0.098, 0.007, 0.072, 0, 0.003, 0.03, body, false);
+    add(G.box, M("#f2d16b", { roughness:0.7 }), 0.1, 0.005, 0.074, 0, 0.009, 0.03, body, false);
+    add(G.box, bread, 0.1, 0.016, 0.075, 0, 0.02, 0.03, body, false);
+    add(G.box, crust, 0.102, 0.004, 0.077, 0, 0.029, 0.03, body, false);
+  } else if (kind === "wrap") {
+    var wr = add(G.cyl, M("#e8d2a0", { roughness:0.9 }), 0.028, 0.13, 0.028, 0, 0, 0.05, body, false); wr.rotation.x = Math.PI / 2;
+    var fill = add(G.cyl, M("#6aa84f", { roughness:0.7 }), 0.024, 0.01, 0.024, 0, 0, 0.116, body, false); fill.rotation.x = Math.PI / 2;
+    add(G.box, M("#ffffff", { roughness:0.8 }), 0.06, 0.06, 0.05, 0, 0, 0.0, body, false);
+  } else {
+    var steel = M("#c9cdd3", { roughness:0.25, metalness:0.8 });
+    add(G.box, steel, 0.012, 0.006, 0.17, 0, 0, 0.06, body, false);
+    add(G.box, steel, 0.026, 0.004, 0.035, 0, 0.003, 0.155, body, false);
+    f.userData.bite = add(G.sphere || G.box, M("#5aa04a", { roughness:0.7 }), 0.022, 0.016, 0.022, 0, 0.013, 0.16, body, false);
+  }
+  f.traverse(function(o){ o.userData.dyn = true; o.castShadow = false; });
+  f.visible = false; scene.add(f);
+  return f;
+}
+var _fh = new V3(), _fm = new V3(), _fl = new V3();
+function foodInHand(p, b, t, a, w){
+  var f = p.food, on = a.n === "eat" && w > 0.3 && lunchNow(p) === "desk" && b.RightHand && b.RightHandMiddle1;
+  f.visible = !!on;
+  if (!on) return;
+  /* held in the fingers, pointing out of the hand */
+  b.RightHand.getWorldPosition(_fh); b.RightHandMiddle1.getWorldPosition(_fm);
+  f.position.copy(_fh).lerp(_fm, 0.8);
+  _fl.subVectors(_fm, _fh).normalize().add(f.position);
+  f.lookAt(_fl);
+  /* half an hour of bites: the sandwich and the wrap get shorter, the fork picks up a new bite each time */
+  var left = 1 - 0.65 * clamp((DAY.h - 12) / 0.5, 0, 1);
+  if (f.userData.kind !== "fork") f.userData.body.scale.set(1, 1, left);
+  else f.userData.bite.visible = !biteChew(p, t - a.t0);
+}
 function lunchProps(p, g){
   var L = LUNCH_T()[p.id];
   if (!L) return;
@@ -1697,6 +1739,7 @@ function lunchProps(p, g){
     add(G.box, M("#b8bcc2", { roughness:0.3, metalness:0.6 }), 0.01, 0.005, 0.14, 0.12, 0.004, 0, box, false);
     box.traverse(function(o){ o.userData.dyn = true; });
     box.visible = false; p.lunchBox = box;
+    p.food = lunchFood(p);
   } else {
     if (!lunchCardTex) lunchCardTex = canvasTex(256, 128, function(c, w, h){
       c.fillStyle = "#ffffff"; rrect(c, 0, 0, w, h, 14); c.fill();
@@ -2965,10 +3008,9 @@ function buildProps(p, model, hand){
   var mugMat = p.id === "debbie" ? new T.MeshPhysicalMaterial({ color:0xdfeff7, roughness:0.05, transmission:0.85, thickness:0.02, transparent:true, opacity:0.6 }) : M(p.id === "olivia" ? "#b9d3bd" : "#ffffff", { roughness:0.4 });
   p.mug = add(G.cyl, mugMat, 0.034, 0.08, 0.034, -0.79, 1.43, 0.03, g, false);
   p.phone = add(G.box, M("#16181c", { roughness:0.3, metalness:0.4 }), 0.1, 0.006, 0.05, -0.8, 1.415, -0.03, g, false);
-  if (LUNCH_T()[p.id] && LUNCH_T()[p.id][2] === "desk") p.fork = add(G.box, M("#c9cdd3", { roughness:0.25, metalness:0.8 }), 0.012, 0.005, 0.15, -0.83, 1.42, 0.06, g, false);
   if (p.id === "olivia") p.swatch = add(G.box, M("#2fb3a3", { roughness:0.6 }), 0.16, 0.004, 0.2, -0.82, 1.412, 0.0, g, false);
   if (p.id === "carla") p.swatch = add(G.box, M("#f4f1ea", { roughness:0.7 }), 0.17, 0.006, 0.23, -0.82, 1.412, 0.0, g, false);
-  [p.mug, p.phone, p.swatch, p.fork].forEach(function(m){ if (m) m.visible = false; });
+  [p.mug, p.phone, p.swatch].forEach(function(m){ if (m) m.visible = false; });
   model.updateMatrixWorld(true);
   hand.attach(g);
 }
@@ -3460,7 +3502,7 @@ function updateRig(p, t, dt){
       }
     }
     if (p.phone) p.phone.visible = a.n === "phone" && w > 0.3;
-    if (p.fork) p.fork.visible = a.n === "eat" && w > 0.3 && lunchNow(p) === "desk";
+    if (p.food) foodInHand(p, b, t, a, w);
     if (p.swatch) p.swatch.visible = (a.n === "swatch" || a.n === "checklist") && w > 0.2;
   } else {
     if (p.mug) p.mug.visible = false;
@@ -3468,7 +3510,7 @@ function updateRig(p, t, dt){
     if (p.notebook) p.notebook.visible = false;
     if (p.pen) p.pen.visible = false;
     if (p.phone) p.phone.visible = false;
-    if (p.fork) p.fork.visible = false;
+    if (p.food) p.food.visible = false;
     if (p.swatch) p.swatch.visible = false;
   }
   /* breathing */
