@@ -4877,7 +4877,6 @@ function ambientUnlock(e){
   if (e && e.target && e.target.closest && e.target.closest("#sound")) return;
   ["pointerdown", "keydown", "touchstart"].forEach(function(ev){ window.removeEventListener(ev, ambientUnlock, true); });
   if (!AMB.on) return;
-  try { ambientStart(); if (AMB.ctx.state === "suspended") AMB.ctx.resume(); } catch (e) {}
   var p = ambientBg().play(); if (p && p.catch) p.catch(function(){});
 }
 ["pointerdown", "keydown", "touchstart"].forEach(function(ev){ window.addEventListener(ev, ambientUnlock, true); });
@@ -5987,8 +5986,9 @@ function clearFocus(){
 }
 document.getElementById("reset").addEventListener("click", clearFocus);
 document.getElementById("sound").addEventListener("click", function(){
-  var first = !AMB.ctx;
-  try { ambientStart(); AMB.on = first ? true : !AMB.on; if (AMB.ctx.state === "suspended") AMB.ctx.resume(); } catch (e) { AMB.on = false; }
+  /* only the recorded office murmur: the first click turns it on, then the button toggles it */
+  var first = !AMB.bg;
+  AMB.on = first ? true : !AMB.on;
   var bgp = AMB.on ? ambientBg().play() : null; if (bgp && bgp.catch) bgp.catch(function(){});
   this.setAttribute("aria-pressed", AMB.on ? "true" : "false");
 });
