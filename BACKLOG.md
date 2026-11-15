@@ -37,7 +37,6 @@ Approved ideas. Everything stays inside the office scene: no rooms or events out
 27. **Real Canadian holidays:** office empty with lights off on closed days.
 28. **Small disagreements:** two people see a work thing differently, argue a little and end up agreeing.
 29. **Someone brings treats:** leaves cookies in the kitchen, announces it, people drop by.
-30. **Night cleaner:** a generic person (nobody real) cleans after everyone left.
 31. **Mid afternoon distraction:** around 3 pm more phone time, slower back to typing.
 32. **Real nicknames** (like SB2), taken from the chats when I get them.
 33. **End of month:** more pressure, more reports on screen, less chatting.
@@ -63,6 +62,13 @@ Approved ideas. Everything stays inside the office scene: no rooms or events out
 13. **Real topics.** The pumpkin won by a landslide, the costume (Bad Bunny) missed a tie by one vote, the pizza from the prize on Nov 24 in the same week as the Christmas lunch, and pizza toppings.
 14. **Per person voice.** Waiting for chats copied with names, or screenshots. Never use internal data (invoices, amounts, accounts).
 
+## Added 15 Nov
+- Monday to Friday only: Saturday and Sunday the office is closed with the lights off.
+- Friday team call, 11:00 to 11:30: everyone at the desk, every screen on Teams.
+- A ghost walks the office late at night (22:00 to 5:30), rarely.
+- After 2 minutes without touching the mouse the office turns slowly, a full turn every 4 minutes (for a TV).
+
 ## Not wanted
+- Robot vacuum or night cleaner.
 - Meetings in another room.
 - Team dates such as birthdays.
