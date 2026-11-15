@@ -67,6 +67,8 @@ Approved ideas. Everything stays inside the office scene: no rooms or events out
 - Friday team call, 11:00 to 11:30: everyone at the desk, every screen on Teams.
 - A ghost walks the office late at night (22:00 to 5:30), rarely.
 - After 2 minutes without touching the mouse the office turns slowly, a full turn every 4 minutes (for a TV).
+- More outfits: each person gets a matching look for the day (neutral, earthy, cool, bold, soft, smart, all black, denim, plus 4 winter looks); usual clothes about 1 day in 8.
+- Stephanie, Debbie and Olivia eat at the desk for the whole 12:00 to 12:30 lunch, fork in hand, one bite every few seconds.
 
 ## Not wanted
 - Robot vacuum or night cleaner.

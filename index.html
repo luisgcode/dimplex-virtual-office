@@ -2674,7 +2674,7 @@ var ACTS = {
   /* writing in a notebook on the desk (the forearm is fitted to the desk, the hand scribbles) */
   write:{ RightArm:[-0.12, -0.62, 0.72], LeftArm:[0.2, -0.65, 0.7], Spine1:[0, 1, 0.2], Spine2:[0, 1, 0.14], Head:[0, 1, 0.55] },
   /* eating lunch at the desk: fork from the box to the mouth */
-  eat:{ RightArm:[-0.22, -0.55, 0.65], RightForeArm:[0.25, 0.6, 0.55], Head:[0, 1, 0.35] },
+  eat:{ RightArm:[-0.22, -0.55, 0.65], RightForeArm:[0.25, 0.6, 0.55], LeftArm:[0.2, -0.75, 0.55], LeftForeArm:[-0.1, -0.15, 1], Head:[0, 1, 0.35] },
   /* a yawn behind the hand */
   yawn:{ RightArm:[-0.22, -0.4, 0.62], RightForeArm:[0.28, 0.95, 0.15], Head:[0, 1, -0.32], Spine1:[0, 1, -0.05] },
   /* tired eyes after hours on the screen */
@@ -2718,24 +2718,46 @@ function v3a(a, x, y, z){ a[0] = x; a[1] = y; a[2] = z; return a; }
 /* seated fit: bone lengths are measured once per person, heights are read live from the posed skeleton */
 var _fa = new V3(), _fb = new V3(), FIT = [0, 0, 0];
 var ANKLE_Y = 0.095, TOE_Y = 0.03, WRIST_Y = 0.805;
-/* a different outfit every day: same clothes, a new colour picked from an office palette (sometimes the usual one) */
-var DAY_PALETTE = {
-  top:["#f2f0eb", "#c9ad84", "#2a9d8f", "#b0476b", "#3d6fb0", "#e2ac2f", "#7a4d9e", "#6b8f71", "#c8553d", "#1d1d20", "#8a9bb0", "#d9d4c7", "#9c2f3a", "#2f5d8a"],
-  pants:["#1d1f24", "#26304a", "#4a4f58", "#2c313b", "#3a3330", "#5b5f66", "#1b2a3f"],
-  /* winter: knits in deeper, warmer colours */
-  topWinter:["#5a2a2f", "#2f3f5c", "#3b4a3a", "#6b4a35", "#2a2b30", "#7a6a5a", "#8a2f3a", "#4a3a5c", "#c9b89c", "#1f2a3a"],
-  jacket:["#2a2b30", "#a3a8b0", "#2a2a2e", "#3b4a5e", "#5a4636", "#6b6f76", "#7a2e35"]
+/* a different outfit every day. Each person gets a "look" for the day (neutral, earthy, cool, bold, soft, smart,
+   all black, denim), and every piece of clothing takes a colour from that look, so the outfit matches.
+   Now and then (about 1 day in 8) they wear their usual clothes. Winter looks are deeper and warmer. */
+var DAY_LOOKS = {
+  neutral:{ top:["#f2f0eb", "#d9d4c7", "#c9b89c", "#e8e2d6", "#b9b2a5", "#ffffff"], pants:["#1d1f24", "#3a3330", "#5b5f66", "#8a8070"], jacket:["#6b6f76", "#a3a8b0", "#5a4636", "#2a2b30"], shoe:["#1a1b1e", "#ecebe6", "#5a3a26"] },
+  earthy:{ top:["#c8553d", "#b07a3a", "#6b8f71", "#8a5a3c", "#c9ad84", "#9a6b4a", "#7a7a3a"], pants:["#3a3330", "#4a4a32", "#5a4636", "#c2b28f", "#26292f"], jacket:["#5a4636", "#6b5a3a", "#3b4a3a", "#8a6a4a"], shoe:["#5a3a26", "#3a2a1e", "#8a6a4a"] },
+  cool:{ top:["#3d6fb0", "#8a9bb0", "#2f5d8a", "#5a7a9a", "#a8c0d8", "#2a9d8f", "#4a6a8a"], pants:["#1b2a3f", "#26304a", "#2c313b", "#4a5566"], jacket:["#3b4a5e", "#2a2b30", "#6b7a8a", "#a3a8b0"], shoe:["#1a1b1e", "#3b4a5e", "#ecebe6"] },
+  bold:{ top:["#b0476b", "#e2ac2f", "#9c2f3a", "#7a4d9e", "#2a9d8f", "#d9603b", "#c43d5a", "#3a7d44"], pants:["#1d1f24", "#26304a", "#2c313b"], jacket:["#2a2a2e", "#7a2e35", "#1d1f24"], shoe:["#1a1b1e", "#ecebe6", "#7a2e35"] },
+  soft:{ top:["#e8c4c4", "#c4d4e8", "#d4e8d0", "#efe0b8", "#d8c8e8", "#f2d6c0", "#c8e0dc"], pants:["#5b5f66", "#8a8070", "#c2b28f", "#26304a"], jacket:["#d9d4c7", "#a3a8b0", "#c9b89c"], shoe:["#ecebe6", "#d9d4ca", "#8a6a4a"] },
+  smart:{ top:["#ffffff", "#e9eef4", "#a8c0d8", "#f2f0eb", "#1d1d20"], pants:["#1d1f24", "#2b2f36", "#26304a", "#4a4f58"], jacket:["#2a2b30", "#2b3a52", "#4a4d52", "#3a3b40"], shoe:["#1a1b1e", "#3a2a1e"] },
+  black:{ top:["#1d1d20", "#2a2b30", "#141416"], pants:["#141416", "#1d1f24"], jacket:["#2a2a2e", "#141416"], shoe:["#141518", "#1a1b1e"] },
+  denim:{ top:["#f2f0eb", "#ffffff", "#c8553d", "#2a2b30", "#e2ac2f", "#8a9bb0"], pants:["#3a5a8a", "#2f4a73", "#4a6a96", "#26304a"], jacket:["#3a5a8a", "#5a4636", "#2a2b30"], shoe:["#ecebe6", "#5a3a26", "#1a1b1e"] }
 };
-function dayTint(p, key, base){
-  var kind = /Pants|Shorts/.test(key) ? "pants" : /Suit|Coat/.test(key) ? "jacket" : /Shirt|Cloth|Top/.test(key) ? "top" : null;
-  if (!kind) return base;
+var WINTER_LOOKS = {
+  knit:{ top:["#5a2a2f", "#8a2f3a", "#6b4a35", "#7a6a5a", "#c9b89c", "#e8e0d0"], pants:["#1d1f24", "#3a3330", "#2c313b"], jacket:["#5a4636", "#2a2b30", "#6b5a3a"], shoe:["#3a2a1e", "#1a1b1e", "#5a3a26"] },
+  forest:{ top:["#3b4a3a", "#2f4a3a", "#4a5a3a", "#6b7a5a"], pants:["#2a2b30", "#3a3330", "#4a4a32"], jacket:["#3b4a3a", "#2a2b30", "#5a4636"], shoe:["#3a2a1e", "#1a1b1e"] },
+  navy:{ top:["#2f3f5c", "#1f2a3a", "#4a5a7a", "#c9b89c"], pants:["#1b2a3f", "#2c313b", "#4a4f58"], jacket:["#1f2a3a", "#2f3f5c", "#6b6f76"], shoe:["#1a1b1e", "#3a2a1e"] },
+  plum:{ top:["#4a3a5c", "#6a3a5a", "#8a2f3a", "#d8c8e8"], pants:["#1d1f24", "#2c2a33"], jacket:["#2a2a2e", "#4a3a5c"], shoe:["#1a1b1e", "#5a2830"] }
+};
+function dayOutfitSeed(p, salt){
   /* ?outfit=3 jumps 3 days ahead, to preview other outfits */
   var d = new Date(), m = /[?&]outfit=(\d+)/.exec(location.search || "");
   var key2 = d.getFullYear() * 1000 + d.getMonth() * 40 + d.getDate() + (m ? +m[1] * 37 : 0);
-  var hs = 7; (p.id + key).split("").forEach(function(ch){ hs = (hs * 31 + ch.charCodeAt(0)) % 100003; });
-  var r = seeded((key2 * 4801 + hs * 7919) % 2147483646 + 1); r(); r();
-  if (r() < 0.3) return base;
-  var mo = d.getMonth(), pal = kind === "top" && (mo >= 10 || mo <= 2) ? DAY_PALETTE.topWinter : DAY_PALETTE[kind];
+  var hs = 7; (p.id + salt).split("").forEach(function(ch){ hs = (hs * 31 + ch.charCodeAt(0)) % 100003; });
+  var r = seeded((key2 * 4801 + hs * 7919) % 2147483646 + 1); r(); r(); return r;
+}
+function dayLook(p){
+  var r = dayOutfitSeed(p, "#look"), mo = new Date().getMonth(), winter = mo >= 10 || mo <= 2;
+  var usual = r() < 0.12, pool = winter && r() < 0.6 ? WINTER_LOOKS : DAY_LOOKS, names = Object.keys(pool);
+  return { usual:usual, look:pool[names[Math.floor(r() * names.length)]] };
+}
+function dayTint(p, key, base){
+  var kind = /Pants|Shorts/.test(key) ? "pants" : /Suit|Coat/.test(key) ? "jacket" : /Shirt|Cloth|Top/.test(key) ? "top" : /Shoe|Sneaker/.test(key) ? "shoe" : null;
+  if (!kind) return base;
+  var L = dayLook(p);
+  if (L.usual) return base;
+  var r = dayOutfitSeed(p, key);
+  /* shoes change less often than the rest */
+  if (kind === "shoe" && r() < 0.5) return base;
+  var pal = L.look[kind];
   return pal[Math.floor(r() * pal.length)];
 }
 function boneLen(p, n){
@@ -2943,9 +2965,10 @@ function buildProps(p, model, hand){
   var mugMat = p.id === "debbie" ? new T.MeshPhysicalMaterial({ color:0xdfeff7, roughness:0.05, transmission:0.85, thickness:0.02, transparent:true, opacity:0.6 }) : M(p.id === "olivia" ? "#b9d3bd" : "#ffffff", { roughness:0.4 });
   p.mug = add(G.cyl, mugMat, 0.034, 0.08, 0.034, -0.79, 1.43, 0.03, g, false);
   p.phone = add(G.box, M("#16181c", { roughness:0.3, metalness:0.4 }), 0.1, 0.006, 0.05, -0.8, 1.415, -0.03, g, false);
+  if (LUNCH_T()[p.id] && LUNCH_T()[p.id][2] === "desk") p.fork = add(G.box, M("#c9cdd3", { roughness:0.25, metalness:0.8 }), 0.012, 0.005, 0.15, -0.83, 1.42, 0.06, g, false);
   if (p.id === "olivia") p.swatch = add(G.box, M("#2fb3a3", { roughness:0.6 }), 0.16, 0.004, 0.2, -0.82, 1.412, 0.0, g, false);
   if (p.id === "carla") p.swatch = add(G.box, M("#f4f1ea", { roughness:0.7 }), 0.17, 0.006, 0.23, -0.82, 1.412, 0.0, g, false);
-  [p.mug, p.phone, p.swatch].forEach(function(m){ if (m) m.visible = false; });
+  [p.mug, p.phone, p.swatch, p.fork].forEach(function(m){ if (m) m.visible = false; });
   model.updateMatrixWorld(true);
   hand.attach(g);
 }
@@ -3400,7 +3423,11 @@ function updateRig(p, t, dt){
         if (!dd) continue;
         if (a.n === "wobble" && (n === "LeftForeArm" || n === "RightForeArm")) dd = v3a(SCR, dd[0] + 0.5 * Math.sin(t * 16 + (n === "LeftForeArm" ? 0 : 1.4)), dd[1], dd[2]);
         if (a.n === "wipe" && n === "LeftForeArm") dd = v3a(SCR, dd[0] + 0.32 * Math.sin(t * 7), dd[1], dd[2]);
-        if (a.n === "eat" && n === "RightForeArm") { var ec = Math.max(0, Math.sin(t * 1.6)); dd = v3a(SCR, dd[0], dd[1] + 0.35 * ec - 0.25, dd[2] - 0.3 * ec); }
+        if (a.n === "eat" && (n === "RightForeArm" || n === "Head")) {
+          var ec = biteLift(p, t - a.t0);
+          if (n === "RightForeArm") dd = v3a(SCR, dd[0] - 0.08 * (1 - ec), dd[1] + 0.35 * ec - 0.3 * (1 - ec), dd[2] - 0.3 * ec);
+          else dd = v3a(SCR, dd[0], dd[1], dd[2] - 0.22 * ec + (biteChew(p, t - a.t0) ? 0.03 * Math.sin(t * 10) : 0));
+        }
         if (a.n === "fist" && n === "RightForeArm") dd = v3a(SCR, dd[0], dd[1], dd[2] + 0.25 * Math.max(0, Math.sin(t * 11)));
         if (a.n === "warmhands" && (n === "LeftForeArm" || n === "RightForeArm")) dd = v3a(SCR, dd[0], dd[1] + 0.12 * Math.sin(t * 14 + (n === "LeftForeArm" ? 0 : Math.PI)), dd[2]);
         if (a.n === "tidy" && (n === "LeftForeArm" || n === "RightForeArm")) dd = v3a(SCR, dd[0] + 0.25 * Math.sin(t * 2.2 + (n === "LeftForeArm" ? 0 : 1.5)), dd[1], dd[2]);
@@ -3433,6 +3460,7 @@ function updateRig(p, t, dt){
       }
     }
     if (p.phone) p.phone.visible = a.n === "phone" && w > 0.3;
+    if (p.fork) p.fork.visible = a.n === "eat" && w > 0.3 && lunchNow(p) === "desk";
     if (p.swatch) p.swatch.visible = (a.n === "swatch" || a.n === "checklist") && w > 0.2;
   } else {
     if (p.mug) p.mug.visible = false;
@@ -3440,6 +3468,7 @@ function updateRig(p, t, dt){
     if (p.notebook) p.notebook.visible = false;
     if (p.pen) p.pen.visible = false;
     if (p.phone) p.phone.visible = false;
+    if (p.fork) p.fork.visible = false;
     if (p.swatch) p.swatch.visible = false;
   }
   /* breathing */
@@ -3753,6 +3782,12 @@ function smoothTurn(p, target, dt, rate){
 }
 
 /* ---------- small acts ---------- */
+/* eating with a fork: about one bite every 5 s. 0 = fork in the box, 1 = fork at the mouth */
+function biteLift(p, u){
+  var per = 4.6 + ((p.idx || 0) % 3) * 0.5, ph = (u % per) / per, sm = function(x){ x = clamp(x, 0, 1); return x * x * (3 - 2 * x); };
+  return ph < 0.18 ? 0 : ph < 0.36 ? sm((ph - 0.18) / 0.18) : ph < 0.5 ? 1 : ph < 0.66 ? 1 - sm((ph - 0.5) / 0.16) : 0;
+}
+function biteChew(p, u){ var per = 4.6 + ((p.idx || 0) % 3) * 0.5, ph = (u % per) / per; return ph > 0.45; }
 function startAct(p, name, t, dur, target){
   p.act = { n:name, t0:t, dur:dur || rand(2.2, 4.2), target:target || null };
 }
@@ -4850,7 +4885,7 @@ function updateAgent(p, t, dt){
       goTrip(p, t, "lunch", null, aislePath(p.seat, p.side, EXIT_SPOT, 0));
     } else if (ln === "desk") {
       p.typeOn = false; p.decideAt = Math.max(p.decideAt, t + 4);
-      if (!p.act && !p.chatWith && !p.answering) { var lr = Math.random(); startAct(p, lr < 0.6 ? "eat" : lr < 0.88 ? "phone" : "sip", t, rand(5, 9)); }
+      if (!p.act && !p.chatWith && !p.answering) { var lr = Math.random(); if (lr < 0.8) startAct(p, "eat", t, rand(50, 110)); else startAct(p, lr < 0.92 ? "phone" : "sip", t, rand(5, 9)); }
     } else if (p.pendingCoffee && t >= p.pendingCoffee) {
       p.pendingCoffee = 0;
       var buddy = p.coffeeWith; p.coffeeWith = null;
@@ -6178,6 +6213,8 @@ await Promise.all(Object.keys(REAL_MODELS).map(function(k){
     function topY(sc){ sc.updateMatrixWorld(true); var o = sc.getObjectByName("mixamorigHeadTop_End") || sc.getObjectByName("mixamorigHead"), v = new V3(); o.getWorldPosition(v); return v.y; }
     var hx = topY(GLTF.scene), hm = topY(g.scene) || 1;
     REAL[k] = { scene:g.scene, scale:CH_SCALE * (hx / hm) * (REAL_MODELS[k].height / 1.70), headBox:headBoxOf(g.scene) };
+    /* Luis's shirt is recoloured in the texture: it follows the look of the day too */
+    if (k === "luis" && BY.luis) REAL_MODELS.luis.remap[0].to = dayTint(BY.luis, "Shirt", "#34495e");
     if (REAL_MODELS[k].remap) { try { remapTexture(g.scene, REAL_MODELS[k].remap); } catch (e) { console.warn("remap", e); } }
     if (REAL_MODELS[k].lips) { try { paintLips(g.scene, REAL[k].headBox, REAL_MODELS[k].lips, REAL_MODELS[k].lipsAlpha); } catch (e) { window.__lips = "ERR " + e.message; } }
     g.scene.traverse(function(o){ if (o.isMesh && o.material) { o.material.envMapIntensity = 0.6; } });
