@@ -318,10 +318,6 @@ body > header{display:none !important}
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></svg>
       <span>Sound</span>
     </button>
-    <button class="btn" id="chalBtn" type="button" aria-haspopup="dialog" aria-controls="chal">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></svg>
-      <span>Missions</span>
-    </button>
     <button class="btn" id="reset" type="button" aria-label="Reset view">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
       <span>Reset view</span>
@@ -7236,7 +7232,6 @@ function chalShow(on, tab){
   chalEl.hidden = !on;
   if (on) { CH.view = null; chalRender(); document.getElementById("chalClose").focus(); }
 }
-document.getElementById("chalBtn").addEventListener("click", function(){ chalShow(chalEl.hidden); });
 document.getElementById("chalClose").addEventListener("click", function(){ chalShow(false); });
 window.addEventListener("keydown", function(e){ if (e.key === "Escape" && !chalEl.hidden) { if (CH.view) { CH.view = null; chalRender(); } else chalShow(false); } });
 function chalRender(){
@@ -7358,9 +7353,7 @@ function chalSendForm(B, mid){
     e.preventDefault();
     if (!/^\d{4}$/.test(code.value)) { info.textContent = "The code is 4 digits."; code.focus(); return; }
     if (!shot) { info.textContent = "Pick a photo first."; return; }
-    CH.st.subs.push({ id:"s" + Date.now().toString(36), mid:mid, who:sel.value, at:Date.now(), taken:taken, img:shot });
-    if (chalNeedNext()) chalOpenNext();
-    chalSave(); chalBoardDraw();
+    chalSubmit(mid, sel.value, taken, shot);
     B.textContent = "";
     var ok = el("div", "ms"); ok.appendChild(el("h3", "ms-title", "Sent! Your photo arrived on " + fmtTime(Date.now())));
     ok.appendChild(el("p", "ms-meta", "It stays private until it is reviewed. If it is the first approved one, the points are yours."));
@@ -7369,6 +7362,19 @@ function chalSendForm(B, mid){
   });
   B.appendChild(f);
 }
+/* a photo arrives: the arrival time is stamped here, the mission goes pending and the next one opens */
+var chalSeq = 0;
+function chalExcluded(mid, who){ var m = chalDef(mid); return !!(m && m.exclude && m.exclude.indexOf(who) >= 0); }
+function chalSubmit(mid, who, taken, img){
+  if (chalExcluded(mid, who)) return false;
+  var at = Date.now();
+  CH.st.subs.push({ id:"s" + at.toString(36) + (chalSeq++).toString(36), mid:mid, who:who, at:at, taken:taken, img:img });
+  if (chalNeedNext()) chalOpenNext();
+  chalSave(); chalBoardDraw();
+  if (!chalEl.hidden && !CH.view) chalRender();
+}
+/* for testing from the console */
+window.__chal = { st:function(){ return CH.st; }, submit:chalSubmit, approve:function(sid, team){ chalApprove(sid, team); }, reject:chalReject, reset:function(){ try { localStorage.removeItem(CHAL_KEY); } catch (e) {} CH.st = null; chalLoad(); chalBoardDraw(); }, scores:chalScores, players:function(){ return chalPlayers().map(function(q){ return q.id; }); } };
 function chalProof(B, i){
   var d = CH.st.done[i], m = chalDef(d.mid), w = el("div", "proof");
   var back = el("button", "go ghost", "Back"); back.type = "button"; back.addEventListener("click", function(){ CH.view = null; chalRender(); });
@@ -7382,7 +7388,8 @@ function chalProof(B, i){
 function chalApprove(sid, team){
   var x = CH.st.subs.filter(function(q){ return q.id === sid; })[0]; if (!x) return;
   var m = chalDef(x.mid);
-  team = team && team.length ? team : [x.who];
+  team = (team && team.length ? team : [x.who]).filter(function(id){ return !chalExcluded(x.mid, id); });
+  if (!team.length) return;
   CH.st.done.push({ mid:x.mid, who:x.who, team:team, pts:m.pts, at:x.at, taken:x.taken, img:x.img, ok:Date.now() });
   /* the mission is closed: other photos for it are dropped */
   CH.st.subs = CH.st.subs.filter(function(q){ return q.mid !== x.mid; });
@@ -7401,26 +7408,22 @@ function chalCelebrate(team, m){
 
 /* ---------- the board on the wall ---------- */
 function chalBoardDraw(){
-  if (!CH.board) return;
-  var c = CH.board.c, g = CH.board.g, W = c.width, H = c.height, o = CH.st.opens.filter(function(q){ return !chalPending(q.id); })[0] || CH.st.opens[0], m = o && chalDef(o.id), lead = chalScores()[0];
-  g.fillStyle = "#16191e"; g.fillRect(0, 0, W, H);
-  g.strokeStyle = "#E31837"; g.lineWidth = 6; g.strokeRect(3, 3, W - 6, H - 6);
-  g.textAlign = "center"; g.textBaseline = "middle";
-  g.fillStyle = "#ffffff"; g.font = "900 64px " + FONT; g.fillText("MISSIONS", W / 2, 70);
-  g.fillStyle = "#c9ced4"; g.font = "600 22px " + FONT; g.fillText(m ? "Now: " + m.title + " · " + m.pts + " pt" + (m.pts > 1 ? "s" : "") : "New missions coming", W / 2, 128, W - 40);
-  if (CH.st.specials.length) { g.fillStyle = "#e9c25a"; g.font = "800 20px " + FONT; g.fillText("★ Special: " + chalDef(CH.st.specials[0].id).title + " · " + chalDef(CH.st.specials[0].id).pts + " pts", W / 2, 164, W - 40); }
-  g.fillStyle = "#9aa5b1"; g.font = "600 18px " + FONT; g.fillText(lead && lead.n ? "Leader: " + lead.p.name + " · " + lead.n + " pts   ·   Click to open" : "Click to open", W / 2, 206);
-  g.textAlign = "left";
+  /* just a white panel with a question mark: whoever is curious clicks it */
+  if (!CH.board || CH.board.drawn) return;
+  var c = CH.board.c, g = CH.board.g, W = c.width, H = c.height;
+  g.fillStyle = "#ffffff"; g.fillRect(0, 0, W, H);
+  g.fillStyle = "#E31837"; g.textAlign = "center"; g.textBaseline = "middle"; g.font = "900 190px " + FONT; g.fillText("?", W / 2, H / 2 + 10);
+  g.textAlign = "left"; CH.board.drawn = true;
   CH.board.tex.needsUpdate = true;
 }
 (function(){
   chalLoad();
-  var c = document.createElement("canvas"); c.width = 640; c.height = 240;
+  var c = document.createElement("canvas"); c.width = 360; c.height = 240;
   var tex = new T.CanvasTexture(c); tex.colorSpace = T.SRGBColorSpace; tex.anisotropy = maxAniso;
   /* on the back wall, right under the Dimplex logo */
   var gr = new T.Group(); gr.position.set(0, 1.3, -3.995); scene.add(gr);
-  var frame = add(G.box, M("#2b3038", { roughness:0.5 }), 1.12, 0.44, 0.03, 0, 0, 0, gr, false); frame.userData.dyn = true;
-  var face = new T.Mesh(G.plane, new T.MeshBasicMaterial({ map:tex, toneMapped:false })); face.scale.set(1.06, 0.3975, 1); face.position.z = 0.017; face.userData.dyn = true; gr.add(face);
+  var frame = add(G.box, M("#2b3038", { roughness:0.5 }), 0.62, 0.44, 0.03, 0, 0, 0, gr, false); frame.userData.dyn = true;
+  var face = new T.Mesh(G.plane, new T.MeshBasicMaterial({ map:tex, toneMapped:false })); face.scale.set(0.56, 0.3733, 1); face.position.z = 0.017; face.userData.dyn = true; gr.add(face);
   CH.board = { c:c, g:c.getContext("2d"), tex:tex, hit:face };
   chalBoardDraw();
 })();
