@@ -2638,6 +2638,189 @@ function ghostTick(t, dt, present){
   if (u >= 1 || (!night && !GHOST.want)) { GHOST.on = false; g.visible = GHOST.halo.visible = false; GHOST.next = t + (GHOST.want ? 20 : 1500); }
 }
 var LIFE = { printers:[], counter:null, tray:null, box:null, can:null, sheet:null };
+/* ---------- Debbie's cat: now and then it wanders in, says hi at her chair, naps on her desk, then leaves.
+   A spotted golden tabby (bengal look): dark rosettes, banded tail with a black tip, white muzzle, green eyes.
+   ?cat=1 calls it right away and again shortly after each visit */
+var CAT = { g:null, on:false, next:0, want:/[?&]cat=1/.test(location.search || ""), ph:"", t0:0 };
+window.__cat = CAT;
+/* coat painted from Debbie's photos: warm brown with a gold sheen, dense black rosettes on the body,
+   barred legs, stripes on the forehead and cheeks */
+function catCanvas(w, h){ var c = document.createElement("canvas"); c.width = w; c.height = h; return { c:c, g:c.getContext("2d") }; }
+function catTex(c){ var t = new T.CanvasTexture(c); t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; return t; }
+function catFurTex(kind){
+  var rs = seeded(kind === "body" ? 4242 : kind === "leg" ? 777 : 913), i;
+  var K = catCanvas(256, 128), g = K.g;
+  var gr = g.createLinearGradient(0, 0, 0, 128);
+  gr.addColorStop(0, "#5e4428"); gr.addColorStop(0.35, "#8a6638"); gr.addColorStop(0.7, "#a9824c"); gr.addColorStop(1, "#cdb084");
+  g.fillStyle = gr; g.fillRect(0, 0, 256, 128);
+  /* fine ticking so it doesn't read as flat paint */
+  for (i = 0; i < 900; i++) { g.fillStyle = rs() < 0.5 ? "rgba(40,28,15,0.18)" : "rgba(210,170,110,0.16)"; g.fillRect(rs() * 256, rs() * 128, 1.5, 3); }
+  if (kind === "body") {
+    for (i = 0; i < 58; i++) {
+      var x = rs() * 256, y = 10 + rs() * 92, r = 5 + rs() * 7, ang = rs() * 3;
+      g.fillStyle = "#1c130b"; g.beginPath(); g.ellipse(x, y, r * 1.5, r, ang, 0, Math.PI * 2); g.fill();
+      if (r > 8) { g.fillStyle = "#6b4a28"; g.beginPath(); g.ellipse(x + 1, y, r * 0.7, r * 0.42, ang, 0, Math.PI * 2); g.fill(); }
+    }
+    /* spine line a little darker */
+    g.fillStyle = "rgba(30,20,10,0.35)"; g.fillRect(0, 0, 256, 9);
+  } else if (kind === "leg") {
+    for (i = 0; i < 8; i++) { g.fillStyle = "#1c130b"; g.fillRect(0, 6 + i * 15 + rs() * 4, 256, 5 + rs() * 3); }
+  } else {
+    /* head: front of the sphere is at u = 0.25 (x = 64), top at the canvas top */
+    g.fillStyle = "#1c130b";
+    [-14, -7, 0, 7, 14].forEach(function(dx){ g.fillRect(64 + dx - 1.5, 6, 3, 30 - Math.abs(dx)); });
+    [[38, 52], [90, 52], [34, 62], [94, 62]].forEach(function(q){ g.save(); g.translate(q[0], q[1]); g.rotate(q[0] < 64 ? 0.35 : -0.35); g.fillRect(-10, -1.5, 20, 3); g.restore(); });
+    for (i = 0; i < 26; i++) { g.beginPath(); g.ellipse(128 + rs() * 128, 10 + rs() * 60, 4, 3, 0, 0, Math.PI * 2); g.fill(); }
+    /* pale fur around the eyes and on the cheeks */
+    g.fillStyle = "rgba(225,205,165,0.7)"; g.beginPath(); g.ellipse(64, 70, 26, 10, 0, 0, Math.PI * 2); g.fill();
+  }
+  return catTex(K.c);
+}
+function catBuild(){
+  var fur = new T.MeshStandardMaterial({ map:catFurTex("body"), roughness:0.95 });
+  var legFur = new T.MeshStandardMaterial({ map:catFurTex("leg"), roughness:0.95 }), headFur = new T.MeshStandardMaterial({ map:catFurTex("head"), roughness:0.95 });
+  var dark = new T.MeshStandardMaterial({ color:0x1c130b, roughness:0.9 }), tan = new T.MeshStandardMaterial({ color:0x8f6a3c, roughness:0.95 });
+  var white = new T.MeshStandardMaterial({ color:0xf1ece2, roughness:0.9 }), pink = new T.MeshStandardMaterial({ color:0xd88a86, roughness:0.6 });
+  var eyeM = new T.MeshStandardMaterial({ color:0x8fae4a, roughness:0.2, emissive:0x1c2408 }), pupil = new T.MeshBasicMaterial({ color:0x080808 });
+  var sph = new T.SphereGeometry(1, 18, 14), cyl = new T.CylinderGeometry(1, 1, 1, 10), cone = new T.ConeGeometry(1, 1, 10);
+  function m(geo, mat, sx, sy, sz, x, y, z, par){ var o = new T.Mesh(geo, mat); o.scale.set(sx, sy, sz); o.position.set(x, y, z); o.castShadow = true; par.add(o); return o; }
+  var root = new T.Group(), body = new T.Group(); root.add(body);
+  m(sph, fur, 0.095, 0.09, 0.2, 0, 0.2, 0, body);
+  m(sph, fur, 0.085, 0.085, 0.09, 0, 0.21, 0.12, body);
+  m(sph, fur, 0.088, 0.088, 0.09, 0, 0.205, -0.12, body);
+  m(sph, white, 0.06, 0.05, 0.07, 0, 0.16, 0.13, body);
+  var head = new T.Group(); head.position.set(0, 0.29, 0.21); body.add(head);
+  m(sph, headFur, 0.07, 0.064, 0.068, 0, 0, 0, head);
+  m(sph, white, 0.04, 0.026, 0.03, 0, -0.026, 0.05, head);
+  m(sph, tan, 0.03, 0.02, 0.022, 0, -0.012, 0.058, head);
+  m(sph, pink, 0.01, 0.007, 0.007, 0, -0.004, 0.077, head);
+  var eyes = [];
+  [-1, 1].forEach(function(sd){
+    var e = m(sph, eyeM, 0.014, 0.012, 0.008, sd * 0.028, 0.014, 0.058, head); eyes.push(e);
+    m(sph, pupil, 0.5, 0.95, 0.6, 0, 0, 0.7, e);
+    var ear = m(cone, tan, 0.03, 0.06, 0.02, sd * 0.042, 0.062, -0.005, head); ear.rotation.z = -sd * 0.3;
+    var inner = m(cone, pink, 0.5, 0.7, 0.4, 0, -0.08, 0.5, ear);
+    [0, 1].forEach(function(k){ var st = m(cyl, dark, 0.004, 0.06, 0.004, sd * (0.012 + k * 0.012), 0.045, 0.035, head); st.rotation.z = sd * 0.15; st.rotation.x = -0.5; });
+  });
+  var legs = [];
+  [[-1, 0.13], [1, 0.13], [-1, -0.13], [1, -0.13]].forEach(function(q, i){
+    var piv = new T.Group(); piv.position.set(q[0] * 0.05, 0.19, q[1]); body.add(piv);
+    m(cyl, legFur, 0.022, 0.19, 0.022, 0, -0.095, 0, piv);
+    m(sph, dark, 0.026, 0.016, 0.032, 0, -0.19, 0.01, piv);
+    legs.push(piv);
+  });
+  var tail = [], par = body, n = 9;
+  for (var i = 0; i < n; i++) {
+    var sg = new T.Group(); sg.position.set(0, i ? 0 : 0.23, i ? -0.042 : -0.2); par.add(sg);
+    var r = 0.019 - i * 0.0009, mat = i >= n - 2 ? dark : (i % 2 ? dark : tan);
+    var c = m(cyl, mat, r, 0.046, r, 0, 0, -0.021, sg); c.rotation.x = Math.PI / 2;
+    tail.push(sg); par = sg;
+  }
+  var shadow = new T.Mesh(new T.CircleGeometry(0.2, 20), new T.MeshBasicMaterial({ color:0x000000, transparent:true, opacity:0.18, depthWrite:false }));
+  shadow.rotation.x = -Math.PI / 2; shadow.scale.set(0.7, 1.4, 1); shadow.position.y = 0.004; root.add(shadow);
+  root.traverse(function(o){ o.userData.dyn = true; });
+  root.visible = false; scene.add(root);
+  CAT.g = root; CAT.body = body; CAT.head = head; CAT.legs = legs; CAT.tail = tail; CAT.eyes = eyes; CAT.shadow = shadow;
+}
+function catSpots(D){
+  var o = D.deskOuter, floor = o.localToWorld(new V3(-0.55, 0, -0.1)); floor.y = 0;
+  var top = D.deskGroup.localToWorld(new V3(-0.6, 0.7625, -0.8));
+  var ahead = D.deskGroup.localToWorld(new V3(0.4, 0.7625, -0.55));
+  return { floor:floor, top:top, face:Math.atan2(ahead.x - top.x, ahead.z - top.z) };
+}
+function catPose(t, mode, speed){
+  var L = CAT.legs, T2 = CAT.tail, b = CAT.body, ph = CAT.gait || 0, i;
+  if (mode === "walk") {
+    var sw = 0.55;
+    L[0].rotation.x = Math.sin(ph) * sw; L[3].rotation.x = Math.sin(ph) * sw;
+    L[1].rotation.x = -Math.sin(ph) * sw; L[2].rotation.x = -Math.sin(ph) * sw;
+    b.position.y = 0.008 * Math.abs(Math.sin(ph)); b.rotation.x = 0;
+  } else if (mode === "lie") {
+    L[0].rotation.x = L[1].rotation.x = -1.45; L[2].rotation.x = L[3].rotation.x = 1.35;
+    b.position.y = -0.115; b.rotation.x = 0;
+  } else if (mode === "jump") {
+    L[0].rotation.x = L[1].rotation.x = -0.9 * speed; L[2].rotation.x = L[3].rotation.x = 0.9 * speed;
+    b.position.y = 0; b.rotation.x = -0.35 * speed;
+  } else {
+    for (i = 0; i < 4; i++) L[i].rotation.x = 0;
+    b.position.y = 0; b.rotation.x = 0;
+  }
+  /* tail: up with a curled tip when walking or saying hi, lying flat and curled around when napping */
+  for (i = 0; i < T2.length; i++) {
+    var s = T2[i];
+    if (mode === "lie") { s.rotation.x = i ? 0 : -0.25; s.rotation.y = 0.32 + (i === T2.length - 1 ? 0.25 * Math.sin(t * 1.4) : 0); }
+    else { s.rotation.x = i === 0 ? 1.05 : i < 5 ? 0.12 : -0.28; s.rotation.y = 0.12 * Math.sin(t * 2.1 + i * 0.5); }
+  }
+  /* slow blinks while napping */
+  var blink = mode === "lie" ? (Math.sin(t * 0.5) > 0.2 ? 0.15 : 1) : ((t % 4.3) < 0.12 ? 0.15 : 1);
+  CAT.eyes.forEach(function(e){ e.scale.y = 0.012 * blink; });
+}
+function catPathTo(path, d){ var hd = along(path, d); return { pos:tmpPos.clone(), yaw:hd }; }
+function catTick(t, dt){
+  var D = BY.debbie;
+  var atDesk = D && D.state === "sit" && D.root.visible && !D.chatWith && !teamCallNow() && !lunchNow(D) && !DAY.closed;
+  if (!CAT.on) {
+    if (!CAT.next) CAT.next = t + (CAT.want ? 5 : rand(240, 600));
+    if (t < CAT.next) return;
+    CAT.next = t + (CAT.want ? 5 : 60);
+    /* one roll a minute while Debbie is at her desk: about one visit every hour and a half */
+    if (!atDesk || (!CAT.want && Math.random() > 0.011)) return;
+    if (!CAT.g) catBuild();
+    var sp = catSpots(D);
+    CAT.inPath = aislePath(EXIT_SPOT.clone(), 0, sp.floor, D.side);
+    CAT.outPath = aislePath(sp.floor, D.side, EXIT_SPOT.clone(), 0);
+    CAT.on = true; CAT.ph = "in"; CAT.d = 0; CAT.t0 = t; CAT.g.visible = true; CAT.yaw = 0; CAT.said = {};
+    CAT.nap = CAT.want ? 25 : rand(30, 60);
+  }
+  var g = CAT.g, sp2 = catSpots(D), u, k;
+  if (CAT.ph === "in" || CAT.ph === "out") {
+    var path = CAT.ph === "in" ? CAT.inPath : CAT.outPath, v = 0.62;
+    CAT.d = Math.min(path.L, CAT.d + v * dt); CAT.gait = (CAT.gait || 0) + dt * v / 0.2 * Math.PI;
+    var w = catPathTo(path, CAT.d);
+    g.position.copy(w.pos); CAT.yaw = w.yaw; catPose(t, "walk", 1);
+    g.visible = Math.abs(g.position.x) < 4.4;
+    if (CAT.ph === "in" && !CAT.said.seen && CAT.d > path.L * 0.55) {
+      CAT.said.seen = true;
+      var nb = neighbours(D).filter(function(q){ return q.state === "sit" && q.root.visible; });
+      if (nb.length && Math.random() < 0.7) sayLater(choose(nb), choose(["Wait, is that a cat?!", "Debbie, your cat is here lol", "We have a visitor!", "Omg the cat!!"]), t, 2.8);
+    }
+    if (CAT.d >= path.L) {
+      if (CAT.ph === "in") { CAT.ph = "hi"; CAT.t0 = t; sayLater(D, choose(["Hi baby! What are you doing here?", "Look who came to visit!", "Hello sweetie!", "Hi my love! Came to check on me?"]), t + 0.4, 3); }
+      else { CAT.on = false; g.visible = false; CAT.next = t + (CAT.want ? 30 : rand(2400, 4200)); }
+    }
+  } else if (CAT.ph === "hi") {
+    /* rubs against the chair and looks up at Debbie */
+    var look = Math.atan2(D.seat.x - g.position.x, D.seat.z - g.position.z);
+    CAT.yaw = lerp(CAT.yaw, look + 0.9 * Math.sin((t - CAT.t0) * 1.2), 1 - Math.exp(-dt * 3));
+    catPose(t, "stand", 0); CAT.head.rotation.x = -0.45;
+    if (t - CAT.t0 > 5) { CAT.ph = "up"; CAT.t0 = t; CAT.from = g.position.clone(); CAT.head.rotation.x = 0; }
+  } else if (CAT.ph === "up" || CAT.ph === "down") {
+    u = clamp((t - CAT.t0) / 0.75, 0, 1); k = ease(u);
+    var a = CAT.ph === "up" ? CAT.from : sp2.top, b = CAT.ph === "up" ? sp2.top : sp2.floor;
+    g.position.lerpVectors(a, b, k); g.position.y += 0.32 * Math.sin(Math.PI * u);
+    CAT.yaw = Math.atan2(b.x - a.x, b.z - a.z);
+    catPose(t, "jump", Math.sin(Math.PI * u));
+    if (u >= 1) {
+      if (CAT.ph === "up") { CAT.ph = "nap"; CAT.t0 = t; }
+      else { CAT.ph = "out"; CAT.d = 0; }
+    }
+  } else if (CAT.ph === "nap") {
+    g.position.copy(sp2.top);
+    var face = sp2.face;
+    CAT.yaw = lerp(CAT.yaw, face, 1 - Math.exp(-dt * 2));
+    catPose(t, "lie", 0);
+    CAT.body.scale.y = 1 + 0.025 * Math.sin(t * 2.2);
+    CAT.head.rotation.x = 0.15; CAT.head.rotation.y = 0.2 * Math.sin(t * 0.3);
+    var el = t - CAT.t0;
+    if (el > 4 && !CAT.said.nap) { CAT.said.nap = true; sayLater(D, choose(["Okay, you can stay a bit.", "That's my desk, you know.", "So comfy, huh?", "Don't sit on my keyboard!"]), t, 3); }
+    if (el > CAT.nap || !atDesk && el > 3) {
+      CAT.ph = "down"; CAT.t0 = t; CAT.body.scale.y = 1; CAT.head.rotation.set(0, 0, 0);
+      if (atDesk) sayLater(D, choose(["Bye sweetie!", "Off you go!", "See you later, baby."]), t + 0.3, 2.4);
+    }
+  }
+  g.rotation.y = CAT.yaw;
+  CAT.shadow.visible = CAT.ph !== "nap" && CAT.ph !== "up" && CAT.ph !== "down";
+}
 (function(){
   var body = M("#ecebe7", { roughness:0.6 }), dark = M("#2b2e33", { roughness:0.5 }), paperM = M("#fbfbf8", { roughness:0.9 });
   /* two printers across the corridor, facing the hallway */
@@ -5044,6 +5227,7 @@ function lifeTick(t, dt){
     }
   }
   ghostTick(t, dt, present);
+  catTick(t, dt);
   ambientTick(t, dt, present);
 }
 /* handles for the QA probe */
