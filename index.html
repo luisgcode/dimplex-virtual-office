@@ -450,15 +450,15 @@ var LINES = {
   luis:["Headphones on","Pushing to the site","Deploying now","Fixing one more page"],
   carla:["Booth ships Monday!","Who needs a show badge?","Hotel is booked","Which products go to the show?"],
   marissa:["Can you hear me okay?","You are on mute!","Hi everyone!","Let me share my screen"],
-  stephanieb:["Love the new banners!","Can we try it with more white space?","Brand colors only, please","Let's review the designs at 3"],
+  stephanieb:["Love the new banners!","Can we try it with more white space?","Brand colors only, please","Sharing my screen with the new layouts"],
   nolan:["A dealer called about the Ignite again","Do we have stock of the Revillusion?"], elena:["Customers keep asking for the manual","Another call about the Optimyst water"],
   tessa:["Specs for the new unit are almost final","Launch date might move"], grant:["Truck comes Thursday","Stock is looking good"], hana:["Approved, you're welcome","I brought cookies"]
 };
 var REMOTE = [
   { id:"marissa", model:"marissa", name:"Marissa", fullName:"Marissa", role:"Designer, remote", remote:true, sx:-1.95, shirt:"#4f7cc4", pants:"#2a2d35", skin:"#e9b996", hair:"#5a3a26", style:"wavy", sleeves:true, glasses:true,
     status:"Online, working remotely", personality:"Works remotely and is always one message away.", topics:"Team updates and shared files" },
-  { id:"stephanieb", name:"Stephanie B.", model:"stephanieb", fullName:"Stephanie Benoit", role:"Design Lead, remote", remote:true, sx:1.95, shirt:"#151618", dot:"#b5543a", pants:"#2b2f36", skin:"#f1d3c2", hair:"#7a3b22", highlight:"#a5583a", style:"curly", sleeves:false, sleeveless:true, lips:"#b3122a", earrings:true, alwaysSmile:true,
-    status:"Reviewing the team's designs", personality:"Designer and coordinator of the design team. Olivia and Marissa report to her.", topics:"Design reviews, priorities for the designers and brand look" }
+  { id:"stephanieb", name:"Stephanie B.", model:"stephanieb", fullName:"Stephanie Benoit", role:"Designer, remote", remote:true, sx:1.95, shirt:"#151618", dot:"#b5543a", pants:"#2b2f36", skin:"#f1d3c2", hair:"#7a3b22", highlight:"#a5583a", style:"curly", sleeves:false, sleeveless:true, lips:"#b3122a", earrings:true, alwaysSmile:true,
+    status:"Working on new designs", personality:"Designer on the team, works remotely. Notices every detail of the brand look.", topics:"Banners, layouts, social graphics and the brand look" }
 ];
 var ALL = PEOPLE.concat(REMOTE);
 var BY = {}; ALL.forEach(function(p){ BY[p.id] = p; });
@@ -4767,8 +4767,8 @@ var TEAM_TOPICS = [
   { own:"debbie", mode:"tell", L:["The FOR heaters finally have matching bullets.", "In English and French?", "Both. Live on the site."] },
   { own:"debbie", mode:"ask", L:["Convectair or Cadet for a bathroom?", "Depends on the space. Fan-forced heats it fastest.", "Good to know."] },
   { own:"olivia", mode:"ask", L:["Are the new lifestyle shots in?", "Uploading them now.", "Can't wait to see them."] },
-  { own:"stephanieb", mode:"tell", L:["Design review at 3, bring the banners.", "On it. Two versions ready.", "Perfect, we'll pick one together."] },
-  { own:"stephanieb", mode:"ask", L:["Can the design team fit one more banner this week?", "Let me check with Olivia and Marissa.", "Thanks, no rush."] },
+  { own:"stephanieb", mode:"tell", L:["The new layouts are ready, want a look?", "Send them over!", "Sharing my screen now."] },
+  { own:"stephanieb", mode:"ask", L:["Can you fit one more banner this week?", "I think so. Send me the brief.", "Thanks, no rush."] },
   { own:"olivia", mode:"tell", L:["I'm thinking of a Get Inspired gallery for the fireplaces.", "Real rooms, real installs?", "Exactly. I'll pull the best shots."] },
   { own:"olivia", mode:"tell", L:["The holiday banners are done.", "Already? They look great.", "Red and green everywhere."] },
   { own:"carla", mode:"tell", L:["The booth for the next show is booked.", "Already? That's fast.", "Crates ship in two weeks."] },
@@ -6372,7 +6372,7 @@ var PROFILE = {
     moodW:{ excited:1.5, great:2.5, good:2.5, okay:1.5, tired:1, stressed:0.8, off:0.4 },
     likes:"a design that needs zero revisions", dislikes:"logos stretched to fit",
     joke:"I have perfected the can you see my screen face. And the can you move it two pixels left face.",
-    work:["Reviewing Olivia's banners","Giving feedback on a layout","Planning the design team's week","Checking a campaign against the brand guide"] },
+    work:["Designing a new banner","Working on a layout","Making social graphics","Checking a campaign against the brand guide"] },
   erica:{ pron:"she", traits:{ patience:0.7, humour:0.8, chattiness:0.6, stressTol:0.7 },
     moodW:{ excited:1, great:2, good:2.5, okay:2, tired:1.5, stressed:1.5, off:0.4 },
     likes:"a meeting that ends early", dislikes:"meetings that could have been an email",
@@ -6523,8 +6523,8 @@ var KB = {
     { q:"What are your hours?", k:["time zone","timezone","hours","your schedule"], a:"Same hours as the team, so ping me anytime during the day." }
   ], fallback:"Hmm, you cut out for a second there. Can you say that again?" },
   stephanieb:{ qa:[
-    { q:"What is the design team working on?", k:["design team","designers","designs","working on","priorities","projects"], a:"Holiday campaign banners, new product shots for the site and social graphics. Olivia and Marissa are on it, I review and keep us on brand." },
-    { q:"Can you review my design?", k:["review","feedback","look at","check my","approve"], a:"Send it over. I will look at hierarchy, spacing and brand colors and get back to you today." },
+    { q:"What are you working on?", k:["design team","designers","designs","working on","priorities","projects"], a:"Holiday campaign banners and social graphics. Olivia, Marissa and I share the design work." },
+    { q:"Can you look at my design?", k:["review","feedback","look at","check my","approve"], a:"Send it over, happy to be a second pair of eyes on spacing and brand colors." },
     { q:"Are you working remotely?", k:["remote","remotely","working from","on the call"], a:"Yes, I work remotely and I am on the call with the team all day." },
     { q:"Can you see my screen?", k:["screen","share","camera","video"], a:"Yes, I can see it. Go ahead." },
     { q:"How do I reach you?", k:["reach","contact","ping","message you","email"], a:"Message me anytime. I am always online during the day." },
@@ -6711,7 +6711,7 @@ var WORK_NUDGE = {
   erica:"Ask me about this week's priorities.",
   allyson:"Ask me about the plan for this quarter.",
   marissa:"Ask me about team updates or shared files.",
-  stephanieb:"Ask me about design, the brand look or what the design team is working on."
+  stephanieb:"Ask me about design, the brand look or what I'm working on."
 };
 function isPrivate(s, words){
   for (var i = 0; i < PRIVATE.length; i++) {
