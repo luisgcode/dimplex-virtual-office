@@ -60,6 +60,18 @@ h1 em{font-style:normal;color:var(--accent)}
 .chip:hover{border-color:var(--muted)}
 .chip .d{width:10px;height:10px;border-radius:50%;background:var(--c);box-shadow:inset 0 0 0 1px rgba(0,0,0,.15)}
 #sound.muted{opacity:.6}#sound.muted svg path:not(:first-child){display:none}
+.petcard{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:30;width:min(260px,calc(100% - 32px));
+  background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:16px;box-shadow:0 18px 50px rgba(15,20,25,.28);
+  padding:14px 16px 16px;display:flex;flex-direction:column;align-items:center;text-align:center}
+.petcard .pc-x{position:absolute;top:8px;right:8px;width:30px;height:30px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:600 18px/1 var(--f-body);cursor:pointer}
+.petcard .pc-top{align-self:stretch;display:flex;justify-content:space-between;padding-right:34px;font:700 10px/1.2 var(--f-body);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.petcard .pc-tag{color:var(--accent)}
+.petcard .pc-photo{width:150px;height:150px;border-radius:50%;object-fit:cover;margin:12px 0 8px;border:3px solid var(--accent)}
+.petcard .pc-name{margin:0;font:800 22px/1.1 var(--f-body)}
+.petcard .pc-role{margin:2px 0 10px;color:var(--muted);font-size:12px}
+.petcard .pc-dl{margin:0;align-self:stretch;display:grid;grid-template-columns:auto 1fr;gap:4px 10px;text-align:left;font-size:12px;border-top:1px solid var(--line);padding-top:10px}
+.petcard dt{color:var(--muted);font-weight:600}
+.petcard dd{margin:0}
 .chip[aria-pressed="true"]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
 button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
@@ -238,6 +250,19 @@ body > header{display:none !important}
   <div id="night" aria-hidden="true"></div>
   <div id="labels"></div>
   <div class="clockhud" id="clockHud" aria-live="off"><b id="clkTime">--:--</b><span id="clkDay"></span></div>
+  <div class="petcard" id="petcard" role="dialog" aria-labelledby="petName" hidden>
+    <button class="pc-x" id="petClose" type="button" aria-label="Close">&times;</button>
+    <div class="pc-top"><span class="pc-tag">Office ID</span><span class="pc-no">No. 0001</span></div>
+    <img class="pc-photo" src="img/pixel.jpg" alt="Pixel, Debbie's cat" width="180" height="180">
+    <h2 class="pc-name" id="petName">Pixel</h2>
+    <p class="pc-role">Debbie's cat</p>
+    <dl class="pc-dl">
+      <dt>Department</dt><dd>Naps and quality control</dd>
+      <dt>Desk</dt><dd>Debbie's, the free end</dd>
+      <dt>Known for</dt><dd>Knocking things off desks</dd>
+      <dt>Access</dt><dd>Every room, no badge needed</dd>
+    </dl>
+  </div>
   <div class="ctrl">
     <button class="btn" id="sound" type="button" aria-pressed="true" aria-label="Office sound">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></svg>
@@ -2435,7 +2460,7 @@ function buildPumpkinTrophy(){
     add(G.sph, eye, 0.004, 0.006, 0.003, 0.008, 0.017, 0.02, gh, false);
   }
   sh.traverse(function(o){ o.userData.dyn = true; });
-  TROPHY = { spin:spin };
+  TROPHY = { spin:spin, tg:tg, sh:sh, base:tg.position.clone(), rot:tg.rotation.clone() };
 }
 function buildMishaps(){
   /* a small wall shelf between Debbie's heater and Carla's events calendar */
@@ -2718,6 +2743,8 @@ function catBuild(){
   }
   var shadow = new T.Mesh(new T.CircleGeometry(0.2, 20), new T.MeshBasicMaterial({ color:0x000000, transparent:true, opacity:0.18, depthWrite:false }));
   shadow.rotation.x = -Math.PI / 2; shadow.scale.set(0.7, 1.4, 1); shadow.position.y = 0.004; root.add(shadow);
+  /* a bigger invisible target so the cat is easy to click */
+  var hit = new T.Mesh(new T.SphereGeometry(0.32, 10, 8), new T.MeshBasicMaterial({ visible:false })); hit.position.y = 0.2; hit.userData.pet = "pixel"; root.add(hit); CAT.hit = hit;
   root.traverse(function(o){ o.userData.dyn = true; });
   root.visible = false; scene.add(root);
   CAT.g = root; CAT.body = body; CAT.head = head; CAT.legs = legs; CAT.tail = tail; CAT.eyes = eyes; CAT.shadow = shadow;
@@ -2871,7 +2898,57 @@ function dogsTick(t, dt){
     dogPose(d, ease(d.w));
   });
 }
+/* ---------- the cat's mischief: on some visits it knocks a cup off someone's desk on the way in, or swats the
+   pumpkin trophy off the shelf before leaving. Someone then picks it up and puts it back.
+   ?catprank=cup or ?catprank=trophy forces one (with ?cat=1) */
+var PRANK_FORCE = (/[?&]catprank=(cup|trophy)/.exec(location.search || "") || [])[1] || "";
+var CAT_FIX = [];
+function catFloorOf(q){ var f = q.deskOuter.localToWorld(new V3(-0.55, 0, -0.1)); f.y = 0; return f; }
+function knockCup(q, t){
+  var c = q.cup; if (!c) return;
+  var liftY = q.deskGroup.position.y;
+  c.userData.fall = { t0:t, from:c.position.clone(), to:new V3(-0.75, 0.04 - liftY, -0.18) };
+  q.cupDown = true;
+}
+function knockTrophy(t){
+  if (!TROPHY || TROPHY.down) return;
+  TROPHY.down = true; TROPHY.fall = { t0:t, from:TROPHY.tg.position.clone(), to:new V3(1.05, -1.74 + 0.02, -0.2) };
+}
+function fallTick(t){
+  PEOPLE.forEach(function(q){
+    var c = q.cup; if (!c || !c.userData.fall) return;
+    var f = c.userData.fall, u = clamp((t - f.t0) / 0.55, 0, 1);
+    c.position.lerpVectors(f.from, f.to, u); c.position.y = lerp(f.from.y, f.to.y, u * u);
+    c.rotation.x = 1.5 * u; c.rotation.z = 0.6 * u;
+    if (u >= 1) c.userData.fall = null;
+  });
+  if (TROPHY && TROPHY.fall) {
+    var f = TROPHY.fall, u = clamp((t - f.t0) / 0.75, 0, 1), tg = TROPHY.tg;
+    tg.position.lerpVectors(f.from, f.to, u); tg.position.y = lerp(f.from.y, f.to.y, u * u);
+    tg.rotation.z = TROPHY.rot.z - 1.45 * ease(u); tg.rotation.x = TROPHY.rot.x + 0.4 * u;
+    if (u >= 1) TROPHY.fall = null;
+  }
+  for (var i = CAT_FIX.length - 1; i >= 0; i--) if (t >= CAT_FIX[i].at) { var fx = CAT_FIX.splice(i, 1)[0]; fx.fn(t); }
+}
+function fixCup(q){
+  if (!q.cupDown) return;
+  q.cup.userData.fall = null; q.cup.rotation.set(0, 0, 0); q.cup.position.set(-0.62, 0.81, -0.5); q.cupDown = false;
+}
+function fixTrophy(){
+  if (!TROPHY || !TROPHY.down) return;
+  TROPHY.fall = null; TROPHY.tg.position.copy(TROPHY.base); TROPHY.tg.rotation.copy(TROPHY.rot); TROPHY.down = false;
+}
+/* someone walks over, bends down and picks it up; whatever happens, it is back in place after a couple of minutes */
+function sendFixer(q, spot, item, label, t, after){
+  CAT_FIX.push({ at:t + 150, fn:function(){ item === "cup" ? fixCup(after) : fixTrophy(); } });
+  CAT_FIX.push({ at:t + rand(6, 10), fn:function(t2){
+    if (!q || !idleAtDesk(q) && !(q.state === "sit" && q.root.visible && !q.trip)) { item === "cup" ? fixCup(after) : fixTrophy(); return; }
+    q.act = null;
+    goSpot(q, t2, spot, spot.clone().setY(0.2), 4, label, "fixprinter", null, function(){ item === "cup" ? fixCup(after) : fixTrophy(); });
+  } });
+}
 function catTick(t, dt){
+  fallTick(t);
   var D = BY.debbie;
   var atDesk = D && D.state === "sit" && D.root.visible && !D.chatWith && !teamCallNow() && !lunchNow(D) && !DAY.closed;
   /* a one-off visit for everyone who has the office open (reloaded) in this window */
@@ -2884,28 +2961,61 @@ function catTick(t, dt){
     if (!atDesk || (!CAT.want && !now1 && Math.random() > 0.011)) return;
     if (now1) CAT.onceDone = true;
     if (!CAT.g) catBuild();
-    var sp = catSpots(D);
-    CAT.inPath = aislePath(EXIT_SPOT.clone(), 0, sp.floor, D.side);
-    CAT.outPath = aislePath(sp.floor, D.side, EXIT_SPOT.clone(), 0);
-    CAT.on = true; CAT.ph = "in"; CAT.d = 0; CAT.t0 = t; CAT.g.visible = true; CAT.yaw = 0; CAT.said = {};
+    var debF = catFloorOf(D), r = Math.random();
+    CAT.prank = PRANK_FORCE || (r < 0.22 ? "cup" : r < 0.42 ? "trophy" : "");
+    CAT.victim = null;
+    if (CAT.prank === "cup") {
+      var vs = PEOPLE.filter(function(q){ return q !== D && !q.remote && !q.guest && q.cup && q.cup.visible && !q.cupDown && q.state === "sit" && q.root.visible && q.deskOuter && !(MISHAP.cur && MISHAP.cur.cup === q.cup); });
+      if (vs.length) CAT.victim = choose(vs); else CAT.prank = "";
+    }
+    if (CAT.victim) { CAT.path = aislePath(EXIT_SPOT.clone(), 0, catFloorOf(CAT.victim), CAT.victim.side); CAT.then = "pup"; }
+    else { CAT.path = aislePath(EXIT_SPOT.clone(), 0, debF, D.side); CAT.then = "hi"; }
+    CAT.on = true; CAT.ph = "walk"; CAT.v = 0.62; CAT.d = 0; CAT.t0 = t; CAT.g.visible = true; CAT.yaw = 0; CAT.said = {};
     CAT.nap = CAT.want ? 25 : rand(30, 60);
   }
-  var g = CAT.g, sp2 = catSpots(D), u, k;
-  if (CAT.ph === "in" || CAT.ph === "out") {
-    var path = CAT.ph === "in" ? CAT.inPath : CAT.outPath, v = 0.62;
+  var g = CAT.g, sp2 = catSpots(D), u, k, a, b;
+  if (CAT.ph === "walk") {
+    var path = CAT.path, v = CAT.v;
     CAT.d = Math.min(path.L, CAT.d + v * dt); CAT.gait = (CAT.gait || 0) + dt * v / 0.2 * Math.PI;
     var w = catPathTo(path, CAT.d);
     g.position.copy(w.pos); CAT.yaw = w.yaw; catPose(t, "walk", 1);
     g.visible = Math.abs(g.position.x) < 4.4;
-    if (CAT.ph === "in" && !CAT.said.seen && CAT.d > path.L * 0.55) {
+    if (!CAT.said.seen && CAT.d > path.L * 0.55 && CAT.then !== "gone") {
       CAT.said.seen = true;
       var nb = neighbours(D).filter(function(q){ return q.state === "sit" && q.root.visible; });
       if (nb.length && Math.random() < 0.7) sayLater(choose(nb), choose(["Wait, is that a cat?!", "Debbie, your cat is here lol", "We have a visitor!", "Omg the cat!!"]), t, 2.8);
     }
     if (CAT.d >= path.L) {
-      if (CAT.ph === "in") { CAT.ph = "hi"; CAT.t0 = t; sayLater(D, choose(["Hi baby! What are you doing here?", "Look who came to visit!", "Hello sweetie!", "Hi my love! Came to check on me?"]), t + 0.4, 3); }
+      if (CAT.then === "hi") { CAT.ph = "hi"; CAT.t0 = t; sayLater(D, choose(["Hi baby! What are you doing here?", "Look who came to visit!", "Hello sweetie!", "Hi my love! Came to check on me?"]), t + 0.4, 3); }
+      else if (CAT.then === "pup") { CAT.ph = "pup"; CAT.t0 = t; CAT.from = g.position.clone(); }
       else { CAT.on = false; g.visible = false; CAT.next = t + (CAT.want ? 30 : rand(2400, 4200)); }
     }
+  } else if (CAT.ph === "pup" || CAT.ph === "pdown") {
+    /* the cup run: up on the victim's desk, a swat, back down */
+    var V = CAT.victim, vTop = V.deskGroup.localToWorld(new V3(-0.42, 0.7625, -0.72)), vFloor = catFloorOf(V);
+    u = clamp((t - CAT.t0) / 0.7, 0, 1); k = ease(u);
+    a = CAT.ph === "pup" ? CAT.from : vTop; b = CAT.ph === "pup" ? vTop : vFloor;
+    g.position.lerpVectors(a, b, k); g.position.y += 0.3 * Math.sin(Math.PI * u);
+    CAT.yaw = Math.atan2(b.x - a.x, b.z - a.z); catPose(t, "jump", Math.sin(Math.PI * u));
+    if (u >= 1) {
+      if (CAT.ph === "pup") { CAT.ph = "swat"; CAT.t0 = t; }
+      else { CAT.path = aislePath(vFloor, V.side, catFloorOf(D), D.side); CAT.then = "hi"; CAT.ph = "walk"; CAT.d = 0; CAT.v = 0.9; }
+    }
+  } else if (CAT.ph === "swat") {
+    var V2 = CAT.victim, cupW = V2.cup.getWorldPosition(new V3());
+    g.position.copy(V2.deskGroup.localToWorld(new V3(-0.42, 0.7625, -0.72)));
+    CAT.yaw = Math.atan2(cupW.x - g.position.x, cupW.z - g.position.z);
+    catPose(t, "stand", 0);
+    var sw = t - CAT.t0;
+    CAT.legs[0].rotation.x = sw < 1.6 ? -0.9 - 0.5 * Math.sin(sw * 9) : 0;
+    CAT.head.rotation.x = -0.2;
+    if (sw > 0.9 && !V2.cupDown) {
+      knockCup(V2, t);
+      sayLater(V2, choose(["HEY!! My cup!", "Nooo, really?!", "Debbie!! Your cat!!", "Did that cat just..."]), t + 0.5, 2.8);
+      sayLater(D, choose(["Oh no, I'm so sorry!! Bad kitty!", "Sorry sorry sorry! I'll get you a new one lol"]), t + 3.3, 3);
+      sendFixer(V2, catFloorOf(V2), "cup", "Picking up my cup", t, V2);
+    }
+    if (sw > 1.9) { CAT.legs[0].rotation.x = 0; CAT.head.rotation.x = 0; CAT.ph = "pdown"; CAT.t0 = t; }
   } else if (CAT.ph === "hi") {
     /* rubs against the chair and looks up at Debbie */
     var look = Math.atan2(D.seat.x - g.position.x, D.seat.z - g.position.z);
@@ -2914,30 +3024,59 @@ function catTick(t, dt){
     if (t - CAT.t0 > 5) { CAT.ph = "up"; CAT.t0 = t; CAT.from = g.position.clone(); CAT.head.rotation.x = 0; }
   } else if (CAT.ph === "up" || CAT.ph === "down") {
     u = clamp((t - CAT.t0) / 0.75, 0, 1); k = ease(u);
-    var a = CAT.ph === "up" ? CAT.from : sp2.top, b = CAT.ph === "up" ? sp2.top : sp2.floor;
+    a = CAT.ph === "up" ? CAT.from : (CAT.downFrom || sp2.top); b = CAT.ph === "up" ? sp2.top : sp2.floor;
     g.position.lerpVectors(a, b, k); g.position.y += 0.32 * Math.sin(Math.PI * u);
     CAT.yaw = Math.atan2(b.x - a.x, b.z - a.z);
     catPose(t, "jump", Math.sin(Math.PI * u));
     if (u >= 1) {
       if (CAT.ph === "up") { CAT.ph = "nap"; CAT.t0 = t; }
-      else { CAT.ph = "out"; CAT.d = 0; }
+      else { CAT.ph = "walk"; CAT.path = CAT.outPath2 || aislePath(sp2.floor, D.side, EXIT_SPOT.clone(), 0); CAT.outPath2 = null; CAT.then = "gone"; CAT.d = 0; CAT.downFrom = null; }
     }
   } else if (CAT.ph === "nap") {
     g.position.copy(sp2.top);
-    var face = sp2.face;
-    CAT.yaw = lerp(CAT.yaw, face, 1 - Math.exp(-dt * 2));
+    CAT.yaw = lerp(CAT.yaw, sp2.face, 1 - Math.exp(-dt * 2));
     catPose(t, "lie", 0);
     CAT.body.scale.y = 1 + 0.025 * Math.sin(t * 2.2);
     CAT.head.rotation.x = 0.15; CAT.head.rotation.y = 0.2 * Math.sin(t * 0.3);
     var el = t - CAT.t0;
     if (el > 4 && !CAT.said.nap) { CAT.said.nap = true; sayLater(D, choose(["Okay, you can stay a bit.", "That's my desk, you know.", "So comfy, huh?", "Don't sit on my keyboard!"]), t, 3); }
     if (el > CAT.nap || !atDesk && el > 3) {
-      CAT.ph = "down"; CAT.t0 = t; CAT.body.scale.y = 1; CAT.head.rotation.set(0, 0, 0);
-      if (atDesk) sayLater(D, choose(["Bye sweetie!", "Off you go!", "See you later, baby."]), t + 0.3, 2.4);
+      CAT.body.scale.y = 1; CAT.head.rotation.set(0, 0, 0);
+      if (CAT.prank === "trophy" && TROPHY && !TROPHY.down) { CAT.ph = "toshelf"; CAT.t0 = t; CAT.from = g.position.clone(); }
+      else {
+        CAT.ph = "down"; CAT.t0 = t; CAT.v = 0.62;
+        if (atDesk) sayLater(D, choose(["Bye sweetie!", "Off you go!", "See you later, baby."]), t + 0.3, 2.4);
+      }
+    }
+  } else if (CAT.ph === "toshelf") {
+    /* trots along the desk (over the keyboard) to right under the trophy shelf */
+    var under = new V3(-2.18, 0.7625, 0.52);
+    u = clamp((t - CAT.t0) / 1.4, 0, 1);
+    g.position.lerpVectors(CAT.from, under, ease(u)); CAT.yaw = Math.atan2(under.x - CAT.from.x, under.z - CAT.from.z);
+    CAT.gait = (CAT.gait || 0) + dt * 8; catPose(t, "walk", 1);
+    if (u >= 1) { CAT.ph = "leap"; CAT.t0 = t; CAT.from = under.clone(); }
+  } else if (CAT.ph === "leap") {
+    /* a big jump at the shelf: the trophy goes flying, the cat lands back on the desk */
+    u = clamp((t - CAT.t0) / 1.0, 0, 1);
+    g.position.copy(CAT.from); g.position.y += 0.85 * Math.sin(Math.PI * u); g.position.x -= 0.22 * Math.sin(Math.PI * u);
+    CAT.yaw = -Math.PI / 2; catPose(t, "jump", Math.sin(Math.PI * u));
+    if (u > 0.45 && !TROPHY.down) {
+      knockTrophy(t);
+      sayLater(D, choose(["NOOO, the trophy!!", "Not the trophy!!", "Our first place!! Noo!"]), t + 0.4, 2.8);
+      var wit = PEOPLE.filter(function(q){ return q !== D && q.state === "sit" && q.root.visible && !q.remote && !q.guest; });
+      if (wit.length) sayLater(choose(wit), choose(["Did the cat just take down the trophy?! lol", "Hahaha that cat has no respect", "The trophy!! Is it okay?"]), t + 3.4, 3);
+      var fixer = available(D) ? D : (wit.length ? choose(wit) : D);
+      sendFixer(fixer, new V3(-1.45, 0, 0.32), "trophy", "Putting the trophy back", t, null);
+    }
+    if (u >= 1) {
+      /* and runs off, fast */
+      CAT.ph = "down"; CAT.t0 = t; CAT.downFrom = g.position.clone(); CAT.v = 1.35;
+      CAT.outPath2 = aislePath(sp2.floor, D.side, EXIT_SPOT.clone(), 0);
     }
   }
+  if (CAT.ph === "walk" && CAT.then === "gone" && CAT.prank === "trophy") CAT.v = 1.35;
   g.rotation.y = CAT.yaw;
-  CAT.shadow.visible = CAT.ph !== "nap" && CAT.ph !== "up" && CAT.ph !== "down";
+  CAT.shadow.visible = CAT.ph === "walk" || CAT.ph === "hi";
 }
 (function(){
   var body = M("#ecebe7", { roughness:0.6 }), dark = M("#2b2e33", { roughness:0.5 }), paperM = M("#fbfbf8", { roughness:0.9 });
@@ -6594,10 +6733,16 @@ canvas.addEventListener("wheel", function(e){
 }, { passive:false });
 
 var ray = new T.Raycaster(), ndc = new T.Vector2();
+var petEl = document.getElementById("petcard");
+function petCard(on){ petEl.hidden = !on; if (on) document.getElementById("petClose").focus(); }
+document.getElementById("petClose").addEventListener("click", function(){ petCard(false); });
+window.addEventListener("keydown", function(e){ if (e.key === "Escape" && !petEl.hidden) petCard(false); });
 function pick(e){
   var rect = canvas.getBoundingClientRect();
   ndc.set(((e.clientX - rect.left) / rect.width) * 2 - 1, -((e.clientY - rect.top) / rect.height) * 2 + 1);
   ray.setFromCamera(ndc, camera);
+  /* Pixel, Debbie's cat: her own ID card */
+  if (CAT.on && CAT.g && CAT.g.visible && CAT.hit && ray.intersectObject(CAT.hit, false).length) { petCard(true); return; }
   var hits = ray.intersectObjects(pickables, false);
   for (var i = 0; i < hits.length; i++) {
     var p = BY[hits[i].object.userData.pid];

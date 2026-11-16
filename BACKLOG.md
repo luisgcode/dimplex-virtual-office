@@ -93,6 +93,10 @@ Approved ideas. Everything stays inside the office scene: no rooms or events out
 - Fix: anyone who walked out of view (coffee, lunch, home) could get stuck there forever.
 - Debbie's cat (spotted golden tabby, from her photos): now and then, while she is at her desk, it walks in, says hi at her chair, naps 30 to 60 seconds on the free end of her desk and leaves. About one visit every hour and a half. `?cat=1` calls it now.
 - Erica's two dogs (German shorthaired pointers, from her photo) asleep on their beds next to her desk, no animation. Only there when Erica is in.
+- Erica's dogs stand up and watch Pixel while the cat is in the office.
+- Calmer pace: decisions every 16 to 32 s, optional walks skipped about half the time.
+- Pixel's mischief: on some visits it knocks a cup off someone's desk, or leaps at the shelf and knocks the pumpkin trophy down; someone picks it up and puts it back. `?catprank=cup` or `?catprank=trophy` with `?cat=1`.
+- Pixel's ID card: click the cat to see the photo.
 
 ## Not wanted
 - Robot vacuum or night cleaner.
