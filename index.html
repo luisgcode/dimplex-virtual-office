@@ -1462,7 +1462,39 @@ function activityScreen(pool, seed, baseImg, ownerId){
 /* ?screen=dash shows one activity on every screen, for checking */
 var SCREEN_FORCE = (/[?&]screen=(\w+)/.exec(location.search || "") || [])[1];
 function registerScreen(scr, kind, parent){ scr.userData.kind = kind; LIVE_SCREENS.push({ m:scr, kind:kind, desk:parent, base:scr.material.map }); }
-var TEAM_SCREEN = null;
+var TEAM_SCREEN = null, RESTART_SCREEN = null;
+/* black screen with the spinning dots: "Restarting", then the updates crawl to 100%, then the sign in screen */
+function restartScreen(){
+  var L = liveCanvas(512, 320);
+  L.draw = function(t, k){
+    var g = L.g, W = 512, H = 320;
+    if (k < 0.92) {
+      g.fillStyle = k < 0.2 ? "#000000" : "#0b3a7a"; g.fillRect(0, 0, W, H);
+      /* the ring of dots chasing each other */
+      for (var i = 0; i < 5; i++) {
+        var a = t * 4.2 - i * 0.42 - Math.sin(t * 2.1) * 0.6;
+        g.fillStyle = "rgba(255,255,255," + (1 - i * 0.15) + ")";
+        g.beginPath(); g.arc(W / 2 + Math.cos(a) * 22, 118 + Math.sin(a) * 22, 3.2, 0, 7); g.fill();
+      }
+      g.fillStyle = "#ffffff"; g.textAlign = "center"; g.textBaseline = "middle";
+      if (k < 0.2) { g.font = "500 20px " + FONT; g.fillText("Restarting", W / 2, 185); }
+      else {
+        var pc = Math.min(100, Math.round(Math.pow((k - 0.2) / 0.72, 1.8) * 100));
+        g.font = "500 18px " + FONT; g.fillText("Working on updates  " + pc + "%", W / 2, 180);
+        g.font = "400 13px " + FONT; g.fillText("Don't turn off your computer", W / 2, 206);
+      }
+    } else {
+      /* back: the sign in screen for a moment */
+      var gr = g.createLinearGradient(0, 0, W, H); gr.addColorStop(0, "#1d3f6e"); gr.addColorStop(1, "#4a7fb5"); g.fillStyle = gr; g.fillRect(0, 0, W, H);
+      g.fillStyle = "rgba(255,255,255,0.85)"; g.beginPath(); g.arc(W / 2, 120, 30, 0, 7); g.fill();
+      g.fillStyle = "#ffffff"; g.textAlign = "center"; g.textBaseline = "middle"; g.font = "500 16px " + FONT; g.fillText("Welcome", W / 2, 180);
+    }
+    g.textAlign = "left";
+    L.tex.needsUpdate = true;
+  };
+  L.draw(0, 0);
+  return L;
+}
 function screensTick(t, dt){
   if (!screensTick.ready) {
     screensTick.ready = true;
@@ -1490,6 +1522,12 @@ function screensTick(t, dt){
       if (s.m.material.map !== TEAM_SCREEN.tex) { if (!s.prevMap) s.prevMap = s.m.material.map; s.m.material.map = TEAM_SCREEN.tex; s.m.material.needsUpdate = true; }
       continue;
     } else if (s.prevMap) { s.m.material.map = s.prevMap; s.prevMap = null; s.m.material.needsUpdate = true; }
+    if (p && p.restartUntil && t < p.restartUntil) {
+      if (!RESTART_SCREEN) RESTART_SCREEN = restartScreen();
+      if (s.m.material.map !== RESTART_SCREEN.tex) { if (!s.rsPrev) s.rsPrev = s.m.material.map; s.m.material.map = RESTART_SCREEN.tex; s.m.material.needsUpdate = true; }
+      if ((frameNo + i) % 4 === 0) RESTART_SCREEN.draw(t, clamp((t - p.restartT0) / (p.restartUntil - p.restartT0), 0, 1));
+      continue;
+    } else if (s.rsPrev) { s.m.material.map = s.rsPrev; s.rsPrev = null; s.m.material.needsUpdate = true; }
     var active = p && p.state === "sit" && !(p.trip && p.trip.kind === "home") && !lunchNow(p);
     if (!active || !s.m.visible) continue;
     if (s.map) {
@@ -2615,6 +2653,18 @@ function startMishap(kind, t){
     startAct(m.p, "point", t + 0.5, 2.0);
     /* grab napkins and wipe the desk */
     setTimeout(function(){ if (m.p.state === "sit" && !m.p.chatWith && (!m.p.act || m.p.act.n === "point")) startAct(m.p, "wipe", clock.elapsedTime, 5.5); }, 2600);
+  } else if (kind === "restart") {
+    /* the computer has to restart for updates: black screen, a spinner, a percentage that crawls, and a bored wait */
+    /* left row only: those screens face the usual view */
+    var rc = PEOPLE.filter(function(q){ return q.side < 0 && q.state === "sit" && q.root.visible && !q.remote && !q.guest && !q.chatWith && !q.answering && !q.trip && !(q.standW > 0) && LIVE_SCREENS.some(function(s2){ return s2.owner === q; }); });
+    if (!rc.length) return false;
+    m.p = choose(rc); m.dur = rand(55, 85); m.stage = -1;
+    m.p.restartT0 = t; m.p.restartUntil = t + m.dur; m.p.typeOn = false; m.p.mouseOn = false;
+    m.p.decideAt = Math.max(m.p.decideAt || 0, t + m.dur + 4);
+    logEvent("restart", m.p, t);
+    sayLater(m.p, choose(["Ugh, my computer wants to restart.", "Seriously? Updates right now?", "Restarting. Again.", "Great, my laptop just decided to update."]), t + 0.4, 3);
+    var rn = nearestSitter(m.p.seat.x, m.p.seat.z, m.p);
+    if (rn && Math.abs(rn.z - m.p.z) < 2.4) sayLater(rn, choose(["Updates again? Mine did that yesterday.", "Perfect time for a break.", "Go get a " + drinkOf(m.p) + " lol"]), t + 3.6, 2.8);
   } else if (kind === "chair") {
     var cand = PEOPLE.filter(function(q){ return q.state === "sit" && q.root.visible && !q.chatWith && !q.answering && !q.act && !(q.standW > 0); });
     if (!cand.length) return false;
@@ -2637,7 +2687,7 @@ function updateMishaps(t, dt){
     if (!MISHAP.next) MISHAP.next = t + rand(240, 900);
     if (t > MISHAP.next && !teamCallNow()) {
       MISHAP.next = t + rand(600, 1500);
-      startMishap(choose(["cat", "cat", "cat", "cat", "book", "book", "chair", "chair", "spill"]), t);
+      startMishap(choose(["cat", "cat", "cat", "cat", "book", "book", "chair", "chair", "spill", "restart", "restart"]), t);
     }
     if (MISHAP.book.down && t > MISHAP.book.backAt) { MISHAP.book.down = false; MISHAP.book.g.position.copy(MISHAP.book.home); MISHAP.book.g.rotation.set(0, 0, 0); }
     return;
@@ -2672,6 +2722,23 @@ function updateMishaps(t, dt){
     if (k >= 1) { cup.rotation.z = 0; cup.position.set(-0.62, 0.81, -0.5); pu.visible = false; MISHAP.cur = null; }
   } else if (m.kind === "chair") {
     if (k >= 1) MISHAP.cur = null;
+  } else if (m.kind === "restart") {
+    var rp2 = m.p;
+    /* someone came to talk, or they left: the restart keeps going on its own, the waiting stops */
+    var busy = rp2.chatWith || rp2.answering || rp2.state !== "sit";
+    rp2.typeOn = false; rp2.mouseOn = false;
+    var st = Math.floor(u / 7);
+    if (!busy && st !== m.stage && k < 1) {
+      m.stage = st;
+      startAct(rp2, ["chin", "leanBack", "chin", "yawn", "leanBack", "chin", "phone", "chin", "leanBack", "yawn", "chin", "leanBack"][st % 12], t, st % 12 === 3 || st % 12 === 9 ? 2.6 : 6.6);
+      if (st === 2) sayLater(rp2, choose(["Come on, come on...", "Why is this taking so long?", "I could have made a tea by now."]), t + 0.5, 2.8);
+      if (st === 5) sayLater(rp2, choose(["Still at " + Math.round(clamp(u / m.dur, 0, 1) * 70 + 20) + "%...", "It's been stuck on this number forever.", "Don't turn off your computer. Okay, okay."]), t + 0.5, 2.8);
+    }
+    if (k >= 1) {
+      rp2.restartUntil = 0; rp2.act = null; rp2.typeOn = true;
+      sayLater(rp2, choose(["Finally! Now, where was I?", "We're back. Everything's still open, right?", "Okay, it's back. Phew."]), t + 0.6, 3);
+      MISHAP.cur = null;
+    }
   }
 }
 buildMishaps();
@@ -6446,6 +6513,7 @@ function doingNow(p){
     if (tr.kind === "meeting") return tr.back ? "Just walking back from a meeting" : "Heading to a meeting";
   }
   if (p.chatWith) return "Chatting with " + p.chatWith.name;
+  if (p.restartUntil && t < p.restartUntil) return "Waiting for my computer to restart";
   if (p.act && p.act.n === "sip") return "Having a sip of " + drinkOf(p);
   if (p.act && p.act.n === "vcall") return "In the Friday team call";
   if (p.frus > 0.5 && p.frusWhy) return "A bit frustrated, " + p.frusWhy;
@@ -7547,9 +7615,9 @@ loadingEl.hidden = true;
 window.__voReady = true;
 window.__dbg = { renderer:renderer, scene:scene, sun:sun, T:T, seasonFx:seasonFx };
 window.__vo = { people:BY, focus:function(id){ focusOn(BY[id]); }, ask:function(id, q){ ask(BY[id], q); }, converse:function(id, q){ return converse(BY[id], q).text; }, goal:goal, view:view, season:function(){ seasonFx.next = 1; return SEASON; }, mishap:function(k){ MISHAP.cur = null; return startMishap(k, clock.elapsedTime); }, mishaps:MISHAP };
-/* ?mishap=cat (or book, spill, chair) makes it happen a few seconds after the page opens, to watch it on demand */
+/* ?mishap=cat (or book, spill, chair, restart) makes it happen a few seconds after the page opens, to watch it on demand */
 (function(){
-  var f = /[?&]mishap=(cat|book|spill|chair)/.exec(location.search || "");
+  var f = /[?&]mishap=(cat|book|spill|chair|restart)/.exec(location.search || "");
   if (f) setTimeout(function(){ MISHAP.cur = null; startMishap(f[1], clock.elapsedTime); }, 7000);
   /* ?act=luis.write makes someone do an action after a few seconds, for checking */
   var fa = /[?&]act=(\w+)\.(\w+)/.exec(location.search || "");
