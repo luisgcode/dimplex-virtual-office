@@ -4807,6 +4807,10 @@ function decide(p, t){
   }
   opts.sort(function(a, b){ return b.s - a.s; });
   var o = opts[0];
+  /* less walking around: optional trips away from the desk are skipped about half the time
+     (promises, agreed breaks, reports, delegated tasks and waited visits always happen) */
+  var optionalWalk = (o.k === "visit" && !o.owe && !o.appt && !o.report && !o.delegate && !o.waited) || o.k === "coffee" || o.k === "print" || o.k === "treat" || o.k === "request";
+  if (optionalWalk && Math.random() < 0.45) o = opts.filter(function(x){ return x.k === "work"; })[0] || o;
   if (o.k === "work") {
     p.typeOn = true; p.typeNext = t + rand(3, 8); n.focus = Math.min(1, n.focus + 0.15);
     /* under pressure things break now and then: frustration, with a reason */
@@ -4821,9 +4825,9 @@ function decide(p, t){
   }
   else if (o.k === "micro") {
     var tired = (1 - n.energy) + (DAY.h > 15 ? 0.3 : 0) + (DAY.key === "slump" ? 0.2 : 0), cold = WX.temp !== null && WX.temp <= 1 && DAY.h < 11.5, rb = Math.random();
-    if (rb < 0.06 && !p.walker && !PEOPLE.some(function(q){ return q.trip && q.trip.label === WIN_LABEL; })) lifeWindow(p, t);
-    else if (rb < 0.12) lifeStretch(p, t);
-    else if (rb < 0.15 && !p.walker && !p.plan.call) lifePhoneWalk(p, t);
+    if (rb < 0.035 && !p.walker && !PEOPLE.some(function(q){ return q.trip && q.trip.label === WIN_LABEL; })) lifeWindow(p, t);
+    else if (rb < 0.07) lifeStretch(p, t);
+    else if (rb < 0.085 && !p.walker && !p.plan.call) lifePhoneWalk(p, t);
     else if (cold && Math.random() < 0.35) startAct(p, "warmhands", t, rand(3, 5));
     else if (Math.random() < tired * 0.35) { var ty2 = Math.random() < 0.6 ? "yawn" : "rubeyes"; startAct(p, ty2, t, ty2 === "yawn" ? 2.6 : 3.2); catchAct(p, ty2, t); }
     else if (DAY.key === "slump" && Math.random() < 0.35) { p.typeOn = false; startAct(p, "phone", t, rand(18, 45)); }
@@ -5499,7 +5503,8 @@ function updateAgent(p, t, dt){
       var pc = p.plan.call; pc.done = true;
       if (DAY.h - pc.at < 0.2) { p.typeOn = false; p.mouseOn = false; startAct(p, "call", t, pc.dur); p.act.plan = true; p.decideAt = t + pc.dur + 2; }
     } else if (t >= p.decideAt && !p.act && !p.chatWith && !p.visitor && !p.answering) {
-      p.decideAt = t + rand(9, 18);
+      /* calmer office: a decision every 16 to 32 seconds instead of every 9 to 18 */
+      p.decideAt = t + rand(16, 32);
       decide(p, t);
     }
     if (p.state === "sit") {
