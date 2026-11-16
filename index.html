@@ -59,6 +59,7 @@ h1 em{font-style:normal;color:var(--accent)}
 .chip{flex:none;display:inline-flex;align-items:center;gap:7px;padding:6px 12px 6px 8px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:600 13px/1 var(--f-body);cursor:pointer;transition:background .15s,border-color .15s,color .15s}
 .chip:hover{border-color:var(--muted)}
 .chip .d{width:10px;height:10px;border-radius:50%;background:var(--c);box-shadow:inset 0 0 0 1px rgba(0,0,0,.15)}
+#sound.muted{opacity:.6}#sound.muted svg path:not(:first-child){display:none}
 .chip[aria-pressed="true"]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
 button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
@@ -6159,12 +6160,21 @@ function clearFocus(){
 }
 document.getElementById("reset").addEventListener("click", clearFocus);
 document.getElementById("sound").addEventListener("click", function(){
-  /* only the recorded office murmur: the first click turns it on, then the button toggles it */
-  var first = !AMB.bg;
-  AMB.on = first ? true : !AMB.on;
-  var bgp = AMB.on ? ambientBg().play() : null; if (bgp && bgp.catch) bgp.catch(function(){});
-  this.setAttribute("aria-pressed", AMB.on ? "true" : "false");
+  /* plain toggle: on plays the murmur, off stops it right away */
+  var bg = ambientBg();
+  if (AMB.on && bg.paused && !bg.dataset.played) AMB.on = true; /* never started yet (no click so far): this click starts it */
+  else AMB.on = !AMB.on;
+  if (AMB.on) { var bgp = bg.play(); if (bgp && bgp.catch) bgp.catch(function(){}); }
+  else { bg.pause(); AMB.bgVol = 0; bg.volume = 0; }
+  soundBtnState();
 });
+function soundBtnState(){
+  var b = document.getElementById("sound");
+  b.setAttribute("aria-pressed", AMB.on ? "true" : "false");
+  b.classList.toggle("muted", !AMB.on);
+  b.querySelector("span").textContent = AMB.on ? "Sound on" : "Sound off";
+}
+soundBtnState();
 var collapseBtn = document.getElementById("collapse");
 if (collapseBtn) collapseBtn.addEventListener("click", function(){
   var mini = document.body.classList.toggle("mini");
