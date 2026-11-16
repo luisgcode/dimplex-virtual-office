@@ -2795,6 +2795,7 @@ function dogBuild(kind, at, yaw){
   var legM = kind === "big" ? coat : new T.MeshStandardMaterial({ map:dogTex("small", "body"), roughness:0.85 });
   var sph = new T.SphereGeometry(1, 18, 14), cyl = new T.CylinderGeometry(1, 1, 1, 10);
   function m(geo, mat, sx, sy, sz, x, y, z, par){ var o = new T.Mesh(geo, mat); o.scale.set(sx, sy, sz); o.position.set(x, y, z); o.castShadow = true; o.receiveShadow = true; par.add(o); return o; }
+  var lying = [], standLegs = [], openEyes = [], shutEyes = [];
   var root = new T.Group(); root.position.copy(at); root.rotation.y = yaw; root.scale.setScalar(sc); scene.add(root);
   /* a round grey bed */
   var bedM = new T.MeshStandardMaterial({ color:kind === "big" ? 0x7d8288 : 0x9aa0a6, roughness:0.95 });
@@ -2805,9 +2806,15 @@ function dogBuild(kind, at, yaw){
   m(sph, coat, 0.13, 0.115, 0.3, 0, 0.12, -0.02, body);
   m(sph, coat, 0.12, 0.13, 0.12, 0, 0.15, 0.17, body);
   [-1, 1].forEach(function(sd){
-    m(sph, coat, 0.06, 0.08, 0.13, sd * 0.11, 0.08, -0.17, body);
-    var leg = m(cyl, legM, 0.028, 0.24, 0.028, sd * 0.065, 0.03, 0.3, body); leg.rotation.x = Math.PI / 2;
-    m(sph, legM, 0.033, 0.022, 0.045, sd * 0.065, 0.025, 0.42, body);
+    lying.push(m(sph, coat, 0.06, 0.08, 0.13, sd * 0.11, 0.08, -0.17, body));
+    var leg = m(cyl, legM, 0.028, 0.24, 0.028, sd * 0.065, 0.03, 0.3, body); leg.rotation.x = Math.PI / 2; lying.push(leg);
+    lying.push(m(sph, legM, 0.033, 0.022, 0.045, sd * 0.065, 0.025, 0.42, body));
+    /* standing legs, grown out when the dog gets up */
+    [0.2, -0.2].forEach(function(z){
+      var piv = new T.Group(); piv.position.set(sd * 0.07, 0.1, z); body.add(piv);
+      m(cyl, legM, 0.026, 0.3, 0.026, 0, -0.15, 0, piv); m(sph, legM, 0.032, 0.02, 0.042, 0, -0.3, 0.012, piv);
+      piv.scale.y = 0.001; piv.visible = false; standLegs.push(piv);
+    });
   });
   var tail = m(cyl, coat, 0.02, 0.16, 0.02, 0.06, 0.08, -0.33, body); tail.rotation.set(1.3, 0, 0.5);
   var neck = m(sph, coat, 0.075, 0.08, 0.1, 0, 0.17, 0.27, body); neck.rotation.x = 0.9;
@@ -2822,12 +2829,22 @@ function dogBuild(kind, at, yaw){
   [-1, 1].forEach(function(sd){
     var ear = new T.Group(); ear.position.set(sd * 0.062, 0.03, -0.01); head.add(ear);
     m(sph, liver, 0.015, 0.075, 0.048, 0, -0.06, 0, ear); ear.rotation.z = sd * 0.15; ears.push(ear);
-    m(sph, liver, 0.012, 0.0025, 0.008, sd * 0.038, 0.018, 0.077, head); /* eyes closed */
+    shutEyes.push(m(sph, liver, 0.012, 0.0025, 0.008, sd * 0.038, 0.018, 0.077, head)); /* eyes closed */
+    var oe = m(sph, eyeM, 0.012, 0.012, 0.008, sd * 0.038, 0.018, 0.076, head); oe.visible = false; openEyes.push(oe);
   });
   var shadow = new T.Mesh(new T.CircleGeometry(0.42, 24), new T.MeshBasicMaterial({ color:0x000000, transparent:true, opacity:0.14, depthWrite:false }));
   shadow.rotation.x = -Math.PI / 2; shadow.scale.set(0.95, 1.25, 1); shadow.position.y = 0.003; root.add(shadow);
   root.traverse(function(o){ o.userData.dyn = true; });
-  return { kind:kind, root:root, body:body, head:head, ears:ears, tail:tail, look:0, lookT:0, next:rand(8, 30), phase:rand(0, 6) };
+  return { kind:kind, baseYaw:yaw, lookYaw:yaw, root:root, body:body, head:head, ears:ears, tail:tail, neck:neck, col:col, lying:lying, standLegs:standLegs, openEyes:openEyes, shutEyes:shutEyes, w:0 };
+}
+function dogPose(d, w){
+  d.body.position.y = 0.04 + 0.205 * w;
+  d.lying.forEach(function(o){ o.visible = w < 0.35; });
+  d.standLegs.forEach(function(l){ l.visible = w > 0.02; l.scale.y = Math.max(0.001, w); });
+  d.neck.position.set(0, lerp(0.17, 0.28, w), lerp(0.27, 0.25, w)); d.neck.rotation.x = lerp(0.9, 0.35, w);
+  d.col.position.set(0, lerp(0.17, 0.29, w), lerp(0.3, 0.27, w)); d.col.rotation.x = Math.PI / 2 - lerp(0.9, 0.35, w);
+  d.head.position.set(0, lerp(0.105, 0.39, w), lerp(0.38, 0.31, w)); d.head.rotation.x = lerp(0.12, -0.05, w);
+  d.openEyes.forEach(function(e){ e.visible = w > 0.4; }); d.shutEyes.forEach(function(e){ e.visible = w <= 0.4; });
 }
 function dogsTick(t, dt){
   var E = BY.erica;
@@ -2838,9 +2855,20 @@ function dogsTick(t, dt){
     DOGS.list.push(dogBuild("big", new V3(1.55, 0, -2.45), -Math.PI / 2 - 0.25));
     DOGS.list.push(dogBuild("small", new V3(1.75, 0, -3.2), -Math.PI / 2 + 0.2));
   }
+  /* the cat walks by: both dogs get up and just stand there watching, then lie back down once it is gone */
+  var catNear = CAT.on && CAT.g && CAT.g.visible;
   DOGS.list.forEach(function(d, i){
     d.root.visible = here;
     if (!here) return;
+    /* the office is small: once the cat is inside the room they know it is there */
+    var want = catNear && Math.abs(CAT.g.position.x) < 2.9 && CAT.g.position.z < 6.2 ? 1 : 0;
+    /* standing: they turn to face the cat and keep watching it until it is gone */
+    if (want && CAT.g) { var dx = CAT.g.position.x - d.root.position.x, dz = CAT.g.position.z - d.root.position.z; d.lookYaw = Math.atan2(dx, dz); }
+    var target = d.w > 0.05 ? d.lookYaw : d.baseYaw, dy = Math.atan2(Math.sin(target - d.root.rotation.y), Math.cos(target - d.root.rotation.y));
+    d.root.rotation.y += dy * (1 - Math.exp(-dt * (d.w > 0.5 ? 4 : 2)));
+    if (want === d.w) return;
+    d.w = want > d.w ? Math.min(1, d.w + dt / (0.7 + i * 0.25)) : Math.max(0, d.w - dt / 1.4);
+    dogPose(d, ease(d.w));
   });
 }
 function catTick(t, dt){
