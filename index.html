@@ -365,6 +365,7 @@ body > header{display:none !important}
   <div id="fallback" hidden>The 3D office needs WebGL. Try a recent version of Chrome, Edge, Safari or Firefox.</div>
 </main>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script type="importmap">
 { "imports": {
   "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
@@ -7157,14 +7158,15 @@ var CHAL_ADMIN = /[?&]admin=1/.test(location.search || "");
 var CHAL_KEY = "vo.chal.demo.v2";
 var CH = { st:null, tab:"mission", view:null, board:null };
 function chalLoad(){
+  if (CH.live) { if (!CH.st) CH.st = { opens:[], specials:[], done:[], subs:[] }; return; }
   var st = null;
   try { st = JSON.parse(localStorage.getItem(CHAL_KEY) || "null"); } catch (e) {}
   if (!st) st = { opens:[{ id:CHAL_BANK[0].id, at:Date.now() }], specials:CHAL_SPECIAL.map(function(m){ return { id:m.id, at:Date.now() }; }), done:[], subs:[], next:1 };
   CH.st = st;
 }
-function chalSave(){ try { localStorage.setItem(CHAL_KEY, JSON.stringify(CH.st)); } catch (e) { alertNote("This browser could not save the demo data (storage full or blocked)."); } }
+function chalSave(){ if (CH.live) return; try { localStorage.setItem(CHAL_KEY, JSON.stringify(CH.st)); } catch (e) { alertNote("This browser could not save the demo data (storage full or blocked)."); } }
 function alertNote(msg){ var b = document.getElementById("chalBody"); if (b) { var p = document.createElement("p"); p.className = "warn"; p.textContent = msg; b.prepend(p); } }
-function chalDef(id){ return CHAL_BANK.concat(CHAL_SPECIAL).filter(function(m){ return m.id === id; })[0]; }
+function chalDef(id){ if (CH.live) return CH.defs[id]; return CHAL_BANK.concat(CHAL_SPECIAL).filter(function(m){ return m.id === id; })[0]; }
 /* everyone on the team plays, the remote people too */
 function chalPlayers(){ return ALL.filter(function(q){ return !q.guest; }); }
 function chalOpen(){ return CH.st.opens.concat(CH.st.specials); }
@@ -7230,7 +7232,7 @@ var chalEl = document.getElementById("chal");
 function chalShow(on, tab){
   if (!CH.st) chalLoad();
   chalEl.hidden = !on;
-  if (on) { CH.view = null; chalRender(); document.getElementById("chalClose").focus(); }
+  if (on) { CH.view = null; chalRender(); document.getElementById("chalClose").focus(); if (CH.live) chalSync(true); }
 }
 document.getElementById("chalClose").addEventListener("click", function(){ chalShow(false); });
 window.addEventListener("keydown", function(e){ if (e.key === "Escape" && !chalEl.hidden) { if (CH.view) { CH.view = null; chalRender(); } else chalShow(false); } });
@@ -7292,6 +7294,8 @@ function chalRender(){
 }
 function chalReview(B){
   var back = el("button", "go ghost", "Back"); back.type = "button"; back.addEventListener("click", function(){ CH.view = null; chalRender(); }); B.appendChild(back);
+  if (CH.live && !CH.admin) return liveSignIn(B);
+  if (CH.live) { var out = el("button", "go ghost", "Sign out"); out.type = "button"; out.addEventListener("click", function(){ SB.auth.signOut().then(function(){ CH.admin = false; CH.view = null; chalSync(true); }); }); B.appendChild(out); }
   if (!CH.st.subs.length) B.appendChild(el("p", "empty", "No photos waiting."));
   chalOpen().forEach(function(o){
     var m = chalDef(o.id), L = CH.st.subs.filter(function(x){ return x.mid === o.id; }).sort(function(a, b){ return a.at - b.at; });
@@ -7353,8 +7357,21 @@ function chalSendForm(B, mid){
     e.preventDefault();
     if (!/^\d{4}$/.test(code.value)) { info.textContent = "The code is 4 digits."; code.focus(); return; }
     if (!shot) { info.textContent = "Pick a photo first."; return; }
+    var done = function(arrived){
+      B.textContent = "";
+      var ok = el("div", "ms"); ok.appendChild(el("h3", "ms-title", "Sent! Your photo arrived on " + fmtTime(arrived)));
+      ok.appendChild(el("p", "ms-meta", "It stays private until it is reviewed. If it is the first approved one, the points are yours."));
+      var b2 = el("button", "go", "Back to missions"); b2.type = "button"; b2.addEventListener("click", function(){ CH.view = null; chalRender(); }); ok.appendChild(b2);
+      B.appendChild(ok);
+    };
+    if (CH.live) {
+      send.disabled = true; info.textContent = "Sending...";
+      liveSubmit(mid, sel.value, code.value, taken, shot).then(function(t){ done(t); chalSync(false); }).catch(function(err){ send.disabled = false; info.textContent = err.message; });
+      return;
+    }
     chalSubmit(mid, sel.value, taken, shot);
-    B.textContent = "";
+    done(Date.now());
+    return;
     var ok = el("div", "ms"); ok.appendChild(el("h3", "ms-title", "Sent! Your photo arrived on " + fmtTime(Date.now())));
     ok.appendChild(el("p", "ms-meta", "It stays private until it is reviewed. If it is the first approved one, the points are yours."));
     var b2 = el("button", "go", "Back to missions"); b2.type = "button"; b2.addEventListener("click", function(){ CH.view = null; chalRender(); }); ok.appendChild(b2);
@@ -7386,6 +7403,7 @@ function chalProof(B, i){
   B.appendChild(w);
 }
 function chalApprove(sid, team){
+  if (CH.live) return liveApprove(sid, team);
   var x = CH.st.subs.filter(function(q){ return q.id === sid; })[0]; if (!x) return;
   var m = chalDef(x.mid);
   team = (team && team.length ? team : [x.who]).filter(function(id){ return !chalExcluded(x.mid, id); });
@@ -7397,7 +7415,103 @@ function chalApprove(sid, team){
   else { CH.st.opens = CH.st.opens.filter(function(o){ return o.id !== m.id; }); if (chalNeedNext()) chalOpenNext(); }
   chalSave(); chalRender(); chalBoardDraw(); chalCelebrate(team, m);
 }
-function chalReject(sid){ CH.st.subs = CH.st.subs.filter(function(q){ return q.id !== sid; }); chalSave(); chalRender(); chalBoardDraw(); }
+function chalReject(sid){ if (CH.live) return liveReject(sid); CH.st.subs = CH.st.subs.filter(function(q){ return q.id !== sid; }); chalSave(); chalRender(); chalBoardDraw(); }
+
+/* ---------- live: missions, photos and points live in Supabase ----------
+   Arrival times are stamped by the database, not by the phone. Photos waiting for review sit in a private bucket
+   only the admin can open; approved ones move to a public bucket as the proof. ?demo=1 keeps the browser-only demo. */
+var SUPA_URL = "https://xcseskfixzzxyzkwyozj.supabase.co", SUPA_KEY = "sb_publishable_uGJ7x3GQvG23tHm0NywLWQ_NVvku_Ch";
+var SB = (!/[?&]demo=1/.test(location.search || "") && window.supabase) ? window.supabase.createClient(SUPA_URL, SUPA_KEY) : null;
+CH.live = !!SB; CH.defs = {}; CH.admin = false; CH.seen = null;
+if (CH.live) { document.getElementById("chalDemo").hidden = true; CH.st = null; chalLoad(); }
+else if (/[?&]demo=1/.test(location.search || "") === false) { document.getElementById("chalDemo").textContent = "Offline"; }
+function liveFail(e){ var m = (e && (e.message || e.error_description)) || String(e);
+  return new Error({ wrong_code:"That code is not right.", locked:"Too many wrong codes for this name. Try again in an hour.", mission_closed:"This mission is closed. Check the open ones.", excluded:"You are the one in this mission, so you can't win it.", not_admin:"This account can't review photos." }[m] || m); }
+function dataToBlob(d){ var b = atob(d.split(",")[1]), a = new Uint8Array(b.length); for (var i = 0; i < b.length; i++) a[i] = b.charCodeAt(i); return new Blob([a], { type:"image/jpeg" }); }
+function uid(){ return (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2)); }
+async function chalRefresh(){
+  var r = await Promise.all([
+    SB.from("missions").select("id,title,pts,special,ord,exclude"),
+    SB.from("opened").select("mission_id,opened_at"),
+    SB.from("achieved").select("*").order("approved_at"),
+    SB.rpc("pending_missions")
+  ]);
+  r.forEach(function(x){ if (x.error) throw liveFail(x.error); });
+  var defs = {}; r[0].data.forEach(function(m){ defs[m.id] = m; }); CH.defs = defs;
+  var done = r[2].data.map(function(a){ return { mid:a.mission_id, who:a.sender, team:a.team, pts:a.pts, at:Date.parse(a.received_at), taken:a.taken_at ? Date.parse(a.taken_at) : null, img:SB.storage.from("proof").getPublicUrl(a.photo_path).data.publicUrl }; });
+  var doneIds = done.map(function(d){ return d.mid; });
+  var open = r[1].data.filter(function(o){ return doneIds.indexOf(o.mission_id) < 0 && defs[o.mission_id]; })
+    .map(function(o){ return { id:o.mission_id, at:Date.parse(o.opened_at) }; })
+    .sort(function(a, b){ return defs[a.id].ord - defs[b.id].ord; });
+  var subs = [];
+  if (CH.admin) {
+    var q = await SB.from("submissions").select("*").order("received_at");
+    if (q.error) throw liveFail(q.error);
+    var urls = {}, paths = q.data.map(function(x){ return x.photo_path; });
+    if (paths.length) { var su = await SB.storage.from("pending").createSignedUrls(paths, 3600); (su.data || []).forEach(function(u){ urls[u.path] = u.signedUrl; }); }
+    subs = q.data.map(function(x){ return { id:x.id, mid:x.mission_id, who:x.player_id, at:Date.parse(x.received_at), taken:x.taken_at ? Date.parse(x.taken_at) : null, img:urls[x.photo_path], path:x.photo_path }; });
+  } else r[3].data.forEach(function(pm){ for (var i = 0; i < pm.n; i++) subs.push({ id:"p" + pm.mission_id + i, mid:pm.mission_id }); });
+  CH.st = { opens:open.filter(function(o){ return !defs[o.id].special; }), specials:open.filter(function(o){ return defs[o.id].special; }), done:done, subs:subs };
+  /* someone else's mission got approved since the last look: the winners cheer in the office */
+  var keys = done.map(function(d){ return d.mid; });
+  if (CH.seen) done.filter(function(d){ return CH.seen.indexOf(d.mid) < 0; }).forEach(function(d){ chalCelebrate(d.team || [d.who], { pts:d.pts }); });
+  CH.seen = keys;
+}
+var chalSyncing = false;
+function chalSync(render){
+  if (!CH.live || chalSyncing) return Promise.resolve();
+  chalSyncing = true;
+  return chalRefresh().then(function(){ chalSyncing = false; if (!chalEl.hidden && (render || !CH.view)) chalRender(); chalBoardDraw(); })
+    .catch(function(err){ chalSyncing = false; if (!chalEl.hidden) alertNote("Could not reach the missions: " + err.message); });
+}
+async function liveSubmit(mid, who, code, taken, shot){
+  var path = who + "/" + uid() + ".jpg";
+  var up = await SB.storage.from("pending").upload(path, dataToBlob(shot), { contentType:"image/jpeg", upsert:false });
+  if (up.error) throw liveFail(up.error);
+  var r = await SB.rpc("submit_photo", { p_mission:mid, p_player:who, p_code:code, p_taken:taken ? new Date(taken).toISOString() : null, p_path:path });
+  if (r.error) throw liveFail(r.error);
+  if (!r.data) throw liveFail({ message:"wrong_code" });
+  return Date.parse(r.data);
+}
+async function liveApproveRun(sid, team){
+  var x = CH.st.subs.filter(function(q){ return q.id === sid; })[0]; if (!x) return;
+  var dl = await SB.storage.from("pending").download(x.path); if (dl.error) throw liveFail(dl.error);
+  var proof = x.mid + "/" + uid() + ".jpg";
+  var up = await SB.storage.from("proof").upload(proof, dl.data, { contentType:"image/jpeg", upsert:false }); if (up.error) throw liveFail(up.error);
+  var r = await SB.rpc("approve_photo", { p_sub:sid, p_team:team, p_proof_path:proof }); if (r.error) throw liveFail(r.error);
+  if (r.data && r.data.length) await SB.storage.from("pending").remove(r.data);
+}
+function liveApprove(sid, team){
+  CH.view = { kind:"review" };
+  return liveApproveRun(sid, team).then(function(){ return chalSync(true); }).catch(function(err){ alertNote(err.message); });
+}
+function liveReject(sid){
+  return SB.rpc("reject_photo", { p_sub:sid }).then(function(r){ if (r.error) throw liveFail(r.error); return r.data ? SB.storage.from("pending").remove([r.data]) : null; })
+    .then(function(){ return chalSync(true); }).catch(function(err){ alertNote(err.message); });
+}
+async function liveCheckAdmin(){
+  var s = await SB.auth.getSession(); if (!s.data || !s.data.session) { CH.admin = false; return false; }
+  var a = await SB.from("admins").select("user_id").limit(1); CH.admin = !a.error && a.data.length > 0; return CH.admin;
+}
+function liveSignIn(B){
+  var f = el("form"); f.appendChild(el("h3", "ms-title", "Sign in to review photos"));
+  var l1 = el("label", "", "Email"), em = el("input"); em.type = "text"; em.autocomplete = "username"; em.inputMode = "email"; l1.appendChild(em); f.appendChild(l1);
+  var l2 = el("label", "", "Password"), pw = el("input"); pw.type = "password"; pw.autocomplete = "current-password"; l2.appendChild(pw); f.appendChild(l2);
+  var info = el("p", "note"), go = el("button", "go", "Sign in"); go.type = "submit"; f.appendChild(go); f.appendChild(info);
+  f.addEventListener("submit", function(e){
+    e.preventDefault(); go.disabled = true; info.textContent = "Signing in...";
+    SB.auth.signInWithPassword({ email:em.value.trim(), password:pw.value }).then(function(r){ if (r.error) throw r.error; return liveCheckAdmin(); })
+      .then(function(ok){ if (!ok) throw new Error("This account can't review photos."); return chalSync(true); })
+      .catch(function(err){ go.disabled = false; info.textContent = err.message; });
+  });
+  B.appendChild(f);
+}
+if (window.__chal) { window.__chal.live = CH.live; window.__chal.liveSubmit = liveSubmit; window.__chal.sync = chalSync; window.__chal.liveApprove = liveApproveRun; window.__chal.liveReject = liveReject; }
+if (CH.live) {
+  liveCheckAdmin().catch(function(){}).then(function(){ return chalSync(false); });
+  /* keep the board and the panel fresh: every 20 s while the panel is open, every 2 min otherwise */
+  setInterval(function(){ if (!document.hidden && (!chalEl.hidden || Math.random() < 1 / 6)) chalSync(false); }, 20000);
+}
 /* the winner cheers and the people around congratulate */
 function chalCelebrate(team, m){
   var t = clock.elapsedTime, ws = team.map(function(id){ return BY[id]; }).filter(Boolean), w = ws[0]; if (!w) return;
