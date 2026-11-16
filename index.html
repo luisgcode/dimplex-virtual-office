@@ -252,11 +252,11 @@ body > header{display:none !important}
   <div class="clockhud" id="clockHud" aria-live="off"><b id="clkTime">--:--</b><span id="clkDay"></span></div>
   <div class="petcard" id="petcard" role="dialog" aria-labelledby="petName" hidden>
     <button class="pc-x" id="petClose" type="button" aria-label="Close">&times;</button>
-    <div class="pc-top"><span class="pc-tag">Office ID</span><span class="pc-no">No. 0001</span></div>
-    <img class="pc-photo" src="img/pixel.jpg" alt="Pixel, Debbie's cat" width="180" height="180">
+    <div class="pc-top"><span class="pc-tag">Office ID</span><span class="pc-no" id="petNo">No. 0001</span></div>
+    <img class="pc-photo" id="petPhoto" src="img/pixel.jpg" alt="Pixel, Debbie's cat" width="180" height="180">
     <h2 class="pc-name" id="petName">Pixel</h2>
-    <p class="pc-role">Debbie's cat</p>
-    <dl class="pc-dl">
+    <p class="pc-role" id="petRole">Debbie's cat</p>
+    <dl class="pc-dl" id="petRows">
       <dt>Department</dt><dd>Naps and quality control</dd>
       <dt>Desk</dt><dd>Debbie's, the free end</dd>
       <dt>Known for</dt><dd>Knocking things off desks</dd>
@@ -346,7 +346,7 @@ var PEOPLE = [
     status:"Fixing a fireplace issue", blurb:"Electric fireplaces. If a flame effect looks wrong, she already knows why." },
   { id:"debbie", model:"debbie", name:"Debbie", role:"Heat products", side:-1, z:0.8, personality:"Keeps every room in the catalog warm.", topics:"Baseboards and Heat products", shirt:"#b83c4c", pants:"#2d3138", skin:"#e8c4a4", hair:"#211611", style:"straight", part:0.012, framing:true, eyeShape:"almond", earrings:"drop", alwaysSmile:true, sleeves:true, screen:"sheet",
     status:"Heat products", blurb:"Baseboards, wall heaters and everything that keeps a room warm in January." },
-  { id:"olivia", model:"olivia", name:"Olivia", role:"Designer, web and channel images", side:-1, z:-1.05, personality:"Creates every image for the website and the other channels. Notices every pixel.", topics:"Retouching, lifestyle images, banners and social graphics", shirt:"#2a9d8f", pants:"#22262c", skin:"#f2d6c6", hair:"#8a6240", style:"straight", part:-0.02, earrings:"small", alwaysSmile:true, coat:true, slim:0.9, sleeves:true, screen:"swatch",
+  { id:"olivia", model:"olivia", name:"Olivia", role:"Designer, web and channel images", side:-1, z:-1.05, personality:"Creates every image for the website and the other channels. Notices every pixel.", topics:"Retouching, lifestyle images, banners and social graphics", shirt:"#2a9d8f", pants:"#22262c", skin:"#f2d6c6", hair:"#6e5741", highlight:"#8a6f52", framing:true, style:"straight", part:-0.02, earrings:"small", alwaysSmile:true, coat:true, slim:0.9, sleeves:true, screen:"swatch",
     status:"Retouching product shots", blurb:"Turns product shots and brand colors into pages people actually want to scroll." },
   { id:"luis", name:"Luis", model:"luis", role:"Web Manager", side:-1, z:4.5, personality:"Headphones on, building the web.", topics:"The Dimplex, Convectair and Cadet sites", shirt:"#34495e", pants:"#23272e", skin:"#b98a68", hair:"#0c0c0e", style:"short", sleeves:false, screen:"code", headphones:true,
     status:"Headphones on, building the web", blurb:"Dimplex, Convectair and Cadet sites. Headphones on means deep in a build." },
@@ -2950,7 +2950,9 @@ function dogBuild(kind, at, yaw){
   var shadow = new T.Mesh(new T.CircleGeometry(0.42, 24), new T.MeshBasicMaterial({ color:0x000000, transparent:true, opacity:0.14, depthWrite:false }));
   shadow.rotation.x = -Math.PI / 2; shadow.scale.set(0.95, 1.25, 1); shadow.position.y = 0.003; root.add(shadow);
   root.traverse(function(o){ o.userData.dyn = true; });
-  return { kind:kind, bedAt:at.clone(), baseYaw:yaw, lookYaw:yaw, root:root, bed:bed, mode:"bed", hw:0, body:body, head:head, ears:ears, tail:tail, neck:neck, col:col, lying:lying, standLegs:standLegs, openEyes:openEyes, shutEyes:shutEyes, w:0 };
+  /* a bigger invisible target so the dog is easy to click: opens its ID card */
+  var hit = new T.Mesh(new T.SphereGeometry(0.34, 10, 8), new T.MeshBasicMaterial({ visible:false })); hit.position.y = 0.22; root.add(hit);
+  return { hit:hit, kind:kind, bedAt:at.clone(), baseYaw:yaw, lookYaw:yaw, root:root, bed:bed, mode:"bed", hw:0, body:body, head:head, ears:ears, tail:tail, neck:neck, col:col, lying:lying, standLegs:standLegs, openEyes:openEyes, shutEyes:shutEyes, w:0 };
 }
 function dogPose(d, w){
   d.body.position.y = 0.04 + 0.205 * w;
@@ -3004,7 +3006,7 @@ function dogsTick(t, dt){
   if (t > DOGS.petAt && DOGS.list.every(function(d){ return d.mode === "bed" && !d.st; }) && idleAtDesk(E) && !catNear) {
     DOGS.petAt = t + (DOGS_FAST ? 60 : rand(1500, 2700));
     goSpot(E, t, new V3(1.05, 0, -2.8), new V3(1.65, 0.2, -2.8), 7, "Saying hi to the dogs", "fixprinter", function(q, t2){
-      DOGS.pet = t2; sayLater(E, choose(["Hi babies!", "Who's a good dog?", "Hello my loves!", "Are you two comfy?"]), t2 + 0.4, 2.6);
+      DOGS.pet = t2; sayLater(E, choose(["Hi Finn! Hi Nina!", "Who's a good dog? Finn is!", "Nina, sweetie, are you comfy?", "Hello my loves!", "Are you two comfy?"]), t2 + 0.4, 2.6);
     }, function(){ DOGS.pet = 0; });
   }
   DOGS.list.forEach(function(d, i){
@@ -4830,7 +4832,7 @@ function chatter(a, b, t, casualOnly){
 
   /* 6b. pets: Carla and Erica have two dogs each, Stephanie and Debbie have a cat */
   var PETS = { carla:"dogs", erica:"dogs", stephanie:"cat", debbie:"cat" }, pa = PETS[a.id], pb = PETS[b.id];
-  if (pb === "dogs") { add(2.0, "pd1" + b.id, ["How are the dogs?", "Chaos, as always. One ate a sock.", "Classic dog move."]); add(1.6, "pd2" + b.id, ["Did the dogs let you sleep last night?", "Both on the bed. Again.", "So, no."]); add(1.4, "pd3" + b.id, ["Any new photos of the dogs?", "Look at this one.", "Oh my, those faces!"]); }
+  if (pb === "dogs") { add(2.0, "pd1" + b.id, ["How are Finn and Nina?", "Chaos, as always. Nina ate a sock.", "Classic puppy move."]); add(1.6, "pd2" + b.id, ["Did the dogs let you sleep last night?", "Both on the bed. Again.", "So, no."]); add(1.4, "pd3" + b.id, ["Any new photos of the dogs?", "Look at this one.", "Oh my, those faces!"]); }
   /* Debbie's cat has a name: Pixel */
   var bCat = b.id === "debbie" ? "Pixel" : "your cat", aCat = a.id === "debbie" ? "Pixel" : "My cat";
   if (pb === "cat") { add(2.0, "pc1" + b.id, ["How's " + bCat + " doing?", "Knocked a glass off the table this morning.", b.id === "debbie" ? "Classic Pixel." : "Of course she did."]); add(1.6, "pc2" + b.id, [b.id === "debbie" ? "Did Pixel wake you up again?" : "Did the cat wake you up again?", "4 am. Breakfast demands.", "Cats are bosses."]); }
@@ -6931,7 +6933,24 @@ canvas.addEventListener("wheel", function(e){
 
 var ray = new T.Raycaster(), ndc = new T.Vector2();
 var petEl = document.getElementById("petcard");
-function petCard(on){ petEl.hidden = !on; if (on) document.getElementById("petClose").focus(); }
+/* the office pets: Pixel (Debbie's cat), Finn and Nina (Erica's dogs) */
+var PETS = {
+  pixel:{ no:"0001", img:"img/pixel.jpg", name:"Pixel", role:"Debbie's cat", rows:[["Department", "Naps and quality control"], ["Desk", "Debbie's, the free end"], ["Known for", "Knocking things off desks"], ["Access", "Every room, no badge needed"]] },
+  finn:{ no:"0002", img:"img/finn.jpg", name:"Finn", role:"Erica's dog", rows:[["Breed", "German Shorthaired Pointer"], ["Department", "Office security"], ["Desk", "Next to Erica's, the big bed"], ["Known for", "Keeping an eye on Pixel"], ["Access", "Wherever Erica goes"]] },
+  nina:{ no:"0003", img:"img/nina.jpg", name:"Nina", role:"Erica's dog", rows:[["Breed", "German Shorthaired Pointer"], ["Department", "Welcome committee"], ["Desk", "Next to Erica's, the small bed"], ["Known for", "Sleeping through every meeting"], ["Access", "Wherever Erica goes"]] }
+};
+function petCard(on, id){
+  if (on) {
+    var P = PETS[id || "pixel"];
+    document.getElementById("petNo").textContent = "No. " + P.no;
+    var ph = document.getElementById("petPhoto"); ph.src = P.img; ph.alt = P.name + ", " + P.role;
+    document.getElementById("petName").textContent = P.name;
+    document.getElementById("petRole").textContent = P.role;
+    var dl = document.getElementById("petRows"); dl.textContent = "";
+    P.rows.forEach(function(r){ var dt = document.createElement("dt"), dd = document.createElement("dd"); dt.textContent = r[0]; dd.textContent = r[1]; dl.appendChild(dt); dl.appendChild(dd); });
+  }
+  petEl.hidden = !on; if (on) document.getElementById("petClose").focus();
+}
 document.getElementById("petClose").addEventListener("click", function(){ petCard(false); });
 window.addEventListener("keydown", function(e){ if (e.key === "Escape" && !petEl.hidden) petCard(false); });
 function pick(e){
@@ -6939,7 +6958,11 @@ function pick(e){
   ndc.set(((e.clientX - rect.left) / rect.width) * 2 - 1, -((e.clientY - rect.top) / rect.height) * 2 + 1);
   ray.setFromCamera(ndc, camera);
   /* Pixel, Debbie's cat: her own ID card */
-  if (CAT.on && CAT.g && CAT.g.visible && CAT.hit && ray.intersectObject(CAT.hit, false).length) { petCard(true); return; }
+  if (CAT.on && CAT.g && CAT.g.visible && CAT.hit && ray.intersectObject(CAT.hit, false).length) { petCard(true, "pixel"); return; }
+  /* the dogs sit close together: open the card of the one nearest to the click line */
+  var bestDog = null, bestD = 1e9;
+  DOGS.list.forEach(function(dg){ if (!dg.root.visible || !dg.hit) return; var hh = ray.intersectObject(dg.hit, false); if (!hh.length) return; var c0 = dg.hit.getWorldPosition(new V3()), dd = ray.ray.distanceSqToPoint(c0); if (dd < bestD) { bestD = dd; bestDog = dg; } });
+  if (bestDog) { petCard(true, bestDog.kind === "big" ? "finn" : "nina"); return; }
   var hits = ray.intersectObjects(pickables, false);
   for (var i = 0; i < hits.length; i++) {
     var p = BY[hits[i].object.userData.pid];
