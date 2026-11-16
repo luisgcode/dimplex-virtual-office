@@ -99,6 +99,7 @@ Approved ideas. Everything stays inside the office scene: no rooms or events out
 - Pixel's ID card: click the cat to see the photo.
 - Third prank: Pixel leaps into the tree by the entrance, knocks it over and runs off fast; someone stands it back up (`?catprank=tree`). One prank at most per visit, each about 1 visit in 7.
 - People call the cat by name: Pixel.
+- Erica's dogs go where she goes: they walk out with her (home, lunch, meetings) and back in with her, then lie on their beds (the beds stay). Erica pets them now and then (every 25 to 45 min); now and then one gets up, stretches, turns around on the bed and lies back down (every 15 to 30 min). `?dogs=1` speeds both up.
 
 ## Not wanted
 - Robot vacuum or night cleaner.
