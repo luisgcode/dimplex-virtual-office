@@ -7283,7 +7283,7 @@ function chalRender(){
   B.appendChild(el("h3", "sec", "How it works"));
   var how = el("ol", "how");
   ["Do the mission here at the office and take a photo of it.",
-   "Tap Send your photo, choose your name, type your personal code and add the photo.",
+   "Tap Send your photo, choose your name and add the photo.",
    "The office records the exact time your photo arrives. The first photo to arrive that gets approved wins.",
    "Everyone who appears in the winning photo gets the points, not only the person who sent it.",
    "Photos stay private until they are approved. Then they show up under Achieved as the proof.",
@@ -7334,9 +7334,6 @@ function chalSendForm(B, mid){
   var o0 = el("option", "", "Choose your name"); o0.value = ""; sel.appendChild(o0);
   chalPlayers().filter(function(q){ return !(m.exclude && m.exclude.indexOf(q.id) >= 0); }).forEach(function(q){ var o = el("option", "", q.name); o.value = q.id; sel.appendChild(o); });
   l1.appendChild(sel); f.appendChild(l1);
-  var l2 = el("label", "", "Your personal code"), code = el("input"); code.type = "password"; code.inputMode = "numeric"; code.autocomplete = "off"; code.required = true; code.placeholder = "4 digits";
-  l2.appendChild(code); f.appendChild(l2);
-  f.appendChild(el("p", "note", "Demo: any 4 digits work for now."));
   var l3 = el("label", "", "Photo"), fi = el("input"); fi.type = "file"; fi.accept = "image/*"; fi.required = true; l3.appendChild(fi); f.appendChild(l3);
   var pv = el("img", "prev"); pv.alt = "Your photo"; pv.hidden = true; f.appendChild(pv);
   var info = el("p", "note"); f.appendChild(info);
@@ -7355,7 +7352,7 @@ function chalSendForm(B, mid){
   });
   f.addEventListener("submit", function(e){
     e.preventDefault();
-    if (!/^\d{4}$/.test(code.value)) { info.textContent = "The code is 4 digits."; code.focus(); return; }
+    if (!sel.value) { info.textContent = "Choose your name first."; sel.focus(); return; }
     if (!shot) { info.textContent = "Pick a photo first."; return; }
     var done = function(arrived){
       B.textContent = "";
@@ -7366,7 +7363,7 @@ function chalSendForm(B, mid){
     };
     if (CH.live) {
       send.disabled = true; info.textContent = "Sending...";
-      liveSubmit(mid, sel.value, code.value, taken, shot).then(function(t){ done(t); chalSync(false); }).catch(function(err){ send.disabled = false; info.textContent = err.message; });
+      liveSubmit(mid, sel.value, taken, shot).then(function(t){ done(t); chalSync(false); }).catch(function(err){ send.disabled = false; info.textContent = err.message; });
       return;
     }
     chalSubmit(mid, sel.value, taken, shot);
@@ -7464,13 +7461,12 @@ function chalSync(render){
   return chalRefresh().then(function(){ chalSyncing = false; if (!chalEl.hidden && (render || !CH.view)) chalRender(); chalBoardDraw(); })
     .catch(function(err){ chalSyncing = false; if (!chalEl.hidden) alertNote("Could not reach the missions: " + err.message); });
 }
-async function liveSubmit(mid, who, code, taken, shot){
+async function liveSubmit(mid, who, taken, shot){
   var path = who + "/" + uid() + ".jpg";
   var up = await SB.storage.from("pending").upload(path, dataToBlob(shot), { contentType:"image/jpeg", upsert:false });
   if (up.error) throw liveFail(up.error);
-  var r = await SB.rpc("submit_photo", { p_mission:mid, p_player:who, p_code:code, p_taken:taken ? new Date(taken).toISOString() : null, p_path:path });
+  var r = await SB.rpc("submit_photo", { p_mission:mid, p_player:who, p_taken:taken ? new Date(taken).toISOString() : null, p_path:path });
   if (r.error) throw liveFail(r.error);
-  if (!r.data) throw liveFail({ message:"wrong_code" });
   return Date.parse(r.data);
 }
 async function liveApproveRun(sid, team){
