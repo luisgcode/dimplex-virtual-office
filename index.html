@@ -86,6 +86,17 @@ h1 em{font-style:normal;color:var(--accent)}
 @media (max-width:700px){ .chal .ch-cols{grid-template-columns:1fr;overflow:auto} .chal .ch-left,.chal .ch-body{overflow:visible} .chal .ch-left{border-right:0;border-bottom:1px solid var(--line);order:2} }
 .chal .ms{border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px}
 .chal .ms.pending{border-style:dashed}
+.chal .ch-body>*,.chal .ch-left>*{flex-shrink:0}
+.chal .mlist{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.chal .mrow{display:flex;align-items:center;gap:10px;padding:9px 10px;border-top:1px solid var(--line)}
+.chal .mrow:first-child{border-top:0}
+.chal .mrow.special{background:linear-gradient(90deg,rgba(212,167,44,.16),transparent 70%)}
+.chal .mrow.special .pts{background:#d4a72c;color:#1d1606}
+.chal .mrow .mt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.chal .mrow .mt b{font:600 14px/1.3 var(--f-body)}
+.chal .mrow .mt span{font-size:11px;color:#b4500f;font-weight:600}
+.chal .mrow .pts{margin-left:0}
+.chal .go.sm{padding:7px 10px;font-size:12px;white-space:nowrap}
 .chal .ms.special{border:2px solid #d4a72c;background:linear-gradient(180deg,rgba(212,167,44,.12),transparent 60%)}
 .chal .ms-top{display:flex;align-items:center;gap:8px}
 .chal .ms-label{font:700 10px/1 var(--f-body);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
@@ -7155,13 +7166,13 @@ var CHAL_SPECIAL = [
   { id:"sherif", title:"A photo with Sherif", pts:8, special:true }
 ];
 var CHAL_ADMIN = /[?&]admin=1/.test(location.search || "");
-var CHAL_KEY = "vo.chal.demo.v2";
+var CHAL_KEY = "vo.chal.demo.v3";
 var CH = { st:null, tab:"mission", view:null, board:null };
 function chalLoad(){
   if (CH.live) { if (!CH.st) CH.st = { opens:[], specials:[], done:[], subs:[] }; return; }
   var st = null;
   try { st = JSON.parse(localStorage.getItem(CHAL_KEY) || "null"); } catch (e) {}
-  if (!st) st = { opens:[{ id:CHAL_BANK[0].id, at:Date.now() }], specials:CHAL_SPECIAL.map(function(m){ return { id:m.id, at:Date.now() }; }), done:[], subs:[], next:1 };
+  if (!st) st = { opens:CHAL_BANK.map(function(m){ return { id:m.id, at:Date.now() }; }), specials:CHAL_SPECIAL.map(function(m){ return { id:m.id, at:Date.now() }; }), done:[], subs:[], next:1 };
   CH.st = st;
 }
 function chalSave(){ if (CH.live) return; try { localStorage.setItem(CHAL_KEY, JSON.stringify(CH.st)); } catch (e) { alertNote("This browser could not save the demo data (storage full or blocked)."); } }
@@ -7264,45 +7275,42 @@ function chalRender(){
     var rv = el("button", "go ghost", "Review photos (" + CH.st.subs.length + ")"); rv.type = "button";
     rv.addEventListener("click", function(){ CH.view = { kind:"review" }; chalRender(); }); B.appendChild(rv);
   }
-  chalOpen().forEach(function(o){
-    var m = chalDef(o.id); if (!m) return;
-    var box = el("div", "ms" + (m.special ? " special" : "")), top = el("div", "ms-top");
-    var pend = chalPending(m.id);
-    top.appendChild(el("span", "ms-label", (m.special ? "Special mission" : "Mission") + (pend ? " \u00b7 pending review" : "")));
-    if (pend) box.classList.add("pending");
-    top.appendChild(el("span", "pts", m.pts + (m.pts === 1 ? " point" : " points")));
-    box.appendChild(top); box.appendChild(el("h3", "ms-title", m.title));
-    box.appendChild(el("p", "ms-meta", "Open since " + fmtTime(o.at) + (m.special ? " \u00b7 stays open until someone gets it" : "")));
-    var n = CH.st.subs.filter(function(x){ return x.mid === m.id; }).length;
-    if (n) box.appendChild(el("p", "note", n + (n === 1 ? " photo is" : " photos are") + " waiting for review."));
-    var go = el("button", "go", "Send your photo"); go.type = "button";
-    go.addEventListener("click", function(){ CH.view = { kind:"send", id:m.id }; chalRender(); });
-    box.appendChild(go); B.appendChild(box);
+  var all = chalOpen().map(function(o){ return { o:o, m:chalDef(o.id) }; }).filter(function(x){ return x.m; });
+  var groups = [["Special", function(m){ return m.special; }], ["1 point", function(m){ return !m.special && m.pts === 1; }], ["2 points", function(m){ return !m.special && m.pts === 2; }], ["3 points", function(m){ return !m.special && m.pts === 3; }]];
+  B.appendChild(el("p", "note", "Pick any mission you like. The first approved photo wins it."));
+  groups.forEach(function(gp){
+    var L = all.filter(function(x){ return gp[1](x.m); }).sort(function(a, b){ return (a.m.ord || 0) - (b.m.ord || 0); });
+    if (!L.length) return;
+    B.appendChild(el("h3", "sec", gp[0] + " \u00b7 " + L.length));
+    var list = el("div", "mlist");
+    L.forEach(function(x){
+      var m = x.m, pend = chalPending(m.id), row = el("div", "mrow" + (m.special ? " special" : "") + (pend ? " pending" : ""));
+      var tx = el("div", "mt"); tx.appendChild(el("b", "", m.title));
+      if (pend) tx.appendChild(el("span", "", "Photo waiting for review. You can still send yours."));
+      row.appendChild(tx);
+      row.appendChild(el("span", "pts", ptsTxt(m.pts)));
+      var go = el("button", "go sm", "Send photo"); go.type = "button"; go.setAttribute("aria-label", "Send a photo for: " + m.title);
+      go.addEventListener("click", function(){ CH.view = { kind:"send", id:m.id }; chalRender(); });
+      row.appendChild(go); list.appendChild(row);
+    });
+    B.appendChild(list);
   });
-  if (!CH.st.opens.length && !CH.st.specials.length) B.appendChild(el("p", "empty", "Every mission is done. New ones are coming."));
+  if (!all.length) B.appendChild(el("p", "empty", "Every mission is done. New ones are coming."));
   B.appendChild(el("h3", "sec", "How it works"));
   var how = el("ol", "how");
-  ["Do the mission here at the office and take a photo of it.",
+  ["Pick any mission from the list, do it here at the office and take a photo of it.",
    "Tap Send your photo, choose your name and add the photo.",
    "The office records the exact time your photo arrives. The first photo to arrive that gets approved wins.",
    "Everyone who appears in the winning photo gets the points, not only the person who sent it.",
    "Photos stay private until they are approved. Then they show up under Achieved as the proof.",
-   "As soon as someone sends a photo for a mission, it shows as pending review and the next mission opens. You can keep going while you wait for the check.",
-   "Anyone can still send a photo for a pending mission: if the first one is rejected, the next in line can win. Special missions in gold stay open until someone gets them.",
+   "You can do as many missions as you like, no need to wait for the check on the last one.",
+   "A mission with a photo waiting still takes more photos: if the first one is rejected, the next in line can win. Once a mission is won it moves to Achieved.",
    "Keep screens, documents and anyone who did not agree to be in it out of the picture."].forEach(function(t){ how.appendChild(el("li", "", t)); });
   B.appendChild(how);
 }
 function chalReview(B){
   var back = el("button", "go ghost", "Back"); back.type = "button"; back.addEventListener("click", function(){ CH.view = null; chalRender(); }); B.appendChild(back);
   if (CH.live && !CH.admin) return liveSignIn(B);
-  /* only the admin sees what is coming next: everyone else only sees the missions that are open */
-  if (CH.live) {
-    var openIds = chalOpen().map(function(o){ return o.id; }), doneIds = CH.st.done.map(function(d){ return d.mid; });
-    var next = Object.keys(CH.defs).map(function(k){ return CH.defs[k]; }).filter(function(m){ return openIds.indexOf(m.id) < 0 && doneIds.indexOf(m.id) < 0; }).sort(function(a, b){ return a.ord - b.ord; });
-    var det = el("details", "ms"), sm = el("summary", "ms-label", "Coming next (" + next.length + "), only you see this"); det.appendChild(sm);
-    var ol = el("ol", "how"); next.forEach(function(m){ ol.appendChild(el("li", "", m.title + " · " + ptsTxt(m.pts) + (m.special ? " (special)" : ""))); }); det.appendChild(ol);
-    B.appendChild(det);
-  }
   if (CH.live) { var out = el("button", "go ghost", "Sign out"); out.type = "button"; out.addEventListener("click", function(){ SB.auth.signOut().then(function(){ CH.admin = false; CH.view = null; chalSync(true); }); }); B.appendChild(out); }
   if (!CH.st.subs.length) B.appendChild(el("p", "empty", "No photos waiting."));
   chalOpen().forEach(function(o){
