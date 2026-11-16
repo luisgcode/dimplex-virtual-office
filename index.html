@@ -148,6 +148,10 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .tag::after{content:"";position:absolute;left:50%;bottom:-5px;width:10px;height:10px;margin-left:-5px;background:var(--tag-bg);transform:rotate(45deg);border-radius:2px}
 .tag .n{display:flex;align-items:center;gap:6px;font:700 13px/1.1 var(--f-body)}
 .tag .n i{width:8px;height:8px;border-radius:50%;background:var(--c)}
+/* whoever leads the missions: a little gold crown next to the name */
+.tag.lead .n::after,.chal tr.crown td:nth-child(2)::after{content:"";display:inline-block;width:15px;height:11px;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 18'%3E%3Cpath d='M2 15 L1 4 L7 9 L12 1 L17 9 L23 4 L22 15 Z' fill='%23e9b923' stroke='%23a87b0c' stroke-width='1.2' stroke-linejoin='round'/%3E%3Crect x='2' y='15' width='20' height='2.4' rx='1' fill='%23c9971a'/%3E%3C/svg%3E") center/contain no-repeat;flex:none}
+.chal tr.crown td:nth-child(2)::after{margin-left:6px;vertical-align:-1px}
+.tag.lead{box-shadow:0 0 0 2px #e9b923,0 6px 18px rgba(15,20,25,.22)}
 .tag .st{font-size:11px;line-height:1.2;color:var(--tag-muted)}
 .bubble{position:absolute;left:50%;bottom:calc(100% + 10px);width:max-content;max-width:190px;padding:7px 10px;border-radius:12px;
   background:var(--tag-bg);color:var(--tag-ink);font:500 12px/1.3 var(--f-body);white-space:normal;text-align:center;
@@ -7167,7 +7171,7 @@ var CHAL_SPECIAL = [
 ];
 var CHAL_ADMIN = /[?&]admin=1/.test(location.search || "");
 var CHAL_KEY = "vo.chal.demo.v3";
-var CH = { st:null, tab:"mission", view:null, board:null };
+var CH = { st:null, tab:"mission", view:null, board:null, leaders:[] };
 function chalLoad(){
   if (CH.live) { if (!CH.st) CH.st = { opens:[], specials:[], done:[], subs:[] }; return; }
   var st = null;
@@ -7175,7 +7179,7 @@ function chalLoad(){
   if (!st) st = { opens:CHAL_BANK.map(function(m){ return { id:m.id, at:Date.now() }; }), specials:CHAL_SPECIAL.map(function(m){ return { id:m.id, at:Date.now() }; }), done:[], subs:[], next:1 };
   CH.st = st;
 }
-function chalSave(){ if (CH.live) return; try { localStorage.setItem(CHAL_KEY, JSON.stringify(CH.st)); } catch (e) { alertNote("This browser could not save the demo data (storage full or blocked)."); } }
+function chalSave(){ chalUpdateLeaders(); if (CH.live) return; try { localStorage.setItem(CHAL_KEY, JSON.stringify(CH.st)); } catch (e) { alertNote("This browser could not save the demo data (storage full or blocked)."); } }
 function alertNote(msg){ var b = document.getElementById("chalBody"); if (b) { var p = document.createElement("p"); p.className = "warn"; p.textContent = msg; b.prepend(p); } }
 function chalDef(id){ if (CH.live) return CH.defs[id]; return CHAL_BANK.concat(CHAL_SPECIAL).filter(function(m){ return m.id === id; })[0]; }
 /* everyone on the team plays, the remote people too */
@@ -7198,6 +7202,12 @@ function chalScores(){
 }
 function fmtTime(ms){ var d = new Date(ms); return d.toLocaleDateString("en-US", { month:"short", day:"numeric" }) + ", " + d.toLocaleTimeString("en-US", { hour:"numeric", minute:"2-digit", second:"2-digit" }); }
 function ptsTxt(n){ return n + (n === 1 ? " pt" : " pts"); }
+/* the leaders: everyone tied at the top, once someone has points */
+function chalUpdateLeaders(){
+  var sc = chalScores(), top = sc.length ? sc[0].n : 0;
+  CH.leaders = top > 0 ? sc.filter(function(r){ return r.n === top; }).map(function(r){ return r.p.id; }) : [];
+  ALL.forEach(function(q){ if (q.tag) q.tag.classList.toggle("lead", CH.leaders.indexOf(q.id) >= 0); });
+}
 function chalNames(d){ return (d.team || [d.who]).map(function(id){ return BY[id] ? BY[id].name : id; }).join(", "); }
 function el(tag, cls, txt){ var e = document.createElement(tag); if (cls) e.className = cls; if (txt !== undefined) e.textContent = txt; return e; }
 
@@ -7255,7 +7265,7 @@ function chalRender(){
   var tb = el("table"), hd = el("tr"); ["#", "Name", "Points"].forEach(function(h, i){ var th = el("th", "", h); if (i === 2) th.style.textAlign = "right"; hd.appendChild(th); });
   var th0 = el("thead"); th0.appendChild(hd); tb.appendChild(th0); var bd = el("tbody");
   chalScores().forEach(function(r, i){
-    var tr = el("tr", i === 0 && r.n > 0 ? "lead" : ""); tr.appendChild(el("td", "", String(i + 1))); tr.appendChild(el("td", "", r.p.name)); tr.appendChild(el("td", "n", String(r.n))); bd.appendChild(tr);
+    var tr = el("tr", r.n > 0 && CH.leaders.indexOf(r.p.id) >= 0 ? "lead crown" : ""); tr.appendChild(el("td", "", String(i + 1))); tr.appendChild(el("td", "", r.p.name)); tr.appendChild(el("td", "n", String(r.n))); bd.appendChild(tr);
   });
   tb.appendChild(bd); Lf.appendChild(tb);
   Lf.appendChild(el("h3", "sec", "Achieved"));
@@ -7474,7 +7484,7 @@ var chalSyncing = false;
 function chalSync(render){
   if (!CH.live || chalSyncing) return Promise.resolve();
   chalSyncing = true;
-  return chalRefresh().then(function(){ chalSyncing = false; if (!chalEl.hidden && (render || !CH.view)) chalRender(); chalBoardDraw(); })
+  return chalRefresh().then(function(){ chalSyncing = false; chalUpdateLeaders(); if (!chalEl.hidden && (render || !CH.view)) chalRender(); chalBoardDraw(); })
     .catch(function(err){ chalSyncing = false; if (!chalEl.hidden) alertNote("Could not reach the missions: " + err.message); });
 }
 async function liveSubmit(mid, who, taken, shot){
@@ -7543,7 +7553,7 @@ function chalBoardDraw(){
   CH.board.tex.needsUpdate = true;
 }
 (function(){
-  chalLoad();
+  chalLoad(); chalUpdateLeaders();
   var c = document.createElement("canvas"); c.width = 360; c.height = 240;
   var tex = new T.CanvasTexture(c); tex.colorSpace = T.SRGBColorSpace; tex.anisotropy = maxAniso;
   /* on the back wall, right under the Dimplex logo */
