@@ -2759,12 +2759,15 @@ function catPathTo(path, d){ var hd = along(path, d); return { pos:tmpPos.clone(
 function catTick(t, dt){
   var D = BY.debbie;
   var atDesk = D && D.state === "sit" && D.root.visible && !D.chatWith && !teamCallNow() && !lunchNow(D) && !DAY.closed;
+  /* a one-off visit for everyone who has the office open (reloaded) in this window */
+  var now1 = !CAT.onceDone && dayKey() === 2026416 && DAY.h >= 11.7 && DAY.h < 12;
   if (!CAT.on) {
-    if (!CAT.next) CAT.next = t + (CAT.want ? 5 : rand(240, 600));
+    if (!CAT.next || (now1 && CAT.next > t + 5)) CAT.next = t + (CAT.want || now1 ? 5 : rand(240, 600));
     if (t < CAT.next) return;
-    CAT.next = t + (CAT.want ? 5 : 60);
+    CAT.next = t + (CAT.want || now1 ? 5 : 60);
     /* one roll a minute while Debbie is at her desk: about one visit every hour and a half */
-    if (!atDesk || (!CAT.want && Math.random() > 0.011)) return;
+    if (!atDesk || (!CAT.want && !now1 && Math.random() > 0.011)) return;
+    if (now1) CAT.onceDone = true;
     if (!CAT.g) catBuild();
     var sp = catSpots(D);
     CAT.inPath = aislePath(EXIT_SPOT.clone(), 0, sp.floor, D.side);
