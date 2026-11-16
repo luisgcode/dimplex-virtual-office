@@ -2137,7 +2137,8 @@ function lateToday(p){ return !p.remote && !p.guest && p.id !== "luis" && dayRan
 function leaveOf(p){
   var S = SCHEDULE[p.id];
   var h = S ? lerp(S.leave[0], S.leave[1], dayRand(p, 13)) : (p.leaveH || 17);
-  return lateToday(p) ? 17.2 + 0.45 * dayRand(p, 5) : h;
+  /* staying late never goes past 5:30 pm */
+  return lateToday(p) ? 17.17 + 0.33 * dayRand(p, 5) : h;
 }
 /* Friday team call: every Friday 11:00 to 11:30 everyone in the office joins the same video call from their desk */
 var TEAMCALL_FORCE = /[?&]teamcall=1/.test(location.search || "");
@@ -2756,8 +2757,28 @@ function startMishap(kind, t){
   return true;
 }
 var _cupPivot = new V3();
+/* the last one in the office: now and then they say something about how quiet it got */
+var ALONE = { next:0, said:[] };
+function aloneTick(t){
+  if (t < ALONE.next) return;
+  ALONE.next = t + rand(45, 90);
+  var here = PEOPLE.filter(function(q){ return !q.guest && !q.remote && q.root.visible && (q.state === "sit" || q.state === "walk"); });
+  if (here.length !== 1 || DAY.closed) return;
+  var p = here[0];
+  if (p.state !== "sit" || p.chatWith || p.answering || p.bubbleOn || teamCallNow()) return;
+  var late = DAY.h >= 17, L = [
+    "It's so quiet in here.", "Hello? Anyone?", "Just me and the plants now.", "Everyone left without me lol",
+    "I can hear the fridge from here.", "Honestly, I love the quiet.", "Last one in again.", "Okay, I'm talking to myself now.",
+    late ? "Who turned off half the lights? Oh right, everyone went home." : "Where did everybody go?",
+    late ? "Five more minutes and I'm out of here." : "Very peaceful today."
+  ].filter(function(x){ return ALONE.said.indexOf(x) < 0; });
+  if (!L.length) { ALONE.said = []; return; }
+  var line = choose(L); ALONE.said.push(line);
+  sayLater(p, line, t + 0.3, 3.2);
+}
 function updateMishaps(t, dt){
   updateSays(t);
+  aloneTick(t);
   var m = MISHAP.cur;
   if (!m) {
     /* rare on purpose: something small every 10 to 25 minutes, a spilled coffee maybe once every couple of hours */
