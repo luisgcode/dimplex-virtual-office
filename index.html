@@ -72,6 +72,56 @@ h1 em{font-style:normal;color:var(--accent)}
 .petcard .pc-dl{margin:0;align-self:stretch;display:grid;grid-template-columns:auto 1fr;gap:4px 10px;text-align:left;font-size:12px;border-top:1px solid var(--line);padding-top:10px}
 .petcard dt{color:var(--muted);font-weight:600}
 .petcard dd{margin:0}
+.chal{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:31;width:min(900px,calc(100% - 32px));max-height:min(640px,calc(100% - 32px));
+  display:flex;flex-direction:column;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:16px;box-shadow:0 18px 50px rgba(15,20,25,.28);font-family:var(--f-body)}
+.chal .ch-head{display:flex;align-items:center;gap:10px;padding:14px 16px 8px;position:relative}
+.chal h2{margin:0;font:800 20px/1.1 var(--f-body)}
+.chal .ch-demo{font:700 10px/1 var(--f-body);letter-spacing:.12em;text-transform:uppercase;color:var(--accent);border:1px solid var(--accent);border-radius:999px;padding:4px 8px}
+.chal .pc-x{position:absolute;top:10px;right:10px;width:30px;height:30px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:600 18px/1 var(--f-body);cursor:pointer}
+.chal .ch-cols{display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr);min-height:0;flex:1;border-top:1px solid var(--line)}
+.chal .ch-left{overflow:auto;padding:14px 16px 16px;display:flex;flex-direction:column;gap:12px;min-height:0;border-right:1px solid var(--line)}
+.chal .ch-body{overflow:auto;padding:14px 16px 16px;display:flex;flex-direction:column;gap:12px;min-height:0}
+.chal h3.sec{margin:0;font:700 11px/1 var(--f-body);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.chal .how{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px;font-size:13px;line-height:1.4}
+@media (max-width:700px){ .chal .ch-cols{grid-template-columns:1fr;overflow:auto} .chal .ch-left,.chal .ch-body{overflow:visible} .chal .ch-left{border-right:0;border-bottom:1px solid var(--line);order:2} }
+.chal .ms{border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.chal .ms.pending{border-style:dashed}
+.chal .ms.special{border:2px solid #d4a72c;background:linear-gradient(180deg,rgba(212,167,44,.12),transparent 60%)}
+.chal .ms-top{display:flex;align-items:center;gap:8px}
+.chal .ms-label{font:700 10px/1 var(--f-body);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.chal .ms.special .ms-label{color:#b8891a}
+.chal .pts{margin-left:auto;font:800 12px/1 var(--f-body);background:var(--accent);color:#fff;border-radius:999px;padding:5px 9px;white-space:nowrap}
+.chal .ms.special .pts{background:#d4a72c;color:#1d1606}
+.chal .ms-title{margin:0;font:700 16px/1.3 var(--f-body)}
+.chal .ms-meta{margin:0;color:var(--muted);font-size:12px}
+.chal .go{align-self:flex-start;border:0;border-radius:10px;background:var(--ink);color:var(--surface);font:700 13px/1 var(--f-body);padding:10px 14px;cursor:pointer}
+.chal .go.ghost{background:none;color:var(--ink);border:1px solid var(--line)}
+.chal .go:disabled{opacity:.5;cursor:default}
+.chal form{display:flex;flex-direction:column;gap:10px}
+.chal label{display:flex;flex-direction:column;gap:4px;font:600 12px/1.2 var(--f-body);color:var(--muted)}
+.chal select,.chal input[type=password],.chal input[type=text]{font:500 14px/1.2 var(--f-body);padding:9px 10px;border-radius:9px;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+.chal .prev{width:100%;max-height:220px;object-fit:contain;border-radius:10px;background:var(--line)}
+.chal .note{margin:0;font-size:12px;color:var(--muted)}
+.chal .warn{margin:0;font-size:12px;color:#b4500f;font-weight:600}
+.chal .row{display:flex;gap:8px;flex-wrap:wrap}
+.chal table{width:100%;border-collapse:collapse;font-size:14px}
+.chal td,.chal th{padding:8px 6px;border-bottom:1px solid var(--line);text-align:left}
+.chal th{font:700 11px/1 var(--f-body);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.chal td.n{text-align:right;font-weight:800;font-variant-numeric:tabular-nums}
+.chal tr.lead td{font-weight:800}
+.chal .dn{display:flex;gap:10px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:8px;background:none;color:var(--ink);text-align:left;cursor:pointer;font:inherit;width:100%}
+.chal .dn img{width:56px;height:56px;border-radius:8px;object-fit:cover;flex:none}
+.chal .dn b{display:block;font-size:14px}
+.chal .dn span{font-size:12px;color:var(--muted)}
+.chal .proof{display:flex;flex-direction:column;gap:10px}
+.chal .proof img{width:100%;max-height:380px;object-fit:contain;border-radius:12px;background:var(--line)}
+.chal .rv{border:1px solid var(--line);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:8px}
+.chal .rv img{width:100%;max-height:260px;object-fit:contain;border-radius:8px;background:var(--line)}
+.chal .first{font:800 10px/1 var(--f-body);letter-spacing:.1em;text-transform:uppercase;background:#2fb37a;color:#fff;border-radius:999px;padding:4px 8px;align-self:flex-start}
+.chal fieldset.who{border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin:0;display:flex;flex-wrap:wrap;gap:6px 14px}
+.chal fieldset.who legend{font:700 12px/1.2 var(--f-body);color:var(--muted);padding:0 4px}
+.chal label.ck{flex-direction:row;align-items:center;gap:6px;font:500 13px/1.2 var(--f-body);color:var(--ink);cursor:pointer}
+.chal .empty{color:var(--muted);font-size:14px;margin:0}
 .chip[aria-pressed="true"]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
 button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
@@ -268,10 +318,25 @@ body > header{display:none !important}
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></svg>
       <span>Sound</span>
     </button>
+    <button class="btn" id="chalBtn" type="button" aria-haspopup="dialog" aria-controls="chal">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></svg>
+      <span>Missions</span>
+    </button>
     <button class="btn" id="reset" type="button" aria-label="Reset view">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
       <span>Reset view</span>
     </button>
+  </div>
+  <div class="chal" id="chal" role="dialog" aria-labelledby="chalTitle" hidden>
+    <div class="ch-head">
+      <h2 id="chalTitle">Missions</h2>
+      <span class="ch-demo" id="chalDemo">Demo</span>
+      <button class="pc-x" id="chalClose" type="button" aria-label="Close">&times;</button>
+    </div>
+    <div class="ch-cols">
+      <aside class="ch-left" id="chalLeft" aria-label="Leaderboard and achieved missions"></aside>
+      <div class="ch-body" id="chalBody"></div>
+    </div>
   </div>
   <section class="card" id="card" hidden aria-live="polite">
     <div class="card-top">
@@ -7071,10 +7136,300 @@ function petCard(on, id){
 }
 document.getElementById("petClose").addEventListener("click", function(){ petCard(false); });
 window.addEventListener("keydown", function(e){ if (e.key === "Escape" && !petEl.hidden) petCard(false); });
+/* ---------- Challenges: photo missions, first approved photo wins the points ----------
+   One normal mission (1 to 3 points) is open at a time and changes only when it is achieved. Special missions
+   (gold, more points) stay open until someone achieves them. People send a photo from the panel; it stays private
+   until Luis approves it. The time the office receives it decides the winner; the time the photo was taken (from the
+   photo's own data, when it has it) is shown next to it. DEMO: everything lives in this browser only, nothing is sent.
+   ?admin=1 shows the Review tab. */
+var CHAL_BANK = [
+  { id:"mug", title:"Your mug on your desk", pts:1 },
+  { id:"logo", title:"A Dimplex logo somewhere in the office", pts:1 },
+  { id:"plant", title:"A plant in the office", pts:1 },
+  { id:"clock", title:"The wall clock showing a time that ends in :00", pts:1 },
+  { id:"fireplace", title:"A fireplace on display, switched on", pts:2 },
+  { id:"allyson", title:"A photo with Allyson", pts:2, exclude:["allyson"] },
+  { id:"erica", title:"A photo with Erica", pts:2, exclude:["erica"] },
+  { id:"highfive", title:"A high five with someone from another team", pts:2 },
+  { id:"three", title:"A selfie with three coworkers", pts:3 },
+  { id:"james", title:"A photo with James", pts:3 }
+];
+var CHAL_SPECIAL = [
+  { id:"sherif", title:"A photo with Sherif", pts:8, special:true }
+];
+var CHAL_ADMIN = /[?&]admin=1/.test(location.search || "");
+var CHAL_KEY = "vo.chal.demo.v2";
+var CH = { st:null, tab:"mission", view:null, board:null };
+function chalLoad(){
+  var st = null;
+  try { st = JSON.parse(localStorage.getItem(CHAL_KEY) || "null"); } catch (e) {}
+  if (!st) st = { opens:[{ id:CHAL_BANK[0].id, at:Date.now() }], specials:CHAL_SPECIAL.map(function(m){ return { id:m.id, at:Date.now() }; }), done:[], subs:[], next:1 };
+  CH.st = st;
+}
+function chalSave(){ try { localStorage.setItem(CHAL_KEY, JSON.stringify(CH.st)); } catch (e) { alertNote("This browser could not save the demo data (storage full or blocked)."); } }
+function alertNote(msg){ var b = document.getElementById("chalBody"); if (b) { var p = document.createElement("p"); p.className = "warn"; p.textContent = msg; b.prepend(p); } }
+function chalDef(id){ return CHAL_BANK.concat(CHAL_SPECIAL).filter(function(m){ return m.id === id; })[0]; }
+/* everyone on the team plays, the remote people too */
+function chalPlayers(){ return ALL.filter(function(q){ return !q.guest; }); }
+function chalOpen(){ return CH.st.opens.concat(CH.st.specials); }
+function chalPending(id){ return CH.st.subs.some(function(x){ return x.mid === id; }); }
+/* the next normal mission from the bank: not achieved yet and not already open */
+function chalOpenNext(){
+  var taken = CH.st.done.map(function(d){ return d.mid; }).concat(CH.st.opens.map(function(o){ return o.id; }));
+  var nx = CHAL_BANK.filter(function(b){ return taken.indexOf(b.id) < 0; })[0];
+  if (nx) CH.st.opens.push({ id:nx.id, at:Date.now() });
+}
+/* a normal mission that already has a photo waiting no longer blocks: the next one opens right away */
+function chalNeedNext(){ return CH.st.opens.every(function(o){ return chalPending(o.id); }); }
+function chalScores(){
+  var sc = {}; chalPlayers().forEach(function(q){ sc[q.id] = 0; });
+  /* everyone in the photo gets the points, not only the one who sent it */
+  CH.st.done.forEach(function(d){ (d.team || [d.who]).forEach(function(id){ sc[id] = (sc[id] || 0) + d.pts; }); });
+  return chalPlayers().map(function(q){ return { p:q, n:sc[q.id] || 0 }; }).sort(function(a, b){ return b.n - a.n || a.p.name.localeCompare(b.p.name); });
+}
+function fmtTime(ms){ var d = new Date(ms); return d.toLocaleDateString("en-US", { month:"short", day:"numeric" }) + ", " + d.toLocaleTimeString("en-US", { hour:"numeric", minute:"2-digit", second:"2-digit" }); }
+function ptsTxt(n){ return n + (n === 1 ? " pt" : " pts"); }
+function chalNames(d){ return (d.team || [d.who]).map(function(id){ return BY[id] ? BY[id].name : id; }).join(", "); }
+function el(tag, cls, txt){ var e = document.createElement(tag); if (cls) e.className = cls; if (txt !== undefined) e.textContent = txt; return e; }
+
+/* the time the photo was taken, from its EXIF data (JPEG only); null when the photo does not carry it */
+function exifTaken(buf){
+  try {
+    var v = new DataView(buf); if (v.getUint16(0) !== 0xFFD8) return null;
+    var o = 2;
+    while (o < v.byteLength - 4) {
+      var mk = v.getUint16(o), len = v.getUint16(o + 2);
+      if (mk === 0xFFE1 && v.getUint32(o + 4) === 0x45786966) {
+        var t0 = o + 10, le = v.getUint16(t0) === 0x4949;
+        var u16 = function(x){ return v.getUint16(x, le); }, u32 = function(x){ return v.getUint32(x, le); };
+        var find = function(ifd, tag){ var n = u16(t0 + ifd); for (var i = 0; i < n; i++) { var e = t0 + ifd + 2 + i * 12; if (u16(e) === tag) return e; } return 0; };
+        var str = function(e){ var c = u32(e + 4), off = c > 4 ? t0 + u32(e + 8) : e + 8, s = ""; for (var i = 0; i < c - 1; i++) s += String.fromCharCode(v.getUint8(off + i)); return s; };
+        var ifd0 = u32(t0 + 4), ex = find(ifd0, 0x8769), e2 = ex ? find(u32(ex + 8), 0x9003) : 0, raw = e2 ? str(e2) : (find(ifd0, 0x0132) ? str(find(ifd0, 0x0132)) : "");
+        var m = /^(\d{4}):(\d\d):(\d\d) (\d\d):(\d\d):(\d\d)/.exec(raw);
+        return m ? new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]).getTime() : null;
+      }
+      if ((mk & 0xFF00) !== 0xFF00) break;
+      o += 2 + len;
+    }
+  } catch (e) {}
+  return null;
+}
+/* shrink the photo before it is stored: longest side 1024 px */
+function shrinkPhoto(file){
+  return new Promise(function(res, rej){
+    var url = URL.createObjectURL(file), im = new Image();
+    im.onload = function(){
+      var k = Math.min(1, 1024 / Math.max(im.naturalWidth, im.naturalHeight)), c = document.createElement("canvas");
+      c.width = Math.round(im.naturalWidth * k); c.height = Math.round(im.naturalHeight * k);
+      c.getContext("2d").drawImage(im, 0, 0, c.width, c.height); URL.revokeObjectURL(url);
+      res(c.toDataURL("image/jpeg", 0.8));
+    };
+    im.onerror = function(){ URL.revokeObjectURL(url); rej(new Error("That file is not a photo this browser can read. Try a JPG or PNG.")); };
+    im.src = url;
+  });
+}
+
+/* ---------- the panel ---------- */
+var chalEl = document.getElementById("chal");
+function chalShow(on, tab){
+  if (!CH.st) chalLoad();
+  chalEl.hidden = !on;
+  if (on) { CH.view = null; chalRender(); document.getElementById("chalClose").focus(); }
+}
+document.getElementById("chalBtn").addEventListener("click", function(){ chalShow(chalEl.hidden); });
+document.getElementById("chalClose").addEventListener("click", function(){ chalShow(false); });
+window.addEventListener("keydown", function(e){ if (e.key === "Escape" && !chalEl.hidden) { if (CH.view) { CH.view = null; chalRender(); } else chalShow(false); } });
+function chalRender(){
+  var Lf = document.getElementById("chalLeft"), B = document.getElementById("chalBody");
+  Lf.textContent = ""; B.textContent = ""; B.scrollTop = 0;
+  /* left: the leaderboard, then what has been achieved (each one opens its proof photo) */
+  Lf.appendChild(el("h3", "sec", "Leaderboard"));
+  var tb = el("table"), hd = el("tr"); ["#", "Name", "Points"].forEach(function(h, i){ var th = el("th", "", h); if (i === 2) th.style.textAlign = "right"; hd.appendChild(th); });
+  var th0 = el("thead"); th0.appendChild(hd); tb.appendChild(th0); var bd = el("tbody");
+  chalScores().forEach(function(r, i){
+    var tr = el("tr", i === 0 && r.n > 0 ? "lead" : ""); tr.appendChild(el("td", "", String(i + 1))); tr.appendChild(el("td", "", r.p.name)); tr.appendChild(el("td", "n", String(r.n))); bd.appendChild(tr);
+  });
+  tb.appendChild(bd); Lf.appendChild(tb);
+  Lf.appendChild(el("h3", "sec", "Achieved"));
+  if (!CH.st.done.length) Lf.appendChild(el("p", "empty", "Nothing achieved yet."));
+  CH.st.done.slice().reverse().forEach(function(d, ri){
+    var i = CH.st.done.length - 1 - ri, m = chalDef(d.mid), bt = el("button", "dn"); bt.type = "button";
+    var im = el("img"); im.src = d.img; im.alt = "Proof photo for " + (m ? m.title : d.mid); bt.appendChild(im);
+    var tx = el("div"); tx.appendChild(el("b", "", m ? m.title : d.mid)); tx.appendChild(el("span", "", chalNames(d) + " · " + ptsTxt(d.pts) + " · " + fmtTime(d.at))); bt.appendChild(tx);
+    bt.addEventListener("click", function(){ CH.view = { kind:"proof", i:i }; chalRender(); });
+    Lf.appendChild(bt);
+  });
+  /* right: the missions, how it works, sending a photo, a proof, or the review */
+  if (CH.view && CH.view.kind === "send") return chalSendForm(B, CH.view.id);
+  if (CH.view && CH.view.kind === "proof") return chalProof(B, CH.view.i);
+  if (CH.view && CH.view.kind === "review") return chalReview(B);
+  if (CHAL_ADMIN) {
+    var rv = el("button", "go ghost", "Review photos (" + CH.st.subs.length + ")"); rv.type = "button";
+    rv.addEventListener("click", function(){ CH.view = { kind:"review" }; chalRender(); }); B.appendChild(rv);
+  }
+  chalOpen().forEach(function(o){
+    var m = chalDef(o.id); if (!m) return;
+    var box = el("div", "ms" + (m.special ? " special" : "")), top = el("div", "ms-top");
+    var pend = chalPending(m.id);
+    top.appendChild(el("span", "ms-label", (m.special ? "Special mission" : "Mission") + (pend ? " \u00b7 pending review" : "")));
+    if (pend) box.classList.add("pending");
+    top.appendChild(el("span", "pts", m.pts + (m.pts === 1 ? " point" : " points")));
+    box.appendChild(top); box.appendChild(el("h3", "ms-title", m.title));
+    box.appendChild(el("p", "ms-meta", "Open since " + fmtTime(o.at) + (m.special ? " \u00b7 stays open until someone gets it" : "")));
+    var n = CH.st.subs.filter(function(x){ return x.mid === m.id; }).length;
+    if (n) box.appendChild(el("p", "note", n + (n === 1 ? " photo is" : " photos are") + " waiting for review."));
+    var go = el("button", "go", "Send your photo"); go.type = "button";
+    go.addEventListener("click", function(){ CH.view = { kind:"send", id:m.id }; chalRender(); });
+    box.appendChild(go); B.appendChild(box);
+  });
+  if (!CH.st.opens.length && !CH.st.specials.length) B.appendChild(el("p", "empty", "Every mission is done. New ones are coming."));
+  B.appendChild(el("h3", "sec", "How it works"));
+  var how = el("ol", "how");
+  ["Do the mission here at the office and take a photo of it.",
+   "Tap Send your photo, choose your name, type your personal code and add the photo.",
+   "The office records the exact time your photo arrives. The first photo to arrive that gets approved wins.",
+   "Everyone who appears in the winning photo gets the points, not only the person who sent it.",
+   "Photos stay private until they are approved. Then they show up under Achieved as the proof.",
+   "As soon as someone sends a photo for a mission, it shows as pending review and the next mission opens. You can keep going while you wait for the check.",
+   "Anyone can still send a photo for a pending mission: if the first one is rejected, the next in line can win. Special missions in gold stay open until someone gets them.",
+   "Keep screens, documents and anyone who did not agree to be in it out of the picture."].forEach(function(t){ how.appendChild(el("li", "", t)); });
+  B.appendChild(how);
+}
+function chalReview(B){
+  var back = el("button", "go ghost", "Back"); back.type = "button"; back.addEventListener("click", function(){ CH.view = null; chalRender(); }); B.appendChild(back);
+  if (!CH.st.subs.length) B.appendChild(el("p", "empty", "No photos waiting."));
+  chalOpen().forEach(function(o){
+    var m = chalDef(o.id), L = CH.st.subs.filter(function(x){ return x.mid === o.id; }).sort(function(a, b){ return a.at - b.at; });
+    if (!L.length) return;
+    B.appendChild(el("h3", "ms-title", m.title + " (" + ptsTxt(m.pts) + ")"));
+    L.forEach(function(x, k){
+      var box = el("div", "rv");
+      if (k === 0) box.appendChild(el("span", "first", "First to arrive"));
+      var im = el("img"); im.src = x.img; im.alt = "Photo from " + BY[x.who].name; box.appendChild(im);
+      box.appendChild(el("p", "ms-title", "Sent by " + BY[x.who].name));
+      box.appendChild(el("p", "ms-meta", "Received " + fmtTime(x.at)));
+      box.appendChild(el("p", "ms-meta", x.taken ? "Taken " + fmtTime(x.taken) : "Taken: the photo has no time in it"));
+      if (x.taken && x.taken < o.at) box.appendChild(el("p", "warn", "Taken before this mission opened."));
+      /* who is in the photo: all of them get the points. The sender is ticked already */
+      var fs = el("fieldset", "who"), lg = el("legend", "", "Everyone in the photo gets the points:"); fs.appendChild(lg);
+      chalPlayers().filter(function(q){ return !(m.exclude && m.exclude.indexOf(q.id) >= 0); }).forEach(function(q){
+        var lb = el("label", "ck"), cb = el("input"); cb.type = "checkbox"; cb.value = q.id; cb.checked = q.id === x.who;
+        lb.appendChild(cb); lb.appendChild(document.createTextNode(" " + q.name)); fs.appendChild(lb);
+      });
+      box.appendChild(fs);
+      var row = el("div", "row"), ok = el("button", "go", "Approve, " + ptsTxt(m.pts) + " each"), no = el("button", "go ghost", "Reject"); ok.type = no.type = "button";
+      ok.addEventListener("click", function(){
+        var ids = Array.prototype.map.call(fs.querySelectorAll("input:checked"), function(c){ return c.value; });
+        if (!ids.length) { lg.textContent = "Tick at least one person."; return; }
+        CH.view = null; chalApprove(x.id, ids);
+      });
+      no.addEventListener("click", function(){ chalReject(x.id); });
+      row.appendChild(ok); row.appendChild(no); box.appendChild(row); B.appendChild(box);
+    });
+  });
+}
+function chalSendForm(B, mid){
+  var m = chalDef(mid), f = el("form");
+  f.appendChild(el("h3", "ms-title", m.title));
+  var l1 = el("label", "", "Who are you"), sel = el("select"); sel.required = true;
+  var o0 = el("option", "", "Choose your name"); o0.value = ""; sel.appendChild(o0);
+  chalPlayers().filter(function(q){ return !(m.exclude && m.exclude.indexOf(q.id) >= 0); }).forEach(function(q){ var o = el("option", "", q.name); o.value = q.id; sel.appendChild(o); });
+  l1.appendChild(sel); f.appendChild(l1);
+  var l2 = el("label", "", "Your personal code"), code = el("input"); code.type = "password"; code.inputMode = "numeric"; code.autocomplete = "off"; code.required = true; code.placeholder = "4 digits";
+  l2.appendChild(code); f.appendChild(l2);
+  f.appendChild(el("p", "note", "Demo: any 4 digits work for now."));
+  var l3 = el("label", "", "Photo"), fi = el("input"); fi.type = "file"; fi.accept = "image/*"; fi.required = true; l3.appendChild(fi); f.appendChild(l3);
+  var pv = el("img", "prev"); pv.alt = "Your photo"; pv.hidden = true; f.appendChild(pv);
+  var info = el("p", "note"); f.appendChild(info);
+  var row = el("div", "row"), send = el("button", "go", "Send"), back = el("button", "go ghost", "Back"); send.type = "submit"; back.type = "button";
+  row.appendChild(send); row.appendChild(back); f.appendChild(row);
+  var shot = null, taken = null;
+  back.addEventListener("click", function(){ CH.view = null; chalRender(); });
+  fi.addEventListener("change", function(){
+    var file = fi.files && fi.files[0]; shot = null; taken = null; pv.hidden = true; info.textContent = "";
+    if (!file) return;
+    info.textContent = "Reading the photo...";
+    file.slice(0, 131072).arrayBuffer().then(function(buf){ taken = exifTaken(buf); return shrinkPhoto(file); }).then(function(d){
+      shot = d; pv.src = d; pv.hidden = false;
+      info.textContent = taken ? "Taken " + fmtTime(taken) + "." : "This photo has no time in it. The time it arrives will count.";
+    }).catch(function(err){ info.textContent = err.message; });
+  });
+  f.addEventListener("submit", function(e){
+    e.preventDefault();
+    if (!/^\d{4}$/.test(code.value)) { info.textContent = "The code is 4 digits."; code.focus(); return; }
+    if (!shot) { info.textContent = "Pick a photo first."; return; }
+    CH.st.subs.push({ id:"s" + Date.now().toString(36), mid:mid, who:sel.value, at:Date.now(), taken:taken, img:shot });
+    if (chalNeedNext()) chalOpenNext();
+    chalSave(); chalBoardDraw();
+    B.textContent = "";
+    var ok = el("div", "ms"); ok.appendChild(el("h3", "ms-title", "Sent! Your photo arrived on " + fmtTime(Date.now())));
+    ok.appendChild(el("p", "ms-meta", "It stays private until it is reviewed. If it is the first approved one, the points are yours."));
+    var b2 = el("button", "go", "Back to missions"); b2.type = "button"; b2.addEventListener("click", function(){ CH.view = null; chalRender(); }); ok.appendChild(b2);
+    B.appendChild(ok);
+  });
+  B.appendChild(f);
+}
+function chalProof(B, i){
+  var d = CH.st.done[i], m = chalDef(d.mid), w = el("div", "proof");
+  var back = el("button", "go ghost", "Back"); back.type = "button"; back.addEventListener("click", function(){ CH.view = null; chalRender(); });
+  w.appendChild(back);
+  w.appendChild(el("h3", "ms-title", m ? m.title : d.mid));
+  var im = el("img"); im.src = d.img; im.alt = "Proof photo: " + (m ? m.title : d.mid) + ", " + chalNames(d); w.appendChild(im);
+  w.appendChild(el("p", "ms-title", chalNames(d) + " · " + d.pts + (d.pts === 1 ? " point" : " points")));
+  w.appendChild(el("p", "ms-meta", "Received " + fmtTime(d.at) + (d.taken ? " · taken " + fmtTime(d.taken) : "")));
+  B.appendChild(w);
+}
+function chalApprove(sid, team){
+  var x = CH.st.subs.filter(function(q){ return q.id === sid; })[0]; if (!x) return;
+  var m = chalDef(x.mid);
+  team = team && team.length ? team : [x.who];
+  CH.st.done.push({ mid:x.mid, who:x.who, team:team, pts:m.pts, at:x.at, taken:x.taken, img:x.img, ok:Date.now() });
+  /* the mission is closed: other photos for it are dropped */
+  CH.st.subs = CH.st.subs.filter(function(q){ return q.mid !== x.mid; });
+  if (m.special) CH.st.specials = CH.st.specials.filter(function(o){ return o.id !== m.id; });
+  else { CH.st.opens = CH.st.opens.filter(function(o){ return o.id !== m.id; }); if (chalNeedNext()) chalOpenNext(); }
+  chalSave(); chalRender(); chalBoardDraw(); chalCelebrate(team, m);
+}
+function chalReject(sid){ CH.st.subs = CH.st.subs.filter(function(q){ return q.id !== sid; }); chalSave(); chalRender(); chalBoardDraw(); }
+/* the winner cheers and the people around congratulate */
+function chalCelebrate(team, m){
+  var t = clock.elapsedTime, ws = team.map(function(id){ return BY[id]; }).filter(Boolean), w = ws[0]; if (!w) return;
+  ws.forEach(function(q, k){ if (q.root.visible && !q.remote) { if (q.state === "sit" && !q.chatWith) startAct(q, "fist", t + 0.3 + k * 0.4, 2.6); if (k < 2) sayLater(q, choose(["Yes! " + m.pts + " points!", "Got it!", ws.length > 1 ? "Team effort!" : "That one's mine!"]), t + 0.5 + k * 1.4, 2.8); } });
+  var near = PEOPLE.filter(function(q){ return ws.indexOf(q) < 0 && q.state === "sit" && q.root.visible && !q.guest && !q.chatWith; });
+  near.sort(function(){ return Math.random() - 0.5; }).slice(0, 2).forEach(function(q, k){ sayLater(q, choose(["Congrats " + w.name + "!", "Nice one, " + w.name + "!", "Well played!"]), t + 2.2 + k * 1.6, 2.6); });
+}
+
+/* ---------- the board on the wall ---------- */
+function chalBoardDraw(){
+  if (!CH.board) return;
+  var c = CH.board.c, g = CH.board.g, W = c.width, H = c.height, o = CH.st.opens.filter(function(q){ return !chalPending(q.id); })[0] || CH.st.opens[0], m = o && chalDef(o.id), lead = chalScores()[0];
+  g.fillStyle = "#16191e"; g.fillRect(0, 0, W, H);
+  g.strokeStyle = "#E31837"; g.lineWidth = 6; g.strokeRect(3, 3, W - 6, H - 6);
+  g.textAlign = "center"; g.textBaseline = "middle";
+  g.fillStyle = "#ffffff"; g.font = "900 64px " + FONT; g.fillText("MISSIONS", W / 2, 70);
+  g.fillStyle = "#c9ced4"; g.font = "600 22px " + FONT; g.fillText(m ? "Now: " + m.title + " · " + m.pts + " pt" + (m.pts > 1 ? "s" : "") : "New missions coming", W / 2, 128, W - 40);
+  if (CH.st.specials.length) { g.fillStyle = "#e9c25a"; g.font = "800 20px " + FONT; g.fillText("★ Special: " + chalDef(CH.st.specials[0].id).title + " · " + chalDef(CH.st.specials[0].id).pts + " pts", W / 2, 164, W - 40); }
+  g.fillStyle = "#9aa5b1"; g.font = "600 18px " + FONT; g.fillText(lead && lead.n ? "Leader: " + lead.p.name + " · " + lead.n + " pts   ·   Click to open" : "Click to open", W / 2, 206);
+  g.textAlign = "left";
+  CH.board.tex.needsUpdate = true;
+}
+(function(){
+  chalLoad();
+  var c = document.createElement("canvas"); c.width = 640; c.height = 240;
+  var tex = new T.CanvasTexture(c); tex.colorSpace = T.SRGBColorSpace; tex.anisotropy = maxAniso;
+  /* on the back wall, right under the Dimplex logo */
+  var gr = new T.Group(); gr.position.set(0, 1.3, -3.995); scene.add(gr);
+  var frame = add(G.box, M("#2b3038", { roughness:0.5 }), 1.12, 0.44, 0.03, 0, 0, 0, gr, false); frame.userData.dyn = true;
+  var face = new T.Mesh(G.plane, new T.MeshBasicMaterial({ map:tex, toneMapped:false })); face.scale.set(1.06, 0.3975, 1); face.position.z = 0.017; face.userData.dyn = true; gr.add(face);
+  CH.board = { c:c, g:c.getContext("2d"), tex:tex, hit:face };
+  chalBoardDraw();
+})();
 function pick(e){
   var rect = canvas.getBoundingClientRect();
   ndc.set(((e.clientX - rect.left) / rect.width) * 2 - 1, -((e.clientY - rect.top) / rect.height) * 2 + 1);
   ray.setFromCamera(ndc, camera);
+  /* the Challenges board on the wall */
+  if (CH.board && ray.intersectObject(CH.board.hit, false).length) { chalShow(true, "mission"); return; }
   /* Pixel, Debbie's cat: her own ID card */
   if (CAT.on && CAT.g && CAT.g.visible && CAT.hit && ray.intersectObject(CAT.hit, false).length) { petCard(true, "pixel"); return; }
   /* the dogs sit close together: open the card of the one nearest to the click line */
