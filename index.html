@@ -83,7 +83,7 @@ h1 em{font-style:normal;color:var(--accent)}
 .chal .ch-body{overflow:auto;padding:14px 16px 16px;display:flex;flex-direction:column;gap:12px;min-height:0}
 .chal h3.sec{margin:0;font:700 11px/1 var(--f-body);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
 .chal .how{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px;font-size:13px;line-height:1.4}
-@media (max-width:700px){ .chal .ch-cols{grid-template-columns:1fr;overflow:auto} .chal .ch-left,.chal .ch-body{overflow:visible} .chal .ch-left{border-right:0;border-bottom:1px solid var(--line);order:2} }
+@media (max-width:700px){ .chal .ch-cols{display:flex;flex-direction:column;overflow-y:auto;-webkit-overflow-scrolling:touch} .chal .ch-left,.chal .ch-body{overflow:visible;flex:none} .chal .ch-left{border-right:0;border-top:1px solid var(--line);order:2} .chal .ch-head{padding:12px 14px 8px} .chal .mrow{flex-wrap:wrap} .chal .mrow .mt{flex-basis:100%} .chal .mrow .pts{margin-left:auto} }
 .chal .ms{border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px}
 .chal .ms.pending{border-style:dashed}
 .chal .ch-body>*,.chal .ch-left>*{flex-shrink:0}
@@ -7538,7 +7538,7 @@ function chalBoardDraw(){
   if (!CH.board || CH.board.drawn) return;
   var c = CH.board.c, g = CH.board.g, W = c.width, H = c.height;
   g.fillStyle = "#ffffff"; g.fillRect(0, 0, W, H);
-  g.fillStyle = "#E31837"; g.textAlign = "center"; g.textBaseline = "middle"; g.font = "900 190px " + FONT; g.fillText("?", W / 2, H / 2 + 10);
+  g.fillStyle = "#9aa1a9"; g.textAlign = "center"; g.textBaseline = "middle"; g.font = "800 170px " + FONT; g.fillText("?", W / 2, H / 2 + 10);
   g.textAlign = "left"; CH.board.drawn = true;
   CH.board.tex.needsUpdate = true;
 }
@@ -7547,10 +7547,12 @@ function chalBoardDraw(){
   var c = document.createElement("canvas"); c.width = 360; c.height = 240;
   var tex = new T.CanvasTexture(c); tex.colorSpace = T.SRGBColorSpace; tex.anisotropy = maxAniso;
   /* on the back wall, right under the Dimplex logo */
-  var gr = new T.Group(); gr.position.set(0, 1.3, -3.995); scene.add(gr);
-  var frame = add(G.box, M("#2b3038", { roughness:0.5 }), 0.62, 0.44, 0.03, 0, 0, 0, gr, false); frame.userData.dyn = true;
-  var face = new T.Mesh(G.plane, new T.MeshBasicMaterial({ map:tex, toneMapped:false })); face.scale.set(0.56, 0.3733, 1); face.position.z = 0.017; face.userData.dyn = true; gr.add(face);
-  CH.board = { c:c, g:c.getContext("2d"), tex:tex, hit:face };
+  var gr = new T.Group(); gr.position.set(0.82, 1.55, -3.995); scene.add(gr);
+  var frame = add(G.box, M("#2b3038", { roughness:0.5 }), 0.27, 0.2, 0.02, 0, 0, 0, gr, false); frame.userData.dyn = true;
+  var face = new T.Mesh(G.plane, new T.MeshBasicMaterial({ map:tex, toneMapped:false })); face.scale.set(0.24, 0.17, 1); face.position.z = 0.012; face.userData.dyn = true; gr.add(face);
+  /* the board is small on purpose; the click target around it is bigger so a finger on a phone can hit it */
+  var hitM = new T.Mesh(G.plane, new T.MeshBasicMaterial({ visible:false })); hitM.scale.set(0.55, 0.42, 1); hitM.position.z = 0.02; gr.add(hitM);
+  CH.board = { c:c, g:c.getContext("2d"), tex:tex, hit:hitM };
   chalBoardDraw();
 })();
 function pick(e){
