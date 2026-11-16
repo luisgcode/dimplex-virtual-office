@@ -1801,6 +1801,8 @@ function cupTick(p, t){
   if (fetching && p.cup && !(MISHAP.cur && MISHAP.cur.cup === p.cup)) { if (p.cup.visible) { p.cup.visible = false; p.cupAway = true; } }
   else if (p.cupAway && !fetching) { p.cupAway = false; if (p.cup) p.cup.visible = true; p.hotUntil = t + rand(180, 300); }
   var carrying = fetching && tr.back && p.root.visible && p.state === "walk";
+  /* a hot drink in hand: no phone on the way back */
+  if (carrying && p.walkPhone) { p.walkPhone = false; if (p.act && p.act.n === "phone") p.act = null; }
   p.carry.visible = carrying;
   if (carrying) {
     b.RightHand.getWorldPosition(_fh); b.RightHandMiddle1 ? b.RightHandMiddle1.getWorldPosition(_fm) : _fm.copy(_fh);

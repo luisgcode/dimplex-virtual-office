@@ -88,6 +88,9 @@ Approved ideas. Everything stays inside the office scene: no rooms or events out
 ## Added 16 Nov
 - Sound button: one click on, one click off, label shows the state.
 - Empty desk card: whoever is out of the scene (not in yet, working from home, gone for the day, lunch, meeting) keeps a faded label at their desk saying why.
+- Coming back from the kitchen they carry the cup, steaming, and it keeps steaming on the desk for a few minutes.
+- Debbie drinks tea, like Olivia. Allyson is in the office on Mondays.
+- Fix: anyone who walked out of view (coffee, lunch, home) could get stuck there forever.
 
 ## Not wanted
 - Robot vacuum or night cleaner.
