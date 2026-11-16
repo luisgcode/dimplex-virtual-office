@@ -346,7 +346,7 @@ var PEOPLE = [
     status:"Fixing a fireplace issue", blurb:"Electric fireplaces. If a flame effect looks wrong, she already knows why." },
   { id:"debbie", model:"debbie", name:"Debbie", role:"Heat products", side:-1, z:0.8, personality:"Keeps every room in the catalog warm.", topics:"Baseboards and Heat products", shirt:"#b83c4c", pants:"#2d3138", skin:"#e8c4a4", hair:"#211611", style:"straight", part:0.012, framing:true, eyeShape:"almond", earrings:"drop", alwaysSmile:true, sleeves:true, screen:"sheet",
     status:"Heat products", blurb:"Baseboards, wall heaters and everything that keeps a room warm in January." },
-  { id:"olivia", model:"olivia", name:"Olivia", role:"Designer, web and channel images", side:-1, z:-1.05, personality:"Creates every image for the website and the other channels. Notices every pixel.", topics:"Retouching, lifestyle images, banners and social graphics", shirt:"#2a9d8f", pants:"#22262c", skin:"#f2d6c6", hair:"#e3c16f", style:"straight", part:-0.02, earrings:"small", alwaysSmile:true, coat:true, slim:0.9, sleeves:true, screen:"swatch",
+  { id:"olivia", model:"olivia", name:"Olivia", role:"Designer, web and channel images", side:-1, z:-1.05, personality:"Creates every image for the website and the other channels. Notices every pixel.", topics:"Retouching, lifestyle images, banners and social graphics", shirt:"#2a9d8f", pants:"#22262c", skin:"#f2d6c6", hair:"#8a6240", style:"straight", part:-0.02, earrings:"small", alwaysSmile:true, coat:true, slim:0.9, sleeves:true, screen:"swatch",
     status:"Retouching product shots", blurb:"Turns product shots and brand colors into pages people actually want to scroll." },
   { id:"luis", name:"Luis", model:"luis", role:"Web Manager", side:-1, z:4.5, personality:"Headphones on, building the web.", topics:"The Dimplex, Convectair and Cadet sites", shirt:"#34495e", pants:"#23272e", skin:"#b98a68", hair:"#0c0c0e", style:"short", sleeves:false, screen:"code", headphones:true,
     status:"Headphones on, building the web", blurb:"Dimplex, Convectair and Cadet sites. Headphones on means deep in a build." },
@@ -900,28 +900,106 @@ function photoScreen(){
   p.fillStyle = "#6f7b6a"; p.fillRect(470, 250, 150, 90); p.fillStyle = "#5c6857"; p.fillRect(470, 230, 150, 30);
   p.fillStyle = "#3f6b3a"; p.beginPath(); p.arc(90, 260, 46, 0, 7); p.fill(); p.fillStyle = "#7a5636"; p.fillRect(76, 290, 28, 44);
   p.fillStyle = "#e9e3d6"; p.fillRect(250, 60, 140, 60); p.fillStyle = "#c7b79f"; p.fillRect(258, 68, 124, 44);
+  /* Olivia's big monitor switches between real image work every half minute or so:
+     zooming around the photo, spot healing, cropping for each channel, colour grading, building a banner,
+     a before and after check and exporting. ?screen=retouch|crop|grade|banner|slider|export|zoom forces one */
   var L = liveCanvas(512, 320);
   L.z = 1; L.cx = 320; L.cy = 210; L.target = null; L.next = 0;
+  var MODES = ["zoom", "retouch", "crop", "grade", "banner", "slider", "export"];
+  var TOOL = { zoom:"Zoom", retouch:"Spot healing brush", crop:"Crop", grade:"Colour grading", banner:"Banner layout", slider:"Before / After", export:"Export" };
+  var FILES = ["living-room--hero", "fireplace-wall--card", "media-console--hero", "bedroom-heater--card", "winter-campaign--banner"];
+  L.mode = "zoom"; L.e = 0; L.mEnd = 0; L.file = FILES[0]; L.cr = null; L.hd = 0;
+  L.spots = Array.from({ length:7 }, function(){ return { x:0.12 + r() * 0.76, y:0.18 + r() * 0.66 }; });
+  var CROPS = [[16, 9, "16:9 Web hero"], [1, 1, "1:1 Instagram"], [4, 5, "4:5 Feed post"], [9, 16, "9:16 Story"]];
+  var HEAD = ["Cozy up this winter", "Warmth, made beautiful", "The heart of the home"];
   L.draw = function(){
-    var g = L.g, w = 512, h = 320;
+    var g = L.g, w = 512, h = 320, e = L.e, M = L.mode;
     g.fillStyle = "#2b2b31"; g.fillRect(0, 0, w, h);
     g.fillStyle = "#35353c"; g.fillRect(0, 0, 46, h); g.fillRect(w - 70, 0, 70, h); g.fillRect(0, 0, w, 20);
-    for (var i = 0; i < 9; i++) { g.fillStyle = i === 3 ? "#5b7cfa" : "#4b4b55"; g.fillRect(10, 30 + i * 26, 26, 14); }
-    for (i = 0; i < 6; i++) { g.fillStyle = "#4b4b55"; g.fillRect(w - 60, 30 + i * 34, 50, 22); }
+    var hot = { zoom:3, retouch:5, crop:1, grade:7, banner:6, slider:3, export:0 }[M];
+    for (var i = 0; i < 9; i++) { g.fillStyle = i === hot ? "#5b7cfa" : "#4b4b55"; g.fillRect(10, 30 + i * 26, 26, 14); }
     var vx = 56, vy = 28, vw = w - 136, vh = h - 40, sw = 640 / L.z, sh = 420 / L.z;
     var sx = clamp(L.cx - sw / 2, 0, 640 - sw), sy = clamp(L.cy - sh / 2, 0, 420 - sh);
     g.drawImage(P, sx, sy, sw, sh, vx, vy, vw, vh);
-    g.strokeStyle = "rgba(255,255,255,0.7)"; g.setLineDash([5, 4]); g.strokeRect(vx + vw * 0.3, vy + vh * 0.3, vw * 0.4, vh * 0.4); g.setLineDash([]);
-    g.fillStyle = "#c9c9d2"; g.font = "600 11px " + FONT; g.textBaseline = "middle"; g.fillText(Math.round(L.z * 100) + "%", 60, 12);
+    var flat = L.z < 1.05;
+    g.fillStyle = "#c9c9d2"; g.font = "600 11px " + FONT; g.textBaseline = "middle";
+    g.fillText(Math.round(L.z * 100) + "%   " + L.file + ".psd   ·   " + TOOL[M], 60, 11);
+    /* right panel: layers by default, sliders while grading */
+    if (M === "grade") {
+      ["Temp", "Tint", "Expo", "Sat", "Vibr"].forEach(function(lb, j){
+        var y = 40 + j * 42, kx = w - 60 + 50 * (0.5 + 0.38 * Math.sin(e * (0.5 + j * 0.17) + j));
+        g.fillStyle = "#9a9aa6"; g.font = "600 9px " + FONT; g.fillText(lb, w - 60, y);
+        g.fillStyle = "#4b4b55"; g.fillRect(w - 60, y + 12, 50, 3); g.fillStyle = "#e7e7ee"; g.beginPath(); g.arc(kx, y + 13.5, 4, 0, 7); g.fill();
+      });
+    } else {
+      var nL = M === "banner" ? 2 + Math.min(4, Math.floor(e / 2.5)) : 6;
+      for (i = 0; i < 6; i++) { g.fillStyle = i >= nL ? "#3a3a42" : (M === "banner" && i === nL - 1 ? "#5b7cfa" : "#4b4b55"); g.fillRect(w - 60, 30 + i * 34, 50, 22); }
+    }
+    if (M === "zoom") {
+      g.strokeStyle = "rgba(255,255,255,0.7)"; g.setLineDash([5, 4]); g.strokeRect(vx + vw * 0.3, vy + vh * 0.3, vw * 0.4, vh * 0.4); g.setLineDash([]);
+    } else if (M === "retouch" && flat) {
+      var done = Math.min(L.spots.length, Math.floor(e / 2.2));
+      L.spots.forEach(function(q, j){ if (j >= done) { g.fillStyle = "rgba(70,50,40,0.6)"; g.beginPath(); g.arc(vx + q.x * vw, vy + q.y * vh, 3.5, 0, 7); g.fill(); } });
+      var A = L.spots[Math.max(0, done - 1)], B = L.spots[Math.min(done, L.spots.length - 1)], f = ease((e % 2.2) / 1.6);
+      var cx = vx + lerp(A.x, B.x, f) * vw, cy = vy + lerp(A.y, B.y, f) * vh;
+      g.strokeStyle = "#ffffff"; g.lineWidth = 1.5; g.beginPath(); g.arc(cx, cy, 9, 0, 7); g.stroke(); g.lineWidth = 1;
+    } else if (M === "crop" && L.cr) {
+      var c = L.cr; g.fillStyle = "rgba(10,10,14,0.62)";
+      g.fillRect(vx, vy, vw, c.y - vy); g.fillRect(vx, c.y + c.h, vw, vy + vh - c.y - c.h); g.fillRect(vx, c.y, c.x - vx, c.h); g.fillRect(c.x + c.w, c.y, vx + vw - c.x - c.w, c.h);
+      g.strokeStyle = "#ffffff"; g.lineWidth = 2; g.strokeRect(c.x, c.y, c.w, c.h); g.lineWidth = 1; g.strokeStyle = "rgba(255,255,255,0.45)";
+      for (i = 1; i < 3; i++) { g.beginPath(); g.moveTo(c.x + c.w * i / 3, c.y); g.lineTo(c.x + c.w * i / 3, c.y + c.h); g.moveTo(c.x, c.y + c.h * i / 3); g.lineTo(c.x + c.w, c.y + c.h * i / 3); g.stroke(); }
+      g.fillStyle = "#ffffff"; g.font = "700 11px " + FONT; g.fillText(CROPS[Math.floor(e / 5) % 4][2], c.x + 6, c.y + 12);
+    } else if (M === "grade") {
+      var wm = Math.sin(e * 0.5);
+      g.fillStyle = wm > 0 ? "rgba(255,150,60," + (0.18 * wm) + ")" : "rgba(80,140,255," + (-0.16 * wm) + ")"; g.fillRect(vx, vy, vw, vh);
+    } else if (M === "banner") {
+      var gr = g.createLinearGradient(vx, 0, vx + vw * 0.6, 0); gr.addColorStop(0, "rgba(20,16,14," + Math.min(0.7, e * 0.35) + ")"); gr.addColorStop(1, "rgba(20,16,14,0)");
+      g.fillStyle = gr; g.fillRect(vx, vy, vw, vh);
+      var hd = HEAD[L.hd], nC = Math.floor(clamp((e - 2) / 3, 0, 1) * hd.length);
+      if (e > 1.2) { g.fillStyle = "#ffffff"; g.font = "800 13px " + FONT; g.fillText("DIMPLEX", vx + 14, vy + 18); }
+      g.fillStyle = "#ffffff"; g.font = "800 22px " + FONT; g.fillText(hd.slice(0, nC) + (nC < hd.length && e > 2 && Math.floor(e * 3) % 2 ? "|" : ""), vx + 14, vy + vh * 0.42);
+      if (e > 5.5) { g.font = "500 12px " + FONT; g.fillStyle = "rgba(255,255,255," + clamp((e - 5.5) / 0.8, 0, 1) + ")"; g.fillText("Electric fireplaces for every room", vx + 14, vy + vh * 0.42 + 26); }
+      if (e > 7.5) { g.fillStyle = "#E31837"; rrect(g, vx + 14, vy + vh * 0.42 + 44, 104, 26, 4); g.fill(); g.fillStyle = "#ffffff"; g.font = "700 11px " + FONT; g.fillText("Find a dealer", vx + 30, vy + vh * 0.42 + 57); }
+    } else if (M === "slider") {
+      var dx = vx + vw * (0.5 + 0.38 * Math.sin(e * 0.7));
+      g.fillStyle = "rgba(120,120,135,0.38)"; g.fillRect(vx, vy, dx - vx, vh);
+      g.strokeStyle = "#ffffff"; g.lineWidth = 2; g.beginPath(); g.moveTo(dx, vy); g.lineTo(dx, vy + vh); g.stroke(); g.lineWidth = 1;
+      g.fillStyle = "#ffffff"; g.beginPath(); g.arc(dx, vy + vh / 2, 9, 0, 7); g.fill();
+      g.fillStyle = "rgba(0,0,0,0.55)"; g.fillRect(vx + 6, vy + 6, 46, 18); g.fillRect(vx + vw - 46, vy + 6, 40, 18);
+      g.fillStyle = "#ffffff"; g.font = "600 10px " + FONT; g.fillText("Before", vx + 12, vy + 15); g.fillText("After", vx + vw - 40, vy + 15);
+    } else if (M === "export") {
+      g.fillStyle = "rgba(0,0,0,0.45)"; g.fillRect(0, 0, w, h);
+      var bx = 136, by = 100, k2 = clamp(e / 6, 0, 1);
+      g.fillStyle = "#3a3a42"; rrect(g, bx, by, 240, 120, 8); g.fill();
+      g.fillStyle = "#e7e7ee"; g.font = "700 12px " + FONT; g.fillText("Export", bx + 16, by + 20);
+      g.fillStyle = "#b5b5c0"; g.font = "500 10px " + FONT; g.fillText(L.file + ".webp", bx + 16, by + 44); g.fillText(L.file.indexOf("--card") > 0 ? "800 × 800 px" : "1920 × 1080 px", bx + 16, by + 60);
+      g.fillStyle = "#4b4b55"; g.fillRect(bx + 16, by + 80, 208, 8); g.fillStyle = k2 < 1 ? "#5b7cfa" : "#2fb37a"; g.fillRect(bx + 16, by + 80, 208 * k2, 8);
+      g.fillStyle = "#e7e7ee"; g.fillText(k2 < 1 ? "Exporting " + Math.round(k2 * 100) + "%" : "Saved ✓", bx + 16, by + 104);
+    }
     L.tex.needsUpdate = true;
   };
   L.tick = function(t, dt){
-    if (t > L.next) {
-      L.next = t + rand(3, 6);
-      L.target = Math.random() < 0.35 ? { z:1, cx:320, cy:210 } : { z:rand(1.6, 3.2), cx:rand(180, 470), cy:rand(120, 300) };
+    if (t > L.mEnd) {
+      var force = MODES.indexOf(SCREEN_FORCE) >= 0 ? SCREEN_FORCE : null, nx = L.mode;
+      if (force) nx = force; else if (L.mEnd) while (nx === L.mode) nx = choose(MODES);
+      L.mode = nx; L.m0 = t; L.mEnd = t + (nx === "export" ? 11 : nx === "banner" ? 16 : rand(20, 34));
+      L.file = choose(FILES); L.hd = Math.floor(Math.random() * HEAD.length); L.cr = null; L.next = 0;
     }
-    var T2 = L.target || { z:1, cx:320, cy:210 }, k = 1 - Math.exp(-dt * 1.6);
+    L.e = t - L.m0;
+    var T2;
+    if (L.mode === "zoom") {
+      if (t > L.next) { L.next = t + rand(3, 6); L.target = Math.random() < 0.35 ? { z:1, cx:320, cy:210 } : { z:rand(1.6, 3.2), cx:rand(180, 470), cy:rand(120, 300) }; }
+      T2 = L.target || { z:1, cx:320, cy:210 };
+    } else T2 = { z:1, cx:320, cy:210 };
+    var k = 1 - Math.exp(-dt * 1.6);
     L.z += (T2.z - L.z) * k; L.cx += (T2.cx - L.cx) * k; L.cy += (T2.cy - L.cy) * k;
+    if (L.mode === "crop") {
+      var R = CROPS[Math.floor(L.e / 5) % 4], vw = 376, vh = 280, cw = vw * 0.86, ch = cw * R[1] / R[0];
+      if (ch > vh * 0.86) { ch = vh * 0.86; cw = ch * R[0] / R[1]; }
+      var tg = { x:56 + (vw - cw) / 2, y:28 + (vh - ch) / 2, w:cw, h:ch };
+      if (!L.cr) L.cr = { x:56, y:28, w:vw, h:vh };
+      var k3 = 1 - Math.exp(-dt * 3); ["x", "y", "w", "h"].forEach(function(q){ L.cr[q] += (tg[q] - L.cr[q]) * k3; });
+    }
     L.draw();
   };
   L.draw();
@@ -1392,7 +1470,7 @@ function screensTick(t, dt){
       s.owner = PEOPLE.find(function(q){ return q.deskGroup === s.desk; }) || null;
       if (s.kind === "code") { s.map = codeSheet(); s.m.material.map = s.map; s.scroll = 1 - 320 / 1280; s.to = s.scroll; }
       else if (s.kind === "chat") { s.live = chatScreen(); s.m.material.map = s.live.tex; }
-      else if (s.kind === "swatch" && s.owner && s.owner.id === "olivia") { s.live = photoScreen(); s.m.material.map = s.live.tex; }
+      else if (s.kind === "swatch" && s.owner && s.owner.id === "olivia") { s.live = photoScreen(); s.m.material.map = s.live.tex; (window.__olivia = window.__olivia || []).push(s.live); }
       else if (s.kind !== "off") {
         var pool = (ACT_POOLS[s.owner ? s.owner.id : "_"] || ACT_POOLS._).slice();
         if ((s.kind !== "web" || (s.owner && s.owner.id === "debbie")) && s.kind !== "chat") pool.push("base", "base");
