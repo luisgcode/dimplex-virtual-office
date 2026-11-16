@@ -2286,7 +2286,9 @@ function buildSeason(){
     [[0.42, 0.5, 0.4], [0.34, 0.45, 0.72], [0.24, 0.38, 1.0]].forEach(function(q){ var c = new T.Mesh(new T.ConeGeometry(q[0], q[1], 18), green2); c.position.y = q[2]; c.castShadow = true; tg2.add(c); });
     add(G.sph, new T.MeshBasicMaterial({ color:0xffd36b, toneMapped:false }), 0.05, 0.05, 0.05, 0, 1.22, 0, tg2, false);
     var bulbs2 = SZ.bulbs.map(function(c){ var m = new T.MeshBasicMaterial({ color:c, toneMapped:false }); m.userData.base = new T.Color(c); seasonFx.bulbMats.push(m); return m; });
+    seasonFx.tree2 = tg2;
     for (i = 0; i < 18; i++) { var ba2 = i * 2.1, bh2 = 0.3 + (i / 18) * 0.8, br2 = 0.4 * (1 - (bh2 - 0.25) / 1.0) + 0.02; glowBulb(add(G.lowSph, bulbs2[i % bulbs2.length], 0.025, 0.025, 0.025, Math.cos(ba2) * br2, bh2, Math.sin(ba2) * br2, tg2, false), SZ.bulbs[i % bulbs2.length]); }
+    tg2.traverse(function(o){ o.userData.dyn = true; });
     /* the original small tree by the logo wall */
     /* a small tree by the logo wall */
     var tg = new T.Group(); tg.position.set(-1.2, 0, -3.72); scene.add(tg);
@@ -2901,7 +2903,7 @@ function dogsTick(t, dt){
 /* ---------- the cat's mischief: on some visits it knocks a cup off someone's desk on the way in, or swats the
    pumpkin trophy off the shelf before leaving. Someone then picks it up and puts it back.
    ?catprank=cup or ?catprank=trophy forces one (with ?cat=1) */
-var PRANK_FORCE = (/[?&]catprank=(cup|trophy)/.exec(location.search || "") || [])[1] || "";
+var PRANK_FORCE = (/[?&]catprank=(cup|trophy|tree)/.exec(location.search || "") || [])[1] || "";
 var CAT_FIX = [];
 function catFloorOf(q){ var f = q.deskOuter.localToWorld(new V3(-0.55, 0, -0.1)); f.y = 0; return f; }
 function knockCup(q, t){
@@ -2928,23 +2930,32 @@ function fallTick(t){
     tg.rotation.z = TROPHY.rot.z - 1.45 * ease(u); tg.rotation.x = TROPHY.rot.x + 0.4 * u;
     if (u >= 1) TROPHY.fall = null;
   }
+  var TR = seasonFx.tree2;
+  if (TR && TR.userData.fall) {
+    var tf = TR.userData.fall, tu = clamp((t - tf.t0) / (tf.up ? 1.2 : 0.8), 0, 1);
+    TR.rotation.z = tf.up ? 1.42 * (1 - ease(tu)) : 1.42 * tu * tu;
+    if (tu >= 1) { TR.userData.down = !tf.up; TR.userData.fall = null; }
+  }
   for (var i = CAT_FIX.length - 1; i >= 0; i--) if (t >= CAT_FIX[i].at) { var fx = CAT_FIX.splice(i, 1)[0]; fx.fn(t); }
 }
 function fixCup(q){
   if (!q.cupDown) return;
   q.cup.userData.fall = null; q.cup.rotation.set(0, 0, 0); q.cup.position.set(-0.62, 0.81, -0.5); q.cupDown = false;
 }
+function knockTree(t){ var TR = seasonFx.tree2; if (!TR || TR.userData.down || TR.userData.fall) return; TR.userData.fall = { t0:t, up:false }; }
+function fixTree(t){ var TR = seasonFx.tree2; if (!TR || !TR.userData.down) return; TR.userData.fall = { t0:t, up:true }; }
 function fixTrophy(){
   if (!TROPHY || !TROPHY.down) return;
   TROPHY.fall = null; TROPHY.tg.position.copy(TROPHY.base); TROPHY.tg.rotation.copy(TROPHY.rot); TROPHY.down = false;
 }
 /* someone walks over, bends down and picks it up; whatever happens, it is back in place after a couple of minutes */
 function sendFixer(q, spot, item, label, t, after){
-  CAT_FIX.push({ at:t + 150, fn:function(){ item === "cup" ? fixCup(after) : fixTrophy(); } });
+  function fix(t3){ if (item === "cup") fixCup(after); else if (item === "tree") fixTree(t3); else fixTrophy(); }
+  CAT_FIX.push({ at:t + 150, fn:fix });
   CAT_FIX.push({ at:t + rand(6, 10), fn:function(t2){
-    if (!q || !idleAtDesk(q) && !(q.state === "sit" && q.root.visible && !q.trip)) { item === "cup" ? fixCup(after) : fixTrophy(); return; }
+    if (!q || !idleAtDesk(q) && !(q.state === "sit" && q.root.visible && !q.trip)) { fix(t2); return; }
     q.act = null;
-    goSpot(q, t2, spot, spot.clone().setY(0.2), 4, label, "fixprinter", null, function(){ item === "cup" ? fixCup(after) : fixTrophy(); });
+    goSpot(q, t2, spot, (item === "tree" ? new V3(1.25, 0.5, 5.75) : spot.clone().setY(0.2)), 4, label, "fixprinter", null, function(q2, t4){ fix(t4); });
   } });
 }
 function catTick(t, dt){
@@ -2962,13 +2973,16 @@ function catTick(t, dt){
     if (now1) CAT.onceDone = true;
     if (!CAT.g) catBuild();
     var debF = catFloorOf(D), r = Math.random();
-    CAT.prank = PRANK_FORCE || (r < 0.22 ? "cup" : r < 0.42 ? "trophy" : "");
+    /* one prank at most per visit, each about 1 visit in 7 */
+    CAT.prank = PRANK_FORCE || (r < 0.15 ? "cup" : r < 0.3 ? "trophy" : r < 0.45 ? "tree" : "");
+    if (CAT.prank === "tree" && (!seasonFx.tree2 || seasonFx.tree2.userData.down)) CAT.prank = "";
     CAT.victim = null;
     if (CAT.prank === "cup") {
       var vs = PEOPLE.filter(function(q){ return q !== D && !q.remote && !q.guest && q.cup && q.cup.visible && !q.cupDown && q.state === "sit" && q.root.visible && q.deskOuter && !(MISHAP.cur && MISHAP.cur.cup === q.cup); });
       if (vs.length) CAT.victim = choose(vs); else CAT.prank = "";
     }
-    if (CAT.victim) { CAT.path = aislePath(EXIT_SPOT.clone(), 0, catFloorOf(CAT.victim), CAT.victim.side); CAT.then = "pup"; }
+    if (CAT.prank === "tree") { CAT.path = makePath([EXIT_SPOT.clone(), new V3(2.2, 0, 6.6), new V3(0.75, 0, 6.2), new V3(0.62, 0, 5.85)]); CAT.then = "tjump"; }
+    else if (CAT.victim) { CAT.path = aislePath(EXIT_SPOT.clone(), 0, catFloorOf(CAT.victim), CAT.victim.side); CAT.then = "pup"; }
     else { CAT.path = aislePath(EXIT_SPOT.clone(), 0, debF, D.side); CAT.then = "hi"; }
     CAT.on = true; CAT.ph = "walk"; CAT.v = 0.62; CAT.d = 0; CAT.t0 = t; CAT.g.visible = true; CAT.yaw = 0; CAT.said = {};
     CAT.nap = CAT.want ? 25 : rand(30, 60);
@@ -2983,11 +2997,12 @@ function catTick(t, dt){
     if (!CAT.said.seen && CAT.d > path.L * 0.55 && CAT.then !== "gone") {
       CAT.said.seen = true;
       var nb = neighbours(D).filter(function(q){ return q.state === "sit" && q.root.visible; });
-      if (nb.length && Math.random() < 0.7) sayLater(choose(nb), choose(["Wait, is that a cat?!", "Debbie, your cat is here lol", "We have a visitor!", "Omg the cat!!"]), t, 2.8);
+      if (nb.length && Math.random() < 0.7) sayLater(choose(nb), choose(["Wait, is that Pixel?!", "Debbie, Pixel is here lol", "We have a visitor!", "Omg Pixel!!"]), t, 2.8);
     }
     if (CAT.d >= path.L) {
-      if (CAT.then === "hi") { CAT.ph = "hi"; CAT.t0 = t; sayLater(D, choose(["Hi baby! What are you doing here?", "Look who came to visit!", "Hello sweetie!", "Hi my love! Came to check on me?"]), t + 0.4, 3); }
+      if (CAT.then === "hi") { CAT.ph = "hi"; CAT.t0 = t; sayLater(D, choose(["Hi Pixel! What are you doing here?", "Pixel! Hi baby!", "Look who came to visit!", "Hello sweetie!", "Hi my love! Came to check on me?"]), t + 0.4, 3); }
       else if (CAT.then === "pup") { CAT.ph = "pup"; CAT.t0 = t; CAT.from = g.position.clone(); }
+      else if (CAT.then === "tjump") { CAT.ph = "tjump"; CAT.t0 = t; CAT.from = g.position.clone(); }
       else { CAT.on = false; g.visible = false; CAT.next = t + (CAT.want ? 30 : rand(2400, 4200)); }
     }
   } else if (CAT.ph === "pup" || CAT.ph === "pdown") {
@@ -3011,11 +3026,27 @@ function catTick(t, dt){
     CAT.head.rotation.x = -0.2;
     if (sw > 0.9 && !V2.cupDown) {
       knockCup(V2, t);
-      sayLater(V2, choose(["HEY!! My cup!", "Nooo, really?!", "Debbie!! Your cat!!", "Did that cat just..."]), t + 0.5, 2.8);
-      sayLater(D, choose(["Oh no, I'm so sorry!! Bad kitty!", "Sorry sorry sorry! I'll get you a new one lol"]), t + 3.3, 3);
+      sayLater(V2, choose(["HEY!! My cup!", "Nooo, really?!", "Debbie!! Pixel!!", "Did Pixel just..."]), t + 0.5, 2.8);
+      sayLater(D, choose(["Pixel!! I'm so sorry!!", "Oh no, I'm so sorry!! Bad kitty!", "Sorry sorry sorry! I'll get you a new one lol"]), t + 3.3, 3);
       sendFixer(V2, catFloorOf(V2), "cup", "Picking up my cup", t, V2);
     }
     if (sw > 1.9) { CAT.legs[0].rotation.x = 0; CAT.head.rotation.x = 0; CAT.ph = "pdown"; CAT.t0 = t; }
+  } else if (CAT.ph === "tjump") {
+    /* leaps into the big tree by the entrance: it goes over, and the cat bolts */
+    u = clamp((t - CAT.t0) / 0.9, 0, 1);
+    var tTop = new V3(1.0, 0.75, 5.78);
+    if (u < 0.5) { g.position.lerpVectors(CAT.from, tTop, ease(u * 2)); g.position.y += 0.25 * Math.sin(Math.PI * u * 2); }
+    else { g.position.lerpVectors(tTop, new V3(0.55, 0, 5.6), ease((u - 0.5) * 2)); }
+    CAT.yaw = Math.atan2(1.25 - CAT.from.x, 5.75 - CAT.from.z); catPose(t, "jump", Math.sin(Math.PI * u));
+    if (u > 0.45 && !CAT.said.tree) {
+      CAT.said.tree = true; knockTree(t);
+      var near = PEOPLE.filter(function(q){ return q.state === "sit" && q.root.visible && !q.remote && !q.guest; }).sort(function(x, y){ return Math.abs(x.z - 5.75) - Math.abs(y.z - 5.75); });
+      if (near[0]) sayLater(near[0], choose(["THE TREE!!", "Nooo, the tree!!", "Did Pixel just knock the tree over?!"]), t + 0.5, 2.6);
+      if (D.root.visible && D !== near[0]) sayLater(D, choose(["PIXEL!! Nooo!", "Pixel, what did you do?!", "Pixel!! Come back here!"]), t + 2.6, 2.8);
+      var fx = near.filter(function(q){ return available(q); })[0] || near[0];
+      if (fx) sendFixer(fx, new V3(0.55, 0, 5.35), "tree", "Standing the tree back up", t, null);
+    }
+    if (u >= 1) { CAT.ph = "walk"; CAT.path = makePath([g.position.clone(), new V3(0.5, 0, 6.6), new V3(2.2, 0, 7.0), EXIT_SPOT.clone()]); CAT.then = "gone"; CAT.d = 0; CAT.v = 1.9; }
   } else if (CAT.ph === "hi") {
     /* rubs against the chair and looks up at Debbie */
     var look = Math.atan2(D.seat.x - g.position.x, D.seat.z - g.position.z);
@@ -3039,13 +3070,13 @@ function catTick(t, dt){
     CAT.body.scale.y = 1 + 0.025 * Math.sin(t * 2.2);
     CAT.head.rotation.x = 0.15; CAT.head.rotation.y = 0.2 * Math.sin(t * 0.3);
     var el = t - CAT.t0;
-    if (el > 4 && !CAT.said.nap) { CAT.said.nap = true; sayLater(D, choose(["Okay, you can stay a bit.", "That's my desk, you know.", "So comfy, huh?", "Don't sit on my keyboard!"]), t, 3); }
+    if (el > 4 && !CAT.said.nap) { CAT.said.nap = true; sayLater(D, choose(["Okay Pixel, you can stay a bit.", "That's my desk, you know.", "So comfy, huh?", "Don't sit on my keyboard!"]), t, 3); }
     if (el > CAT.nap || !atDesk && el > 3) {
       CAT.body.scale.y = 1; CAT.head.rotation.set(0, 0, 0);
       if (CAT.prank === "trophy" && TROPHY && !TROPHY.down) { CAT.ph = "toshelf"; CAT.t0 = t; CAT.from = g.position.clone(); }
       else {
         CAT.ph = "down"; CAT.t0 = t; CAT.v = 0.62;
-        if (atDesk) sayLater(D, choose(["Bye sweetie!", "Off you go!", "See you later, baby."]), t + 0.3, 2.4);
+        if (atDesk) sayLater(D, choose(["Bye Pixel!", "Off you go!", "See you later, baby."]), t + 0.3, 2.4);
       }
     }
   } else if (CAT.ph === "toshelf") {
@@ -3064,7 +3095,7 @@ function catTick(t, dt){
       knockTrophy(t);
       sayLater(D, choose(["NOOO, the trophy!!", "Not the trophy!!", "Our first place!! Noo!"]), t + 0.4, 2.8);
       var wit = PEOPLE.filter(function(q){ return q !== D && q.state === "sit" && q.root.visible && !q.remote && !q.guest; });
-      if (wit.length) sayLater(choose(wit), choose(["Did the cat just take down the trophy?! lol", "Hahaha that cat has no respect", "The trophy!! Is it okay?"]), t + 3.4, 3);
+      if (wit.length) sayLater(choose(wit), choose(["Did Pixel just take down the trophy?! lol", "Hahaha Pixel has no respect", "The trophy!! Is it okay?"]), t + 3.4, 3);
       var fixer = available(D) ? D : (wit.length ? choose(wit) : D);
       sendFixer(fixer, new V3(-1.45, 0, 0.32), "trophy", "Putting the trophy back", t, null);
     }
@@ -3075,6 +3106,7 @@ function catTick(t, dt){
     }
   }
   if (CAT.ph === "walk" && CAT.then === "gone" && CAT.prank === "trophy") CAT.v = 1.35;
+  if (CAT.ph === "walk" && CAT.then === "gone" && CAT.prank === "tree") CAT.v = 1.9;
   g.rotation.y = CAT.yaw;
   CAT.shadow.visible = CAT.ph === "walk" || CAT.ph === "hi";
 }
@@ -4636,10 +4668,12 @@ function chatter(a, b, t, casualOnly){
   /* 6b. pets: Carla and Erica have two dogs each, Stephanie and Debbie have a cat */
   var PETS = { carla:"dogs", erica:"dogs", stephanie:"cat", debbie:"cat" }, pa = PETS[a.id], pb = PETS[b.id];
   if (pb === "dogs") { add(2.0, "pd1" + b.id, ["How are the dogs?", "Chaos, as always. One ate a sock.", "Classic dog move."]); add(1.6, "pd2" + b.id, ["Did the dogs let you sleep last night?", "Both on the bed. Again.", "So, no."]); add(1.4, "pd3" + b.id, ["Any new photos of the dogs?", "Look at this one.", "Oh my, those faces!"]); }
-  if (pb === "cat") { add(2.0, "pc1" + b.id, ["How's your cat doing?", "Knocked a glass off the table this morning.", "Of course she did."]); add(1.6, "pc2" + b.id, ["Did the cat wake you up again?", "4 am. Breakfast demands.", "Cats are bosses."]); }
-  if (pa === "cat" && pb === "cat") add(2.6, "pcc", ["My cat sat on my laptop all weekend.", "Mine sleeps on my keyboard.", "They just want attention."]);
+  /* Debbie's cat has a name: Pixel */
+  var bCat = b.id === "debbie" ? "Pixel" : "your cat", aCat = a.id === "debbie" ? "Pixel" : "My cat";
+  if (pb === "cat") { add(2.0, "pc1" + b.id, ["How's " + bCat + " doing?", "Knocked a glass off the table this morning.", b.id === "debbie" ? "Classic Pixel." : "Of course she did."]); add(1.6, "pc2" + b.id, [b.id === "debbie" ? "Did Pixel wake you up again?" : "Did the cat wake you up again?", "4 am. Breakfast demands.", "Cats are bosses."]); }
+  if (pa === "cat" && pb === "cat") add(2.6, "pcc", [aCat + " sat on my laptop all weekend.", b.id === "debbie" ? "Pixel sleeps on my keyboard." : "Mine sleeps on my keyboard.", "They just want attention."]);
   if (pa === "dogs" && pb === "dogs") add(2.6, "pdd", ["We should do a dog playdate.", "Four dogs in one park? Brave.", "Saturday morning?"]);
-  if (pa === "dogs" && pb === "cat") add(1.8, "pdc" + a.id, ["My dogs would love your cat.", "My cat would not love your dogs.", "Fair."]);
+  if (pa === "dogs" && pb === "cat") add(1.8, "pdc" + a.id, ["My dogs would love " + (b.id === "debbie" ? "Pixel" : "your cat") + ".", (b.id === "debbie" ? "Pixel" : "My cat") + " would not love your dogs.", "Fair."]);
   if (pa === "cat" && pb === "dogs") add(1.8, "pcd" + a.id, ["Two dogs? How do you get anything done?", "Long walks and lots of coffee.", "Respect."]);
 
   /* 6c. office lore: we won the company Pumpkin Harvest event, and Stephanie came as Bad Bunny for Halloween (rare) */

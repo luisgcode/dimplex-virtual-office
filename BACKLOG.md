@@ -97,6 +97,8 @@ Approved ideas. Everything stays inside the office scene: no rooms or events out
 - Calmer pace: decisions every 16 to 32 s, optional walks skipped about half the time.
 - Pixel's mischief: on some visits it knocks a cup off someone's desk, or leaps at the shelf and knocks the pumpkin trophy down; someone picks it up and puts it back. `?catprank=cup` or `?catprank=trophy` with `?cat=1`.
 - Pixel's ID card: click the cat to see the photo.
+- Third prank: Pixel leaps into the tree by the entrance, knocks it over and runs off fast; someone stands it back up (`?catprank=tree`). One prank at most per visit, each about 1 visit in 7.
+- People call the cat by name: Pixel.
 
 ## Not wanted
 - Robot vacuum or night cleaner.
