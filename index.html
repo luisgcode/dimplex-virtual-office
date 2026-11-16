@@ -2756,6 +2756,93 @@ function catPose(t, mode, speed){
   CAT.eyes.forEach(function(e){ e.scale.y = 0.012 * blink; });
 }
 function catPathTo(path, d){ var hd = along(path, d); return { pos:tmpPos.clone(), yaw:hd }; }
+/* ---------- Erica's two dogs (German shorthaired pointers, from her photo), lying on their beds past her desk.
+   The big one: liver roan, brown flecked with white, olive collar. The small one: liver head and ears with a white
+   blaze, white body with liver ticking, grey collar. They are in whenever Erica is in. */
+var DOGS = { list:[], built:false };
+window.__dogs = DOGS;
+function dogTex(kind, part){
+  var K = catCanvas(256, 128), g = K.g, rs = seeded(kind === "big" ? 31 : 57) , i;
+  var liver = "#4b2a1d", white = "#ece6dc";
+  if (part === "head") {
+    g.fillStyle = liver; g.fillRect(0, 0, 256, 128);
+    for (i = 0; i < 260; i++) { g.fillStyle = "rgba(120,80,60,0.25)"; g.fillRect(rs() * 256, rs() * 128, 2, 2); }
+    if (kind === "small") {
+      /* white blaze down the middle of the face (front of the sphere is u = 0.25) */
+      g.fillStyle = white; g.beginPath(); g.moveTo(60, 8); g.lineTo(68, 8); g.lineTo(76, 128); g.lineTo(52, 128); g.closePath(); g.fill();
+    } else {
+      /* grey-white ticking on the muzzle and throat */
+      for (i = 0; i < 160; i++) { g.fillStyle = "rgba(220,214,204,0.55)"; g.fillRect(40 + rs() * 50, 70 + rs() * 58, 2, 2); }
+    }
+  } else {
+    if (kind === "big") {
+      g.fillStyle = liver; g.fillRect(0, 0, 256, 128);
+      for (i = 0; i < 2600; i++) { g.fillStyle = rs() < 0.6 ? "rgba(225,218,206,0.85)" : "rgba(150,120,100,0.6)"; g.fillRect(rs() * 256, rs() * 128, 1.6, 1.6); }
+      for (i = 0; i < 14; i++) { g.fillStyle = liver; g.beginPath(); g.ellipse(rs() * 256, rs() * 128, 9 + rs() * 10, 6 + rs() * 6, rs() * 3, 0, Math.PI * 2); g.fill(); }
+    } else {
+      g.fillStyle = white; g.fillRect(0, 0, 256, 128);
+      for (i = 0; i < 420; i++) { g.fillStyle = "rgba(75,42,29,0.75)"; g.beginPath(); g.arc(rs() * 256, rs() * 128, 0.8 + rs() * 1.2, 0, Math.PI * 2); g.fill(); }
+      for (i = 0; i < 4; i++) { g.fillStyle = liver; g.beginPath(); g.ellipse(rs() * 256, 10 + rs() * 50, 10 + rs() * 8, 7, 0, 0, Math.PI * 2); g.fill(); }
+    }
+  }
+  return catTex(K.c);
+}
+function dogBuild(kind, at, yaw){
+  var sc = kind === "big" ? 1 : 0.84;
+  var coat = new T.MeshStandardMaterial({ map:dogTex(kind, "body"), roughness:0.85 }), headM = new T.MeshStandardMaterial({ map:dogTex(kind, "head"), roughness:0.8 });
+  var liver = new T.MeshStandardMaterial({ color:0x4b2a1d, roughness:0.8 }), nose = new T.MeshStandardMaterial({ color:0x3a201a, roughness:0.4 });
+  var collar = new T.MeshStandardMaterial({ color:kind === "big" ? 0x5d6340 : 0x8d8f93, roughness:0.7 }), eyeM = new T.MeshStandardMaterial({ color:0x8a5a24, roughness:0.2 });
+  var legM = kind === "big" ? coat : new T.MeshStandardMaterial({ map:dogTex("small", "body"), roughness:0.85 });
+  var sph = new T.SphereGeometry(1, 18, 14), cyl = new T.CylinderGeometry(1, 1, 1, 10);
+  function m(geo, mat, sx, sy, sz, x, y, z, par){ var o = new T.Mesh(geo, mat); o.scale.set(sx, sy, sz); o.position.set(x, y, z); o.castShadow = true; o.receiveShadow = true; par.add(o); return o; }
+  var root = new T.Group(); root.position.copy(at); root.rotation.y = yaw; root.scale.setScalar(sc); scene.add(root);
+  /* a round grey bed */
+  var bedM = new T.MeshStandardMaterial({ color:kind === "big" ? 0x7d8288 : 0x9aa0a6, roughness:0.95 });
+  var rim = new T.Mesh(new T.TorusGeometry(0.33, 0.07, 10, 28), bedM); rim.rotation.x = -Math.PI / 2; rim.scale.set(1, 1.25, 1); rim.position.y = 0.06; rim.castShadow = rim.receiveShadow = true; root.add(rim);
+  m(cyl, bedM, 0.32, 0.05, 0.4, 0, 0.025, 0, root);
+  var body = new T.Group(); body.position.y = 0.04; root.add(body);
+  /* lying like a sphinx: chest up, hips down, back legs tucked */
+  m(sph, coat, 0.13, 0.115, 0.3, 0, 0.12, -0.02, body);
+  m(sph, coat, 0.12, 0.13, 0.12, 0, 0.15, 0.17, body);
+  [-1, 1].forEach(function(sd){
+    m(sph, coat, 0.06, 0.08, 0.13, sd * 0.11, 0.08, -0.17, body);
+    var leg = m(cyl, legM, 0.028, 0.24, 0.028, sd * 0.065, 0.03, 0.3, body); leg.rotation.x = Math.PI / 2;
+    m(sph, legM, 0.033, 0.022, 0.045, sd * 0.065, 0.025, 0.42, body);
+  });
+  var tail = m(cyl, coat, 0.02, 0.16, 0.02, 0.06, 0.08, -0.33, body); tail.rotation.set(1.3, 0, 0.5);
+  var neck = m(sph, coat, 0.075, 0.08, 0.1, 0, 0.17, 0.27, body); neck.rotation.x = 0.9;
+  var col = new T.Mesh(new T.TorusGeometry(0.07, 0.013, 8, 20), collar); col.position.set(0, 0.17, 0.3); col.rotation.x = Math.PI / 2 - 0.9; body.add(col);
+  /* asleep: chin resting on the front paws */
+  var head = new T.Group(); head.position.set(0, 0.105, 0.38); head.rotation.x = 0.12; body.add(head);
+  m(sph, headM, 0.07, 0.075, 0.09, 0, 0, 0, head);
+  var mz = m(sph, headM, 0.045, 0.045, 0.085, 0, -0.028, 0.09, head);
+  if (kind === "small") m(sph, new T.MeshStandardMaterial({ color:0xece6dc, roughness:0.8 }), 0.042, 0.03, 0.07, 0, -0.045, 0.1, head);
+  m(sph, nose, 0.025, 0.02, 0.018, 0, -0.012, 0.17, head);
+  var ears = [];
+  [-1, 1].forEach(function(sd){
+    var ear = new T.Group(); ear.position.set(sd * 0.062, 0.03, -0.01); head.add(ear);
+    m(sph, liver, 0.015, 0.075, 0.048, 0, -0.06, 0, ear); ear.rotation.z = sd * 0.15; ears.push(ear);
+    m(sph, liver, 0.012, 0.0025, 0.008, sd * 0.038, 0.018, 0.077, head); /* eyes closed */
+  });
+  var shadow = new T.Mesh(new T.CircleGeometry(0.42, 24), new T.MeshBasicMaterial({ color:0x000000, transparent:true, opacity:0.14, depthWrite:false }));
+  shadow.rotation.x = -Math.PI / 2; shadow.scale.set(0.95, 1.25, 1); shadow.position.y = 0.003; root.add(shadow);
+  root.traverse(function(o){ o.userData.dyn = true; });
+  return { kind:kind, root:root, body:body, head:head, ears:ears, tail:tail, look:0, lookT:0, next:rand(8, 30), phase:rand(0, 6) };
+}
+function dogsTick(t, dt){
+  var E = BY.erica;
+  var here = !!E && !homeNow(E) && !DAY.closed;
+  if (!DOGS.built) {
+    if (!here) return;
+    DOGS.built = true;
+    DOGS.list.push(dogBuild("big", new V3(1.55, 0, -2.45), -Math.PI / 2 - 0.25));
+    DOGS.list.push(dogBuild("small", new V3(1.75, 0, -3.2), -Math.PI / 2 + 0.2));
+  }
+  DOGS.list.forEach(function(d, i){
+    d.root.visible = here;
+    if (!here) return;
+  });
+}
 function catTick(t, dt){
   var D = BY.debbie;
   var atDesk = D && D.state === "sit" && D.root.visible && !D.chatWith && !teamCallNow() && !lunchNow(D) && !DAY.closed;
@@ -5231,6 +5318,7 @@ function lifeTick(t, dt){
   }
   ghostTick(t, dt, present);
   catTick(t, dt);
+  dogsTick(t, dt);
   ambientTick(t, dt, present);
 }
 /* handles for the QA probe */

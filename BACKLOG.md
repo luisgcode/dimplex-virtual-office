@@ -92,6 +92,7 @@ Approved ideas. Everything stays inside the office scene: no rooms or events out
 - Debbie drinks tea, like Olivia. Allyson is in the office on Mondays.
 - Fix: anyone who walked out of view (coffee, lunch, home) could get stuck there forever.
 - Debbie's cat (spotted golden tabby, from her photos): now and then, while she is at her desk, it walks in, says hi at her chair, naps 30 to 60 seconds on the free end of her desk and leaves. About one visit every hour and a half. `?cat=1` calls it now.
+- Erica's two dogs (German shorthaired pointers, from her photo) asleep on their beds next to her desk, no animation. Only there when Erica is in.
 
 ## Not wanted
 - Robot vacuum or night cleaner.
