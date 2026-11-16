@@ -2019,7 +2019,7 @@ var SEASONS = {
   },
   christmas:{
     banner:"HAPPY HOLIDAYS", pennants:["#c8202f", "#1f7a45", "#f2efe8"], bulbs:["#ff4d4d", "#ffd36b", "#4dd47e"],
-    says:["Happy holidays!", "Who is bringing cookies?", "Is it snowing again?", "Who put up the stockings?", "Hot chocolate, anyone?"],
+    says:["Happy holidays!", "Who is bringing cookies?", "Who put up the stockings?", "Hot chocolate, anyone?"],
     replies:["Happy holidays!", "Me, obviously.", "Cookies are on the empty desk!", "Love the decorations!", "Yes please!"],
     costume:{ carla:"santa", marissa:"santa", debbie:"santa", erica:"santa", stephanieb:"santa", olivia:"santa", allyson:"santa", stephanie:"santa", luis:"santa", nolan:"santa", elena:"santa", tessa:"santa", grant:"santa", hana:"santa" }
   }
@@ -2360,7 +2360,13 @@ function seasonTick(t, dt){
   if (!who.length || teamCallNow() || chats.some(function(c){ return c.bubbles; })) return;
   var a0 = choose(who), near = who.filter(function(q){ return q !== a0 && Math.abs(q.z - a0.z) < 2.2; });
   var b0 = near.length && Math.random() < 0.75 ? choose(near) : null;
-  var text = choose(SZ.says);
+  /* holiday small talk follows the real weather outside, never a guess */
+  var wkS = WX_FORCE || WX.kind, tS = WX.temp, extra = [];
+  if (wkS === "snow") extra = ["Look at that snow, so festive!", "Snow for the holidays, finally.", "It's really snowing out there!"];
+  else if (wkS === "rain") extra = ["Rain? In December? Come on.", "Not exactly a white Christmas out there."];
+  else if (tS !== null && tS <= -5) extra = ["It's " + tS + " out there. Hot chocolate weather.", "Too cold for snow, apparently."];
+  else extra = ["Still no snow out there.", "We need some snow for the holidays."];
+  var text = choose(SZ.says.concat(extra));
   showBubble(a0, text);
   seasonFx.line = { a:a0, b:b0, text:text, reply:choose(SZ.replies), t1:t + 3.6, t2:t + 3.8, replied:false };
 }
@@ -4644,7 +4650,7 @@ function chatter(a, b, t, casualOnly){
     add(2.2, "m2", ["Did you get your " + bd + " yet?", "Working on my second one.", "Still not enough, right?"]);
     add(1.8, "m3", ["How was your evening?", "Too short, as usual.", "They always are."]);
     add(1.6, "m4", ["Traffic was a mess this morning.", "Tell me about it. Took me forever.", "Need a " + ad + " after that."]);
-    add(1.4, "m5", ["Who turned the heat up in here?", "Debbie, probably. Occupational hazard.", "Not complaining, it's cold out."]);
+    add(1.4, "m5", ["Who turned the heat up in here?", "Debbie, probably. Occupational hazard.", WX.temp !== null && WX.temp <= 5 ? "Not complaining, it's cold out." : "Not complaining though."]);
   } else if (k === "midmorning") {
     add(1.6, "mm1", ["The " + ad + " finally kicked in.", "Took long enough.", "Now I can actually think."]);
     add(1.4, "mm2", ["Is it lunch yet?", "It's not even noon.", "A person can dream."]);
@@ -4721,14 +4727,17 @@ function chatter(a, b, t, casualOnly){
   if (PLYTIX.lastAt && clock.elapsedTime - PLYTIX.lastAt < 1800) add(2, "pd" + a.id, ["That Plytix outage though.", "I lost twenty minutes lol", "At least it came back."]);
   if (TREATS.on && b.hadTreat) add(1.6, "tr" + a.id + b.id, ["Did you try the cookies?", "Two of them. Don't judge.", "No judgement here lol"]);
   var wk = WX_FORCE || WX.kind, tc = WX.temp;
-  if (wk === "snow") add(2.4, "wr1", ["Is that snow? Look out the window.", "Oh no, the drive home is going to be fun.", "Good thing we sell heaters."]);
-  if (wk === "rain") add(2.2, "wr2", ["It's pouring out there.", "And I left my umbrella in the car.", "Classic."]);
+  /* small talk about what is really going on outside (Open-Meteo, Cambridge ON) */
+  if (wk === "snow") add(2.4, "wr1", choose([["Look how much it's snowing.", "Oh no, the drive home is going to be fun.", "Good thing we sell heaters."], ["The snow is really coming down now.", "I'm leaving early if it keeps going like this lol", "Same, the 401 is going to be a mess."], ["I love watching the snow from in here.", "From in here, sure. Not shoveling it later.", "Ugh, don't remind me."]]));
+  if (wk === "rain") add(2.2, "wr2", choose([["It's pouring out there.", "And I left my umbrella in the car.", "Classic."], ["This rain won't stop today.", "Better than snow, I guess.", "For now lol"]]));
+  if (wk === "cloud") add(1.2, "wr6", ["So grey out there today.", "Feels like it could snow any minute.", "Please no."]);
+  if (tc !== null && tc > -5 && tc <= 2) add(1.6, "wr7", ["It's " + tc + " degrees out. Not too bad.", "Still needed my big coat this morning.", "Me too lol"]);
   if (tc !== null && tc <= -5) add(2.2, "wr3", ["Did you see it's " + tc + " out there?", "My car barely started this morning.", "Fireplace weather for sure."]);
   if (tc !== null && tc >= 27) add(2.0, "wr4", ["It's " + tc + " degrees outside.", "Too hot to think.", "AC, please."]);
   if (wk === "clear" && WX.isDay) add(1.2, "wr5", ["Sun's out today.", "Finally. I'll take it.", "Lunch outside, maybe?"]);
   var mo = DAY.d.getMonth();
-  if (mo >= 10 || mo <= 2) add(1.5, "w1", ["It's freezing out there today.", "Good thing we sell heaters.", "Perks of the job."]);
-  else if (mo >= 5 && mo <= 7) add(1.5, "w2", ["It's so nice out today.", "And we're stuck inside.", "Lunch outside, then?"]);
+  if (tc !== null ? tc <= 0 : (mo >= 10 || mo <= 2)) add(1.5, "w1", ["It's freezing out there today.", "Good thing we sell heaters.", "Perks of the job."]);
+  else if (tc !== null ? tc >= 18 && wk === "clear" : (mo >= 5 && mo <= 7)) add(1.5, "w2", ["It's so nice out today.", "And we're stuck inside.", "Lunch outside, then?"]);
 
   /* 5. how the other one looks */
   var bm = b.mood.kind, am = a.mood.kind;
