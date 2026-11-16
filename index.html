@@ -1761,6 +1761,61 @@ function lunchFood(p){
   return f;
 }
 var _fh = new V3(), _fm = new V3(), _fl = new V3();
+/* ---------- a fresh hot drink: carried back from the kitchen in the hand, then steaming on the desk ---------- */
+var STEAM_TEX = (function(){
+  var c = document.createElement("canvas"); c.width = c.height = 64; var g = c.getContext("2d");
+  var gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, "rgba(255,255,255,0.9)"); gr.addColorStop(0.5, "rgba(255,255,255,0.35)"); gr.addColorStop(1, "rgba(255,255,255,0)");
+  g.fillStyle = gr; g.fillRect(0, 0, 64, 64); var tx = new T.CanvasTexture(c); return tx;
+})();
+function steamPuffs(parent, y0){
+  var puffs = [];
+  for (var i = 0; i < 4; i++) {
+    var sp = new T.Sprite(new T.SpriteMaterial({ map:STEAM_TEX, transparent:true, depthWrite:false, opacity:0, color:0xf4f6f8 }));
+    sp.position.y = y0; sp.renderOrder = 5; sp.userData.dyn = true; parent.add(sp); puffs.push(sp);
+  }
+  return { list:puffs, y0:y0 };
+}
+function steamTick(st, t, strength){
+  st.list.forEach(function(sp, i){
+    var ph = (t * 0.42 + i / st.list.length) % 1;
+    sp.position.set(Math.sin(t * 1.3 + i * 2.1) * 0.012 * ph, st.y0 + ph * 0.16, Math.cos(t * 1.1 + i) * 0.008 * ph);
+    var sc = 0.025 + ph * 0.06; sp.scale.set(sc, sc, sc);
+    sp.material.opacity = Math.sin(Math.PI * ph) * 0.42 * strength;
+  });
+}
+function cupColor(p){ return p.id === "olivia" ? "#b9d3bd" : p.id === "debbie" ? "#e9d6c0" : p.side > 0 ? "#ffffff" : "#E31837"; }
+function carryCupMake(p){
+  var g = new T.Group(); g.visible = false; scene.add(g);
+  var mat = M(cupColor(p), { roughness:0.4 });
+  add(G.cyl, mat, 0.034, 0.085, 0.034, 0, 0, 0, g, false);
+  add(G.box, mat, 0.012, 0.04, 0.008, 0.04, 0.005, 0, g, false);
+  add(G.cyl, M(drinkOf(p) === "tea" ? "#a86a2c" : "#3b2416", { roughness:0.2 }), 0.03, 0.004, 0.03, 0, 0.038, 0, g, false);
+  p.carry = g; p.carrySteam = steamPuffs(g, 0.05);
+  var ds = new T.Group(); ds.visible = false; scene.add(ds); p.deskSteam = ds; p.deskSteamP = steamPuffs(ds, 0.06);
+}
+function cupTick(p, t){
+  if (p.guest || p.remote || !p.rig || !p.rig.b || !p.rig.b.RightHand) return;
+  if (!p.carry) carryCupMake(p);
+  var b = p.rig.b, tr = p.trip, fetching = tr && tr.kind === "coffee";
+  /* the desk cup goes with them to the kitchen */
+  if (fetching && p.cup && !(MISHAP.cur && MISHAP.cur.cup === p.cup)) { if (p.cup.visible) { p.cup.visible = false; p.cupAway = true; } }
+  else if (p.cupAway && !fetching) { p.cupAway = false; if (p.cup) p.cup.visible = true; p.hotUntil = t + rand(180, 300); }
+  var carrying = fetching && tr.back && p.root.visible && p.state === "walk";
+  p.carry.visible = carrying;
+  if (carrying) {
+    b.RightHand.getWorldPosition(_fh); b.RightHandMiddle1 ? b.RightHandMiddle1.getWorldPosition(_fm) : _fm.copy(_fh);
+    p.carry.position.copy(_fh).lerp(_fm, 0.55); p.carry.position.y -= 0.03;
+    p.carry.rotation.set(0, p.heading + Math.PI / 2, 0);
+    steamTick(p.carrySteam, t, 1);
+  }
+  /* back at the desk: the cup keeps steaming for a few minutes, fading as it cools */
+  var hot = !carrying && p.cup && p.cup.visible && p.root.visible && p.hotUntil > t && !(p.mug && p.mug.visible);
+  p.deskSteam.visible = !!hot;
+  if (hot) {
+    p.cup.getWorldPosition(p.deskSteam.position);
+    steamTick(p.deskSteamP, t, clamp((p.hotUntil - t) / 120, 0.25, 1));
+  }
+}
 function foodInHand(p, b, t, a, w){
   var f = p.food, on = a.n === "eat" && w > 0.3 && lunchNow(p) === "desk" && b.RightHand && b.RightHandMiddle1;
   f.visible = !!on;
@@ -1838,7 +1893,7 @@ var SCHEDULE = {
   olivia:{ arrive:[8.15, 8.45], leave:[16.75, 16.97] },
   carla:{ arrive:[8.05, 8.45], leave:[16.6, 16.95], wfh:[3] },
   erica:{ arrive:[8.2, 8.55], leave:[16.7, 16.97], wfh:[5] },
-  allyson:{ arrive:[8.0, 8.35], leave:[16.6, 16.9], wfh:[1] }
+  allyson:{ arrive:[8.0, 8.35], leave:[16.6, 16.9] }
 };
 var NO_WFH = /[?&]wfh=off/.test(location.search || "");
 /* Ontario holidays the office closes for */
@@ -3633,7 +3688,7 @@ function choose(arr){ return arr[Math.floor(Math.random() * arr.length)]; }
 var PERSONA = {
   luis:      { focus:1.6, social:0.25, shop:0.2, coffee:0.8, breaky:0.6 },
   stephanie: { focus:0.9, social:1.0, shop:1.35, coffee:0.9, breaky:0.8 },
-  debbie:    { focus:0.9, social:1.0, shop:1.35, coffee:0, breaky:0.8 },
+  debbie:    { focus:0.9, social:1.0, shop:1.35, coffee:0.7, breaky:0.8 },
   olivia:    { focus:1.0, social:0.85, shop:0.7, coffee:0.9, breaky:0.9 },
   carla:     { focus:0.8, social:1.45, shop:0.9, coffee:1.0, breaky:0.8 },
   erica:     { focus:0.9, social:0.9, shop:0.6, coffee:1.1, breaky:0.6 },
@@ -4025,7 +4080,7 @@ function chatter(a, b, t, casualOnly){
     else if (e.kind === "lunch" && mine) L = ["Back from lunch. I'm so full.", "Where did you go?", "The usual spot. Never disappoints."];
     else if (e.kind === "book") L = ["That shelf dropped a book again.", "Someone should fix that shelf.", "Someone. Not me."];
     else if (e.kind === "guest" && !mine && !theirs) L = ["Was that " + xn + " just now?", "Yep, dropped by to say hi.", "We should give " + xn + " a desk up here."];
-    else if (e.kind === "coffee" && !mine && !theirs && X.id !== "debbie") L = [xn + " just made a coffee run.", "Without asking us? Rude.", "Next round is on " + xn + "."];
+    else if (e.kind === "coffee" && !mine && !theirs) L = [xn + " just made a " + drinkOf(X) + " run.", "Without asking us? Rude.", "Next round is on " + xn + "."];
     else if (e.kind === "coffee" && mine) L = ["Fresh " + ad + ". Feeling human again.", "Lucky. I still need mine.", "The pot is still warm, go!"];
     else if (e.kind === "longmeeting" && !mine) L = ["That meeting " + xn + " was in ran long.", "They always do on " + DAY.wdName + "s.", "Could have been an email."];
     else if (e.kind === "meeting" && theirs) L = ["How did the meeting go?", "Good, actually. Short, too.", "A short meeting? Write that down."];
@@ -4364,7 +4419,7 @@ function decide(p, t){
   var withdrawn = p.mood.kind === "stressed" && prof.traits.stressTol < 0.6;
   opts.push({ k:"micro", s:(1 - n.energy) * 0.9 * w.breaky + (mv < 0 ? 0.25 : 0) + (DAY.h > 14.4 && DAY.h < 15.6 ? 0.25 : 0) + rand(0, 0.6) });
   var coffeeN = PEOPLE.filter(function(q){ return q.trip && q.trip.kind === "coffee"; }).length;
-  if (coffeeN < (DAY.coffee > 1.8 ? 2 : 1) && p.id !== "debbie") opts.push({ k:"coffee", s:n.coffee * 1.3 * w.coffee * (DAY.coffee > 1.8 ? 1.25 : 1) + rand(0, 0.25) });
+  if (coffeeN < (DAY.coffee > 1.8 ? 2 : 1)) opts.push({ k:"coffee", s:n.coffee * 1.3 * w.coffee * (DAY.coffee > 1.8 ? 1.25 : 1) + rand(0, 0.25) });
   var best = null, bs = -1;
   PEOPLE.forEach(function(q){
     if (q === p || !available(q)) return;
@@ -5356,7 +5411,7 @@ function updateAgent(p, t, dt){
   if (kind === "meeting") p.statusNow = p.state === "away" ? p.walker.text.away : (p.trip.back ? p.walker.text.back : p.walker.text.out);
   else if (kind === "spot") p.statusNow = p.trip.back ? "Heading back to the desk" : p.trip.label;
   else if (kind === "coffee" && p.state === "coffee" && t < (p.coffeeWait || 0)) p.statusNow = "Waiting for the coffee machine";
-  else if (kind === "coffee") p.statusNow = p.id === "olivia" ? (p.trip.back ? "Back with a tea" : "Making a tea") : (p.trip.back ? "Back with a coffee" : "Getting coffee");
+  else if (kind === "coffee") p.statusNow = drinkOf(p) === "tea" ? (p.trip.back ? "Back with a tea" : "Making a tea") : (p.trip.back ? "Back with a coffee" : "Getting coffee");
   else if (kind === "visit" && p.trip.target.remote) p.statusNow = p.state === "visit" ? "On a video call with " + p.trip.target.name : (p.trip.back ? "Heading back to the desk" : "Walking over to the screens");
   else if (kind === "visit") p.statusNow = p.state === "visit" ? "Chatting with " + p.trip.target.name : (p.trip.back ? "Heading back to the desk" : "Walking over to " + p.trip.target.name);
 }
@@ -5698,7 +5753,7 @@ function fresh(p, arr){
 }
 function pr(q){ return PROFILE[q.id].pron; }
 function cap(s){ return s.charAt(0).toUpperCase() + s.slice(1); }
-function drinkOf(p){ return p.id === "olivia" ? "tea" : p.id === "debbie" ? "water" : "coffee"; }
+function drinkOf(p){ return p.id === "olivia" || p.id === "debbie" ? "tea" : "coffee"; }
 var ACT_TEXT = {
   phone:"Checking a message real quick", sip:"Having a sip of coffee", stretch:"Stretching, too much screen time",
   leanBack:"Taking a ten second breather", headphones:"Fixing my headphones", swatch:"Comparing colour swatches",
@@ -5719,6 +5774,7 @@ function doingNow(p){
   if (p.frus > 0.5 && p.frusWhy) return "A bit frustrated, " + p.frusWhy;
   if (p.act && p.act.plan) return "On a call, back in a few minutes";
   if (p.dnd > t) return "Headphones on, trying to focus";
+  if (p.act && p.act.n === "sip" && drinkOf(p) === "tea") return "Having a sip of tea";
   if (p.act && ACT_TEXT[p.act.n]) return ACT_TEXT[p.act.n];
   if (p.lastEvent && t - p.lastEvent.t < 25) {
     if (p.lastEvent.kind === "meeting") return "Just got back from a meeting";
@@ -5754,7 +5810,7 @@ function howReply(p){
   else if ((DAY.key === "early" || DAY.key === "morning") && n.energy < 0.55) { bits.push(fresh(p, ["Not fully awake yet.","Still booting up, honestly."])); why = "it is early and the " + drinkOf(p) + " has not kicked in"; }
   else if (p.lastEvent && t - p.lastEvent.t < 60 && p.lastEvent.kind === "chat" && (m === "great" || m === "good" || m === "excited")) { bits.push("Just had a good chat with " + p.lastEvent.with + "."); why = "talking to " + p.lastEvent.with + " always helps"; }
   else if (n.energy < 0.3 || m === "tired") { bits.push(fresh(p, ["Long day already.","Could use a nap, honestly."])); why = p.moodWhy || "it has been a long day and it is not over"; }
-  else if (n.coffee > 0.7 && p.id !== "debbie") { bits.push(fresh(p, ["I really need a " + drinkOf(p) + ".", cap(drinkOf(p)) + " would fix a lot right now."])); why = "I have not had my " + drinkOf(p) + " yet"; }
+  else if (n.coffee > 0.7) { bits.push(fresh(p, ["I really need a " + drinkOf(p) + ".", cap(drinkOf(p)) + " would fix a lot right now."])); why = "I have not had my " + drinkOf(p) + " yet"; }
   else if (n.focus > 0.75 && p.typeOn && p.mood.v >= 0) { bits.push(fresh(p, ["In the zone today.","Head down, getting stuff done."])); why = "I finally have a quiet stretch to work"; }
   else if (why && (m === "stressed" || m === "tired" || m === "off" || m === "excited")) bits.push(cap(why) + ".");
   if (prof.traits.chattiness > 0.7 && Math.random() < 0.5) bits.push("How about you?");
@@ -5927,8 +5983,7 @@ function converseCore(p, raw){
       return { text:fresh(p, ["Not really, what's up?","I have a minute. Shoot.","For you? Never."]), intent:"busy", reason:"it is a calm moment for once" };
     case "coffee":
       var n = p.needs;
-      if (p.id === "debbie") return { text:fresh(p, ["Thanks, but I don't drink coffee. Water for me!","Not a coffee person, honestly. I'll stick to water.","No coffee for me, thanks. A glass of water and I'm good."]), intent:"coffee", reason:"I never really liked coffee" };
-      if (p.id === "olivia" && !(p.trip && p.trip.kind === "coffee")) {
+      if (drinkOf(p) === "tea" && !(p.trip && p.trip.kind === "coffee")) {
         if (n.coffee > 0.45 && p.state === "sit" && !p.chatWith && !PEOPLE.some(function(q){ return q.trip && q.trip.kind === "coffee"; })) { p.pendingCoffee = t + 2.5; return { text:fresh(p, ["No coffee for me, I'm a tea person. I'll go make a tea now.","No coffee for me, I'm a tea person. A tea sounds perfect, heading there now."]), intent:"coffee", reason:"tea is my thing" }; }
         return { text:fresh(p, ["No coffee for me, I'm a tea person. I'll grab a tea later.","No coffee for me, I'm a tea person. Thanks though!"]), intent:"coffee", reason:"tea is my thing" };
       }
@@ -6867,10 +6922,15 @@ function frame(){
   perceive(t, dt);
   mark("agents", m0); m0 = performance.now();
   /* people off screen animate at a third of the rate */
+  PEOPLE.forEach(function(p){ cupTick(p, t); });
   PEOPLE.forEach(function(p){
     p.skipDt = (p.skipDt || 0) + dt;
     if (p.root.visible) { updateRig(p, t, p.skipDt); p.skipDt = 0; }
-    else if (!p.root.visible && frameNo % 3 === 0) { p.rig.mixer.update(p.skipDt); p.skipDt = 0; }
+    else {
+      /* out of sight they still slow down and stop, or a walk out of the scene (coffee, lunch, home) never arrives */
+      p.rig.walkW = lerp(p.rig.walkW, p.rig.walkTarget, 1 - Math.exp(-dt * 6));
+      if (frameNo % 3 === 0) { p.rig.mixer.update(p.skipDt); p.skipDt = 0; }
+    }
   });
   REMOTE.forEach(function(p){ updateRemote(p, t, dt); });
   updateMishaps(t, dt);
