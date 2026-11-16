@@ -85,6 +85,10 @@ Approved ideas. Everything stays inside the office scene: no rooms or events out
 - Delegation: Erica and Allyson hand out up to 2 tasks a day each, the task goes into the person's day, and they report back when done.
 - Rumours: news grows a little with every retelling, and they say who told them.
 
+## Added 16 Nov
+- Sound button: one click on, one click off, label shows the state.
+- Empty desk card: whoever is out of the scene (not in yet, working from home, gone for the day, lunch, meeting) keeps a faded label at their desk saying why.
+
 ## Not wanted
 - Robot vacuum or night cleaner.
 - Meetings in another room.

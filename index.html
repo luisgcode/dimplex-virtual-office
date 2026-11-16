@@ -140,6 +140,10 @@ body > header{display:none !important}
 .tag .st{display:none}
 .tag:hover .st,.tag.on .st{display:block}
 .tag.off{opacity:0;pointer-events:none}
+.tag.away .st{display:block}
+.tag.away{opacity:.82;box-shadow:0 2px 8px rgba(15,20,25,.12)}
+.tag.away .n i{background:transparent;box-shadow:inset 0 0 0 2px var(--c)}
+.tag.away.off{opacity:0}
 .vignette{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 45%,rgba(0,0,0,0) 60%,rgba(20,26,34,.16) 100%);z-index:0}
 #loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:10px;font-weight:600;color:#3b434c;background:rgba(231,235,238,.55);z-index:4}
 .spin{width:18px;height:18px;border-radius:50%;border:2px solid #b9c1c9;border-top-color:#e31837;animation:spin .8s linear infinite}
@@ -6955,13 +6959,17 @@ function frame(){
   order.forEach(function(p){
     var tag = p.tag;
     p.head.getWorldPosition(tv);
-    if (!p.root.visible) tv.copy(EXIT_SPOT).setY(1.6);
+    /* out of the scene (home, not in yet, lunch, meeting): the label stays at their empty desk and says why */
+    var deskCard = !p.root.visible && !p.guest && !p.remote && !!p.seat;
+    tag.classList.toggle("away", deskCard);
+    if (deskCard) tv.set(p.seat.x, 1.1, p.seat.z);
+    else if (!p.root.visible) tv.copy(EXIT_SPOT).setY(1.6);
     tv.y += p.remote ? 0 : 0.3;
     tv.project(camera);
     p.onScreen = !(tv.z > 1 || tv.x < -1.25 || tv.x > 1.25 || tv.y < -1.25 || tv.y > 1.25);
-    if (!p.onScreen || (!p.root.visible && p !== focus) || (p.offline && p !== focus)) { tag.classList.add("off"); showBubble(p, null); return; }
+    if (!p.onScreen || (!p.root.visible && !deskCard && p !== focus) || (p.offline && p !== focus)) { tag.classList.add("off"); showBubble(p, null); return; }
     var x = (tv.x + 1) / 2 * w, y = (1 - tv.y) / 2 * h;
-    if (!p.tagW) { p.tagW = tag.offsetWidth || 70; p.tagH = tag.offsetHeight || 24; }
+    if (!p.tagW || p.tagAway !== deskCard) { p.tagAway = deskCard; p.tagW = tag.offsetWidth || 70; p.tagH = tag.offsetHeight || 24; }
     var rect = { l:x - p.tagW / 2, r:x + p.tagW / 2, t:y - p.tagH - 6, b:y - 6 };
     var hit = placed.some(function(q){ return rect.l < q.r + 4 && rect.r > q.l - 4 && rect.t < q.b + 2 && rect.b > q.t - 2; });
     var hitTile = placed.length && placed[0].tile && rect.l < placed[0].r && rect.r > placed[0].l && rect.t < placed[0].b && rect.b > placed[0].t;
