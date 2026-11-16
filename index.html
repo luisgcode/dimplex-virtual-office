@@ -7295,6 +7295,14 @@ function chalRender(){
 function chalReview(B){
   var back = el("button", "go ghost", "Back"); back.type = "button"; back.addEventListener("click", function(){ CH.view = null; chalRender(); }); B.appendChild(back);
   if (CH.live && !CH.admin) return liveSignIn(B);
+  /* only the admin sees what is coming next: everyone else only sees the missions that are open */
+  if (CH.live) {
+    var openIds = chalOpen().map(function(o){ return o.id; }), doneIds = CH.st.done.map(function(d){ return d.mid; });
+    var next = Object.keys(CH.defs).map(function(k){ return CH.defs[k]; }).filter(function(m){ return openIds.indexOf(m.id) < 0 && doneIds.indexOf(m.id) < 0; }).sort(function(a, b){ return a.ord - b.ord; });
+    var det = el("details", "ms"), sm = el("summary", "ms-label", "Coming next (" + next.length + "), only you see this"); det.appendChild(sm);
+    var ol = el("ol", "how"); next.forEach(function(m){ ol.appendChild(el("li", "", m.title + " · " + ptsTxt(m.pts) + (m.special ? " (special)" : ""))); }); det.appendChild(ol);
+    B.appendChild(det);
+  }
   if (CH.live) { var out = el("button", "go ghost", "Sign out"); out.type = "button"; out.addEventListener("click", function(){ SB.auth.signOut().then(function(){ CH.admin = false; CH.view = null; chalSync(true); }); }); B.appendChild(out); }
   if (!CH.st.subs.length) B.appendChild(el("p", "empty", "No photos waiting."));
   chalOpen().forEach(function(o){
