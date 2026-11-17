@@ -4930,9 +4930,10 @@ function rollAt(p, t){
   var a = p.rollOnAt;
   if (!p.rollTo || a === undefined || a === null) return 0;
   var r0 = p.rollR0 || 0, b = p.rollOffAt, x = t < a ? a : t;
-  var on = function(y){ return 1 - (1 - r0) * Math.exp(-1.6 * (y - a)); };
+  /* a smooth push over about 2 s each way */
+  var on = function(y){ return r0 + (1 - r0) * ease((y - a) / 2.2); };
   if (b === null || b === undefined || x < b) return on(x);
-  var v = on(b) * Math.exp(-1.6 * (x - b));
+  var v = on(b) * (1 - ease((x - b) / 2.2));
   return v < 0.002 ? 0 : v;
 }
 function rollStart(p, to, t){ NAPS[p.idx] = 0; p.rollR0 = rollAt(p, t); p.rollTo = to; p.rollOnAt = t; p.rollOffAt = null; }
@@ -8527,16 +8528,39 @@ function worldSnap(t){
   return out;
 }
 window.__worldSnap = function(){ return worldSnap(SIM.T); };
-window.__worldAt = function(sec, viaSec){
+window.__worldAt = function(sec, viaSec, keep){
   var t0 = performance.now();
   resetWorld();
   if (viaSec !== undefined) simTo(viaSec);
   simTo(sec);
   var snap = worldSnap(Math.floor(sec)), ms = performance.now() - t0;
-  resetWorld(); simTo(WT());
+  if (!keep) { resetWorld(); simTo(WT()); }
   return { ms:+ms.toFixed(1), snap:snap };
 };
 window.__sim = SIM;
+/* a check over a stretch of the day: jumps in position between world seconds (teleports), walks, chats and lines */
+window.__worldSweep = function(from, to){
+  resetWorld(); simTo(from);
+  var last = {}, jumps = [], close = [], walks = 0, chatsN = 0, lines = {}, seenChat = new Set(), v = new V3();
+  for (var s = from; s <= to; s++) {
+    simTo(s);
+    for (var k = 0; k < 4; k++) {
+      var tt = s + k * 0.25;
+      PEOPLE.forEach(function(p){
+        var vis = visAt(p, tt), ps = posAt(p, tt, v), L = last[p.id];
+        if (vis && L && L.vis && tt - L.t <= 0.26) { var d = Math.hypot(ps.x - L.x, ps.z - L.z); if (d > 0.6) jumps.push(p.id + "@" + tt + " " + L.st + ">" + p.state + " d=" + d.toFixed(2)); }
+        last[p.id] = { x:ps.x, z:ps.z, vis:vis, t:tt, st:p.state };
+      });
+    }
+    var wk = PEOPLE.filter(function(p){ return p.state === "walk" && visAt(p, s) && p.trip.w && s > p.trip.ts && s < p.trip.ts + p.trip.w.D; });
+    for (var i = 0; i < wk.length; i++) for (var j = i + 1; j < wk.length; j++) { var a = posAt(wk[i], s), b = posAt(wk[j], s); if (Math.hypot(a.x - b.x, a.z - b.z) < 0.45) close.push(wk[i].id + "/" + wk[j].id + "@" + s); }
+    PEOPLE.forEach(function(p){ if (p.state === "walk" && visAt(p, s)) walks++; var say = sayAt(p, s); if (say) lines[say] = 1; });
+    chats.forEach(function(c){ if (!seenChat.has(c)) { seenChat.add(c); chatsN++; } });
+  }
+  var out = { jumps:jumps.slice(0, 20), nJumps:jumps.length, bumps:close.slice(0, 10), nBumps:close.length, walkSeconds:walks, chats:chatsN, distinctLines:Object.keys(lines).length };
+  resetWorld(); simTo(WT());
+  return out;
+};
 window.__simDbg = function(){ return { chats:chats.length, says:SAYS.length, ev:OFFICE_EV.length, poi:POI.length, recent:CHAT_RECENT.length, memo:PEOPLE.map(function(p){ return (p.memo || []).length; }).join(","), goals:PEOPLE.map(function(p){ return p.plan ? p.plan.goals.length : 0; }).join(",") }; };
 
 /* ---------- loop ---------- */
