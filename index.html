@@ -445,10 +445,13 @@ var DAYQ = (function(){
 function WORLD_NOW(){ return Date.now() + WORLD_OFF + DAYQ.off; }
 /* the world moment as a Date whose local fields are the Toronto wall time (so getHours, getDate, getMonth and getDay
    read Toronto values on any machine). Only for reading fields, never for getTime against the real clock. */
-function worldDate(){ var ms = WORLD_NOW(), p = torontoAt(ms); return new Date(p.y, p.mo - 1, p.d, p.h, p.mi, p.s, ms - Math.floor(ms / 1000) * 1000); }
+function worldDate(){
+  if (SIM.on) { var q = SIM.day, sn = SIM.now; return new Date(q.y, q.mo - 1, q.d, Math.floor(sn / 3600), Math.floor(sn / 60) % 60, Math.floor(sn) % 60, Math.round((sn - Math.floor(sn)) * 1000)); }
+  var ms = WORLD_NOW(), p = torontoAt(ms); return new Date(p.y, p.mo - 1, p.d, p.h, p.mi, p.s, ms - Math.floor(ms / 1000) * 1000);
+}
 /* world time in seconds since Toronto midnight of the world date: the clock every world system runs on.
    (On the two nights a year the clocks change it jumps an hour at 2 am, when the office is empty.) */
-function WT(){ var ms = WORLD_NOW(), p = torontoAt(ms); return p.h * 3600 + p.mi * 60 + p.s + (ms - Math.floor(ms / 1000) * 1000) / 1000; }
+function WT(){ if (SIM.on) return SIM.now; var ms = WORLD_NOW(), p = torontoAt(ms); return p.h * 3600 + p.mi * 60 + p.s + (ms - Math.floor(ms / 1000) * 1000) / 1000; }
 function worldDateKey(){ var p = torontoAt(WORLD_NOW()); return p.y * 10000 + p.mo * 100 + p.d; }
 var WORLD_DATE = worldDateKey();
 /* keyed randomness: the same keys give the same numbers for every viewer on the same day */
@@ -465,6 +468,19 @@ function wrng(){
   for (var i = 0; i < arguments.length; i++) h = hmix(h, hkey(arguments[i]));
   var r = seeded(h % 2147483646 + 1); r(); r(); return r;
 }
+/* ---------- the director ----------
+   Everything the office people do (sitting, acts, trips, walks, chats) is decided by one simulation that runs on
+   the world clock in fixed steps of SIM.DT seconds, from early morning, with one seeded random stream for the day.
+   It never reads anything from the screen (meshes, animation blends, camera, frame rate), so the same date and time
+   give the same office on every screen. On load it catches up from the start of the day; after that every frame
+   only adds the steps up to the current world second. The drawing code then poses each person from that state
+   (walks are a function of time along their path, acts and chats keep their start times). */
+var SIM = { on:false, now:0, T:-1, DT:1, START:7 * 3600, rng:null, day:null, ticks:0, full:0 };
+/* randomness: inside the director it is the day's seeded stream; anywhere else (pure looks) it is Math.random */
+function R(){ return SIM.on ? SIM.rng() : Math.random(); }
+/* the next world second each person needs a full director step (kept apart from the person objects, it is read
+   for everyone at every step) */
+var NAPS = new Float64Array(64), STEPS = new Float64Array(64);
 
 /* ---------- team ---------- */
 var PEOPLE = [
@@ -516,7 +532,7 @@ var REMOTE = [
     status:"Working on new designs", personality:"Designer on the team, works remotely. Notices every detail of the brand look.", topics:"Banners, layouts, social graphics and the brand look" }
 ];
 var ALL = PEOPLE.concat(REMOTE);
-var BY = {}; ALL.forEach(function(p){ BY[p.id] = p; });
+var BY = {}; ALL.forEach(function(p, i){ BY[p.id] = p; p.idx = i; });
 
 
 /* ---------- renderer ---------- */
@@ -700,10 +716,23 @@ function wxKind(code){
   return "clear";
 }
 var WX_TEXT = { snow:"Snow", rain:"Rain", cloud:"Cloudy", clear:"Clear" };
+/* the people react to the weather hour by hour (SIMWX): the day's hourly record, read once when the page opens
+   and then kept, so the director gets the same input on every screen whatever the time the page was opened */
+var SIMWX = null;
+function simWx(T){
+  var h = Math.floor(T / 3600), H = SIMWX, c = H && H.code[h], tp = H && H.temp[h];
+  return { kind:WX_FORCE || (c === undefined || c === null ? "clear" : wxKind(c)), temp:tp === undefined || tp === null ? null : Math.round(tp), isDay:H && H.day[h] !== undefined && H.day[h] !== null ? H.day[h] === 1 : null };
+}
 function wxFetch(){
-  fetch("https://api.open-meteo.com/v1/forecast?latitude=43.36&longitude=-80.31&current=temperature_2m,weather_code,is_day&daily=weather_code&past_days=14&forecast_days=1&timezone=America%2FToronto")
+  return fetch("https://api.open-meteo.com/v1/forecast?latitude=43.36&longitude=-80.31&current=temperature_2m,weather_code,is_day&hourly=temperature_2m,weather_code,is_day&daily=weather_code&past_days=14&forecast_days=1&timezone=America%2FToronto")
     .then(function(r){ return r.json(); })
     .then(function(j){
+      var hr = j && j.hourly;
+      if (hr && hr.time && !SIMWX) {
+        var tz = torontoAt(WORLD_NOW()), pre = tz.y + "-" + ("0" + tz.mo).slice(-2) + "-" + ("0" + tz.d).slice(-2) + "T", H = { code:[], temp:[], day:[] };
+        hr.time.forEach(function(ts, i){ if (ts.indexOf(pre) === 0) { var hh = +ts.slice(11, 13); H.code[hh] = hr.weather_code[i]; H.temp[hh] = hr.temperature_2m[i]; H.day[hh] = hr.is_day ? hr.is_day[i] : null; } });
+        if (H.code.length) SIMWX = H;
+      }
       var c = j && j.current; if (!c) return;
       WX.kind = wxKind(c.weather_code); WX.temp = Math.round(c.temperature_2m); WX.isDay = c.is_day === 1;
       /* the days it snowed (Toronto dates), for the snow piling up on the sills */
@@ -711,7 +740,7 @@ function wxFetch(){
       if (dl && dl.time && dl.weather_code) dl.time.forEach(function(ds, i){ var a = /^(\d+)-(\d+)-(\d+)$/.exec(ds); if (a && wxKind(dl.weather_code[i]) === "snow") WX.snowDays.push((+a[1]) * 1000 + (+a[2] - 1) * 40 + (+a[3])); });
     }).catch(function(){});
 }
-wxFetch(); setInterval(wxFetch, 15 * 60 * 1000);
+var WX_FIRST = wxFetch(); setInterval(wxFetch, 15 * 60 * 1000);
 /* rain streaks past the windows (snow uses the falling flakes already there) */
 (function(){
   var rt = canvasTex(128, 256, function(g, w, h){
@@ -1014,8 +1043,8 @@ function chatScreen(){
   };
   L.tick = function(t){
     if (t < L.next) { if (L.typing) L.draw(); return; } /* called at ~8 fps */
-    if (L.typing) { L.typing = 0; L.msgs.push({ me:false, w:300 + Math.random() * 120, lines:2 + Math.floor(Math.random() * 5) }); L.next = t + rand(4, 9); }
-    else if (!L.msgs.length || L.msgs[L.msgs.length - 1].me === false) { L.msgs.push({ me:true, w:90 + Math.random() * 170, lines:1 + Math.floor(Math.random() * 2) }); L.typing = 1; L.next = t + rand(1.5, 3); }
+    if (L.typing) { L.typing = 0; L.msgs.push({ me:false, w:300 + R() * 120, lines:2 + Math.floor(R() * 5) }); L.next = t + rand(4, 9); }
+    else if (!L.msgs.length || L.msgs[L.msgs.length - 1].me === false) { L.msgs.push({ me:true, w:90 + R() * 170, lines:1 + Math.floor(R() * 2) }); L.typing = 1; L.next = t + rand(1.5, 3); }
     else { L.typing = 1; L.next = t + rand(1.5, 3); }
     if (L.msgs.length > 14) L.msgs.shift();
     L.draw();
@@ -1118,19 +1147,19 @@ function photoScreen(){
       var force = MODES.indexOf(SCREEN_FORCE) >= 0 ? SCREEN_FORCE : null, nx = L.mode;
       if (force) nx = force; else if (L.mEnd) while (nx === L.mode) nx = choose(MODES);
       L.mode = nx; L.m0 = t; L.mEnd = t + (nx === "export" ? 11 : nx === "banner" ? 16 : rand(20, 34));
-      L.file = choose(FILES); L.hd = Math.floor(Math.random() * HEAD.length); L.cr = null; L.next = 0;
+      L.file = choose(FILES); L.hd = Math.floor(R() * HEAD.length); L.cr = null; L.next = 0;
     }
     L.e = t - L.m0;
     var T2;
     if (L.mode === "zoom") {
-      if (t > L.next) { L.next = t + rand(3, 6); L.target = Math.random() < 0.35 ? { z:1, cx:320, cy:210 } : { z:rand(1.6, 3.2), cx:rand(180, 470), cy:rand(120, 300) }; }
+      if (t > L.next) { L.next = t + rand(3, 6); L.target = R() < 0.35 ? { z:1, cx:320, cy:210 } : { z:rand(1.6, 3.2), cx:rand(180, 470), cy:rand(120, 300) }; }
       T2 = L.target || { z:1, cx:320, cy:210 };
     } else T2 = { z:1, cx:320, cy:210 };
     var k = 1 - Math.exp(-dt * 1.6);
     L.z += (T2.z - L.z) * k; L.cx += (T2.cx - L.cx) * k; L.cy += (T2.cy - L.cy) * k;
     if (L.mode === "crop") {
-      var R = CROPS[Math.floor(L.e / 5) % 4], vw = 376, vh = 280, cw = vw * 0.86, ch = cw * R[1] / R[0];
-      if (ch > vh * 0.86) { ch = vh * 0.86; cw = ch * R[0] / R[1]; }
+      var CR = CROPS[Math.floor(L.e / 5) % 4], vw = 376, vh = 280, cw = vw * 0.86, ch = cw * CR[1] / CR[0];
+      if (ch > vh * 0.86) { ch = vh * 0.86; cw = ch * CR[0] / CR[1]; }
       var tg = { x:56 + (vw - cw) / 2, y:28 + (vh - ch) / 2, w:cw, h:ch };
       if (!L.cr) L.cr = { x:56, y:28, w:vw, h:vh };
       var k3 = 1 - Math.exp(-dt * 3); ["x", "y", "w", "h"].forEach(function(q){ L.cr[q] += (tg[q] - L.cr[q]) * k3; });
@@ -1497,7 +1526,7 @@ function activityScreen(pool, seed, baseImg, ownerId){
     },
     /* a one to one video call: the other person big, yourself small in the corner */
     call1:function(g, t){
-      var who = L.peer || (L.peer = [["#6b5a4e", "#e8c4a4", "#3a2418"], ["#4f6b8c", "#f1d3c2", "#7a3b22"], ["#5c6e57", "#d9a27c", "#1e1512"], ["#7a6a8a", "#efcfbd", "#c9a05c"]][Math.floor(Math.random() * 4)]);
+      var who = L.peer || (L.peer = [["#6b5a4e", "#e8c4a4", "#3a2418"], ["#4f6b8c", "#f1d3c2", "#7a3b22"], ["#5c6e57", "#d9a27c", "#1e1512"], ["#7a6a8a", "#efcfbd", "#c9a05c"]][Math.floor(R() * 4)]);
       g.fillStyle = "#292929"; g.fillRect(0, 0, W, H);
       g.fillStyle = "#3d3e66"; g.fillRect(0, 0, W, 24); bar(g, 12, 9, 90, "#c5c7f0");
       var bg = g.createLinearGradient(0, 30, 0, H - 40); bg.addColorStop(0, who[0]); bg.addColorStop(1, "#2a2a2e");
@@ -1575,11 +1604,11 @@ function activityScreen(pool, seed, baseImg, ownerId){
     /* each activity lasts a good while: a minute to two and a half */
     if (!L.next) L.next = t + rand(25, 70);
     if (t > L.next) {
-      var m = Math.random() < 0.14 ? "call1" : pool[Math.floor(Math.random() * pool.length)];
+      var m = R() < 0.14 ? "call1" : pool[Math.floor(R() * pool.length)];
       /* what is on the screen matches what they say they are working on */
       var gm = ownerId && typeof goalMode === "function" ? goalMode(BY[ownerId]) : null;
-      if (gm && Math.random() < 0.5) m = gm;
-      if (DAY.eom && Math.random() < 0.3) m = Math.random() < 0.5 ? "report" : "dash";
+      if (gm && R() < 0.5) m = gm;
+      if (DAY.eom && R() < 0.3) m = R() < 0.5 ? "report" : "dash";
       if (m === L.mode) m = pool[(pool.indexOf(m) + 1) % pool.length];
       L.mode = m; L.peer = null; L.next = t + (m === "call1" ? rand(40, 90) : rand(60, 150)); L.k = 0;
     }
@@ -1667,7 +1696,7 @@ function screensTick(t, dt){
     if (!active || !s.m.visible) continue;
     if (s.map) {
       /* code scrolls while typing, and jumps to another part of the file now and then */
-      if (Math.random() < dt * 0.12) s.to = clamp(s.to + (Math.random() < 0.5 ? -1 : 1) * rand(0.08, 0.3), 0, 1 - 320 / 1280);
+      if (R() < dt * 0.12) s.to = clamp(s.to + (R() < 0.5 ? -1 : 1) * rand(0.08, 0.3), 0, 1 - 320 / 1280);
       if (p.typeOn) s.to = Math.max(0, s.to - dt * 0.004);
       s.scroll += (s.to - s.scroll) * (1 - Math.exp(-dt * 3));
       s.map.offset.y = s.scroll;
@@ -2077,8 +2106,6 @@ function cupTick(p, t){
   if (fetching && p.cup && !(MISHAP.cur && MISHAP.cur.cup === p.cup)) { if (p.cup.visible) { p.cup.visible = false; p.cupAway = true; } }
   else if (p.cupAway && !fetching) { p.cupAway = false; if (p.cup) p.cup.visible = true; p.hotUntil = t + rand(180, 300); }
   var carrying = fetching && tr.back && p.root.visible && p.state === "walk";
-  /* a hot drink in hand: no phone on the way back */
-  if (carrying && p.walkPhone) { p.walkPhone = false; if (p.act && p.act.n === "phone") p.act = null; }
   p.carry.visible = carrying;
   if (carrying) {
     b.RightHand.getWorldPosition(_fh); b.RightHandMiddle1 ? b.RightHandMiddle1.getWorldPosition(_fm) : _fm.copy(_fh);
@@ -2154,7 +2181,7 @@ var NO_LUNCH = /[?&]lunch=off/.test(location.search || "");
 /* morning arrival: everyone starts at 8, each person shows up somewhere between 8:00 and 8:30, closer to 8 more often.
    The time changes every day but stays the same within a day (seeded by the date and the person). */
 function arriveH(p){
-  var d = DAY.d || worldDate(), key = d.getFullYear() * 1000 + d.getMonth() * 40 + d.getDate();
+  var key = dayKey();
   if (p.arriveKey !== key) {
     var hs = 0; for (var i = 0; i < p.id.length; i++) hs = (hs * 31 + p.id.charCodeAt(i)) % 100000;
     var r = seeded((key * 7919 + hs * 104729) % 2147483646 + 1); r(); r();
@@ -2193,6 +2220,11 @@ function wfhToday(p){ var S = SCHEDULE[p.id]; return !NO_WFH && !!S && !!S.wfh &
 /* now and then someone stays late to finish one last thing */
 function lateToday(p){ return !p.remote && !p.guest && p.id !== "luis" && dayRand(p, 77) < 0.12; }
 function leaveOf(p){
+  var key = dayKey();
+  if (p.leaveKey !== key) { p.leaveKey = key; p.leaveAt = leaveOf0(p); }
+  return p.leaveAt;
+}
+function leaveOf0(p){
   var S = SCHEDULE[p.id];
   var h = S ? lerp(S.leave[0], S.leave[1], dayRand(p, 13)) : (p.leaveH || 17);
   /* staying late never goes past 5:30 pm */
@@ -2213,7 +2245,7 @@ function darkTarget(){
     if (hh >= 17) dark = 0.88 + 0.12 * clamp((hh - 17) / 3, 0, 1);
     else if (hh < 8) dark = 1;
     /* someone still working: half the lights stay on over the desks */
-    if (dark > 0.5 && PEOPLE.some(function(q){ return !q.guest && !q.remote && q.state === "sit" && q.root.visible; })) dark = 0.5;
+    if (dark > 0.5 && PEOPLE.some(function(q){ return !q.guest && !q.remote && q.state === "sit" && visAt(q, WT()); })) dark = 0.5;
   }
   return dark;
 }
@@ -2606,17 +2638,17 @@ function seasonTick(t, dt){
   }
   var L = seasonFx.line;
   if (L) {
-    if (t > L.t1 && !L.replied && L.b) { L.replied = true; if (L.a.sayText === L.text) showBubble(L.a, null); showBubble(L.b, L.reply); L.t2 = t + 3.6; }
-    if (t > L.t2) { if (L.b && L.b.sayText === L.reply) showBubble(L.b, null); if (!L.b && L.a.sayText === L.text) showBubble(L.a, null); seasonFx.line = null; }
+    if (t > L.t1 && !L.replied && L.b) { L.replied = true; if (L.a.fxSay === L.text) showBubble(L.a, null); showBubble(L.b, L.reply); L.t2 = t + 3.6; }
+    if (t > L.t2) { if (L.b && L.b.fxSay === L.reply) showBubble(L.b, null); if (L.a.fxSay === L.text) showBubble(L.a, null); seasonFx.line = null; }
     return;
   }
   if (!seasonFx.next) seasonFx.next = t + rand(8, 18);
   if (t < seasonFx.next) return;
   seasonFx.next = t + rand(35, 75);
-  var who = PEOPLE.filter(function(q){ return q.state === "sit" && q.root.visible && !q.chatWith && !q.sayText && !q.answering; });
+  var who = PEOPLE.filter(function(q){ return q.state === "sit" && q.root.visible && !q.chatWith && !bubbleAt(q, t) && !q.answering; });
   if (!who.length || teamCallNow() || chats.some(function(c){ return c.bubbles; })) return;
   var a0 = choose(who), near = who.filter(function(q){ return q !== a0 && Math.abs(q.z - a0.z) < 2.2; });
-  var b0 = near.length && Math.random() < 0.75 ? choose(near) : null;
+  var b0 = near.length && R() < 0.75 ? choose(near) : null;
   /* holiday small talk follows the real weather outside, never a guess */
   var wkS = WX_FORCE || WX.kind, tS = WX.temp, extra = [];
   if (wkS === "snow") extra = ["Look at that snow, so festive!", "Snow for the holidays, finally.", "It's really snowing out there!"];
@@ -2633,15 +2665,10 @@ buildSeason();
    the wall shelf, a cup tips over on a desk, or someone leans back too far on their chair and catches themselves. */
 var SAYS = [];
 /* visitors from outside the team are shown only as a name: no chat, no lines, no profile (no permission to portray them) */
-function sayLater(p, text, t0, dur){ if (p && p.guest) return; SAYS.push({ p:p, text:text, t0:t0, t1:t0 + dur + 1.2, on:false }); }
-function updateSays(t){
-  for (var i = SAYS.length - 1; i >= 0; i--) {
-    var s = SAYS[i];
-    if (!s.on && t >= s.t0) { if (!s.p.chatWith) showBubble(s.p, s.text); s.on = true; }
-    if (t > s.t1) { if (s.p.sayText === s.text && !s.p.chatWith) showBubble(s.p, null); SAYS.splice(i, 1); }
-  }
-}
-var MISHAP = { next:0, cur:null, book:null, puddle:null };
+function sayLater(p, text, t0, dur){ if (p && p.guest) return; SAYS.push({ p:p, text:text, t0:t0, t1:t0 + dur + 1.2 }); }
+/* director: drop lines that are over */
+function simSays(t){ for (var i = SAYS.length - 1; i >= 0; i--) if (t > SAYS[i].t1 + 2) SAYS.splice(i, 1); }
+var MISHAP = { next:0, cur:null, book:null, puddle:null, shown:null };
 /* our first place pumpkin: a carousel with an orange and black striped pumpkin roof, bats on top, a carved pumpkin base
    and little ghosts spinning around the pole, on a wall shelf with a gold "1st place" plaque */
 var TROPHY = null;
@@ -2764,16 +2791,15 @@ function buildCat(rs){
 }
 function nearestSitter(x, z, not){
   var best = null, bd = 1e9;
-  PEOPLE.forEach(function(q){ if (q === not || q.state !== "sit" || !q.root.visible || q.chatWith) return; var d = Math.hypot(q.seat.x - x, q.seat.z - z); if (d < bd) { bd = d; best = q; } });
+  PEOPLE.forEach(function(q){ if (q === not || q.state !== "sit" || !visAt(q, WT()) || q.chatWith) return; var d = Math.hypot(q.seat.x - x, q.seat.z - z); if (d < bd) { bd = d; best = q; } });
   return best;
 }
 function startMishap(kind, t){
   var m = { kind:kind, t0:t };
   if (kind === "cat") {
-    var rp = REMOTE.filter(function(q){ return !q.camOff; });
+    var rp = REMOTE.filter(function(q){ return !(DAY.closed || DAY.h >= 17 || DAY.h < arriveH(q)); });
     if (!rp.length) return false;
-    m.p = choose(rp); m.cat = m.p.cat; m.dir = Math.random() < 0.5 ? 1 : -1; m.dur = 4.2;
-    m.cat.g.visible = true;
+    m.p = choose(rp); m.cat = m.p.cat; m.dir = R() < 0.5 ? 1 : -1; m.dur = 4.2;
     logEvent("cat", m.p, t);
     sayLater(m.p, choose(["Sorry, that's my cat!", "Someone wants to join the call.", "Meet my coworker, she runs the place."]), t + 1.6, 3.2);
   } else if (kind === "book") {
@@ -2784,20 +2810,16 @@ function startMishap(kind, t){
     if (w) { sayLater(w, choose(["Whoa! The shelf strikes again.", "Was that the shelf? I'll grab it in a sec.", "That book jumped. I saw it."]), t + 1.3, 3); startAct(w, "turn", t + 1.0, 3); }
   } else if (kind === "spill") {
     /* left row only: on the right row the cups sit behind the monitors from the usual view */
-    var who = PEOPLE.filter(function(q){ return q.side < 0 && q.state === "sit" && q.root.visible && !q.chatWith && !q.answering && q.cup; });
+    var who = PEOPLE.filter(function(q){ return q.side < 0 && q.state === "sit" && visAt(q, t) && !q.chatWith && !q.answering && q.cup; });
     if (!who.length) return false;
-    m.p = choose(who); m.dur = 18; m.cup = m.p.cup;
-    MISHAP.puddle.position.set(-0.5, 0.7635, -0.5); MISHAP.puddle.scale.setScalar(0.001); MISHAP.puddle.visible = true;
-    m.p.deskGroup.add(MISHAP.puddle);
+    m.p = choose(who); m.dur = 18; m.cup = m.p.cup; m.wipeAt = t + 2.6;
     sayLater(m.p, "Oops! There goes my " + drinkOf(m.p) + ".", t + 0.7, 3);
     logEvent("spill", m.p, t);
     startAct(m.p, "point", t + 0.5, 2.0);
-    /* grab napkins and wipe the desk */
-    setTimeout(function(){ if (m.p.state === "sit" && !m.p.chatWith && (!m.p.act || m.p.act.n === "point")) startAct(m.p, "wipe", WT(), 5.5); }, 2600);
   } else if (kind === "restart") {
     /* the computer has to restart for updates: black screen, a spinner, a percentage that crawls, and a bored wait */
     /* left row only: those screens face the usual view */
-    var rc = PEOPLE.filter(function(q){ return q.side < 0 && q.state === "sit" && q.root.visible && !q.remote && !q.guest && !q.chatWith && !q.answering && !q.trip && !(q.standW > 0) && LIVE_SCREENS.some(function(s2){ return s2.owner === q; }); });
+    var rc = PEOPLE.filter(function(q){ return q.side < 0 && q.state === "sit" && visAt(q, t) && !q.remote && !q.guest && !q.chatWith && !q.answering && !q.trip && !(standW(q, t) > 0) && LIVE_SCREENS.some(function(s2){ return s2.desk === q.deskGroup; }); });
     if (!rc.length) return false;
     m.p = choose(rc); m.dur = rand(55, 85); m.stage = -1;
     m.p.restartT0 = t; m.p.restartUntil = t + m.dur; m.p.typeOn = false; m.p.mouseOn = false;
@@ -2807,7 +2829,7 @@ function startMishap(kind, t){
     var rn = nearestSitter(m.p.seat.x, m.p.seat.z, m.p);
     if (rn && Math.abs(rn.z - m.p.z) < 2.4) sayLater(rn, choose(["Updates again? Mine did that yesterday.", "Perfect time for a break.", "Go get a " + drinkOf(m.p) + " lol"]), t + 3.6, 2.8);
   } else if (kind === "chair") {
-    var cand = PEOPLE.filter(function(q){ return q.state === "sit" && q.root.visible && !q.chatWith && !q.answering && !q.act && !(q.standW > 0); });
+    var cand = PEOPLE.filter(function(q){ return q.state === "sit" && visAt(q, t) && !q.chatWith && !q.answering && !q.act && !(standW(q, t) > 0); });
     if (!cand.length) return false;
     m.p = choose(cand); m.dur = 2.4;
     startAct(m.p, "wobble", t, m.dur);
@@ -2825,10 +2847,10 @@ var ALONE = { next:0, said:[] };
 function aloneTick(t){
   if (t < ALONE.next) return;
   ALONE.next = t + rand(45, 90);
-  var here = PEOPLE.filter(function(q){ return !q.guest && !q.remote && q.root.visible && (q.state === "sit" || q.state === "walk"); });
+  var here = PEOPLE.filter(function(q){ return !q.guest && !q.remote && visAt(q, t) && (q.state === "sit" || q.state === "walk"); });
   if (here.length !== 1 || DAY.closed) return;
   var p = here[0];
-  if (p.state !== "sit" || p.chatWith || p.answering || p.sayText || teamCallNow()) return;
+  if (p.state !== "sit" || p.chatWith || p.answering || sayAt(p, t) || teamCallNow()) return;
   var late = DAY.h >= 17, L = [
     "It's so quiet in here.", "Hello? Anyone?", "Just me and the plants now.", "Everyone left without me lol",
     "I can hear the fridge from here.", "Honestly, I love the quiet.", "Last one in again.", "Okay, I'm talking to myself now.",
@@ -2839,8 +2861,9 @@ function aloneTick(t){
   var line = choose(L); ALONE.said.push(line);
   sayLater(p, line, t + 0.3, 3.2);
 }
-function updateMishaps(t, dt){
-  updateSays(t);
+/* director: when something small goes wrong, to whom, and what they do about it */
+function simMishaps(t){
+  simSays(t);
   aloneTick(t);
   var m = MISHAP.cur;
   if (!m) {
@@ -2850,8 +2873,48 @@ function updateMishaps(t, dt){
       MISHAP.next = t + rand(600, 1500);
       startMishap(choose(["cat", "cat", "cat", "cat", "book", "book", "chair", "chair", "spill", "restart", "restart"]), t);
     }
-    if (MISHAP.book.down && t > MISHAP.book.backAt) { MISHAP.book.down = false; MISHAP.book.g.position.copy(MISHAP.book.home); MISHAP.book.g.rotation.set(0, 0, 0); }
+    if (MISHAP.book.down && t > MISHAP.book.backAt) MISHAP.book.down = false;
     return;
+  }
+  var u = t - m.t0;
+  /* grab napkins and wipe the desk */
+  if (m.kind === "spill" && m.wipeAt && t >= m.wipeAt) { m.wipeAt = 0; if (m.p.state === "sit" && !m.p.chatWith && (!m.p.act || m.p.act.n === "point")) startAct(m.p, "wipe", t, 5.5); }
+  if (m.kind === "restart") {
+    var rp2 = m.p;
+    /* someone came to talk, or they left: the restart keeps going on its own, the waiting stops */
+    var busy = rp2.chatWith || rp2.answering || rp2.state !== "sit";
+    rp2.typeOn = false; rp2.mouseOn = false;
+    var st = Math.floor(u / 7);
+    if (!busy && st !== m.stage && u < m.dur) {
+      m.stage = st;
+      startAct(rp2, ["chin", "leanBack", "chin", "yawn", "leanBack", "chin", "phone", "chin", "leanBack", "yawn", "chin", "leanBack"][st % 12], t, st % 12 === 3 || st % 12 === 9 ? 2.6 : 6.6);
+      if (st === 2) sayLater(rp2, choose(["Come on, come on...", "Why is this taking so long?", "I could have made a tea by now."]), t + 0.5, 2.8);
+      if (st === 5) sayLater(rp2, choose(["Still at " + Math.round(clamp(u / m.dur, 0, 1) * 70 + 20) + "%...", "It's been stuck on this number forever.", "Don't turn off your computer. Okay, okay."]), t + 0.5, 2.8);
+    }
+    if (u >= m.dur) {
+      rp2.restartUntil = 0; rp2.act = null; rp2.typeOn = true;
+      sayLater(rp2, choose(["Finally! Now, where was I?", "We're back. Everything's still open, right?", "Okay, it's back. Phew."]), t + 0.6, 3);
+    }
+  }
+  if (u >= m.dur) { if (m.kind === "book") MISHAP.book.backAt = t + 40; MISHAP.cur = null; }
+}
+/* drawing: the cat on the call, the book sliding off the shelf, the cup tipping over */
+function renderMishaps(t, dt){
+  var m = MISHAP.cur, S = MISHAP.shown, B = MISHAP.book;
+  if (S && S !== m) {
+    if (S.kind === "cat" && S.cat) S.cat.g.visible = false;
+    if (S.kind === "spill" && S.cup) { S.cup.rotation.z = 0; S.cup.position.set(-0.62, 0.81, -0.5); MISHAP.puddle.visible = false; }
+    MISHAP.shown = null;
+  }
+  if (!m || m.kind !== "book") {
+    if (B.down) { B.g.position.copy(B.land); B.g.rotation.set(-Math.PI / 2, 0, -0.5); }
+    else { B.g.position.copy(B.home); B.g.rotation.set(0, 0, 0); }
+  }
+  if (!m) return;
+  if (MISHAP.shown !== m) {
+    MISHAP.shown = m;
+    if (m.kind === "cat") m.cat.g.visible = true;
+    if (m.kind === "spill") { MISHAP.puddle.position.set(-0.5, 0.7635, -0.5); MISHAP.puddle.scale.setScalar(0.001); MISHAP.puddle.visible = true; m.p.deskGroup.add(MISHAP.puddle); }
   }
   var u = t - m.t0, k = clamp(u / m.dur, 0, 1);
   if (m.kind === "cat") {
@@ -2861,9 +2924,8 @@ function updateMishaps(t, dt){
     c.head.rotation.y = -0.9 * bump(k, 0.35, 0.6, 0.08);
     c.tail.rotation.x = 0.4 * Math.sin(u * 3);
     for (var i = 0; i < 4; i++) c.legs[i].rotation.z = 0.45 * Math.sin(u * 9 + (i % 2 ? 0 : Math.PI) + (i > 1 ? Math.PI : 0));
-    if (k >= 1) { c.g.visible = false; MISHAP.cur = null; }
   } else if (m.kind === "book") {
-    var B = MISHAP.book, g = B.g;
+    var g = B.g;
     if (u < 0.5) { g.position.copy(B.home); g.position.x += 0.06 * ease(u / 0.5); g.rotation.z = -0.25 * ease(u / 0.5); }
     else {
       var f = clamp((u - 0.5) / 0.75, 0, 1);
@@ -2871,7 +2933,6 @@ function updateMishaps(t, dt){
       g.position.y = lerp(B.home.y, B.land.y, f * f) + (f >= 1 ? 0.03 * Math.max(0, Math.sin((u - 1.25) * 14)) * Math.exp(-(u - 1.25) * 8) : 0);
       g.rotation.z = lerp(-0.25, -0.5, ease(f)); g.rotation.x = -Math.PI / 2 * ease(f);
     }
-    if (k >= 1) { B.backAt = t + 40; MISHAP.cur = null; }
   } else if (m.kind === "spill") {
     /* tip over the outer base edge, lie there, then get set back up near the end */
     var tip = ease(u / 0.45) * (1 - ease((u - (m.dur - 1.2)) / 0.6)), cup = m.cup, ang = tip * Math.PI / 2;
@@ -2880,26 +2941,6 @@ function updateMishaps(t, dt){
     cup.position.set(_cupPivot.x + (-0.04) * Math.cos(ang) + 0.05 * Math.sin(ang), _cupPivot.y + 0.04 * Math.sin(ang) + 0.05 * Math.cos(ang), _cupPivot.z);
     var pu = MISHAP.puddle, grow = ease((u - 0.3) / 1.6) * (1 - ease((u - (m.dur - 2.5)) / 2.0));
     pu.position.set(-0.46, 0.7635, -0.49); pu.scale.set(0.001 + 0.16 * grow, 0.001 + 0.11 * grow, 1);
-    if (k >= 1) { cup.rotation.z = 0; cup.position.set(-0.62, 0.81, -0.5); pu.visible = false; MISHAP.cur = null; }
-  } else if (m.kind === "chair") {
-    if (k >= 1) MISHAP.cur = null;
-  } else if (m.kind === "restart") {
-    var rp2 = m.p;
-    /* someone came to talk, or they left: the restart keeps going on its own, the waiting stops */
-    var busy = rp2.chatWith || rp2.answering || rp2.state !== "sit";
-    rp2.typeOn = false; rp2.mouseOn = false;
-    var st = Math.floor(u / 7);
-    if (!busy && st !== m.stage && k < 1) {
-      m.stage = st;
-      startAct(rp2, ["chin", "leanBack", "chin", "yawn", "leanBack", "chin", "phone", "chin", "leanBack", "yawn", "chin", "leanBack"][st % 12], t, st % 12 === 3 || st % 12 === 9 ? 2.6 : 6.6);
-      if (st === 2) sayLater(rp2, choose(["Come on, come on...", "Why is this taking so long?", "I could have made a tea by now."]), t + 0.5, 2.8);
-      if (st === 5) sayLater(rp2, choose(["Still at " + Math.round(clamp(u / m.dur, 0, 1) * 70 + 20) + "%...", "It's been stuck on this number forever.", "Don't turn off your computer. Okay, okay."]), t + 0.5, 2.8);
-    }
-    if (k >= 1) {
-      rp2.restartUntil = 0; rp2.act = null; rp2.typeOn = true;
-      sayLater(rp2, choose(["Finally! Now, where was I?", "We're back. Everything's still open, right?", "Okay, it's back. Phew."]), t + 0.6, 3);
-      MISHAP.cur = null;
-    }
   }
 }
 buildMishaps();
@@ -2949,7 +2990,7 @@ function ghostTick(t, dt, present){
     if (t < GHOST.next) return;
     /* one roll a minute: about once every hour and a half of watching the office at night */
     GHOST.next = t + (GHOST.want ? 5 : 60);
-    if (!night || (!GHOST.want && Math.random() > 0.011)) return;
+    if (!night || (!GHOST.want && R() > 0.011)) return;
     if (!GHOST.g) ghostBuild();
     GHOST.on = true; GHOST.d = 0; GHOST.seg = 0; GHOST.pause = rand(0.35, 0.65); GHOST.stopped = 0;
     GHOST.g.position.copy(GHOST_PATH[0]); GHOST.g.visible = GHOST.halo.visible = true;
@@ -3236,6 +3277,18 @@ function dogMoveTo(d, target, dt, vmax){
   d.gait = (d.gait || 0) + dt * v / 0.18 * Math.PI;
   return dist;
 }
+/* director: Erica pets the dogs once in a while (they are on their beds whenever she is at her desk) */
+function simDogs(t){
+  var E = BY.erica;
+  if (!E) return;
+  if (!DOGS.petAt) DOGS.petAt = t + (DOGS_FAST ? 25 : rand(700, 1400));
+  if (t > DOGS.petAt && !DOGS.pet && idleAtDesk(E)) {
+    DOGS.petAt = t + (DOGS_FAST ? 60 : rand(1500, 2700));
+    goSpot(E, t, new V3(1.05, 0, -2.8), new V3(1.65, 0.2, -2.8), 7, "Saying hi to the dogs", "fixprinter", function(q, t2){
+      DOGS.pet = t2; sayLater(E, choose(["Hi Finn! Hi Nina!", "Who's a good dog? Finn is!", "Nina, sweetie, are you comfy?", "Hello my loves!", "Are you two comfy?"]), t2 + 0.4, 2.6);
+    }, function(){ DOGS.pet = 0; });
+  }
+}
 function dogsTick(t, dt){
   var E = BY.erica;
   if (!E) return;
@@ -3245,20 +3298,12 @@ function dogsTick(t, dt){
     DOGS.list.push(dogBuild("small", new V3(1.75, 0, -3.2), -Math.PI / 2 + 0.2));
     var inNow = !homeNow(E);
     DOGS.list.forEach(function(d, i){ d.mode = inNow ? "bed" : "gone"; d.root.visible = inNow; d.stretchAt = t + (DOGS_FAST ? 12 + i * 20 : rand(600, 1500)); });
-    DOGS.petAt = t + (DOGS_FAST ? 25 : rand(700, 1400));
   }
   var leaving = E.trip && DOG_LEAVE[E.trip.kind];
   var walkingOut = leaving && E.state === "walk";
   var eAway = homeNow(E) && (E.state === "away" || !E.root.visible);
   var catNear = CAT.on && CAT.g && CAT.g.visible && Math.abs(CAT.g.position.x) < 2.9 && CAT.g.position.z < 6.2;
   var fwd = new V3(Math.sin(E.heading), 0, Math.cos(E.heading));
-  /* Erica pets them once in a while */
-  if (t > DOGS.petAt && DOGS.list.every(function(d){ return d.mode === "bed" && !d.st; }) && idleAtDesk(E) && !catNear) {
-    DOGS.petAt = t + (DOGS_FAST ? 60 : rand(1500, 2700));
-    goSpot(E, t, new V3(1.05, 0, -2.8), new V3(1.65, 0.2, -2.8), 7, "Saying hi to the dogs", "fixprinter", function(q, t2){
-      DOGS.pet = t2; sayLater(E, choose(["Hi Finn! Hi Nina!", "Who's a good dog? Finn is!", "Nina, sweetie, are you comfy?", "Hello my loves!", "Are you two comfy?"]), t2 + 0.4, 2.6);
-    }, function(){ DOGS.pet = 0; });
-  }
   DOGS.list.forEach(function(d, i){
     var off = 0.75 + i * 0.5, side = i ? 0.28 : -0.22;
     if (eAway) { d.mode = "gone"; d.root.visible = false; d.st = 0; return; }
@@ -3360,15 +3405,11 @@ function fixTrophy(){
   if (!TROPHY || !TROPHY.down) return;
   TROPHY.fall = null; TROPHY.tg.position.copy(TROPHY.base); TROPHY.tg.rotation.copy(TROPHY.rot); TROPHY.down = false;
 }
-/* someone walks over, bends down and picks it up; whatever happens, it is back in place after a couple of minutes */
+/* the cat still runs per screen (phase 3), so nobody walks over for it (that would change the shared world):
+   whatever it knocked over is back in place a few seconds later */
 function sendFixer(q, spot, item, label, t, after){
   function fix(t3){ if (item === "cup") fixCup(after); else if (item === "tree") fixTree(t3); else fixTrophy(); }
-  CAT_FIX.push({ at:t + 150, fn:fix });
-  CAT_FIX.push({ at:t + rand(6, 10), fn:function(t2){
-    if (!q || !idleAtDesk(q) && !(q.state === "sit" && q.root.visible && !q.trip)) { fix(t2); return; }
-    q.act = null;
-    goSpot(q, t2, spot, (item === "tree" ? new V3(1.25, 0.5, 5.75) : spot.clone().setY(0.2)), 4, label, "fixprinter", null, function(q2, t4){ fix(t4); });
-  } });
+  CAT_FIX.push({ at:t + 8, fn:fix });
 }
 function catTick(t, dt){
   fallTick(t);
@@ -3420,10 +3461,10 @@ function catTick(t, dt){
     if (!CAT.said.seen && CAT.d > path.L * 0.55 && CAT.then !== "gone") {
       CAT.said.seen = true;
       var nb = neighbours(D).filter(function(q){ return q.state === "sit" && q.root.visible; });
-      if (nb.length && Math.random() < 0.7) sayLater(choose(nb), choose(["Wait, is that Pixel?!", "Debbie, Pixel is here lol", "We have a visitor!", "Omg Pixel!!"]), t, 2.8);
+      if (nb.length && R() < 0.7) fxSayLater(choose(nb), choose(["Wait, is that Pixel?!", "Debbie, Pixel is here lol", "We have a visitor!", "Omg Pixel!!"]), t, 2.8);
     }
     if (CAT.d >= path.L) {
-      if (CAT.then === "hi") { CAT.ph = "hi"; CAT.t0 = t; sayLater(D, choose(["Hi Pixel! What are you doing here?", "Pixel! Hi baby!", "Look who came to visit!", "Hello sweetie!", "Hi my love! Came to check on me?"]), t + 0.4, 3); }
+      if (CAT.then === "hi") { CAT.ph = "hi"; CAT.t0 = t; fxSayLater(D, choose(["Hi Pixel! What are you doing here?", "Pixel! Hi baby!", "Look who came to visit!", "Hello sweetie!", "Hi my love! Came to check on me?"]), t + 0.4, 3); }
       else if (CAT.then === "pup") { CAT.ph = "pup"; CAT.t0 = t; CAT.from = g.position.clone(); }
       else if (CAT.then === "tjump") { CAT.ph = "tjump"; CAT.t0 = t; CAT.from = g.position.clone(); }
       else { CAT.on = false; g.visible = false; CAT.next = t + (CAT.want ? 30 : rand(2400, 4200)); }
@@ -3449,8 +3490,8 @@ function catTick(t, dt){
     CAT.head.rotation.x = -0.2;
     if (sw > 0.9 && !V2.cupDown) {
       knockCup(V2, t);
-      sayLater(V2, choose(["HEY!! My cup!", "Nooo, really?!", "Debbie!! Pixel!!", "Did Pixel just..."]), t + 0.5, 2.8);
-      sayLater(D, choose(["Pixel!! I'm so sorry!!", "Oh no, I'm so sorry!! Bad kitty!", "Sorry sorry sorry! I'll get you a new one lol"]), t + 3.3, 3);
+      fxSayLater(V2, choose(["HEY!! My cup!", "Nooo, really?!", "Debbie!! Pixel!!", "Did Pixel just..."]), t + 0.5, 2.8);
+      fxSayLater(D, choose(["Pixel!! I'm so sorry!!", "Oh no, I'm so sorry!! Bad kitty!", "Sorry sorry sorry! I'll get you a new one lol"]), t + 3.3, 3);
       sendFixer(V2, catFloorOf(V2), "cup", "Picking up my cup", t, V2);
     }
     if (sw > 1.9) { CAT.legs[0].rotation.x = 0; CAT.head.rotation.x = 0; CAT.ph = "pdown"; CAT.t0 = t; }
@@ -3464,8 +3505,8 @@ function catTick(t, dt){
     if (u > 0.45 && !CAT.said.tree) {
       CAT.said.tree = true; knockTree(t);
       var near = PEOPLE.filter(function(q){ return q.state === "sit" && q.root.visible && !q.remote && !q.guest; }).sort(function(x, y){ return Math.abs(x.z - 5.75) - Math.abs(y.z - 5.75); });
-      if (near[0]) sayLater(near[0], choose(["THE TREE!!", "Nooo, the tree!!", "Did Pixel just knock the tree over?!"]), t + 0.5, 2.6);
-      if (D.root.visible && D !== near[0]) sayLater(D, choose(["PIXEL!! Nooo!", "Pixel, what did you do?!", "Pixel!! Come back here!"]), t + 2.6, 2.8);
+      if (near[0]) fxSayLater(near[0], choose(["THE TREE!!", "Nooo, the tree!!", "Did Pixel just knock the tree over?!"]), t + 0.5, 2.6);
+      if (D.root.visible && D !== near[0]) fxSayLater(D, choose(["PIXEL!! Nooo!", "Pixel, what did you do?!", "Pixel!! Come back here!"]), t + 2.6, 2.8);
       var fx = near.filter(function(q){ return available(q); })[0] || near[0];
       if (fx) sendFixer(fx, new V3(0.55, 0, 5.35), "tree", "Standing the tree back up", t, null);
     }
@@ -3493,13 +3534,13 @@ function catTick(t, dt){
     CAT.body.scale.y = 1 + 0.025 * Math.sin(t * 2.2);
     CAT.head.rotation.x = 0.15; CAT.head.rotation.y = 0.2 * Math.sin(t * 0.3);
     var el = t - CAT.t0;
-    if (el > 4 && !CAT.said.nap) { CAT.said.nap = true; sayLater(D, choose(["Okay Pixel, you can stay a bit.", "That's my desk, you know.", "So comfy, huh?", "Don't sit on my keyboard!"]), t, 3); }
+    if (el > 4 && !CAT.said.nap) { CAT.said.nap = true; fxSayLater(D, choose(["Okay Pixel, you can stay a bit.", "That's my desk, you know.", "So comfy, huh?", "Don't sit on my keyboard!"]), t, 3); }
     if (el > CAT.nap || !atDesk && el > 3) {
       CAT.body.scale.y = 1; CAT.head.rotation.set(0, 0, 0);
       if (CAT.prank === "trophy" && TROPHY && !TROPHY.down) { CAT.ph = "toshelf"; CAT.t0 = t; CAT.from = g.position.clone(); }
       else {
         CAT.ph = "down"; CAT.t0 = t; CAT.v = 0.62;
-        if (atDesk) sayLater(D, choose(["Bye Pixel!", "Off you go!", "See you later, baby."]), t + 0.3, 2.4);
+        if (atDesk) fxSayLater(D, choose(["Bye Pixel!", "Off you go!", "See you later, baby."]), t + 0.3, 2.4);
       }
     }
   } else if (CAT.ph === "toshelf") {
@@ -3516,9 +3557,9 @@ function catTick(t, dt){
     CAT.yaw = -Math.PI / 2; catPose(t, "jump", Math.sin(Math.PI * u));
     if (u > 0.45 && !TROPHY.down) {
       knockTrophy(t);
-      sayLater(D, choose(["NOOO, the trophy!!", "Not the trophy!!", "Our first place!! Noo!"]), t + 0.4, 2.8);
+      fxSayLater(D, choose(["NOOO, the trophy!!", "Not the trophy!!", "Our first place!! Noo!"]), t + 0.4, 2.8);
       var wit = PEOPLE.filter(function(q){ return q !== D && q.state === "sit" && q.root.visible && !q.remote && !q.guest; });
-      if (wit.length) sayLater(choose(wit), choose(["Did Pixel just take down the trophy?! lol", "Hahaha Pixel has no respect", "The trophy!! Is it okay?"]), t + 3.4, 3);
+      if (wit.length) fxSayLater(choose(wit), choose(["Did Pixel just take down the trophy?! lol", "Hahaha Pixel has no respect", "The trophy!! Is it okay?"]), t + 3.4, 3);
       var fixer = available(D) ? D : (wit.length ? choose(wit) : D);
       sendFixer(fixer, new V3(-1.45, 0, 0.32), "trophy", "Putting the trophy back", t, null);
     }
@@ -4355,7 +4396,7 @@ function makeRig(p, sc){
   var mixer = new T.AnimationMixer(model), CL = real ? CLIPS_R : CLIPS;
   var idle = mixer.clipAction(CL.idle), walk = mixer.clipAction(CL.walk), nod = mixer.clipAction(CL.agree);
   idle.play(); walk.play(); nod.play();
-  idle.time = Math.random() * CLIPS.idle.duration; walk.time = Math.random() * CLIPS.walk.duration;
+  idle.time = R() * CLIPS.idle.duration; walk.time = R() * CLIPS.walk.duration;
   idle.timeScale = rand(0.85, 1.1);
   walk.setEffectiveWeight(0); nod.setEffectiveWeight(0);
   var proxy = new T.Mesh(new T.CylinderGeometry(0.32, 0.32, 1.8, 10), new T.MeshBasicMaterial({ visible:false }));
@@ -4407,9 +4448,9 @@ function updateRig(p, t, dt){
   if (atDesk > 0.001) {
     var ty = p.typeAmp || 0, ma = p.mouseAmp || 0;
     /* mouse work: slow drifts, quick drags now and then, and short clicks */
-    var mDx = 0.07 * Math.sin(t * 0.9 + (p.mSeed || (p.mSeed = Math.random() * 6.28))) + 0.05 * Math.sin(t * 2.3) * Math.max(0, Math.sin(t * 0.37 + (p.mSeed || (p.mSeed = Math.random() * 6.28))));
-    var mDz = 0.05 * Math.sin(t * 0.7 + 1.3 + (p.mSeed || (p.mSeed = Math.random() * 6.28)));
-    var mClick = Math.max(0, Math.sin(t * 5.1 + (p.mSeed || (p.mSeed = Math.random() * 6.28)))) > 0.97 ? 0.12 : 0;
+    var mDx = 0.07 * Math.sin(t * 0.9 + (p.mSeed || (p.mSeed = R() * 6.28))) + 0.05 * Math.sin(t * 2.3) * Math.max(0, Math.sin(t * 0.37 + (p.mSeed || (p.mSeed = R() * 6.28))));
+    var mDz = 0.05 * Math.sin(t * 0.7 + 1.3 + (p.mSeed || (p.mSeed = R() * 6.28)));
+    var mClick = Math.max(0, Math.sin(t * 5.1 + (p.mSeed || (p.mSeed = R() * 6.28)))) > 0.97 ? 0.12 : 0;
     if (p.mouseM) {
       var mb = p.mouseM.userData.base;
       p.mouseM.position.set(mb.x - mDx * 0.25 * ma + (p.act && p.act.n === "write" ? 0.14 : 0), mb.y, mb.z - mDz * 0.25 * ma + (p.act && p.act.n === "write" ? -0.12 : 0));
@@ -4573,8 +4614,9 @@ function camYaw(p){
    Every visit starts from fresh random needs (Math.random, no fixed seed). Each person keeps
    energy, focus, social and coffee needs that drift over time, and every few seconds scores
    what to do next from those needs, their personality and what the others are doing. */
-function rand(a, b){ return a + Math.random() * (b - a); }
-function choose(arr){ return arr[Math.floor(Math.random() * arr.length)]; }
+function rand(a, b){ return a + R() * (b - a); }
+function choose(arr){ return arr[Math.floor(R() * arr.length)]; }
+function shuffle(a){ for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(R() * (i + 1)), x = a[i]; a[i] = a[j]; a[j] = x; } return a; }
 
 var PERSONA = {
   luis:      { focus:1.6, social:0.25, shop:0.2, coffee:0.8, breaky:0.6 },
@@ -4626,29 +4668,53 @@ var SITS = {
 var STANDERS = { olivia:[1500, 4200], erica:[1800, 5400], allyson:[1800, 5400], luis:[1200, 3600] };
 var LIFT_H = 0.27, _standV = new V3();
 var STAND_FORCE = /[?&]stand=1/.test(location.search || "");
-function standTick(p, t, dt){
-  var range = STANDERS[p.id], lift = p.deskGroup;
-  if (!range || !lift || !lift.userData.lift) return;
-  var canStand = p.state === "sit" && p.root.visible && !p.chatWith && !p.visitor && !p.answering && !(p.roll > 0.01) && !lunchNow(p) && !homeNow(p);
+/* test switches from the address, read once (the director runs thousands of steps) */
+var Q_PLYTIX = /[?&]plytix=down/.test(location.search || ""), Q_COLD = /[?&]cold=1/.test(location.search || ""), Q_GUEST = (/[?&]guest=([a-z]+)/.exec(location.search || "") || [])[1];
+/* director: when to stand and when to sit back down. The desk and body follow from those times (standAt). */
+function simStand(p, t){
+  var range = STANDERS[p.id];
+  if (!range || !p.deskGroup || !p.deskGroup.userData.lift) return;
   if (!p.standNext) p.standNext = t + (STAND_FORCE ? 4 : rand(60, range[0]));
-  if (!p.standOn && canStand && !p.act && t > p.standNext) { p.standOn = true; p.standEnd = t + (STAND_FORCE ? 9999 : rand(600, 1800)); p.posture = null; }
-  if (p.standOn && (t > p.standEnd || p.state !== "sit" || lunchNow(p) || homeNow(p))) { p.standOn = false; p.standNext = t + rand(range[0], range[1]); }
-  /* order: stand, then desk up; desk down, then sit */
-  var lh = lift.position.y;
-  if (p.standOn) {
-    p.standW = Math.min(1, (p.standW || 0) + dt / 1.4);
-    if (p.standW >= 1) lift.position.y = Math.min(LIFT_H, lh + dt * 0.045);
-  } else {
-    if (lh > 0) lift.position.y = Math.max(0, lh - dt * (p.state === "sit" ? 0.045 : 0.09));
-    if (lift.position.y <= 0.02 || p.state !== "sit") p.standW = Math.max(0, (p.standW || 0) - dt / (p.state === "sit" ? 1.4 : 0.3));
+  if (!p.standOn && t > p.standNext && !p.act && p.state === "sit" && !p.chatWith && !p.visitor && !p.answering && visAt(p, t) && !(rollAt(p, t) > 0.01) && !lunchNow(p) && !homeNow(p)) { p.standOn = true; p.standAt = t; p.standOffAt = null; p.standEnd = t + (STAND_FORCE ? 9999 : rand(600, 1800)); p.posture = null; }
+  if (p.standOn && (t > p.standEnd || p.state !== "sit" || lunchNow(p) || homeNow(p))) standOff(p, t);
+}
+function standOff(p, t){
+  if (!p.standOn) return;
+  var s0 = standAt(p, t);
+  p.standOn = false; p.standOffAt = t; p.standW0 = s0.w; p.standL0 = s0.lift; p.standFast = p.state !== "sit";
+  p.standNext = t + rand(STANDERS[p.id][0], STANDERS[p.id][1]);
+}
+/* order: stand (1.4 s), then the desk goes up; desk down first, then sit */
+function standAt(p, t){
+  var out = standAt.o;
+  out.w = 0; out.lift = 0;
+  if (p.standOn && p.standAt !== undefined) {
+    var e = t - p.standAt;
+    out.w = clamp(e / 1.4, 0, 1); out.lift = e > 1.4 ? Math.min(LIFT_H, (e - 1.4) * 0.045) : 0;
+  } else if (p.standOffAt !== null && p.standOffAt !== undefined) {
+    var f = t - p.standOffAt, w0 = p.standW0 || 0, l0 = p.standL0 || 0;
+    if (p.standFast) { out.lift = Math.max(0, l0 - f * 0.09); out.w = Math.max(0, w0 - f / 0.3); }
+    else { out.lift = Math.max(0, l0 - f * 0.045); var tl = Math.max(0, (l0 - 0.02) / 0.045); out.w = f < tl ? w0 : Math.max(0, w0 - (f - tl) / 1.4); }
   }
+  return out;
+}
+standAt.o = { w:0, lift:0 };
+function standW(p, t){ return standAt(p, t).w; }
+/* drawing: desk height, chair pushed back */
+function standPose(p, t){
+  var lift = p.deskGroup, sa = standAt(p, t);
+  p.standW = sa.w;
+  if (!STANDERS[p.id] || !lift || !lift.userData.lift) return;
+  lift.position.y = sa.lift;
   if (p.state !== "sit" && p.standW > 0) p.rig.sit = 0;
   if (p.chairG && p.chairBase && !(p.roll > 0.01) && (p.standW > 0 || p.standWas)) { p.chairG.position.copy(p.chairBase); p.chairG.position.z += 0.42 * ease(p.standW || 0); }
   p.standWas = p.standW > 0;
 }
 var POSTURE_FORCE = (/[?&]posture=(\w+)/.exec(location.search || "") || [])[1];
-function postureTick(p, t, dt){
-  var seated = p.state === "sit" && p.root.visible && !p.remote && !(p.roll > 0.01) && !(p.act && p.act.n === "wobble") && !(p.standW > 0.02);
+/* director: which way they sit, and when they shift */
+function simPosture(p, t){
+  if (p.postNext && t <= p.postNext && p.state === "sit" && !p.standOn && !p.rollTo && !(p.act && p.act.n === "wobble")) return;
+  var seated = p.state === "sit" && visAt(p, t) && !p.remote && !(rollAt(p, t) > 0.01) && !(p.act && p.act.n === "wobble") && !(standW(p, t) > 0.02);
   if (!seated) { p.posture = null; p.postNext = 0; }
   else if (POSTURE_FORCE && POSTURE[POSTURE_FORCE]) p.posture = POSTURE_FORCE;
   else if (!p.postNext || t > p.postNext) {
@@ -4656,12 +4722,14 @@ function postureTick(p, t, dt){
     if (!p.postNext) { p.postNext = t + rand(5, h.every[1] * 0.5); }
     else {
       h.opts.forEach(function(o){ tot += o[1]; });
-      var r = Math.random() * tot; for (i = 0; i < h.opts.length; i++) { r -= h.opts[i][1]; if (r <= 0) { pick = h.opts[i][0]; break; } }
+      var r = R() * tot; for (i = 0; i < h.opts.length; i++) { r -= h.opts[i][1]; if (r <= 0) { pick = h.opts[i][0]; break; } }
       p.posture = pick || null;
       p.postNext = t + rand(h.every[0], h.every[1]) * (pick === "feetUp" ? 0.7 : 1);
     }
   }
-  /* settle out of the old posture before moving into the new one */
+}
+/* drawing: settle out of the old posture before moving into the new one */
+function postureTick(p, t, dt){
   if (p.postCur !== (p.posture || null)) { p.postW = Math.max(0, (p.postW || 0) - dt * 1.4); if (p.postW <= 0) p.postCur = p.posture || null; }
   else if (p.postCur) p.postW = Math.min(1, (p.postW || 0) + dt * 1.2);
 }
@@ -4763,22 +4831,28 @@ function dayTick(){
 dayTick();
 function moodTarget(p){ return clamp(MOODS[p.mood.base].v + DAY.bias * (p.dayK || 1), -1, 1); }
 
-var T_LOAD = WT();
-ALL.forEach(function(p, i){
-  p.idx = i; p.pace = 1; p.nextAct = T_LOAD + rand(3, 10);
+/* a person at the start of the world's day (SIM.START): at home, with the day's own needs, mood and timings */
+function simResetPerson(p, i, T0){
+  p.idx = i; p.pace = 1; p.nextAct = T0 + rand(3, 10);
   p.w = PERSONA[p.id];
-  var early = DAY.key === "early" || DAY.key === "morning";
   p.dayK = rand(0.7, 1.3);
   /* end of the day: Luis leaves at 4, everyone else between 4:45 and 5 */
   p.leaveH = p.id === "luis" ? 16 : rand(16.75, 16.97);
   if (!p.guest && !p.remote) p.leaveH = leaveOf(p);
-  p.needs = { energy:clamp(rand(0.45, 1) - (early ? 0.25 : 0) - (DAY.load - 1) * 0.5, 0.12, 1), focus:rand(0.3, 0.9), social:rand(0, 0.6), coffee:clamp(rand(0, 0.55) + (early ? 0.3 : 0), 0, 1) };
-  p.state = "sit"; p.t0 = T_LOAD; p.dur = 0;
-  p.decideAt = T_LOAD + rand(4, 45);  /* spread out, so the page never opens with everyone doing the same thing */
-  p.typeOn = Math.random() < 0.7; p.typeNext = T_LOAD + rand(0.5, 5); p.typeAmp = 0;
-  p.act = null; p.trip = null; p.chatWith = null; p.visitor = null; p.log = [];
-  if (p.walker) p.cal = { next:T_LOAD + rand(3, 20) * 60 };
-});
+  p.needs = { energy:clamp(rand(0.45, 1) - 0.25 - (DAY.load - 1) * 0.5, 0.12, 1), focus:rand(0.3, 0.9), social:rand(0, 0.6), coffee:clamp(rand(0, 0.55) + 0.3, 0, 1) };
+  p.state = "sit"; p.t0 = T0; p.dur = 0;
+  p.decideAt = T0 + rand(4, 45);
+  p.typeOn = R() < 0.7; p.typeNext = T0 + rand(0.5, 5); p.lastT = T0; NAPS[p.idx] = 0;
+  p.act = null; p.trip = null; p.chatWith = null; p.visitor = null;
+  if (p.walker) p.cal = { next:T0 + rand(3, 20) * 60 };
+  rollMood(p);
+  p.mSeed = (i * 2.399) % 6.28;
+  if (p.remote) return;
+  if (p.guest) { p.state = "gone"; return; }
+  /* the office is empty in the morning: everyone starts at home and walks in at their arrival time */
+  p.trip = { kind:"home", target:null, path:aislePath(p.seat, p.side, EXIT_SPOT, 0), back:false };
+  p.state = "away"; p.dur = 0;
+}
 
 /* ---------- paths along the aisle (keep right, so people pass each other) ---------- */
 var tmpPos = new V3();
@@ -4807,6 +4881,95 @@ function aislePath(a, aSide, b, bSide){
   pts.push(b.clone());
   return makePath(pts);
 }
+/* ---------- walking as a function of time ----------
+   A walk is a path, a start time and a fixed speed profile (speed up, cruise, slow down), so where someone is on it
+   is the same on every screen at the same second. People keep right on the aisle; someone who would bump into a
+   walker already on the way waits a moment before setting off (decided once, when the walk starts). */
+var WALK_ACC = 0.5, WALK_DEC = 0.7;
+function walkPlan(path, vmax){
+  var L = path.L;
+  if (!(L > 0.005) || !(vmax > 0)) return { a1:1, a2:1, vp:0, t1:0, tc:0, t3:0, d1:0, D:0.001, L:L || 0, vmax:vmax || 1 };
+  var a1 = vmax / WALK_ACC, a2 = vmax / WALK_DEC, vp = vmax;
+  if (vmax * WALK_ACC / 2 + vmax * WALK_DEC / 2 > L) vp = Math.sqrt(2 * L / (1 / a1 + 1 / a2));
+  var t1 = vp / a1, t3 = vp / a2, d1 = vp * t1 / 2, d3 = vp * t3 / 2, tc = Math.max(0, (L - d1 - d3) / vp);
+  return { a1:a1, a2:a2, vp:vp, t1:t1, tc:tc, t3:t3, d1:d1, D:t1 + tc + t3, L:L, vmax:vmax };
+}
+function walkD(w, u){ if (u <= 0) return 0; if (u >= w.D) return w.L; if (u < w.t1) return 0.5 * w.a1 * u * u; if (u < w.t1 + w.tc) return w.d1 + w.vp * (u - w.t1); var r = w.D - u; return Math.max(0, w.L - 0.5 * w.a2 * r * r); }
+function walkV(w, u){ if (u <= 0 || u >= w.D) return 0; if (u < w.t1) return w.a1 * u; if (u < w.t1 + w.tc) return w.vp; return w.a2 * (w.D - u); }
+var _lpA = new V3();
+/* the leg of a trip someone is walking right now (or about to), or null */
+function legOf(q){ var tr = q.trip; return tr && tr.w && (q.state === "walk" || q.state === "up") ? tr : null; }
+function legAt(tr, t, out){ along(tr.path, walkD(tr.w, t - tr.ts)); return out.copy(tmpPos); }
+/* earliest start (from t0, in 0.8 s steps) that keeps at least 0.5 m from every other walker */
+function planLeg(p, tr, t0){
+  var others = PEOPLE.filter(function(q){ return q !== p && legOf(q); }).map(legOf), ts = t0, k, u, ok, i;
+  for (k = 0; k < 9 && others.length; k++) {
+    ts = t0 + k * 0.8; ok = true;
+    for (u = 0.4; u < tr.w.D - 0.3 && ok; u += 0.25) {
+      along(tr.path, walkD(tr.w, u)); _lpA.copy(tmpPos);
+      for (i = 0; i < others.length; i++) {
+        var o = others[i], uo = ts + u - o.ts;
+        if (uo < 0 || uo > o.w.D) continue;
+        along(o.path, walkD(o.w, uo));
+        if (Math.hypot(tmpPos.x - _lpA.x, tmpPos.z - _lpA.z) < 0.5) { ok = false; break; }
+      }
+    }
+    if (ok) break;
+  }
+  return ts;
+}
+/* set up the leg: path, speed (fixed for the whole leg) and start time */
+function planWalk(p, tr, path, t0){
+  tr.path = path; p.pace = paceOf(p);
+  tr.w = walkPlan(path, WALK_V * (p.k || 1) * p.pace);
+  tr.ts = planLeg(p, tr, t0);
+}
+function paceOf(p){ return (0.86 + 0.24 * (p.mood.v + 1) / 2 + 0.06 * (p.needs.energy - 0.5)) * DAY.pace * mv(p).walk; }
+/* chairs roll as a function of time too: rolling out from rollOnAt toward rollTo, back home from rollOffAt */
+function rollAt(p, t){
+  var a = p.rollOnAt;
+  if (!p.rollTo || a === undefined || a === null) return 0;
+  var r0 = p.rollR0 || 0, b = p.rollOffAt, x = t < a ? a : t;
+  var on = function(y){ return 1 - (1 - r0) * Math.exp(-1.6 * (y - a)); };
+  if (b === null || b === undefined || x < b) return on(x);
+  var v = on(b) * Math.exp(-1.6 * (x - b));
+  return v < 0.002 ? 0 : v;
+}
+function rollStart(p, to, t){ NAPS[p.idx] = 0; p.rollR0 = rollAt(p, t); p.rollTo = to; p.rollOnAt = t; p.rollOffAt = null; }
+function rollStop(p, t){ if (p.rollTo && (p.rollOffAt === null || p.rollOffAt === undefined)) p.rollOffAt = t; }
+/* where someone is at world time t (pure: the director's state plus the clock) */
+var OUT_KINDS = { meeting:1, coffee:1, lunch:1, home:1 }, _visV = new V3();
+function posAt(p, t, out){
+  out = out || new V3();
+  var st = p.state, tr = p.trip;
+  if (p.remote) return out.copy(p.spot || EXIT_SPOT);
+  if (st === "gone" || st === "away") return out.copy(EXIT_SPOT);
+  if ((st === "walk" || (st === "up" && t >= tr.ts)) && tr && tr.w) return legAt(tr, t, out);
+  if ((st === "stay" || st === "visit" || st === "coffee") && tr) return out.copy(tr.path.pts[tr.path.pts.length - 1]);
+  out.copy(p.seat);
+  var r = rollAt(p, t);
+  if (r > 0) { out.x += (p.rollTo.x - p.seat.x) * r; out.z += (p.rollTo.z - p.seat.z) * r; }
+  if (st === "sit") { var sw = standW(p, t); if (sw > 0.001) { out.x += Math.sin(p.sitHeading) * 0.1 * sw; out.z += Math.cos(p.sitHeading) * 0.1 * sw; } }
+  return out;
+}
+/* on the floor and visible at world time t */
+function visAt(p, t){
+  if (p.remote) return true;
+  var st = p.state;
+  if (st === "gone" || st === "away" || st === "coffee" || !st) return false;
+  if ((st === "walk" || st === "up") && p.trip && (OUT_KINDS[p.trip.kind] || p.guest) && Math.abs(posAt(p, t, _visV).x) > 4.4) return false;
+  return true;
+}
+/* which way the body faces (the drawing turns smoothly toward it) */
+function headAt(p, t){
+  var st = p.state, tr = p.trip;
+  if (st === "walk" && tr && tr.w) { var u = t - tr.ts; if (tr.back && u >= tr.w.D) return p.sitHeading; return along(tr.path, Math.max(0.001, Math.min(walkD(tr.w, u), tr.path.L - 0.001))); }
+  if (st === "up" && tr && tr.w && t >= tr.ts) return along(tr.path, Math.max(0.001, walkD(tr.w, t - tr.ts)));
+  if (st === "stay" && tr) { var sp = tr.path.pts[tr.path.pts.length - 1]; return tr.face ? Math.atan2(tr.face.x - sp.x, tr.face.z - sp.z) : along(tr.path, tr.path.L); }
+  if (st === "visit" && tr && tr.target) { var vp = tr.path.pts[tr.path.pts.length - 1]; return Math.atan2(tr.target.seat.x - vp.x, tr.target.seat.z - vp.z); }
+  if (st === "coffee") return 0;
+  return p.sitHeading;
+}
 function smoothTurn(p, target, dt, rate){
   var d = target - p.heading;
   d = Math.atan2(Math.sin(d), Math.cos(d));
@@ -4822,6 +4985,13 @@ function biteLift(p, u){
 function biteChew(p, u){ var per = 4.6 + ((p.idx || 0) % 3) * 0.5, ph = (u % per) / per; return ph > 0.45; }
 function startAct(p, name, t, dur, target){
   p.act = { n:name, t0:t, dur:dur || rand(2.2, 4.2), target:target || null };
+  NAPS[p.idx] = 0;
+}
+/* typing, mouse work and short pauses while someone is working: a pure function of the person and the time
+   (0 pause, 1 typing, 2 mouse), so it looks the same on every screen without the director stepping it */
+function workPat(p, t){
+  var L = 3.1 + (p.idx % 3) * 0.6, k = Math.floor((t + p.idx * 1.37) / L), h = hmix(hmix(0x51ed, p.idx + 1), k) / 4294967296;
+  return h < 0.5 ? 1 : h < 0.78 ? 2 : 0;
 }
 
 /* ---------- what people actually talk about ----------
@@ -4936,7 +5106,7 @@ function yawToPos(p, pos){
 function logEvent(kind, p, t){
   if (!p) return;
   if (kind === "cat" || kind === "book" || kind === "spill" || kind === "chair") {
-    var ep = kind === "book" ? new V3(-2.5, 1.5, 1.8) : p.remote && p.spot ? new V3(p.spot.x, 1.5, p.spot.z) : new V3(p.root.position.x, 1.0, p.root.position.z);
+    var ep = kind === "book" ? new V3(-2.5, 1.5, 1.8) : p.remote && p.spot ? new V3(p.spot.x, 1.5, p.spot.z) : posAt(p, t, new V3()).setY(1.0);
     notice(ep, t, kind === "spill" ? 7 : 4.5, kind === "chair" ? 0.8 : 1);
     reactTo(kind, p, t, ep);
   }
@@ -4980,7 +5150,7 @@ function chatter(a, b, t, casualOnly){
     hana:[["Hi! Quick sync?", "Sure, what's up?", "Just two things, I promise."], ["Do you have five minutes?", "For you, yes.", "I'll be quick."]],
     grant:[["Hey. The truck comes Thursday.", "Good to know, thanks.", "Thought you'd want to hear it from me."], ["Quick heads up, stock is looking good.", "That's the best news all week.", "Don't jinx it."]]
   };
-  if (GV[a.id]) { var gs = GV[a.id], gl = choose(Array.isArray(gs) ? gs : (gs[b.id] || gs[Object.keys(gs)[0]])); saidKey("g" + a.id + Math.floor(Math.random() * 3)); return gl.slice(); }
+  if (GV[a.id]) { var gs = GV[a.id], gl = choose(Array.isArray(gs) ? gs : (gs[b.id] || gs[Object.keys(gs)[0]])); saidKey("g" + a.id + Math.floor(R() * 3)); return gl.slice(); }
 
   /* 1. things that just happened */
   OFFICE_EV.forEach(function(e, i){
@@ -5010,7 +5180,7 @@ function chatter(a, b, t, casualOnly){
     add(2.2, "m2", ["Did you get your " + bd + " yet?", "Working on my second one.", "Still not enough, right?"]);
     add(1.8, "m3", ["How was your evening?", "Too short, as usual.", "They always are."]);
     add(1.6, "m4", ["Traffic was a mess this morning.", "Tell me about it. Took me forever.", "Need a " + ad + " after that."]);
-    add(1.4, "m5", ["Who turned the heat up in here?", "Debbie, probably. Occupational hazard.", WX.temp !== null && WX.temp <= 5 ? "Not complaining, it's cold out." : "Not complaining though."]);
+    add(1.4, "m5", ["Who turned the heat up in here?", "Debbie, probably. Occupational hazard.", simWx(WT()).temp !== null && simWx(WT()).temp <= 5 ? "Not complaining, it's cold out." : "Not complaining though."]);
   } else if (k === "midmorning") {
     add(1.6, "mm1", ["The " + ad + " finally kicked in.", "Took long enough.", "Now I can actually think."]);
     add(1.4, "mm2", ["Is it lunch yet?", "It's not even noon.", "A person can dream."]);
@@ -5043,7 +5213,7 @@ function chatter(a, b, t, casualOnly){
   if (SEASON === "christmas") {
     add(2.2, "x1", ["Did you finish your holiday shopping?", "I haven't even started.", "Same. Every year."]);
     add(2.0, "x2", ["Are we doing secret Santa this year?", "Count me in!", "I'm making a list."]);
-    add(1.8, "x3", (WX_FORCE || WX.kind) === "snow" ? ["The tree looks great this year.", "And it's snowing outside. Perfect.", "Feels like Christmas now."] : ["The tree looks great this year.", "Now we just need snow outside.", "Give it a few weeks."]);
+    add(1.8, "x3", simWx(WT()).kind === "snow" ? ["The tree looks great this year.", "And it's snowing outside. Perfect.", "Feels like Christmas now."] : ["The tree looks great this year.", "Now we just need snow outside.", "Give it a few weeks."]);
     add(1.6, "x4", ["Who keeps playing Christmas music?", "Not me. But don't stop.", "It's officially the season."]);
     add(1.5, "x5", ["Ugly sweater day is coming up.", "I've been ready since July.", "Of course you have."]);
   }
@@ -5080,7 +5250,7 @@ function chatter(a, b, t, casualOnly){
   if (DAY.eom) add(1.4, "eom" + a.id, choose([["Month end. Send help.", "Reports due again?", "Every. Single. Month."], ["How's month end treating you?", "Ask me on Monday lol", "That bad, huh."]]));
   if (PLYTIX.lastAt && WT() - PLYTIX.lastAt < 1800) add(2, "pd" + a.id, ["That Plytix outage though.", "I lost twenty minutes lol", "At least it came back."]);
   if (TREATS.on && b.hadTreat) add(1.6, "tr" + a.id + b.id, ["Did you try the cookies?", "Two of them. Don't judge.", "No judgement here lol"]);
-  var wk = WX_FORCE || WX.kind, tc = WX.temp;
+  var SWX = simWx(WT()), wk = SWX.kind, tc = SWX.temp;
   /* small talk about what is really going on outside (Open-Meteo, Cambridge ON) */
   if (wk === "snow") add(2.4, "wr1", choose([["Look how much it's snowing.", "Oh no, the drive home is going to be fun.", "Good thing we sell heaters."], ["The snow is really coming down now.", "I'm leaving early if it keeps going like this lol", "Same, the 401 is going to be a mess."], ["I love watching the snow from in here.", "From in here, sure. Not shoveling it later.", "Ugh, don't remind me."]]));
   if (wk === "rain") add(2.2, "wr2", choose([["It's pouring out there.", "And I left my umbrella in the car.", "Classic."], ["This rain won't stop today.", "Better than snow, I guess.", "For now lol"]]));
@@ -5088,7 +5258,7 @@ function chatter(a, b, t, casualOnly){
   if (tc !== null && tc > -5 && tc <= 2) add(1.6, "wr7", ["It's " + tc + " degrees out. Not too bad.", "Still needed my big coat this morning.", "Me too lol"]);
   if (tc !== null && tc <= -5) add(2.2, "wr3", ["Did you see it's " + tc + " out there?", "My car barely started this morning.", "Fireplace weather for sure."]);
   if (tc !== null && tc >= 27) add(2.0, "wr4", ["It's " + tc + " degrees outside.", "Too hot to think.", "AC, please."]);
-  if (wk === "clear" && WX.isDay) add(1.2, "wr5", ["Sun's out today.", "Finally. I'll take it.", "Lunch outside, maybe?"]);
+  if (wk === "clear" && SWX.isDay) add(1.2, "wr5", ["Sun's out today.", "Finally. I'll take it.", "Lunch outside, maybe?"]);
   var mo = DAY.d.getMonth();
   if (tc !== null ? tc <= 0 : (mo >= 10 || mo <= 2)) add(1.5, "w1", ["It's freezing out there today.", "Good thing we sell heaters.", "Perks of the job."]);
   else if (tc !== null ? tc >= 18 && wk === "clear" : (mo >= 5 && mo <= 7)) add(1.5, "w2", ["It's so nice out today.", "And we're stuck inside.", "Lunch outside, then?"]);
@@ -5141,7 +5311,7 @@ function chatter(a, b, t, casualOnly){
 
   /* 9. a bit of work, now as a real back and forth */
   var wk = LINES[a.id];
-  if (wk) add(0.9, "wk" + a.id + Math.floor(Math.random() * 4), [choose(wk), choose(["Nice. Need a hand?", "Again? Classic.", "Let me know how it goes.", "Ha, of course."]), choose(["I'll shout if I do.", "Every single week.", "Will do."])]);
+  if (wk) add(0.9, "wk" + a.id + Math.floor(R() * 4), [choose(wk), choose(["Nice. Need a hand?", "Again? Classic.", "Let me know how it goes.", "Ha, of course."]), choose(["I'll shout if I do.", "Every single week.", "Will do."])]);
 
   if (!C.length && CHAT_RECENT.length && !chatter.retry) {
     /* used them all: forget the oldest half and pick again */
@@ -5151,7 +5321,7 @@ function chatter(a, b, t, casualOnly){
   if (!C.length) return [choose(LINES[a.id] || ["Hey!"]), "Hey!"];
   if (casualOnly) { var cc = C.filter(function(c){ return !/^(tm|wk)/.test(c.key); }); if (cc.length) C = cc; }
   var tot = 0; C.forEach(function(c){ tot += c.w; });
-  var r = Math.random() * tot, pick = C[0];
+  var r = R() * tot, pick = C[0];
   for (var i = 0; i < C.length; i++) { r -= C[i].w; if (r <= 0) { pick = C[i]; break; } }
   if (pick.ev) pick.ev.used++;
   saidKey(pick.key);
@@ -5160,17 +5330,40 @@ function chatter(a, b, t, casualOnly){
   /* talking it through takes the edge off */
   if (/^fr/.test(pick.key)) a.frus = (a.frus || 0) * 0.5;
   var out = pick.lines.slice();
-  if (out.length > 2 && Math.random() < 0.3) out.pop();
+  if (out.length > 2 && R() < 0.3) out.pop();
   out.casual = !/^(tm|wk)/.test(pick.key);
   return out;
 }
 
 /* ---------- chats with a rare small bubble ---------- */
 var chats = [];
-/* what someone is saying out loud is world state (p.sayText); the bubble on screen only draws it, in the label pass */
-function showBubble(p, text){
-  if (p.guest) text = null;
-  p.sayText = text || null;
+/* what someone says out loud is world state: it comes from the director's chats and SAYS, so sayAt(p, t) is the
+   same on every screen. Lines from systems that are still per screen (season small talk, Pixel) are only looks:
+   they go to p.fxSay / FXSAYS and never feed back into the world. */
+var FXSAYS = [];
+function showBubble(p, text){ if (p && !p.guest) p.fxSay = text || null; }
+function fxSayLater(p, text, t0, dur){ if (p && !p.guest) FXSAYS.push({ p:p, text:text, t0:t0, t1:t0 + dur + 1.2 }); }
+function chatLine(c, p, t){
+  var u = t - c.t0;
+  if (u > c.dur || u <= 0.6) return null;
+  var i = Math.floor((u - 0.6) / LINE_GAP), inLine = u - 0.6 - i * LINE_GAP < LINE_GAP - 0.25;
+  if (!inLine || i >= c.lines.length) return null;
+  return (i % 2 === 0 ? c.a : c.b) === p ? c.lines[i] : null;
+}
+/* the world's bubble for p at world time t (null = nothing) */
+function sayAt(p, t){
+  if (!p || p.guest) return null;
+  var i, c, s, best = null;
+  for (i = 0; i < chats.length; i++) { c = chats[i]; if ((c.a === p || c.b === p) && t - c.t0 <= c.dur) { if (!c.bubbles) return null; return visAt(p, t) ? chatLine(c, p, t) : null; } }
+  if (p.chatWith) return null;
+  for (i = 0; i < SAYS.length; i++) { s = SAYS[i]; if (s.p === p && t >= s.t0 && t <= s.t1 && (!best || s.t0 >= best.t0)) best = s; }
+  return best ? best.text : null;
+}
+/* what the screen shows: the world's bubble first, then the look-only ones */
+function bubbleAt(p, t){
+  var w = sayAt(p, t); if (w) return w;
+  for (var i = FXSAYS.length - 1; i >= 0; i--) { var s = FXSAYS[i]; if (t > s.t1) { FXSAYS.splice(i, 1); continue; } if (s.p === p && t >= s.t0) return s.text; }
+  return p.fxSay || null;
 }
 function drawBubble(p, text){
   if (!p.bubble) return;
@@ -5180,7 +5373,7 @@ function drawBubble(p, text){
   } else if (p.bubbleOn) { p.bubbleOn = false; p.bubble.classList.remove("show"); }
 }
 function startChat(a, b, t, dur, lines){
-  var talky = !a.guest && !b.guest && !chats.some(function(c){ return c.bubbles; }) && (lines ? true : Math.random() < 0.8);
+  var talky = !a.guest && !b.guest && !chats.some(function(c){ return c.bubbles; }) && (lines ? true : R() < 0.8);
   if (!lines) {
     lines = chatter(a, b, t);
     var fit = Math.max(2, Math.floor((dur - 0.6) / LINE_GAP));
@@ -5205,48 +5398,41 @@ function startChat(a, b, t, dur, lines){
   else moodShift(b, 0.08, "I just had a good chat with " + a.name);
   moodShift(a, 0.08, "I just had a good chat with " + b.name);
   a.lastEvent = { kind:"chat", with:b.name, t:t }; b.lastEvent = { kind:"chat", with:a.name, t:t };
-  a.chatWith = b; b.chatWith = a;
+  a.chatWith = b; b.chatWith = a; NAPS[a.idx] = 0; NAPS[b.idx] = 0;
   a.needs.social = Math.max(0, a.needs.social - 0.7); b.needs.social = Math.max(0, b.needs.social - 0.6);
   b.needs.focus *= 0.6;
 }
-function updateChats(t){
+/* director: laughs, chime-ins and the end of each chat */
+function simChats(t){
   chats = chats.filter(function(c){
     var u = t - c.t0;
-    c.a.rig.nodTarget = u < c.dur ? 0.45 : 0; c.b.rig.nodTarget = u < c.dur ? 0.35 : 0;
     if (c.bubbles) {
-      /* lines alternate between the two, a fresh bubble every LINE_GAP seconds */
-      var i = Math.floor((u - 0.6) / LINE_GAP), inLine = u - 0.6 - i * LINE_GAP < LINE_GAP - 0.25;
+      var i = Math.floor((u - 0.6) / LINE_GAP);
       /* the one listening laughs now and then at a casual line, and a laugh is catching */
-      if (i !== c.li && i >= 0 && i < c.lines.length) {
+      if (i !== c.li && i >= 0 && i < c.lines.length && u > 0.6) {
         c.li = i;
-        if (c.lines.casual && i > 0 && Math.random() < 0.3) { var lq = i % 2 === 0 ? c.b : c.a; lq.laughUntil = t + 1.8; lq.smileUntil = t + 3; catchLaugh(lq, t); }
+        if (c.lines.casual && i > 0 && R() < 0.3) { var lq = i % 2 === 0 ? c.b : c.a; lq.laughUntil = t + 1.8; lq.smileUntil = t + 3; catchLaugh(lq, t); }
       }
-      var sayA = null, sayB = null;
-      if (u > 0.6 && i < c.lines.length && inLine) { if (i % 2 === 0) sayA = c.lines[i]; else sayB = c.lines[i]; }
-      showBubble(c.a, c.a.root.visible ? sayA : null);
-      showBubble(c.b, c.b.root.visible ? sayB : null);
     }
-    if (u > c.dur && c.bubbles && !c.chimed && !c.a.remote && !c.b.remote && c.a.state === "sit" && c.b.state === "sit" && Math.random() < 0.3) {
+    if (u > c.dur && c.bubbles && !c.chimed && !c.a.remote && !c.b.remote && c.a.state === "sit" && c.b.state === "sit" && R() < 0.3) {
       c.chimed = true;
       var mx = (c.a.seat.x + c.b.seat.x) / 2, mz = (c.a.seat.z + c.b.seat.z) / 2;
       var ear = PEOPLE.filter(function(q){ return q !== c.a && q !== c.b && !q.guest && !q.remote && available(q) && !q.act && Math.hypot(q.seat.x - mx, q.seat.z - mz) < 2.4 && !luisDeepWork(q) && !tooBusy(q) && q.needs.social > 0.3; });
       if (ear.length) {
-        var eq = ear.sort(function(x, y){ return aff(y, c.a) + aff(y, c.b) - aff(x, c.a) - aff(x, c.b); })[0], who = aff(eq, c.a) >= aff(eq, c.b) ? c.a : c.b;
+        var eq = ear.sort(function(x, y){ return x.idx - y.idx; })[Math.floor(R() * ear.length)], who = R() < 0.5 ? c.a : c.b;
         startAct(eq, "turn", t + 0.6, 6, who); startAct(who, "turn", t + 0.4, 6, eq);
         var line = choose(c.lines.casual ? ["Wait, what did I miss?", "Ha, same here.", "Okay now I'm listening.", "Count me in on that.", "I heard that!", "Oh I have opinions on this."]
           : ["Sorry, couldn't help overhearing. I can help with that.", "I ran into the same thing yesterday.", "Loop me in on that one?", "I've got notes on that if you need them."]);
         sayLater(eq, line, t + 0.9, 2.8);
         sayLater(who, choose(c.lines.casual ? ["Ha, of course you heard.", "Join the club!", "You're always listening lol"] : ["Oh perfect, thanks!", "Yes please, I'll send it over.", "Great, let's sync after."]), t + 4.2, 2.6);
-        bond(eq, who, 0.05);
         eq.needs.social = Math.max(0, eq.needs.social - 0.3);
         eq.decideAt = Math.max(eq.decideAt, t + 8); who.decideAt = Math.max(who.decideAt, t + 8);
       }
     }
     if (u > c.dur) {
-      showBubble(c.a, null); showBubble(c.b, null);
-      c.a.rig.nodTarget = 0; c.b.rig.nodTarget = 0;
-      if (!c.a.remote) c.a.restSwivel = clamp((c.a.swivel || 0) * 0.3, -0.18, 0.18);
-      if (!c.b.remote) c.b.restSwivel = clamp((c.b.swivel || 0) * 0.3, -0.18, 0.18);
+      if (!c.a.remote) c.a.restSwivel = R() * 0.36 - 0.18;
+      if (!c.b.remote) c.b.restSwivel = R() * 0.36 - 0.18;
+      NAPS[c.a.idx] = 0; NAPS[c.b.idx] = 0;
       if (c.a.chatWith === c.b) c.a.chatWith = null;
       if (c.b.chatWith === c.a) c.b.chatWith = null;
       return false;
@@ -5254,7 +5440,6 @@ function updateChats(t){
     return true;
   });
 }
-
 /* ---------- who chats with whom ----------
    Everyone gets along with everyone the same: no favourites and nobody is closer or further from anyone,
    so the office never suggests anything about real relationships. Luis keeps to himself. */
@@ -5268,10 +5453,10 @@ function bond(a, b, dv, memA, memB){
 }
 function recentMemo(p){ var m = p.memo && p.memo[p.memo.length - 1]; return m && WT() - m.t < 1800 ? m.text : ""; }
 function aff(a, b){ return a.id === "luis" || b.id === "luis" ? 0.25 : 1; }
-function pickByAff(p, list){ var tot = 0; list.forEach(function(q){ tot += aff(p, q); }); var r = Math.random() * tot; for (var i = 0; i < list.length; i++) { r -= aff(p, list[i]); if (r <= 0) return list[i]; } return list[0]; }
+function pickByAff(p, list){ var tot = 0; list.forEach(function(q){ tot += aff(p, q); }); var r = R() * tot; for (var i = 0; i < list.length; i++) { r -= aff(p, list[i]); if (r <= 0) return list[i]; } return list[0]; }
 
 /* ---------- decisions ---------- */
-function available(q){ return q.state === "sit" && q.root.visible && !q.chatWith && !q.visitor && !q.answering && !(q.dnd > WT()) && !(q.act && q.act.plan); }
+function available(q){ return q.state === "sit" && visAt(q, WT()) && !q.chatWith && !q.visitor && !q.answering && !(q.dnd > WT()) && !(q.act && q.act.plan); }
 function neighbours(p){ return PEOPLE.filter(function(q){ return q !== p && Math.abs(q.z - p.z) < 2.0 && available(q); }); }
 function bossAway(p){ return PEOPLE.some(function(q){ return q !== p && q.trip && q.trip.kind === "meeting"; }); }
 function luisDeepWork(q){ return q.id === "luis" && q.typeOn && q.needs.focus > 0.5; }
@@ -5332,7 +5517,7 @@ function decide(p, t){
   var best = null, bs = -1;
   PEOPLE.forEach(function(q){
     if (q === p || !available(q)) return;
-    if (moodyNow(q) && !q.remote) { if (!p.waitFor && aff(p, q) >= 1.2 && Math.random() < 0.3) p.waitFor = { q:q, at:t + rand(150, 360) }; return; }
+    if (moodyNow(q) && !q.remote) { if (!p.waitFor && aff(p, q) >= 1.2 && R() < 0.3) p.waitFor = { q:q, at:t + rand(150, 360) }; return; }
     var sc = n.social * w.social * 1.35 * sociable + rand(0, 0.3);
     if (luisDeepWork(q)) sc *= 0.2;
     if (Math.abs(q.z - p.z) < 2.2) sc *= 1.1;
@@ -5346,7 +5531,7 @@ function decide(p, t){
   if (nbs.length && !withdrawn) { var tq = pickByAff(p, nbs); opts.push({ k:"talk", s:n.social * w.shop * 1.1 * sociable * (0.7 + 0.3 * aff(p, tq)) + rand(0, 0.3), q:tq }); }
   /* Carla checks on anyone who seems down */
   /* Carla checks on someone who seems down, but rarely and never the same person twice within the hour */
-  if (p.id === "carla" && Math.random() < 0.25) PEOPLE.forEach(function(q){
+  if (p.id === "carla" && R() < 0.25) PEOPLE.forEach(function(q){
     if (q !== p && !q.guest && available(q) && q.mood.v < -0.3 && !luisDeepWork(q) && !(q.caredAt && t - q.caredAt < 3600)) opts.push({ k:"visit", s:0.9 + rand(0, 0.4), q:q, care:true });
   });
   /* walk up to a wall screen and talk to a remote colleague */
@@ -5359,7 +5544,7 @@ function decide(p, t){
     var helpers = PEOPLE.filter(function(q){ return q !== p && !q.guest && !q.remote && available(q) && !luisDeepWork(q) && !lunchNow(q) && !moodyNow(q); });
     if (helpers.length) {
       /* whoever knows the subject best; if they are not around, the colleague they trust most */
-      var ex = expertFor(gl.g.label, p), hq = ex && helpers.indexOf(ex.q) >= 0 ? ex.q : helpers.sort(function(a, b){ return aff(p, b) - aff(p, a); })[0];
+      var ex = expertFor(gl.g.label, p), hq = ex && helpers.indexOf(ex.q) >= 0 ? ex.q : pickByAff(p, helpers);
       opts.push({ k:"askhelp", s:(gl.urg - 0.35) * 1.6 * (p.mood.kind === "stressed" ? 1.4 : 1) + (p.frus || 0) * 0.8 + rand(0, 0.3), q:hq, g:gl.g, topic:ex && ex.q === hq ? ex.topic : null });
     }
   }
@@ -5402,7 +5587,7 @@ function decide(p, t){
   /* treats on the counter */
   if (TREATS.on && !p.hadTreat && !p.remote) opts.push({ k:"treat", s:0.75 + n.social * 0.3 + rand(0, 0.4) });
   /* friends look after whoever is having a rough day, not only Carla */
-  if (p.id !== "carla" && Math.random() < 0.15) PEOPLE.forEach(function(q){
+  if (p.id !== "carla" && R() < 0.15) PEOPLE.forEach(function(q){
     if (q !== p && !q.guest && available(q) && q.mood.v < -0.3 && aff(p, q) >= 2.2 && !luisDeepWork(q) && !(q.caredAt && t - q.caredAt < 3600)) opts.push({ k:"visit", s:0.8 + rand(0, 0.4), q:q, care:true });
   });
   /* requests for Luis: walk over or ask from the desk */
@@ -5416,27 +5601,27 @@ function decide(p, t){
   /* less walking around: optional trips away from the desk are skipped about half the time
      (promises, agreed breaks, reports, delegated tasks and waited visits always happen) */
   var optionalWalk = (o.k === "visit" && !o.owe && !o.appt && !o.report && !o.delegate && !o.waited) || o.k === "coffee" || o.k === "print" || o.k === "treat" || o.k === "request";
-  if (optionalWalk && Math.random() < 0.45) o = opts.filter(function(x){ return x.k === "work"; })[0] || o;
+  if (optionalWalk && R() < 0.45) o = opts.filter(function(x){ return x.k === "work"; })[0] || o;
   if (o.k === "work") {
     p.typeOn = true; p.typeNext = t + rand(3, 8); n.focus = Math.min(1, n.focus + 0.15);
     /* under pressure things break now and then: frustration, with a reason */
-    if (gl && gl.urg > 0.45 && !(p.frus > 0.3) && Math.random() < 0.06) {
+    if (gl && gl.urg > 0.45 && !(p.frus > 0.3) && R() < 0.06) {
       frustrate(p, t, lc(gl.g.label) + " keeps breaking");
       p.typeOn = false; startAct(p, "facepalm", t + 0.3, 2.6);
       sayLater(p, choose(["Ugh. Not again.", "Why won't this work??", "Seriously?!", "It was working five minutes ago..."]), t + 0.6, 2.6);
       return;
     }
     /* a typo, a glance at the keys */
-    if (Math.random() < 0.14) startAct(p, "lookdown", t + rand(1, 4), rand(1.2, 2.2));
+    if (R() < 0.14) startAct(p, "lookdown", t + rand(1, 4), rand(1.2, 2.2));
   }
   else if (o.k === "micro") {
-    var tired = (1 - n.energy) + (DAY.h > 15 ? 0.3 : 0) + (DAY.key === "slump" ? 0.2 : 0), cold = WX.temp !== null && WX.temp <= 1 && DAY.h < 11.5, rb = Math.random();
+    var tired = (1 - n.energy) + (DAY.h > 15 ? 0.3 : 0) + (DAY.key === "slump" ? 0.2 : 0), cold = simWx(t).temp !== null && simWx(t).temp <= 1 && DAY.h < 11.5, rb = R();
     if (rb < 0.035 && !p.walker && !PEOPLE.some(function(q){ return q.trip && q.trip.label === WIN_LABEL; })) lifeWindow(p, t);
     else if (rb < 0.07) lifeStretch(p, t);
     else if (rb < 0.085 && !p.walker && !p.plan.call) lifePhoneWalk(p, t);
-    else if (cold && Math.random() < 0.35) startAct(p, "warmhands", t, rand(3, 5));
-    else if (Math.random() < tired * 0.35) { var ty2 = Math.random() < 0.6 ? "yawn" : "rubeyes"; startAct(p, ty2, t, ty2 === "yawn" ? 2.6 : 3.2); catchAct(p, ty2, t); }
-    else if (DAY.key === "slump" && Math.random() < 0.35) { p.typeOn = false; startAct(p, "phone", t, rand(18, 45)); }
+    else if (cold && R() < 0.35) startAct(p, "warmhands", t, rand(3, 5));
+    else if (R() < tired * 0.35) { var ty2 = R() < 0.6 ? "yawn" : "rubeyes"; startAct(p, ty2, t, ty2 === "yawn" ? 2.6 : 3.2); catchAct(p, ty2, t); }
+    else if (DAY.key === "slump" && R() < 0.35) { p.typeOn = false; startAct(p, "phone", t, rand(18, 45)); }
     else {
       var mk = choose(POOLS[p.id]);
       if (mk === "write") { p.typeOn = false; p.mouseOn = false; startAct(p, "write", t, rand(25, 70)); }
@@ -5449,9 +5634,9 @@ function decide(p, t){
   else if (o.k === "coffee") {
     /* ask a desk neighbour along; they say yes or no for their own reasons */
     var mates = neighbours(p).filter(function(q){ return !q.walker && !luisDeepWork(q) && !lunchNow(q) && aff(p, q) >= 1.2; });
-    if (mates.length && Math.random() < 0.55) {
+    if (mates.length && R() < 0.55) {
       var cq = pickByAff(p, mates), cg = goalNow(cq), d1 = drinkOf(cq);
-      var yes = !tooBusy(cq) && (cq.needs.coffee > 0.3 || cq.needs.energy < 0.5 || Math.random() < 0.35);
+      var yes = !tooBusy(cq) && (cq.needs.coffee > 0.3 || cq.needs.energy < 0.5 || R() < 0.35);
       var ask = choose(["Coffee run, want to come?", "I'm getting a " + drinkOf(p) + ". Coming?", "Break time. Join me?", "Kitchen? I need to move a bit."]);
       var ans = yes ? choose(d1 === "water" ? ["Sure, I'll refill my water.", "Yes, my bottle is empty anyway."] : ["Yes please, I'm fading.", "Oh yes, perfect timing.", "Sure, let me grab my mug.", "Twist my arm. Let's go."])
         : cg && tooBusy(cq) ? "Can't, I need " + lc(cg.g.label) + " done by " + fmtH(cg.g.due) + "."
@@ -5478,7 +5663,7 @@ function decide(p, t){
     if (o.delegate) { p.delegated = (p.delegated || 0) + 1; p.delegatedAt = t; }
   } else if (o.k === "request") {
     var L = BY.luis;
-    if (Math.abs(L.z - p.z) < 2.2 || Math.random() < 0.3) {
+    if (Math.abs(L.z - p.z) < 2.2 || R() < 0.3) {
       var rd = rand(8, 9.5);
       startAct(p, "turn", t, rd, L); startAct(L, "turn", t, rd, p);
       startChat(p, L, t, rd + 0.4, makeRequest(p, t));
@@ -5489,10 +5674,10 @@ function decide(p, t){
     }
   } else if (o.k === "talk") {
     /* close friends drift into casual talk and turn their chairs round */
-    var cas = aff(p, o.q) >= 2 && Math.random() < 0.65;
+    var cas = aff(p, o.q) >= 2 && R() < 0.65;
     var lines = chatter(p, o.q, t, cas);
     /* friends sometimes agree on a break later, and keep it */
-    if (cas && !p.appt && !o.q.appt && !p.remote && !o.q.remote && DAY.h > 9 && DAY.h < 15 && !lunchNow(p) && Math.random() < 0.18) {
+    if (cas && !p.appt && !o.q.appt && !p.remote && !o.q.remote && DAY.h > 9 && DAY.h < 15 && !lunchNow(p) && R() < 0.18) {
       var ah = Math.ceil((DAY.h + rand(0.6, 1.4)) * 4) / 4;
       if (ah > 11.75 && ah < 13.6) ah = 13.75;
       lines = [choose(["Break together at " + fmtH(ah) + "? I'm going to need it.", "Coffee at " + fmtH(ah) + "? My treat.", "Walk to the kitchen at " + fmtH(ah) + "?"]),
@@ -5500,9 +5685,9 @@ function decide(p, t){
       lines.casual = true;
       p.appt = { with:o.q, h:ah, lead:true }; o.q.appt = { with:p, h:ah, lead:false };
     }
-    var roll = !p.walker && !o.q.walker && Math.random() < 0.5 && !p.roll;
+    var roll = !p.walker && !o.q.walker && R() < 0.5 && !(rollAt(p, t) > 0);
     var dur = Math.max(10, 0.9 + lines.length * LINE_GAP) + (roll ? 3 : 0);
-    if (roll) { rollOver(p, o.q); p.rollEnd = t + dur - 1.5; }
+    if (roll) { rollOver(p, o.q, 0, t); p.rollEnd = t + dur - 1.5; }
     startAct(p, "turn", t, dur, o.q); startAct(o.q, "turn", t, dur, p);
     p.act.casual = o.q.act.casual = !!lines.casual || roll;
     startChat(p, o.q, t + (roll ? 2.5 : 0), dur + 0.4 - (roll ? 2.5 : 0), lines);
@@ -5512,29 +5697,29 @@ function decide(p, t){
 function reactTo(kind, p, t, ep){
   var w = nearestSitter(ep.x, ep.z, p);
   if (!w || w.remote || homeNow(w)) return;
-  if (kind === "cat" && Math.random() < 0.8) sayLater(w, choose(["Aww, a cat!", "Is that a cat? Best meeting ever.", "Hi kitty!", "The cat is the real boss there."]), t + 2.4, 2.6);
+  if (kind === "cat" && R() < 0.8) sayLater(w, choose(["Aww, a cat!", "Is that a cat? Best meeting ever.", "Hi kitty!", "The cat is the real boss there."]), t + 2.4, 2.6);
   else if (kind === "chair") sayLater(w, choose(["Whoa, you okay?", "Careful there!", "Nice save!"]), t + 1.6, 2.4);
-  else if (kind === "spill" && Math.abs(w.seat.z - p.seat.z) < 3.2) { w.helpAt = t + 3; w.helpFor = p; sayLater(w, choose(["Oh no! Hang on.", "I've got napkins, one sec."]), t + 1.6, 2.4); }
+  else if (kind === "spill" && Math.abs(w.seat.z - p.seat.z) < 3.2) { w.helpAt = t + 3; w.helpFor = p; NAPS[w.idx] = 0; sayLater(w, choose(["Oh no! Hang on.", "I've got napkins, one sec."]), t + 1.6, 2.4); }
 }
-/* every frame: who looks where. Calm people look around more, focused people barely look up. */
-function perceive(t, dt){
-  POI = POI.filter(function(o){ return t < o.t1; });
+/* director: who looks where. Calm people look around more, focused people barely look up.
+   It also notices the weather and sends a neighbour over to help after a spill. */
+function simPerceive(t, dt){
+  if (POI.length && POI.some(function(o){ return t >= o.t1; })) POI = POI.filter(function(o){ return t < o.t1; });
   /* weather changes outside: somebody near a window notices */
-  var wk = WX_FORCE || WX.kind;
+  var wk = simWx(t).kind;
   if (perceive.wx !== wk) {
     var first = perceive.wx === undefined; perceive.wx = wk;
     if ((wk === "snow" || wk === "rain") && !OFFICE_DARK_NOW()) {
-      var wz = Math.random() < 0.5 ? 4.5 : -1.05, wp = new V3(-2.78, 2.1, wz);
+      var wz = R() < 0.5 ? 4.5 : -1.05, wp = new V3(-2.78, 2.1, wz);
       notice(wp, t + (first ? 15 : 0), 6, 0.7);
       var ws = nearestSitter(-2.2, wz);
       if (ws && !ws.remote) sayLater(ws, wk === "snow" ? choose(["Look, it's snowing!", "Snow! It's really coming down.", "Is that snow? Already?"]) : choose(["Oh, it started raining.", "Rain again. Glad I'm inside.", "Listen to that rain."]), t + (first ? 16 : 1.5), 3);
     }
   }
-  PEOPLE.forEach(function(p){
-    if (p.remote) return;
-    standTick(p, t, dt);
-    postureTick(p, t, dt);
-    calibrate(p, t);
+  PEOPLE.forEach(function(p, i){
+    if (STEPS[i] !== t || p.remote || (p.guest && p.state === "gone")) return;
+    simStand(p, t);
+    simPosture(p, t);
     /* going over to help with a spill */
     if (p.helpAt && t > p.helpAt) {
       var q = p.helpFor; p.helpAt = 0; p.helpFor = null;
@@ -5544,28 +5729,38 @@ function perceive(t, dt){
         p.trip.help = true;
       }
     }
+  });
+}
+function perceive(){}
+/* drawing: who looks where. Calm people look around more, focused people barely look up. A new choice every
+   couple of seconds, made from the person, that moment and the world state only, so it is the same on every screen */
+var _gzA = new V3(), _gzB = new V3();
+function gazeChoose(p, t){
+  var r = seeded(hmix(hmix(0x6a7e, p.idx + 1), Math.floor(t * 10)) % 2147483646 + 1); r();
+  var calm = Math.min(1, (1 - (p.typeOn ? p.needs.focus : p.needs.focus * 0.5)) * mv(p).curious);
+  if (p.dnd > t) calm *= 0.2;
+  var ev = null, es = 0, me = posAt(p, t, _gzA);
+  POI.forEach(function(o){ if (t > o.t1) return; var d = Math.hypot(o.pos.x - me.x, o.pos.z - me.z), sc = o.w * (1 - d / 9); if (sc > es) { es = sc; ev = o; } });
+  if (ev && es > 0.15 && r() < 0.55 + 0.45 * es) return { pos:ev.pos };
+  var wq = null, wd = 2.6;
+  PEOPLE.forEach(function(q){ if (q === p || q.state !== "walk" || !visAt(q, t)) return; var d = posAt(q, t, _gzB).distanceTo(me); if (d < wd) { wd = d; wq = q; } });
+  if (wq && r() < 0.2 + 0.6 * calm) return { who:wq };
+  if (r() < 0.16 * calm) { var nbs = PEOPLE.filter(function(q){ return q !== p && Math.abs(q.z - p.z) < 2.0 && available(q); }); if (nbs.length) return { who:nbs[Math.floor(r() * nbs.length)] }; }
+  return null;
+}
+function renderPerceive(t, dt){
+  PEOPLE.forEach(function(p){
+    if (p.remote) return;
+    calibrate(p, t);
     var free = p.state === "sit" && p.root.visible && !p.chatWith && !p.answering && !(p.act && (p.act.n === "turn" || p.act.n === "answer" || p.act.n === "leanFire"));
-    if (!free) { p.gazeAt = null; p.gazeNext = 0; }
-    else if (!p.gazeNext || t > p.gazeNext) {
-      p.gazeNext = t + rand(1.2, 3.4); p.gazeAt = null;
-      var calm = Math.min(1, (1 - (p.typeOn ? p.needs.focus : p.needs.focus * 0.5)) * mv(p).curious);
-      if (p.dnd > t) calm *= 0.2;
-      var ev = null, es = 0;
-      POI.forEach(function(o){ var d = Math.hypot(o.pos.x - p.root.position.x, o.pos.z - p.root.position.z), sc = o.w * (1 - d / 9); if (sc > es) { es = sc; ev = o; } });
-      if (ev && es > 0.15 && Math.random() < 0.55 + 0.45 * es) p.gazeAt = { pos:ev.pos };
-      else {
-        var wq = null, wd = 2.6;
-        PEOPLE.forEach(function(q){ if (q === p || q.state !== "walk" || !q.root.visible) return; var d = q.root.position.distanceTo(p.root.position); if (d < wd) { wd = d; wq = q; } });
-        if (wq && Math.random() < 0.2 + 0.6 * calm) { p.gazeAt = { who:wq }; p.gazeNext = t + rand(1.5, 3); }
-        else if (Math.random() < 0.16 * calm) {
-          var nbs = neighbours(p);
-          if (nbs.length) { p.gazeAt = { who:pickByAff(p, nbs) }; p.gazeNext = t + rand(0.7, 1.5); }
-        }
-      }
+    if (!free) p.gazeAt = null;
+    else {
+      var L = 2.3 + (p.idx % 4) * 0.35, win = Math.floor((t + p.idx * 0.77) / L);
+      if (p.gazeWin !== win) { p.gazeWin = win; p.gazeAt = gazeChoose(p, win * L - p.idx * 0.77); }
     }
     var target = 0;
     /* nobody twists round to look behind them: anything further back than about 75 degrees is ignored */
-    if (p.gazeAt) { target = yawToPos(p, p.gazeAt.who ? p.gazeAt.who.root.position : p.gazeAt.pos); if (Math.abs(target) > 1.3) { target = 0; p.gazeAt = null; } }
+    if (p.gazeAt && p.root.visible) { target = yawToPos(p, p.gazeAt.who ? p.gazeAt.who.root.position : p.gazeAt.pos); if (Math.abs(target) > 1.3) target = 0; }
     p.gazeYaw = lerp(p.gazeYaw || 0, target, 1 - Math.exp(-dt * 4.5));
   });
 }
@@ -5643,7 +5838,7 @@ function makePlan(p){
   p.yday = planGoals(p, yd.getFullYear() * 1000 + yd.getMonth() * 40 + yd.getDate()).g2;
   return p.plan;
 }
-function planOf(p){ var d = DAY.d || worldDate(), key = d.getFullYear() * 1000 + d.getMonth() * 40 + d.getDate(); return p.plan && p.plan.key === key ? p.plan : makePlan(p); }
+function planOf(p){ var key = dayKey(); return p.plan && p.plan.key === key ? p.plan : makePlan(p); }
 function fmtH(h){ var hh = Math.floor(h), mm = Math.floor((h - hh) * 60 / 15) * 15; return (hh % 12 || 12) + ":" + (mm < 10 ? "0" : "") + mm; }
 /* the goal on the table right now, and how urgent it is (0 relaxed, 1 due any minute) */
 function goalNow(p){
@@ -5654,10 +5849,12 @@ function goalNow(p){
     if (g.done) continue;
     var left = g.due - DAY.h;
     if (left <= 0) {
+      /* only the director closes a goal (the screen and the chat panel just read it) */
+      if (!SIM.on) continue;
       g.done = true;
-      if (left > -0.3 && p.state === "sit" && p.root.visible) {
+      if (left > -0.3 && p.state === "sit" && visAt(p, WT())) {
         moodShift(p, 0.18, "I finally wrapped up " + g.label.charAt(0).toLowerCase() + g.label.slice(1));
-        if (!p.act && !p.chatWith) { startAct(p, "fist", WT(), 2.2); if (Math.random() < 0.5) sayLater(p, choose(["Done!!", "Finally!", "And... done.", "Yes! Off my list."]), WT() + 0.3, 2.4); }
+        if (!p.act && !p.chatWith) { startAct(p, "fist", WT(), 2.2); if (R() < 0.5) sayLater(p, choose(["Done!!", "Finally!", "And... done.", "Yes! Off my list."]), WT() + 0.3, 2.4); }
         (p.memo = p.memo || []).push({ t:WT(), text:"I just wrapped up " + g.label.charAt(0).toLowerCase() + g.label.slice(1) + ". One less thing." });
         if (g.from && !p.report) p.report = { to:g.from, label:g.label, at:WT() + rand(20, 90) };
         p.workNow = null;
@@ -5670,16 +5867,22 @@ function goalNow(p){
   return null;
 }
 function goTrip(p, t, kind, target, path){
-  p.trip = { kind:kind, target:target, path:path, d:0, back:false };
+  if (p.standOn) standOff(p, t);
+  p.trip = { kind:kind, target:target, path:path, back:false };
   p.act = null; p.typeOn = false;
-  p.walkPhone = !p.guest && (kind === "coffee" || kind === "spot" || kind === "lunch") && Math.random() < 0.15;
-  setState(p, "up", t, 0.6);
+  p.walkPhone = !p.guest && (kind === "coffee" || kind === "spot" || kind === "lunch") && R() < 0.15;
+  /* stand up (0.6 s), then walk; if the aisle is busy they wait a moment on their feet */
+  planWalk(p, p.trip, path, t + 0.6);
+  setState(p, "up", t, p.trip.ts - t);
 }
-function setState(p, st, t, dur){ p.state = st; p.t0 = t; p.dur = dur; }
+function setState(p, st, t, dur){ p.state = st; p.t0 = t; p.dur = dur; NAPS[p.idx] = 0; }
+/* walk back to the desk from wherever the trip ended */
 function startReturn(p, t){
-  var tr = p.trip, from = p.root.position.clone();
-  tr.path = aislePath(from, 0, p.seat, p.side); tr.d = 0; tr.back = true;
-  setState(p, "walk", t, 0);
+  var tr = p.trip, from = p.state === "away" || !tr.path ? EXIT_SPOT.clone() : tr.path.pts[tr.path.pts.length - 1].clone();
+  tr.back = true;
+  if (tr.kind === "coffee") p.walkPhone = false;
+  planWalk(p, tr, aislePath(from, 0, p.seat, p.side), t);
+  setState(p, "walk", t, tr.ts - t + tr.w.D);
 }
 
 var HUDDLE = { next:0, on:null };
@@ -5700,44 +5903,44 @@ function huddleTick(t, dt){
     if (!available(A) || !available(E) || A.act || E.act || lunchNow(A) || lunchNow(E)) return;
     var lines = choose(BOSS_LINES), dur = 3.5 + lines.length * LINE_GAP + 2;
     HUDDLE.on = H = { t0:t, dur:dur, lines:lines, talk:false };
-    A.rollTo = new V3(E.seat.x, 0, E.seat.z + 0.78); A.rollOn = true;
+    rollStart(A, new V3(E.seat.x, 0, E.seat.z + 0.78), t);
     A.decideAt = E.decideAt = t + dur + 3;
     A.cal.next = Math.max(A.cal.next, t + dur + 5); E.cal.next = Math.max(E.cal.next, t + dur + 5);
   }
   var u = t - H.t0;
-  if (u > H.dur - 2.5) A.rollOn = false;
+  if (u > H.dur - 2.5) rollStop(A, t);
   if (!H.talk && u > 2.6) {
     H.talk = true;
-    var scr = E.deskGroup.localToWorld(new V3(0, 1.0, -1.0));
+    var scr = deskPt(E, 0, 1.0, -1.0);
     startAct(A, "screen", t, H.dur - 4, null); A.act.pt = scr;
     startAct(E, "screen", t, H.dur - 4, null); E.act.pt = scr;
     startChat(A, E, t, H.dur - 3.5, H.lines.slice());
   }
   if (u > H.dur) HUDDLE.on = null;
 }
-/* chairs roll: a person can roll over to someone else's spot (p.rollTo = world point) and roll back home */
+/* a point in someone's desk space, in the world (static: it does not depend on what has been drawn) */
+function deskPt(q, x, y, z){ q.deskGroup.updateWorldMatrix(true, false); return q.deskGroup.localToWorld(new V3(x, y, z)); }
+/* drawing: the chair follows rollAt (a person can roll over to someone else's spot and roll back home) */
 var _rollW = new V3(), _rollS = new V3();
-function rollUpdate(p, dt){
+function rollUpdate(p, t){
   if (!p.chairG || !p.chairBase) return;
-  var want = p.rollTo && p.rollOn ? 1 : 0;
-  if (!p.roll && !want) return;
-  p.roll = lerp(p.roll || 0, want, 1 - Math.exp(-dt * 1.6));
-  if (p.roll < 0.002 && !want) { p.roll = 0; p.rollTo = null; }
+  p.roll = rollAt(p, t);
+  if (!p.roll && !p.rollWas) return;
+  p.rollWas = p.roll > 0;
   p.rollOff = p.rollOff || new V3();
-  if (p.rollTo) p.rollOff.set(p.rollTo.x - p.seat.x, 0, p.rollTo.z - p.seat.z).multiplyScalar(p.roll);
+  if (p.rollTo && p.roll) p.rollOff.set(p.rollTo.x - p.seat.x, 0, p.rollTo.z - p.seat.z).multiplyScalar(p.roll);
   else p.rollOff.set(0, 0, 0);
   _rollW.copy(p.deskGroup.localToWorld(_rollS.copy(p.chairBase))).add(p.rollOff);
   p.chairG.position.copy(p.deskGroup.worldToLocal(_rollW));
 }
-function rollOver(p, q, gap){
+function rollOver(p, q, gap, t){
   var d = new V3(p.seat.x - q.seat.x, 0, p.seat.z - q.seat.z), L = d.length() || 1;
   /* keep a normal talking distance: knees and chairs never touch */
-  p.rollTo = q.seat.clone().add(d.multiplyScalar(Math.min(L, gap || 1.1) / L));
-  p.rollOn = true;
+  rollStart(p, q.seat.clone().add(d.multiplyScalar(Math.min(L, gap || 1.1) / L)), t === undefined ? WT() : t);
 }
 
 /* ---------- everyday life: errands, rituals, shared moments ---------- */
-function dayKey(){ var d = DAY.d || worldDate(); return d.getFullYear() * 1000 + d.getMonth() * 40 + d.getDate(); }
+function dayKey(){ var d = DAY.d || worldDate(); if (d === dayKey.d) return dayKey.k; dayKey.d = d; dayKey.k = d.getFullYear() * 1000 + d.getMonth() * 40 + d.getDate(); return dayKey.k; }
 var WIN_LABEL = "Looking out the window for a minute";
 /* walk to a spot, stand there a while (with an optional act or a little script), walk back */
 function goSpot(p, t, spot, face, stay, label, act, onArrive, onLeave){
@@ -5748,10 +5951,10 @@ function goSpot(p, t, spot, face, stay, label, act, onArrive, onLeave){
 function idleAtDesk(q){ return q && !q.remote && !q.guest && available(q) && !q.act && !lunchNow(q) && !homeNow(q) && !q.trip; }
 /* yawns and stretches are catching */
 function catchAct(p, name, t){
-  PEOPLE.forEach(function(q){ if (q !== p && idleAtDesk(q) && Math.hypot(q.seat.x - p.seat.x, q.seat.z - p.seat.z) < 2.3 && Math.random() < 0.35) startAct(q, name, t + rand(1.5, 3.2), name === "yawn" ? 2.6 : undefined); });
+  PEOPLE.forEach(function(q){ if (q !== p && idleAtDesk(q) && Math.hypot(q.seat.x - p.seat.x, q.seat.z - p.seat.z) < 2.3 && R() < 0.35) startAct(q, name, t + rand(1.5, 3.2), name === "yawn" ? 2.6 : undefined); });
 }
 function catchLaugh(p, t){
-  PEOPLE.forEach(function(q){ if (q !== p && !q.remote && q.state === "sit" && q.root.visible && Math.hypot(q.seat.x - p.seat.x, q.seat.z - p.seat.z) < 2.3 && Math.random() < 0.2) { q.laughUntil = t + 1.5; q.smileUntil = t + 2.5; } });
+  PEOPLE.forEach(function(q){ if (q !== p && !q.remote && q.state === "sit" && visAt(q, WT()) && Math.hypot(q.seat.x - p.seat.x, q.seat.z - p.seat.z) < 2.3 && R() < 0.2) { q.laughUntil = t + 1.5; q.smileUntil = t + 2.5; } });
 }
 function lifeWindow(p, t){ goSpot(p, t, new V3(choose([-0.55, 0.55]), 0, -2.85), new V3(-2.9, 1.9, -1.6), rand(18, 35), WIN_LABEL, "gazeup"); }
 function lifeStretch(p, t){ var tr = goSpot(p, t, new V3(p.side * 0.95, 0, p.seat.z + 0.35), new V3(0, 1, p.seat.z + 0.35), 7, "Stretching my back", "stretch"); }
@@ -5763,7 +5966,7 @@ function lifePhoneWalk(p, t){
 function lifePrint(p, t){
   var pr = LIFE.printers.filter(function(x){ return !x.job; }); if (!pr.length) return;
   pr = choose(pr); p.printNeed = 0;
-  var jam = Math.random() < 0.13;
+  var jam = R() < 0.13;
   pr.job = { p:p, t0:t, jam:jam };
   var tr = goSpot(p, t, pr.spot.clone(), pr.g.position, jam ? 16 : 4.5, jam ? "Fighting with the printer" : "Grabbing a printout", null, function(q, t2){
     if (jam) { frustrate(q, t2, "the printer jammed on me", 0.65); sayLater(q, choose(["Of course it jammed.", "Paper jam. Again.", "Why. Every time.", "Okay printer, we can do this the easy way..."]), t2 + 0.5, 2.8); sayLater(q, choose(["Got it!", "Fixed. I'm basically IT now lol", "There we go."]), t2 + 13, 2.4); }
@@ -5773,7 +5976,7 @@ function lifePrint(p, t){
 function lifeTreat(p, t){
   p.hadTreat = true;
   goSpot(p, t, LIFE.counter.spot.clone().add(new V3(rand(-0.15, 0.15), 0, 0)), LIFE.counter.g.position, rand(6, 10), "Grabbing a cookie", "eat", function(q, t2){
-    if (Math.random() < 0.4) sayLater(q, choose(["Oh these are good.", "Just one. Okay, two.", "Who made these?? Amazing", "Cookie break!"]), t2 + 1.5, 2.6);
+    if (R() < 0.4) sayLater(q, choose(["Oh these are good.", "Just one. Okay, two.", "Who made these?? Amazing", "Cookie break!"]), t2 + 1.5, 2.6);
   });
 }
 var TREATS = { on:false, day:0, until:0 };
@@ -5813,7 +6016,125 @@ var RITUALS = [
   { id:"allyson", h:9.0, act:"checklist", dur:12 }
 ];
 var RIT_DONE = {};
-function lifeTick(t, dt){
+/* director: the people side of everyday life (rituals, cups, printers, treats, Plytix, the sample box, plants, the
+   Friday call). The drawing side (lamps, props in hands, printer lights) is in renderLife. */
+function simLife(t, dt){
+  var dk = dayKey(), present = presentAt(t);
+  PEOPLE.forEach(function(p, i){
+    if (STEPS[i] !== t || p.guest || p.remote) return;
+    var el = t - (p.lifeT === undefined ? t - dt : p.lifeT); p.lifeT = t;
+    if (p.lateToday === undefined) p.lateToday = lateToday(p);
+    /* frustration fades on its own in about twenty minutes */
+    if (p.frus > 0) p.frus = Math.max(0, p.frus - el * 0.0007);
+    if (p.carryPaper && p.state === "sit") p.carryPaper = false;
+    /* the cup empties sip by sip; empty sends them to the kitchen */
+    if (p.cupLevel === undefined) p.cupLevel = rand(0.3, 1);
+    if (p.trip && p.trip.kind === "coffee") p.cupLevel = 1;
+    if (p.act && p.act.n === "sip" && p.act !== p.lastSip && p.state === "sit") {
+      p.lastSip = p.act; p.cupLevel -= rand(0.15, 0.3);
+      if (p.cupLevel <= 0.05) { p.needs.coffee = Math.max(p.needs.coffee, 0.95); if (R() < 0.3) sayLater(p, choose(["Empty already?", "Out of " + drinkOf(p) + ". Refill time.", "Who drank my " + drinkOf(p) + "? Oh right, me."]), t + 3.2, 2.4); }
+    }
+    p.printNeed = Math.min(1.2, (p.printNeed || 0) + el * 0.00011);
+    /* rituals */
+    if (p.state === "sit") RITUALS.forEach(function(ri, k){
+      if (ri.id !== p.id) return;
+      var h0 = ri.at === "arrive" ? arriveH(p) + 0.03 : ri.h;
+      if (DAY.h < h0 || DAY.h > h0 + 0.5) return;
+      var key = k + ":" + dk; if (RIT_DONE[key] || !idleAtDesk(p)) return;
+      RIT_DONE[key] = true;
+      if (ri.act) startAct(p, ri.act, t, ri.dur);
+      else if (ri.kind === "coffee" && !PEOPLE.some(function(q){ return q.trip && q.trip.kind === "coffee"; })) goTrip(p, t, "coffee", null, aislePath(p.seat, p.side, COFFEE_SPOT, 0));
+      else if (ri.kind === "stretch") lifeStretch(p, t);
+      else if (ri.kind === "window") lifeWindow(p, t);
+    });
+  });
+  LIFE.printers.forEach(function(pr){ if (pr.job && t - pr.job.t0 > 120) pr.job = null; });
+  /* Friday team call: someone talks now and then, the purple frame follows whoever speaks */
+  var inCall = present.filter(function(q){ return q.act && q.act.n === "vcall"; });
+  if (teamCallNow() && inCall.length) {
+    if (!TEAMCALL.on) { TEAMCALL.on = true; TEAMCALL.next = t + 3; TEAMCALL.said = {}; }
+    if (t > TEAMCALL.next) {
+      TEAMCALL.next = t + rand(14, 26);
+      var sp = choose(inCall), endSoon = !TEAMCALL_FORCE && DAY.h > 11.45, lines;
+      if (!TEAMCALL.said.hi) { TEAMCALL.said.hi = 1; lines = ["Morning everyone! Can you all hear me?", "Hi all! Let's give it a minute for everyone to join."]; }
+      else if (endSoon && !TEAMCALL.said.bye) { TEAMCALL.said.bye = 1; lines = ["Okay, that's it from me. Have a great weekend everyone!", "Thanks all! Enjoy the weekend!"]; }
+      else lines = ["You're on mute!", "Can everyone see my screen?", "Quick update from my side.", "Sorry, go ahead.", "Sorry, my internet froze for a sec.", "Yes, that's on track for next week.", "I'll send the link after the call.", "Can you go back one slide?", "Agreed, let's do that.", "Any questions before we move on?", "I'll take that one.", "Nothing from me this week!"];
+      TEAMCALL.speaker = sp; sayLater(sp, choose(lines), t, 3.4);
+    }
+  } else if (TEAMCALL.on) { TEAMCALL.on = false; TEAMCALL.speaker = null; }
+  /* Plytix goes down for everyone, now and then */
+  if (!PLYTIX.next) PLYTIX.next = t + (Q_PLYTIX ? 6 : rand(1500, 5400));
+  if (!PLYTIX.on && t > PLYTIX.next && present.length >= 3 && !DAY.closed && !teamCallNow() && DAY.h > 8.5 && DAY.h < 16.5) {
+    PLYTIX.on = true; PLYTIX.until = t + rand(60, 120); PLYTIX.next = t + rand(7200, 14400);
+    var who = shuffle(present.filter(function(q){ return !q.walker && !q.act && !q.chatWith; }));
+    if (who[0]) { sayLater(who[0], choose(["Is Plytix down for you too?", "Uh, is Plytix loading for anyone?", "Plytix just died on me. Anyone else?"]), t + 2, 3); startAct(who[0], "facepalm", t + 1, 3); }
+    if (who[1]) sayLater(who[1], choose(["Yep, down for me too.", "Same here lol", "Not again..."]), t + 5.5, 2.6);
+    if (who[2]) { sayLater(who[2], choose(["Mine too. Coffee break?", "Down. Great timing.", "I was SO close to finishing."]), t + 8.5, 2.6); startAct(who[2], "facepalm", t + 8, 2.5); }
+    present.forEach(function(q){ q.typeOn = false; q.mouseOn = false; });
+  }
+  if (PLYTIX.on) {
+    present.forEach(function(q){ if (q.id !== "erica" && q.id !== "allyson") { q.typeOn = false; q.typeNext = t + 2; } });
+    if (t > PLYTIX.until) {
+      PLYTIX.on = false; PLYTIX.lastAt = t;
+      var bk = present.filter(function(q){ return !q.chatWith; });
+      if (bk[0]) { sayLater(bk[0], choose(["It's back!!", "Plytix is back, everyone!", "Okay we're back. Phew."]), t + 0.5, 2.6); startAct(bk[0], "fist", t + 0.4, 2); }
+      if (bk[1] && R() < 0.7) sayLater(bk[1], choose(["Finally!", "Woohoo!", "Back to it."]), t + 3.2, 2.2);
+    }
+  }
+  /* treats: some days someone brings cookies and leaves them on the counter */
+  if (TREATS.day !== dk) { TREATS.day = dk; TREATS.on = false; TREATS.at = R() < 0.3 || /[?&]treats=1/.test(location.search) ? (/[?&]treats=1/.test(location.search) ? DAY.h : rand(9.5, 15)) : 99; PEOPLE.forEach(function(q){ q.hadTreat = false; }); }
+  if (!TREATS.on && !teamCallNow() && DAY.h >= TREATS.at && DAY.h < TREATS.at + 0.2 && present.length >= 2) {
+    var tb = choose(present); TREATS.on = true; TREATS.until = DAY.h + 2; tb.hadTreat = true;
+    LIFE.tray.visible = true;
+    sayLater(tb, choose(["I brought cookies! They're on the counter by the printers.", "Cookies by the printers, help yourselves!", "Treats on the counter, go go go!"]), t + 1, 3.4);
+  }
+  if (TREATS.on && (DAY.h > TREATS.until || homeNow(PEOPLE[0]) && DAY.h > 16.9)) { TREATS.on = false; TREATS.at = 99; }
+  /* a box arrives: a new product sample, and the team gathers round */
+  if (BOXEV.day !== dk) { BOXEV.day = dk; BOXEV.at = /[?&]box=1/.test(location.search) ? DAY.h + 0.003 : (dayRand({ id:"box" }, 3) < 0.25 ? 9.5 + 6 * dayRand({ id:"box" }, 4) : 99); BOXEV.done = false; }
+  if (!BOXEV.done && !BOXEV.on && !teamCallNow() && DAY.h >= BOXEV.at && DAY.h < BOXEV.at + 0.5) {
+    var own = [BY.stephanie, BY.debbie].filter(idleAtDesk);
+    if (own.length) {
+      BOXEV.on = true; BOXEV.done = true; BOXEV.t0 = t; LIFE.box.g.visible = true; LIFE.box.f1.rotation.x = 0; LIFE.box.f2.rotation.x = 0;
+      var ow = own[0], C0 = LIFE.box.g.position;
+      sayLater(ow, choose(["The new sample is here!", "Ooh, the box with the new unit came!", "Delivery! Come see the new one."]), t + 0.5, 3);
+      goSpot(ow, t + 0.1, new V3(C0.x, 0, C0.z - 0.55), C0, 40, "Opening the new sample box", null, function(q, t2){ BOXEV.open = t2 + 2; sayLater(q, choose(["Okay, let's see it.", "Moment of truth..."]), t2 + 1, 2.4); }, function(){ BOXEV.on = false; LIFE.box.g.visible = false; BOXEV.open = 0; });
+      var spots = [new V3(C0.x - 0.62, 0, C0.z + 0.1), new V3(C0.x + 0.05, 0, C0.z + 0.6), new V3(C0.x + 0.62, 0, C0.z + 0.15)];
+      var fans = shuffle(PEOPLE.filter(function(q){ return q !== ow && idleAtDesk(q) && !luisDeepWork(q); })).slice(0, 3);
+      fans.forEach(function(q, k){
+        q.decideAt = t + 60;
+        goSpot(q, t + 2 + k * 2, spots[k], C0, rand(26, 34), "Checking out the new sample", null, function(q2, t2){
+          sayLater(q2, choose(["Ooh, the finish looks great.", "It's heavier than I thought.", "Can we keep it here? lol", "Okay that's nice.", "I need one for my living room."]), t2 + 4 + k * 3.5, 2.6);
+        });
+      });
+    }
+  }
+  /* Fridays: the plants get watered */
+  var waterer = BY.carla;
+  if (DAY.fri && waterer && DAY.h > 10 && DAY.h < 11.5 && RIT_DONE["water" + dk] === undefined && idleAtDesk(waterer)) {
+    RIT_DONE["water" + dk] = 1;
+    goSpot(waterer, t, new V3(1.95, 0, 5.75), new V3(2.45, 0, 5.8), 9, "Watering the plants", "water", null, function(q){ RIT_DONE["water" + dk] = 2; });
+  }
+  /* cold mornings: someone borrows Stephanie's desk fireplace for a minute */
+  var S = BY.stephanie, cold = Q_COLD || (DAY.h < 10.5 && simWx(t).temp !== null && simWx(t).temp <= 0);
+  if (cold && S && DAY.h < 10.5 && !RIT_DONE["fire" + dk] && S.state === "sit" && visAt(S, t)) {
+    var vis = [BY.carla, BY.allyson].filter(function(q){ return q && idleAtDesk(q); });
+    if (vis.length && R() < dt * 0.02) {
+      RIT_DONE["fire" + dk] = true; var vq = vis[0];
+      goSpot(vq, t, new V3(0.95, 0, S.seat.z + 0.5), new V3(2.2, 0.9, S.seat.z + 0.3), 16, "Warming up by Stephanie's fireplace", "warmhands", function(q, t2){
+        sayLater(q, "Can I borrow your fireplace for a sec? It's freezing!", t2 + 0.6, 3);
+        sayLater(S, choose(["Ha, go ahead!", "That's what it's for!", "Best seat in the house."]), t2 + 4, 2.6);
+      });
+    }
+  }
+  simDogs(t);
+}
+/* who is at their desk right now (worked out only when something needs it) */
+function presentAt(t){
+  var need = teamCallNow() || TEAMCALL.on || PLYTIX.on || (!PLYTIX.on && t > PLYTIX.next) || (!TREATS.on && DAY.h >= TREATS.at && DAY.h < TREATS.at + 0.2) || TREATS.day !== dayKey();
+  return need ? PEOPLE.filter(function(q){ return !q.guest && !q.remote && q.state === "sit" && visAt(q, t); }) : [];
+}
+/* drawing side of everyday life */
+function renderLife(t, dt){
   var dk = dayKey(), present = PEOPLE.filter(function(q){ return !q.guest && !q.remote && q.state === "sit" && q.root.visible; });
   /* the sun moves across the sky with the real hour */
   var sh = clamp((DAY.h - 7) / 11, 0, 1);
@@ -5824,9 +6145,6 @@ function lifeTick(t, dt){
   PEOPLE.forEach(function(p){
     if (p.guest || p.remote) return;
     var here = !(p.state === "away" && p.trip && p.trip.kind === "home"), carrying = p.trip && p.trip.kind === "home" && p.state !== "away";
-    if (p.lateToday === undefined) p.lateToday = lateToday(p);
-    /* frustration fades on its own in about twenty minutes */
-    if (p.frus > 0) p.frus = Math.max(0, p.frus - dt * 0.0007);
     if (p.lamp) {
       var want = here && p.state === "sit" && (DAY.h > dusk || darkTarget() > 0.3 || (wxDark && DAY.h > dusk - 1.5)) && p.idx % 2 === 0;
       if (want !== p.lamp.on) { p.lamp.on = want; p.lamp.shade.material = want ? p.lamp.mOn : p.lamp.mOff; }
@@ -5847,29 +6165,10 @@ function lifeTick(t, dt){
       p.clutter.cup.visible = DAY.h > 14.5 && !tidied && here && p.id !== "debbie";
     }
     /* printout in hand on the way back */
-    if (p.carryPaper) { if (p.state === "sit") p.carryPaper = false; else if (b) { b.RightHand.getWorldPosition(LIFE.sheet.position); LIFE.sheet.position.y -= 0.04; LIFE.sheet.rotation.set(1.2, p.heading, 0); LIFE.sheet.visible = true; } }
-    /* the cup empties sip by sip; empty sends them to the kitchen */
-    if (p.cupLevel === undefined) p.cupLevel = rand(0.3, 1);
-    if (p.trip && p.trip.kind === "coffee") p.cupLevel = 1;
-    if (p.act && p.act.n === "sip" && p.act !== p.lastSip && p.state === "sit") {
-      p.lastSip = p.act; p.cupLevel -= rand(0.15, 0.3);
-      if (p.cupLevel <= 0.05) { p.needs.coffee = Math.max(p.needs.coffee, 0.95); if (Math.random() < 0.3) sayLater(p, choose(["Empty already?", "Out of " + drinkOf(p) + ". Refill time.", "Who drank my " + drinkOf(p) + "? Oh right, me."]), t + 3.2, 2.4); }
-    }
-    if (p.lastSip && p.act !== p.lastSip && p.cup && p.cupBase && !(MISHAP.cur && MISHAP.cur.cup === p.cup)) { p.lastSip = null; p.cup.position.set(p.cupBase.x + rand(-0.06, 0.06), p.cupBase.y, p.cupBase.z + rand(-0.05, 0.04)); }
-    /* chair left at whatever angle they last had it */
-    p.printNeed = Math.min(1.2, (p.printNeed || 0) + dt * 0.00011);
-    /* rituals */
-    if (p.state === "sit" && idleAtDesk(p)) RITUALS.forEach(function(ri, k){
-      if (ri.id !== p.id) return;
-      var key = k + ":" + dk; if (RIT_DONE[key]) return;
-      var h0 = ri.at === "arrive" ? arriveH(p) + 0.03 : ri.h;
-      if (DAY.h < h0 || DAY.h > h0 + 0.5) return;
-      RIT_DONE[key] = true;
-      if (ri.act) startAct(p, ri.act, t, ri.dur);
-      else if (ri.kind === "coffee" && !PEOPLE.some(function(q){ return q.trip && q.trip.kind === "coffee"; })) goTrip(p, t, "coffee", null, aislePath(p.seat, p.side, COFFEE_SPOT, 0));
-      else if (ri.kind === "stretch") lifeStretch(p, t);
-      else if (ri.kind === "window") lifeWindow(p, t);
-    });
+    if (p.carryPaper && p.state !== "sit") { if (b) { b.RightHand.getWorldPosition(LIFE.sheet.position); LIFE.sheet.position.y -= 0.04; LIFE.sheet.rotation.set(1.2, p.heading, 0); LIFE.sheet.visible = true; } }
+    /* the cup goes back down after a sip, a little off from where it was */
+    if (p.act && p.act.n === "sip" && p.state === "sit") p.lastSipR = p.act;
+    if (p.lastSipR && p.act !== p.lastSipR && p.cup && p.cupBase && !(MISHAP.cur && MISHAP.cur.cup === p.cup)) { var cs = (p.lastSipR.t0 * 7.13 + p.idx) % 1; p.lastSipR = null; p.cup.position.set(p.cupBase.x - 0.06 + 0.12 * cs, p.cupBase.y, p.cupBase.z - 0.05 + 0.09 * ((cs * 3.7) % 1)); }
   });
   if (!LIFE.sheet.visible || !PEOPLE.some(function(q){ return q.carryPaper; })) LIFE.sheet.visible = PEOPLE.some(function(q){ return q.carryPaper && q.state !== "sit"; });
   /* printers: the sheet slides out, the light blinks; red while jammed */
@@ -5880,88 +6179,13 @@ function lifeTick(t, dt){
     pr.led.material.color.setHex(j.jam && u > 3 ? (Math.sin(t * 8) > 0 ? 0xff3b30 : 0x551111) : (Math.sin(t * 10) > 0 ? 0x29c46b : 0x0d3d20));
     pr.sheet.visible = !j.jam && u > 2;
     if (pr.sheet.visible) pr.sheet.position.z = -0.12 - 0.16 * clamp((u - 2) / 3, 0, 1);
-    if (u > 120) pr.job = null;
   });
-  /* Friday team call: someone talks now and then, the purple frame follows whoever speaks */
-  var inCall = present.filter(function(q){ return q.act && q.act.n === "vcall"; });
-  if (teamCallNow() && inCall.length) {
-    if (!TEAMCALL.on) { TEAMCALL.on = true; TEAMCALL.next = t + 3; TEAMCALL.said = {}; }
-    if (t > TEAMCALL.next) {
-      TEAMCALL.next = t + rand(14, 26);
-      var sp = choose(inCall), endSoon = !TEAMCALL_FORCE && DAY.h > 11.45, lines;
-      if (!TEAMCALL.said.hi) { TEAMCALL.said.hi = 1; lines = ["Morning everyone! Can you all hear me?", "Hi all! Let's give it a minute for everyone to join."]; }
-      else if (endSoon && !TEAMCALL.said.bye) { TEAMCALL.said.bye = 1; lines = ["Okay, that's it from me. Have a great weekend everyone!", "Thanks all! Enjoy the weekend!"]; }
-      else lines = ["You're on mute!", "Can everyone see my screen?", "Quick update from my side.", "Sorry, go ahead.", "Sorry, my internet froze for a sec.", "Yes, that's on track for next week.", "I'll send the link after the call.", "Can you go back one slide?", "Agreed, let's do that.", "Any questions before we move on?", "I'll take that one.", "Nothing from me this week!"];
-      TEAMCALL.speaker = sp; sayLater(sp, choose(lines), t, 3.4);
-    }
-  } else if (TEAMCALL.on) { TEAMCALL.on = false; TEAMCALL.speaker = null; }
-  /* Plytix goes down for everyone, now and then */
-  if (!PLYTIX.next) PLYTIX.next = t + (/[?&]plytix=down/.test(location.search) ? 6 : rand(1500, 5400));
-  if (!PLYTIX.on && t > PLYTIX.next && present.length >= 3 && !DAY.closed && !teamCallNow() && DAY.h > 8.5 && DAY.h < 16.5) {
-    PLYTIX.on = true; PLYTIX.until = t + rand(60, 120); PLYTIX.next = t + rand(7200, 14400);
-    var who = present.filter(function(q){ return !q.walker && !q.act && !q.chatWith; }).sort(function(){ return Math.random() - 0.5; });
-    if (who[0]) { sayLater(who[0], choose(["Is Plytix down for you too?", "Uh, is Plytix loading for anyone?", "Plytix just died on me. Anyone else?"]), t + 2, 3); startAct(who[0], "facepalm", t + 1, 3); }
-    if (who[1]) sayLater(who[1], choose(["Yep, down for me too.", "Same here lol", "Not again..."]), t + 5.5, 2.6);
-    if (who[2]) { sayLater(who[2], choose(["Mine too. Coffee break?", "Down. Great timing.", "I was SO close to finishing."]), t + 8.5, 2.6); startAct(who[2], "facepalm", t + 8, 2.5); }
-    present.forEach(function(q){ q.typeOn = false; q.mouseOn = false; });
-  }
-  if (PLYTIX.on) {
-    present.forEach(function(q){ if (q.id !== "erica" && q.id !== "allyson") { q.typeOn = false; q.typeNext = t + 2; } });
-    if (t > PLYTIX.until) {
-      PLYTIX.on = false; PLYTIX.lastAt = t;
-      var bk = present.filter(function(q){ return !q.chatWith; });
-      if (bk[0]) { sayLater(bk[0], choose(["It's back!!", "Plytix is back, everyone!", "Okay we're back. Phew."]), t + 0.5, 2.6); startAct(bk[0], "fist", t + 0.4, 2); }
-      if (bk[1] && Math.random() < 0.7) sayLater(bk[1], choose(["Finally!", "Woohoo!", "Back to it."]), t + 3.2, 2.2);
-    }
-  }
-  /* treats: some days someone brings cookies and leaves them on the counter */
-  if (TREATS.day !== dk) { TREATS.day = dk; TREATS.on = false; TREATS.at = Math.random() < 0.3 || /[?&]treats=1/.test(location.search) ? (/[?&]treats=1/.test(location.search) ? DAY.h : rand(9.5, 15)) : 99; PEOPLE.forEach(function(q){ q.hadTreat = false; }); }
-  if (!TREATS.on && !teamCallNow() && DAY.h >= TREATS.at && DAY.h < TREATS.at + 0.2 && present.length >= 2) {
-    var tb = choose(present); TREATS.on = true; TREATS.until = DAY.h + 2; tb.hadTreat = true;
-    LIFE.tray.visible = true;
-    sayLater(tb, choose(["I brought cookies! They're on the counter by the printers.", "Cookies by the printers, help yourselves!", "Treats on the counter, go go go!"]), t + 1, 3.4);
-  }
-  if (TREATS.on && (DAY.h > TREATS.until || homeNow(PEOPLE[0]) && DAY.h > 16.9)) { TREATS.on = false; TREATS.at = 99; }
   LIFE.tray.visible = TREATS.on;
-  /* a box arrives: a new product sample, and the team gathers round */
-  if (BOXEV.day !== dk) { BOXEV.day = dk; BOXEV.at = /[?&]box=1/.test(location.search) ? DAY.h + 0.003 : (dayRand({ id:"box" }, 3) < 0.25 ? 9.5 + 6 * dayRand({ id:"box" }, 4) : 99); BOXEV.done = false; }
-  if (!BOXEV.done && !BOXEV.on && !teamCallNow() && DAY.h >= BOXEV.at && DAY.h < BOXEV.at + 0.5) {
-    var own = [BY.stephanie, BY.debbie].filter(idleAtDesk);
-    if (own.length) {
-      BOXEV.on = true; BOXEV.done = true; BOXEV.t0 = t; LIFE.box.g.visible = true; LIFE.box.f1.rotation.x = 0; LIFE.box.f2.rotation.x = 0;
-      var ow = own[0], C0 = LIFE.box.g.position;
-      sayLater(ow, choose(["The new sample is here!", "Ooh, the box with the new unit came!", "Delivery! Come see the new one."]), t + 0.5, 3);
-      goSpot(ow, t + 0.1, new V3(C0.x, 0, C0.z - 0.55), C0, 40, "Opening the new sample box", null, function(q, t2){ BOXEV.open = t2 + 2; sayLater(q, choose(["Okay, let's see it.", "Moment of truth..."]), t2 + 1, 2.4); }, function(){ BOXEV.on = false; LIFE.box.g.visible = false; BOXEV.open = 0; });
-      var spots = [new V3(C0.x - 0.62, 0, C0.z + 0.1), new V3(C0.x + 0.05, 0, C0.z + 0.6), new V3(C0.x + 0.62, 0, C0.z + 0.15)];
-      var fans = PEOPLE.filter(function(q){ return q !== ow && idleAtDesk(q) && !luisDeepWork(q); }).sort(function(){ return Math.random() - 0.5; }).slice(0, 3);
-      fans.forEach(function(q, k){
-        q.decideAt = t + 60;
-        goSpot(q, t + 2 + k * 2, spots[k], C0, rand(26, 34), "Checking out the new sample", null, function(q2, t2){
-          sayLater(q2, choose(["Ooh, the finish looks great.", "It's heavier than I thought.", "Can we keep it here? lol", "Okay that's nice.", "I need one for my living room."]), t2 + 4 + k * 3.5, 2.6);
-        });
-      });
-    }
-  }
-  if (BOXEV.open) { var bo = clamp((t - BOXEV.open) / 1.6, 0, 1); LIFE.box.f1.rotation.x = 2.2 * ease(bo); LIFE.box.f2.rotation.x = -2.2 * ease(bo); }
-  /* Fridays: the plants get watered */
+  LIFE.box.g.visible = !!BOXEV.on;
+  if (!BOXEV.open) { LIFE.box.f1.rotation.x = 0; LIFE.box.f2.rotation.x = 0; }
+  else { var bo = clamp((t - BOXEV.open) / 1.6, 0, 1); LIFE.box.f1.rotation.x = 2.2 * ease(bo); LIFE.box.f2.rotation.x = -2.2 * ease(bo); }
   var waterer = BY.carla;
-  if (DAY.fri && waterer && DAY.h > 10 && DAY.h < 11.5 && RIT_DONE["water" + dk] === undefined && idleAtDesk(waterer)) {
-    RIT_DONE["water" + dk] = 1;
-    goSpot(waterer, t, new V3(1.95, 0, 5.75), new V3(2.45, 0, 5.8), 9, "Watering the plants", "water", null, function(q){ RIT_DONE["water" + dk] = 2; });
-  }
-  if (waterer && waterer.trip && waterer.trip.label === "Watering the plants" && waterer.state === "stay") { waterer.rig.b.RightHand.getWorldPosition(LIFE.can.position); LIFE.can.position.y -= 0.06; LIFE.can.rotation.y = waterer.heading; LIFE.can.visible = true; } else LIFE.can.visible = false;
-  /* cold mornings: someone borrows Stephanie's desk fireplace for a minute */
-  var S = BY.stephanie, cold = (WX.temp !== null && WX.temp <= 0) || /[?&]cold=1/.test(location.search);
-  if (cold && S && DAY.h < 10.5 && !RIT_DONE["fire" + dk] && S.state === "sit" && S.root.visible) {
-    var vis = [BY.carla, BY.allyson].filter(function(q){ return q && idleAtDesk(q); });
-    if (vis.length && Math.random() < dt * 0.02) {
-      RIT_DONE["fire" + dk] = true; var vq = vis[0];
-      goSpot(vq, t, new V3(0.95, 0, S.seat.z + 0.5), new V3(2.2, 0.9, S.seat.z + 0.3), 16, "Warming up by Stephanie's fireplace", "warmhands", function(q, t2){
-        sayLater(q, "Can I borrow your fireplace for a sec? It's freezing!", t2 + 0.6, 3);
-        sayLater(S, choose(["Ha, go ahead!", "That's what it's for!", "Best seat in the house."]), t2 + 4, 2.6);
-      });
-    }
-  }
+  if (waterer && waterer.trip && waterer.trip.label === "Watering the plants" && waterer.state === "stay" && waterer.rig.b) { waterer.rig.b.RightHand.getWorldPosition(LIFE.can.position); LIFE.can.position.y -= 0.06; LIFE.can.rotation.y = waterer.heading; LIFE.can.visible = true; } else LIFE.can.visible = false;
   ghostTick(t, dt, present);
   catTick(t, dt);
   dogsTick(t, dt);
@@ -5989,7 +6213,7 @@ function ambientStart(){
   if (AMB.ctx) return;
   var C = new (window.AudioContext || window.webkitAudioContext)(); AMB.ctx = C;
   var len = C.sampleRate * 2, buf = C.createBuffer(1, len, C.sampleRate), d = buf.getChannelData(0), last = 0;
-  for (var i = 0; i < len; i++) { var w = Math.random() * 2 - 1; last = (last + 0.02 * w) / 1.02; d[i] = last * 3.5; }
+  for (var i = 0; i < len; i++) { var w = R() * 2 - 1; last = (last + 0.02 * w) / 1.02; d[i] = last * 3.5; }
   AMB.noise = buf;
   AMB.master = C.createGain(); AMB.master.gain.value = 0; AMB.master.connect(C.destination);
   var room = C.createBufferSource(); room.buffer = buf; room.loop = true;
@@ -5999,7 +6223,7 @@ function ambientStart(){
   var mf = C.createBiquadFilter(); mf.type = "bandpass"; mf.frequency.value = 700; mf.Q.value = 1.2;
   AMB.murG = C.createGain(); AMB.murG.gain.value = 0; mur.connect(mf); mf.connect(AMB.murG); AMB.murG.connect(AMB.master); mur.start();
   var white = C.createBuffer(1, C.sampleRate * 0.03, C.sampleRate), wd = white.getChannelData(0);
-  for (i = 0; i < wd.length; i++) wd[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / wd.length, 6);
+  for (i = 0; i < wd.length; i++) wd[i] = (R() * 2 - 1) * Math.pow(1 - i / wd.length, 6);
   AMB.click = white;
 }
 function ambientTick(t, dt, present){
@@ -6023,7 +6247,7 @@ function ambientTick(t, dt, present){
     var s = C.createBufferSource(); s.buffer = AMB.click; s.playbackRate.value = rand(0.8, 1.4);
     var f = C.createBiquadFilter(); f.type = "highpass"; f.frequency.value = 1800;
     var g = C.createGain(); g.gain.value = rand(0.05, 0.16);
-    s.connect(f); f.connect(g); g.connect(AMB.master); s.start(C.currentTime + Math.random() * 0.05);
+    s.connect(f); f.connect(g); g.connect(AMB.master); s.start(C.currentTime + R() * 0.05);
   }
 }
 
@@ -6031,7 +6255,7 @@ function ambientTick(t, dt, present){
 var GUESTS = { next:0, cur:null };
 function guestTick(t){
   if (GUESTS.cur) return;
-  var gWant = (/[?&]guest=([a-z]+)/.exec(location.search) || [])[1];
+  var gWant = Q_GUEST;
   if (!GUESTS.next) GUESTS.next = t + (gWant ? 3 : rand(60, 120));
   if (t < GUESTS.next) return;
   GUESTS.next = t + rand(30, 60);
@@ -6040,56 +6264,52 @@ function guestTick(t){
   var pool = PEOPLE.filter(function(g){ return g.guest && g.state === "gone" && (!gWant || gWant === "now" || g.id === gWant || GUESTS.wantDone) && PEOPLE.some(function(q){ return okHost(q) && (!g.hosts || g.hosts.indexOf(q.id) >= 0); }); });
   if (!pool.length) return;
   var tot = 0; pool.forEach(function(g){ tot += g.freq; });
-  var r = Math.random() * tot, g = pool[0];
+  var r = R() * tot, g = pool[0];
   for (var i = 0; i < pool.length; i++) { r -= pool[i].freq; if (r <= 0) { g = pool[i]; break; } }
   var hosts = PEOPLE.filter(function(q){ return okHost(q) && (!g.hosts || g.hosts.indexOf(q.id) >= 0); });
   var q = choose(hosts), spot = new V3(q.side * 0.95, 0, q.seat.z + rand(-0.12, 0.12));
   q.visitor = g;
-  g.trip = { kind:"visit", target:q, path:aislePath(EXIT_SPOT, 0, spot, 0), d:0, back:false };
-  g.act = null; g.rig.sit = 0; g.rig.walkW = 1; g.root.position.copy(EXIT_SPOT);
-  setState(g, "walk", t, 0);
+  g.trip = { kind:"visit", target:q, back:false };
+  g.act = null;
+  planWalk(g, g.trip, aislePath(EXIT_SPOT, 0, spot, 0), t);
+  setState(g, "walk", t, g.trip.ts - t + g.trip.w.D);
   logEvent("guest", g, t);
   GUESTS.cur = g; GUESTS.wantDone = true;
 }
 
-/* ---------- per-frame update ---------- */
-var fwd = new V3(), dv = new V3();
-function updateAgent(p, t, dt){
-  var n = p.needs, w = p.w, r = p.rig;
-  n.energy = clamp(n.energy - dt * 0.004 * (p.typeOn ? 1.3 : 0.6) * DAY.load, 0, 1);
-  n.coffee = clamp(n.coffee + dt * 0.0019 * w.coffee * DAY.coffee, 0, 1);
-  n.social = clamp(n.social + dt * 0.0032 * w.social, 0, 1);
-  n.focus = clamp(n.focus + dt * (p.typeOn ? 0.01 : -0.006), 0, 1);
+/* ---------- the director's step for one person ----------
+   Runs at every world tick (SIM.DT). Reads only world state, never the drawing. */
+function simAgent(p, t, dt){
+  if (t < NAPS[p.idx]) return;
+  if (p.guest && p.state === "gone") { p.statusNow = "Not on the floor right now"; NAPS[p.idx] = Infinity; return; }
+  /* seated with nothing due: skip this step (NAPS[p.idx] is the next moment something can happen; anything that
+     involves them from outside, an act, a chat, a visitor leaving, wakes them up) */
+  var n = p.needs, w = p.w, el = t - (p.lastT === undefined ? t - dt : p.lastT);
+  p.lastT = t; STEPS[p.idx] = t; SIM.full++;
+  n.energy = clamp(n.energy - el * 0.004 * (p.typeOn ? 1.3 : 0.6) * DAY.load, 0, 1);
+  n.coffee = clamp(n.coffee + el * 0.0019 * w.coffee * DAY.coffee, 0, 1);
+  n.social = clamp(n.social + el * 0.0032 * w.social, 0, 1);
+  n.focus = clamp(n.focus + el * (p.typeOn ? 0.01 : -0.006), 0, 1);
   if (p.act && t - p.act.t0 > p.act.dur + 0.5) p.act = null;
   if (p.answering && t > p.answering) p.answering = 0;
-  p.mood.v += (moodTarget(p) - p.mood.v) * dt * 0.01;
+  p.mood.v += (moodTarget(p) - p.mood.v) * Math.min(1, el * 0.01);
   moodDrift(p, t);
-  if (Math.random() < dt * 0.2) recomputeMood(p);
-  p.pace = (0.86 + 0.24 * (p.mood.v + 1) / 2 + 0.06 * (p.needs.energy - 0.5)) * DAY.pace * mv(p).walk;
+  recomputeMood(p);
+  /* walking speed is fixed for a whole leg (set when it starts) */
+  if (p.state !== "walk" && p.state !== "up") p.pace = paceOf(p);
+  /* states that end at a known time: up, walk, down, stay, visit, coffee, a meeting */
+  for (var guard = 0; guard < 6 && p.dur > 0 && p.t0 + p.dur <= t; guard++) simEnd(p, p.t0 + p.dur, t);
 
-  var st = p.state, k = p.dur > 0 ? clamp((t - p.t0) / p.dur, 0, 1) : 1, tr = p.trip;
-  if (p.guest) {
-    if (p.chip && p.chip.hidden !== (st === "gone")) p.chip.hidden = st === "gone";
-    if (st === "gone") { p.root.visible = false; r.sit = 0; r.walkTarget = 0; p.root.position.copy(EXIT_SPOT); p.statusNow = "Not on the floor right now"; return; }
-  }
-  p.root.visible = st !== "away" && st !== "coffee";
-  r.walkTarget = 0;
-  var swivelTarget = 0;
-
+  var st = p.state, tr = p.trip;
+  if (p.guest && st === "gone") { p.statusNow = "Not on the floor right now"; return; }
   if (st === "sit") {
-    p.root.position.copy(p.seat);
-    if (p.rollOff) p.root.position.add(p.rollOff);
-    if (p.rollEnd && t > p.rollEnd) { p.rollEnd = 0; p.rollOn = false; }
-    if (p.roll > 0.01) { p.typeOn = false; p.typeNext = t + 1; }
-    if (p.roll > 0.01) p.decideAt = Math.max(p.decideAt, t + 2);
-    r.sit = 1 - ease(p.standW || 0);
-    /* standing: a step closer to the desk, the chair pushed back */
-    if (p.standW > 0.001) p.root.position.add(_standV.set(Math.sin(p.sitHeading), 0, Math.cos(p.sitHeading)).multiplyScalar(0.1 * p.standW));
+    var rl = rollAt(p, t);
+    if (p.rollEnd && t > p.rollEnd) { p.rollEnd = 0; rollStop(p, t); }
+    if (rl > 0.01) { p.typeOn = false; p.typeNext = t + 1; p.decideAt = Math.max(p.decideAt, t + 2); }
     var ln = lunchNow(p);
-    if (p.lunchBox) p.lunchBox.visible = ln === "desk";
-    if (homeNow(p) && !p.chatWith && !p.answering && !p.visitor && !(p.roll > 0.01) && p.tidyDay !== dayKey() && !DAY.closed && !wfhToday(p) && DAY.h > 12) {
+    if (homeNow(p) && !p.chatWith && !p.answering && !p.visitor && !(rl > 0.01) && p.tidyDay !== dayKey() && !DAY.closed && !wfhToday(p) && DAY.h > 12) {
       p.tidyDay = dayKey(); p.typeOn = false; p.mouseOn = false; startAct(p, "tidy", t, 4.5);
-    } else if (homeNow(p) && !p.chatWith && !p.answering && !p.visitor && !(p.roll > 0.01) && !(p.act && p.act.n === "tidy")) {
+    } else if (homeNow(p) && !p.chatWith && !p.answering && !p.visitor && !(rl > 0.01) && !(p.act && p.act.n === "tidy")) {
       /* time to go: say goodbye to whoever is near, then walk out */
       var bye = DAY.fri ? "See you next week!" : "See you tomorrow!";
       sayLater(p, choose([bye, "Okay, I'm out. " + bye, "Bye everyone! " + bye]), t, 3.6);
@@ -6105,100 +6325,96 @@ function updateAgent(p, t, dt){
       goTrip(p, t, "lunch", null, aislePath(p.seat, p.side, EXIT_SPOT, 0));
     } else if (ln === "desk") {
       p.typeOn = false; p.decideAt = Math.max(p.decideAt, t + 4);
-      if (!p.act && !p.chatWith && !p.answering) { var lr = Math.random(); if (lr < 0.8) startAct(p, "eat", t, rand(50, 110)); else startAct(p, lr < 0.92 ? "phone" : "sip", t, rand(5, 9)); }
+      if (!p.act && !p.chatWith && !p.answering) { var lr = R(); if (lr < 0.8) startAct(p, "eat", t, rand(50, 110)); else startAct(p, lr < 0.92 ? "phone" : "sip", t, rand(5, 9)); }
     } else if (p.pendingCoffee && t >= p.pendingCoffee) {
       p.pendingCoffee = 0;
       var buddy = p.coffeeWith; p.coffeeWith = null;
       if (!p.chatWith && (buddy || !PEOPLE.some(function(q){ return q.trip && q.trip.kind === "coffee"; }))) { p.act = null; goTrip(p, t, "coffee", null, aislePath(p.seat, p.side, COFFEE_SPOT, 0)); }
     } else if (p.cal && t >= p.cal.next && !p.act && !p.chatWith && !p.answering) {
-      if (bossAway(p) && Math.random() < 0.85) p.cal.next = t + rand(10, 25);
+      if (bossAway(p) && R() < 0.85) p.cal.next = t + rand(10, 25);
       else goTrip(p, t, "meeting", null, aislePath(p.seat, p.side, EXIT_SPOT, 0));
     } else if (!p.guest && planOf(p).call && !p.plan.call.done && DAY.h >= p.plan.call.at && !p.act && !p.chatWith && !p.visitor && !p.answering) {
       var pc = p.plan.call; pc.done = true;
       if (DAY.h - pc.at < 0.2) { p.typeOn = false; p.mouseOn = false; startAct(p, "call", t, pc.dur); p.act.plan = true; p.decideAt = t + pc.dur + 2; }
     } else if (t >= p.decideAt && !p.act && !p.chatWith && !p.visitor && !p.answering) {
-      /* calmer office: a decision every 16 to 32 seconds instead of every 9 to 18 */
+      /* calmer office: a decision every 16 to 32 seconds */
       p.decideAt = t + rand(16, 32);
       decide(p, t);
     }
     if (p.state === "sit") {
-      if (p.messages && p.messages.length && !p.trip) {
-        p.log.push({ who:"them", text:"Back! I got your message: \u201c" + p.messages.join(" / ") + "\u201d. I will get back to you on that." });
-        p.messages = [];
-        if (focus === p) renderLog(p);
-      }
-      if (t > p.typeNext) {
-        /* work is a mix: typing, and stretches of mouse work (clicking, dragging things around) */
-        if (!p.typeOn && Math.random() < 0.4) { p.mouseOn = true; p.typeNext = t + rand(3, 9); }
-        else if (p.mouseOn) { p.mouseOn = false; p.typeOn = Math.random() < 0.6; p.typeNext = t + (p.typeOn ? rand(2, 7) : rand(0.8, 3)); }
-        else { p.typeOn = !p.typeOn; p.typeNext = t + (p.typeOn ? rand(2, 7) : rand(0.8, 3.5)); }
-      }
-      p.typeAmp = lerp(p.typeAmp, p.typeOn && !p.mouseOn && !p.act ? 1 : 0, 1 - Math.exp(-dt * 4));
-      p.mouseAmp = lerp(p.mouseAmp || 0, p.mouseOn && !p.act && !(p.roll > 0.01) ? 1 : 0, 1 - Math.exp(-dt * 3));
-      smoothTurn(p, p.sitHeading, dt);
-      if (p.act && (p.act.n === "turn" || p.act.n === "answer")) {
-        var yaw = p.act.n === "answer" ? camYaw(p) + p.swivel : (p.act.target ? yawTo(p, p.act.target) + p.swivel : 0);
-        swivelTarget = (p.act.n === "answer" ? clamp(yaw * 0.5, -1.2, 1.2) : p.act.casual ? clamp(yaw * 0.9, -2.9, 2.9) : clamp(yaw * 0.35, -0.6, 0.6)) * bump(t - p.act.t0, 0, p.act.dur, p.act.casual ? 1.2 : 0.6);
-      } else if (p.act && p.act.n === "screen") {
-        /* looking at a screen together: turn toward a point in the world */
-        var sp = p.act.pt, hd2 = Math.atan2(sp.x - p.root.position.x, sp.z - p.root.position.z) - p.sitHeading;
-        swivelTarget = clamp(Math.atan2(Math.sin(hd2), Math.cos(hd2)), -1.4, 1.4) * bump(t - p.act.t0, 0, p.act.dur, 1.0);
-      }
-      if (!p.act && !p.typeOn && !p.mouseOn && !p.chatWith) swivelTarget += mv(p).swivel * Math.sin(t * 0.7 + (p.mSeed || 0));
-      /* the chair stays at whatever angle it was left after a chat */
-      if (!p.act && !p.chatWith) swivelTarget += (p.restSwivel || 0) * (p.typeOn || p.mouseOn ? 0.4 : 1);
-      p.swivel = lerp(p.swivel, swivelTarget, 1 - Math.exp(-dt * 5));
-      if (p.chairG) p.chairG.rotation.y = p.swivel;
+      /* back to work a few seconds after a break (what the hands do while working is workPat) */
+      if (!p.typeOn && !p.act && !p.chatWith && t > (p.typeNext || 0) && !ln && !teamCallNow()) p.typeOn = true;
+      if (!p.typeOn && t > (p.typeNext || 0)) p.typeNext = t + rand(1, 4);
+      simNap(p, t, dt);
       p.statusNow = p.chatWith ? "Chatting with " + p.chatWith.name : p.act && p.act.n === "vcall" ? "In the Friday team call" : ln === "desk" ? (p.act && p.act.n === "eat" ? "Lunch at the desk" : "Lunch at the desk, scrolling the phone") : PLYTIX.on ? "Waiting for Plytix to come back" : p.lateToday && DAY.h >= 16.9 ? "Finishing one last thing" : p.walker ? p.walker.text.sit : p.status;
       return;
     }
-    st = p.state; k = 0; tr = p.trip;
+    st = p.state; tr = p.trip;
   }
-  p.typeAmp = lerp(p.typeAmp, 0, 1 - Math.exp(-dt * 6));
-  p.mouseOn = false; p.mouseAmp = lerp(p.mouseAmp || 0, 0, 1 - Math.exp(-dt * 6));
-  p.swivel = lerp(p.swivel, 0, 1 - Math.exp(-dt * 5));
-
-  if (st === "up" || st === "down") {
-    p.root.position.copy(p.seat);
-    r.sit = st === "up" ? 1 - k : k;
-    smoothTurn(p, p.sitHeading, dt);
-    if (k >= 1) {
-      if (st === "up") setState(p, "walk", t, 0);
-      else { p.trip = null; setState(p, "sit", t, 0); r.sit = 1; p.decideAt = t + rand(3, 8); }
+  p.mouseOn = false;
+  /* on the move or standing somewhere: the next full step is when this part ends (or the next small thing) */
+  NAPS[p.idx] = p.dur > 0 ? p.t0 + p.dur : t + dt;
+  if (st === "walk") {
+    if (p.walkPhone && !p.act && !p.guest && t >= tr.ts && t < tr.ts + tr.w.D) startAct(p, "phone", t, 2.5);
+    if (p.walkPhone && !p.guest) NAPS[p.idx] = Math.min(NAPS[p.idx], p.act ? p.act.t0 + p.act.dur + 0.6 : t + dt, Math.max(t + dt, tr.ts));
+  } else if (st === "stay") {
+    /* a little script of moves while standing there */
+    if (tr.seq) tr.seq.forEach(function(sq){ if (!sq.done && t - p.t0 >= sq[0]) { sq.done = true; startAct(p, sq[1], t, sq[2]); } if (!sq.done) NAPS[p.idx] = Math.min(NAPS[p.idx], p.t0 + sq[0]); });
+  }
+ else if (st === "away" && tr && tr.kind === "home") {
+    if (!homeNow(p)) startReturn(p, t);
+    /* at home: next look at arrival time (or never today) */
+    else NAPS[p.idx] = !DAY.closed && !wfhToday(p) && t < arriveH(p) * 3600 ? arriveH(p) * 3600 : Infinity;
+  } else if (st === "away" && tr && tr.kind === "lunch") {
+    if (lunchNow(p) !== "out") { p.needs.energy = Math.min(1, p.needs.energy + 0.4); moodShift(p, 0.2, "lunch was great"); logEvent("lunch", p, t); startReturn(p, t); }
+    else NAPS[p.idx] = LUNCH[p.id] ? Math.max(t + dt, LUNCH[p.id][1] * 3600) : t + dt;
+  } else if (st === "away" && p.dur > 0) NAPS[p.idx] = p.t0 + p.dur;
+  if (p.act) NAPS[p.idx] = Math.min(NAPS[p.idx], p.act.t0 + p.act.dur + 0.6);
+  if (NAPS[p.idx] <= t) NAPS[p.idx] = t + dt;
+  simStatus(p, t);
+}
+/* the next moment a seated person needs a full step */
+function simNap(p, t, dt){
+  var nx = p.decideAt, L = LUNCH[p.id], h = function(x){ return x * 3600; };
+  if (p.act) nx = Math.min(nx, p.act.t0 + p.act.dur + 0.6);
+  if (p.moodNext) nx = Math.min(nx, p.moodNext);
+  if (p.cal) nx = Math.min(nx, p.cal.next);
+  var pl = p.guest ? null : planOf(p);
+  if (pl && pl.call && !pl.call.done) nx = Math.min(nx, h(pl.call.at));
+  if (p.pendingCoffee) nx = Math.min(nx, p.pendingCoffee);
+  if (!p.typeOn) nx = Math.min(nx, p.typeNext || 0);
+  if (p.rollEnd) nx = Math.min(nx, p.rollEnd);
+  if (p.rollTo && rollAt(p, t) > 0) nx = t;
+  if (STANDERS[p.id]) nx = Math.min(nx, p.standOn ? p.standEnd + dt : (p.standNext || 0) + dt);
+  if (p.postNext) nx = Math.min(nx, p.postNext + dt);
+  if (p.helpAt) nx = Math.min(nx, p.helpAt + dt);
+  RITUALS.forEach(function(ri){ if (ri.id === p.id && ri.h && h(ri.h) > t) nx = Math.min(nx, h(ri.h) + dt); });
+  if (!p.guest) {
+    var lv = h(leaveOf(p)); if (lv > t) nx = Math.min(nx, lv);
+    if (L) { if (h(L[0]) > t) nx = Math.min(nx, h(L[0])); if (h(L[1]) > t) nx = Math.min(nx, h(L[1])); }
+    if (DAY.fri) { if (39600 > t) nx = Math.min(nx, 39600); if (41400 > t) nx = Math.min(nx, 41400); }
+  }
+  NAPS[p.idx] = nx <= t ? t + dt : nx;
+}
+/* a state reached its end at time te (te <= the tick T). Moves that the drawing already shows as they happen
+   (standing up into a walk, the walk into sitting down) keep te; anything that starts a new walk starts at T,
+   so nobody ever jumps ahead on screen. */
+function simEnd(p, te, T){
+  var st = p.state, tr = p.trip, n = p.needs, t = te;
+  if (st === "up") { setState(p, "walk", tr.ts, tr.w.D); return; }
+  if (st === "down") { p.trip = null; setState(p, "sit", te, 0); p.decideAt = te + rand(3, 8); return; }
+  if (st === "walk") {
+    if (tr.back && p.guest) { p.trip = null; setState(p, "gone", t, 0); GUESTS.cur = null; GUESTS.next = t + rand(180, 420); }
+    else if (tr.back) { setState(p, "down", t, 0.6); p.walkPhone = false; p.act = null; }
+    else if (tr.kind === "meeting") setState(p, "away", t, 1800);
+    else if (tr.kind === "lunch" || tr.kind === "home") setState(p, "away", t, 0);
+    else if (tr.kind === "coffee") {
+      /* someone already at the machine: wait in line */
+      var wait = PEOPLE.some(function(q){ return q !== p && q.state === "coffee"; }) ? rand(5, 9) : 0;
+      setState(p, "coffee", t, rand(5, 8) + wait); p.coffeeWait = wait ? t + wait : 0; startAct(p, "sip", t + 1.2 + wait, 3);
     }
-  } else if (st === "walk") {
-    r.sit = 0;
-    var path = tr.path, rem = path.L - tr.d;
-    var want = rem > 0.04 ? clamp(rem / 0.8, 0.3, 1) : 0;
-    /* simple avoidance: yield to whoever is ahead and close */
-    fwd.set(Math.sin(p.heading), 0, Math.cos(p.heading));
-    PEOPLE.forEach(function(q){
-      if (q === p || !q.root.visible || q.state === "sit" || q.state === "up" || q.state === "down") return;
-      dv.subVectors(q.root.position, p.root.position); dv.y = 0;
-      var dist = dv.length();
-      if (dist < 0.85 && dv.dot(fwd) > dist * 0.3 && (q.state !== "walk" || q.idx < p.idx)) want = Math.min(want, 0.08);
-    });
-    /* slow down before a corner */
-    if (rem > 0.35) { var hA = along(path, Math.min(path.L, tr.d + 0.55)), dA = Math.abs(Math.atan2(Math.sin(hA - p.heading), Math.cos(hA - p.heading))); if (dA > 0.6) want = Math.min(want, 0.6); }
-    if (p.walkPhone && !p.act && !p.guest) startAct(p, "phone", t, 2.5);
-    r.walkTarget = want;
-    tr.d = Math.min(path.L, tr.d + WALK_V * (p.k || 1) * p.pace * r.walkW * dt);
-    var hd = along(path, tr.d);
-    p.root.position.copy(tmpPos);
-    if (rem > 0.05) smoothTurn(p, hd, dt, 6);
-    if ((tr.kind === "meeting" || tr.kind === "coffee" || tr.kind === "lunch" || tr.kind === "home" || p.guest) && Math.abs(p.root.position.x) > 4.4) p.root.visible = false;
-    if (rem <= 0.04 && r.walkW < 0.25) {
-      if (tr.back && p.guest) { p.trip = null; setState(p, "gone", t, 0); GUESTS.cur = null; GUESTS.next = t + rand(180, 420); }
-      else if (tr.back) { setState(p, "down", t, 0.6); p.walkPhone = false; p.act = null; }
-      else if (tr.kind === "meeting") setState(p, "away", t, 1800);
-      else if (tr.kind === "lunch" || tr.kind === "home") setState(p, "away", t, 99999);
-      else if (tr.kind === "coffee") {
-        /* someone already at the machine: wait in line */
-        var wait = PEOPLE.some(function(q){ return q !== p && q.state === "coffee"; }) ? rand(5, 9) : 0;
-        setState(p, "coffee", t, rand(5, 8) + wait); p.coffeeWait = wait ? t + wait : 0; startAct(p, "sip", t + 1.2 + wait, 3);
-      }
-      else if (tr.kind === "spot") { p.walkPhone = false; p.act = null; setState(p, "stay", t, tr.stay); if (tr.stayAct) startAct(p, tr.stayAct, t + 0.4, tr.stay - 0.8); if (tr.onArrive) tr.onArrive(p, t); }
-      else {
+    else if (tr.kind === "spot") { p.walkPhone = false; p.act = null; setState(p, "stay", t, tr.stay); if (tr.stayAct) startAct(p, tr.stayAct, t + 0.4, tr.stay - 0.8); if (tr.onArrive) tr.onArrive(p, t); }
+    else {
         var q = tr.target;
         if (q.state === "sit" && q.visitor === p && !q.answering) {
           var cd = rand(11, 13.5);
@@ -6225,7 +6441,7 @@ function updateAgent(p, t, dt){
               choose(["This part here, it won't behave.", "I tried twice and it still looks wrong lol", "It's this one step that keeps failing."]),
               choose(["Ah, try it the other way round.", "Oh I've seen this. Check the settings first.", "Easy fix, I'll show you.", "That one got me last week too."]),
               choose(["That's it!! Thank you!", "You just saved my afternoon.", "Okay that makes sense. Thanks!"])]);
-            startAct(q, "screen", t + 3, cd - 3.5, null); q.act.pt = q.deskGroup.localToWorld(new V3(0, 1.0, -1.0));
+            startAct(q, "screen", t + 3, cd - 3.5, null); q.act.pt = deskPt(q, 0, 1.0, -1.0);
             moodShift(p, 0.22, q.name + " helped me get unstuck"); p.frus = 0;
             bond(p, q, 0.3, q.name + " helped me get unstuck on " + lc(gl2.label) + ".", "I helped " + p.name + " get unstuck earlier.");
             moodShift(q, 0.08, "I helped " + p.name);
@@ -6278,56 +6494,36 @@ function updateAgent(p, t, dt){
           }
           else startChat(p, q, t, cd);
         } else setState(p, "visit", t, 1.2);
-      }
     }
-  } else if (st === "stay") {
-    r.sit = 0;
-    var sp2 = tr.path.pts[tr.path.pts.length - 1];
-    p.root.position.copy(sp2);
-    smoothTurn(p, tr.face ? Math.atan2(tr.face.x - sp2.x, tr.face.z - sp2.z) : p.heading, dt, 5);
-    /* a little script of moves while standing there */
-    if (tr.seq) tr.seq.forEach(function(sq){ if (!sq.done && t - p.t0 >= sq[0]) { sq.done = true; startAct(p, sq[1], t, sq[2]); } });
-    if (k >= 1) { if (tr.onLeave) tr.onLeave(p, t); p.act = null; startReturn(p, t); }
-  } else if (st === "visit" || st === "coffee") {
-    r.sit = 0;
-    var spot = tr.path.pts[tr.path.pts.length - 1];
-    p.root.position.copy(spot);
-    smoothTurn(p, st === "visit" ? Math.atan2(tr.target.seat.x - spot.x, tr.target.seat.z - spot.z) : 0, dt, 5);
-    if (k >= 1) {
-      if (st === "coffee") {
-        n.coffee = 0; n.energy = Math.min(1, n.energy + 0.45);
-        moodShift(p, p.mood.kind === "tired" ? 0.25 : 0.12, p.id === "olivia" ? "a good cup of tea helped" : "the coffee helped");
-        p.lastEvent = { kind:"coffee", t:t };
-        if (DAY.coffee > 1.8 || Math.random() < 0.3) logEvent("coffee", p, t);
-      }
-      if (st === "visit" && tr.target.visitor === p) tr.target.visitor = null;
-      startReturn(p, t);
-    }
-  } else if (st === "away" && tr && tr.kind === "home") {
-    r.sit = 0;
-    p.root.position.copy(EXIT_SPOT);
-    if (!homeNow(p)) startReturn(p, t);
-  } else if (st === "away" && tr && tr.kind === "lunch") {
-    r.sit = 0;
-    p.root.position.copy(EXIT_SPOT);
-    if (lunchNow(p) !== "out") { p.needs.energy = Math.min(1, p.needs.energy + 0.4); moodShift(p, 0.2, "lunch was great"); logEvent("lunch", p, t); startReturn(p, t); }
-  } else if (st === "away") {
-    r.sit = 0;
-    p.root.position.copy(EXIT_SPOT);
-    if (k >= 1) {
-      n.energy = Math.max(0.2, n.energy - 0.1);
-      var longM = Math.random() < 0.4;
-      moodShift(p, longM ? -0.12 : -0.04, longM ? "that meeting ran long" : "back-to-back meetings");
-      p.lastEvent = { kind:"meeting", t:t };
-      logEvent(longM ? "longmeeting" : "meeting", p, t);
-      p.cal.next = t + rand(20, 60) * 60;
-      startReturn(p, t);
-    }
+    return;
   }
-
+  if (st === "stay") { if (tr.onLeave) tr.onLeave(p, t); p.act = null; startReturn(p, T); return; }
+  if (st === "visit" || st === "coffee") {
+    if (st === "coffee") {
+      n.coffee = 0; n.energy = Math.min(1, n.energy + 0.45);
+      moodShift(p, p.mood.kind === "tired" ? 0.25 : 0.12, p.id === "olivia" ? "a good cup of tea helped" : "the coffee helped");
+      p.lastEvent = { kind:"coffee", t:t };
+      if (DAY.coffee > 1.8 || R() < 0.3) logEvent("coffee", p, t);
+    }
+    if (st === "visit" && tr.target.visitor === p) { tr.target.visitor = null; NAPS[tr.target.idx] = 0; }
+    startReturn(p, T);
+    return;
+  }
+  if (st === "away" && tr && tr.kind === "meeting") {
+    n.energy = Math.max(0.2, n.energy - 0.1);
+    var longM = R() < 0.4;
+    moodShift(p, longM ? -0.12 : -0.04, longM ? "that meeting ran long" : "back-to-back meetings");
+    p.lastEvent = { kind:"meeting", t:t };
+    logEvent(longM ? "longmeeting" : "meeting", p, t);
+    p.cal.next = t + rand(20, 60) * 60;
+    startReturn(p, T);
+    return;
+  }
+  p.dur = 0;
+}
+function simStatus(p, t){
   var kind = p.trip ? p.trip.kind : "";
-  if (p.lunchCard) { var away2 = (kind === "lunch" || kind === "meeting") && !p.trip.back; if (away2) cardFor(p, kind); p.lunchCard.visible = away2; }
-  if (kind === "home") { p.statusNow = p.state === "away" ? (DAY.holiday ? "Holiday, the office is closed" : DAY.wknd ? "Weekend, back on Monday" : wfhToday(p) ? "Working from home today" : DAY.h < 12 ? "Not in yet" : DAY.fri ? "Gone for the weekend" : "Gone for the day") : "Heading home"; return; }
+  if (kind === "home") { p.statusNow = p.state === "away" ? (DAY.holiday ? "Holiday, the office is closed" : DAY.wknd ? "Weekend, back on Monday" : wfhToday(p) ? "Working from home today" : DAY.h < 12 ? "Not in yet" : DAY.fri ? "Gone for the weekend" : "Gone for the day") : (p.trip.back ? "Just got in" : "Heading home"); return; }
   if (kind === "lunch") { p.statusNow = p.state === "away" ? (p.id === "carla" ? "Out for lunch" : "Lunch time") : (p.trip.back ? "Back from lunch" : "Heading out for lunch"); return; }
   if (kind === "meeting") p.statusNow = p.state === "away" ? p.walker.text.away : (p.trip.back ? p.walker.text.back : p.walker.text.out);
   else if (kind === "spot") p.statusNow = p.trip.back ? "Heading back to the desk" : p.trip.label;
@@ -6335,6 +6531,67 @@ function updateAgent(p, t, dt){
   else if (kind === "coffee") p.statusNow = drinkOf(p) === "tea" ? (p.trip.back ? "Back with a tea" : "Making a tea") : (p.trip.back ? "Back with a coffee" : "Getting coffee");
   else if (kind === "visit" && p.trip.target.remote) p.statusNow = p.state === "visit" ? "On a video call with " + p.trip.target.name : (p.trip.back ? "Heading back to the desk" : "Walking over to the screens");
   else if (kind === "visit") p.statusNow = p.state === "visit" ? "Chatting with " + p.trip.target.name : (p.trip.back ? "Heading back to the desk" : "Walking over to " + p.trip.target.name);
+}
+
+/* ---------- drawing one person from the world state ---------- */
+var fwd = new V3(), dv = new V3();
+function poseAgent(p, t, dt){
+  var r = p.rig, st = p.state, tr = p.trip;
+  if (p.guest && p.chip && p.chip.hidden !== (st === "gone")) p.chip.hidden = st === "gone";
+  p.root.visible = visAt(p, t);
+  p.sayText = bubbleAt(p, t);
+  posAt(p, t, p.root.position);
+  rollUpdate(p, t);
+  standPose(p, t);
+  postureTick(p, t, dt);
+  r.walkTarget = 0;
+  r.nodTarget = p.chatWith ? (chats.some(function(c){ return c.a === p; }) ? 0.45 : 0.35) : 0;
+  var swivelTarget = 0;
+  if (st === "gone" || st === "away" || st === "coffee") { r.sit = 0; }
+  else if (st === "sit") {
+    r.sit = 1 - ease(p.standW || 0);
+    var pat = p.typeOn && !p.act && !(p.roll > 0.01) ? workPat(p, t) : 0, typing = pat === 1, mousing = pat === 2;
+    p.typeAmp = lerp(p.typeAmp || 0, typing ? 1 : 0, 1 - Math.exp(-dt * 4));
+    p.mouseAmp = lerp(p.mouseAmp || 0, mousing ? 1 : 0, 1 - Math.exp(-dt * 3));
+    smoothTurn(p, p.sitHeading, dt);
+    if (p.act && (p.act.n === "turn" || p.act.n === "answer")) {
+      var yaw = p.act.n === "answer" ? camYaw(p) + p.swivel : (p.act.target ? yawTo(p, p.act.target) + p.swivel : 0);
+      swivelTarget = (p.act.n === "answer" ? clamp(yaw * 0.5, -1.2, 1.2) : p.act.casual ? clamp(yaw * 0.9, -2.9, 2.9) : clamp(yaw * 0.35, -0.6, 0.6)) * bump(t - p.act.t0, 0, p.act.dur, p.act.casual ? 1.2 : 0.6);
+    } else if (p.act && p.act.n === "screen" && p.act.pt) {
+      /* looking at a screen together: turn toward a point in the world */
+      var sp = p.act.pt, hd2 = Math.atan2(sp.x - p.root.position.x, sp.z - p.root.position.z) - p.sitHeading;
+      swivelTarget = clamp(Math.atan2(Math.sin(hd2), Math.cos(hd2)), -1.4, 1.4) * bump(t - p.act.t0, 0, p.act.dur, 1.0);
+    }
+    if (!p.act && !typing && !mousing && !p.chatWith) swivelTarget += mv(p).swivel * Math.sin(t * 0.7 + (p.mSeed || 0));
+    /* the chair stays at whatever angle it was left after a chat */
+    if (!p.act && !p.chatWith) swivelTarget += (p.restSwivel || 0) * (typing || mousing ? 0.4 : 1);
+    p.swivel = lerp(p.swivel || 0, swivelTarget, 1 - Math.exp(-dt * 5));
+    if (p.chairG) p.chairG.rotation.y = p.swivel;
+  } else {
+    p.typeAmp = lerp(p.typeAmp || 0, 0, 1 - Math.exp(-dt * 6));
+    p.mouseAmp = lerp(p.mouseAmp || 0, 0, 1 - Math.exp(-dt * 6));
+    p.swivel = lerp(p.swivel || 0, 0, 1 - Math.exp(-dt * 5));
+    var u = tr && tr.w ? t - tr.ts : -1;
+    if (st === "up" && !(tr && tr.w && u >= 0)) { r.sit = 1 - clamp((t - p.t0) / 0.6, 0, 1); smoothTurn(p, p.sitHeading, dt); }
+    else if (st === "down") { r.sit = clamp((t - p.t0) / 0.6, 0, 1); smoothTurn(p, p.sitHeading, dt); }
+    else if ((st === "walk" || st === "up") && tr && tr.w) {
+      if (tr.back && u >= tr.w.D && !p.guest) { r.sit = clamp((u - tr.w.D) / 0.6, 0, 1); smoothTurn(p, p.sitHeading, dt); }
+      else {
+        r.sit = 0;
+        var f = clamp(walkV(tr.w, u) / tr.w.vmax, 0, 1);
+        r.walkTarget = f; r.walkW = f;
+        if (u > 0 && u < tr.w.D - 0.05) smoothTurn(p, headAt(p, t), dt, 6);
+      }
+    } else { r.sit = 0; smoothTurn(p, headAt(p, t), dt, 5); }
+  }
+  var kind = tr ? tr.kind : "";
+  if (p.lunchBox) p.lunchBox.visible = st === "sit" && lunchNow(p) === "desk";
+  if (p.lunchCard) { var away2 = (kind === "lunch" || kind === "meeting") && !tr.back; if (away2) cardFor(p, kind); p.lunchCard.visible = away2; }
+  if (st === "sit" && p.messages && p.messages.length) {
+    p.log.push({ who:"them", text:"Back! I got your message: “" + p.messages.join(" / ") + "”. I will get back to you on that." });
+    p.messages = [];
+    if (focus === p) renderLog(p);
+  }
 }
 
 /* ---------- camera rig: orthographic isometric ---------- */
@@ -6491,7 +6748,7 @@ var PROFILE = {
 function rollMood(p){
   var w = PROFILE[p.id].moodW, tot = 0, k;
   for (k in w) tot += w[k];
-  var r = Math.random() * tot;
+  var r = R() * tot;
   for (k in w) { r -= w[k]; if (r <= 0) break; }
   p.mood = { kind:k, base:k, v:MOODS[k].v };
   p.moodWhy = k === "excited" ? (p.id === "stephanie" ? "a new fireplace is about to launch" : "something good is coming this week")
@@ -6519,10 +6776,10 @@ function moodDrift(p, t){
   p.moodNext = t + rand(120, 300);
   var w = PROFILE[p.id].moodW, tot = 0, k, cur = p.mood.base;
   for (k in w) if (k !== cur) tot += w[k];
-  var r = Math.random() * tot;
+  var r = R() * tot;
   for (k in w) { if (k === cur) continue; r -= w[k]; if (r <= 0) break; }
   p.mood.base = k;
-  if (Math.random() < 0.6) { var up = MOODS[k].v >= MOODS[cur].v; moodShift(p, up ? rand(0.15, 0.35) : -rand(0.1, 0.25), choose(up ? LIFT : SINK)); }
+  if (R() < 0.6) { var up = MOODS[k].v >= MOODS[cur].v; moodShift(p, up ? rand(0.15, 0.35) : -rand(0.1, 0.25), choose(up ? LIFT : SINK)); }
 }
 function moodShift(p, dv, why){
   p.mood.v = clamp(p.mood.v + dv, -1, 1);
@@ -6735,7 +6992,7 @@ function howReply(p){
   else if (n.coffee > 0.7) { bits.push(fresh(p, ["I really need a " + drinkOf(p) + ".", cap(drinkOf(p)) + " would fix a lot right now."])); why = "I have not had my " + drinkOf(p) + " yet"; }
   else if (n.focus > 0.75 && p.typeOn && p.mood.v >= 0) { bits.push(fresh(p, ["In the zone today.","Head down, getting stuff done."])); why = "I finally have a quiet stretch to work"; }
   else if (why && (m === "stressed" || m === "tired" || m === "off" || m === "excited")) bits.push(cap(why) + ".");
-  if (prof.traits.chattiness > 0.7 && Math.random() < 0.5) bits.push("How about you?");
+  if (prof.traits.chattiness > 0.7 && R() < 0.5) bits.push("How about you?");
   return { text:bits.join(" "), reason:why || "it is just that kind of day" };
 }
 var SMALL = {
@@ -6762,7 +7019,7 @@ function smallTalk(p, kind){
 function moodTone(p, text){
   var m = p.mood.kind, prof = PROFILE[p.id];
   if ((m === "stressed" || m === "tired") && prof.traits.chattiness < 0.75) return text.split(". ")[0].replace(/\.?$/, ".");
-  if ((m === "great" || m === "excited") && prof.traits.humour > 0.65 && Math.random() < 0.25) return text + " " + prof.joke;
+  if ((m === "great" || m === "excited") && prof.traits.humour > 0.65 && R() < 0.25) return text + " " + prof.joke;
   return text;
 }
 /* guardrail: avatars talk about work only. Personal topics get a polite, in-character redirect. */
@@ -6856,7 +7113,7 @@ function converseCore(p, raw){
     if (sc > ts) { ts = sc; topic = e; }
   });
   var deep = p.id === "luis" && p.typeOn && p.needs.focus > 0.6 && p.state === "sit";
-  var pre = deep && Math.random() < 0.7 ? fresh(p, ["Headphones off for a sec. ","Okay, quick one. ","Mm? Sure. "]) : "";
+  var pre = deep && R() < 0.7 ? fresh(p, ["Headphones off for a sec. ","Okay, quick one. ","Mm? Sure. "]) : "";
 
   /* someone else on the team knows this better: point there */
   var other = null, os = 0;
@@ -6886,14 +7143,14 @@ function converseCore(p, raw){
         "Hey. " + doingNow(p) + ", but go ahead."]), intent:"greet", reason:"" };
     case "bye": return { text:fresh(p, ["See you!","Bye! Come back anytime.","Later!","Talk soon."]), intent:"bye", reason:"" };
     case "thanks": return { text:fresh(p, ["Anytime!","Happy to help.","Of course.","No problem at all."]), intent:"thanks", reason:"" };
-    case "how": r = howReply(p); var mem = recentMemo(p); return { text:pre + r.text + (mem && Math.random() < 0.6 ? " " + mem : ""), intent:"how", reason:r.reason };
+    case "how": r = howReply(p); var mem = recentMemo(p); return { text:pre + r.text + (mem && R() < 0.6 ? " " + mem : ""), intent:"how", reason:r.reason };
     case "day":
       r = howReply(p);
       var dayBits = p.walker ? (prof.traits.humour > 0.7 ? " " + prof.joke : " Lots of meetings, as usual.") : "";
       return { text:pre + r.text + dayBits, intent:"day", reason:r.reason };
     case "doing":
       var d = doingNow(p);
-      return { text:pre + d + "." + (p.chatWith && Math.random() < 0.5 ? " Talking shop, as usual." : ""), intent:"doing", reason:"it is the top thing on my list today" };
+      return { text:pre + d + "." + (p.chatWith && R() < 0.5 ? " Talking shop, as usual." : ""), intent:"doing", reason:"it is the top thing on my list today" };
     case "busy":
       if (p.walker && p.cal && p.cal.next - t < 45) return { text:"I have a meeting in a minute, so make it quick.", intent:"busy", reason:"my next meeting starts any second" };
       var gb = goalNow(p);
@@ -6976,7 +7233,7 @@ function converseCore(p, raw){
   }
   return { text:pre + fresh(p, [KB[p.id].fallback, "Hmm, not sure about that one. Ask me about " + p.topics.toLowerCase() + ", what's new, or how my day is going.", "Good question, no idea! Try me on " + p.topics.toLowerCase() + "."]), intent:"fallback", reason:"" };
 }
-ALL.forEach(function(p){ p.mem = []; p.used = []; p.messages = []; rollMood(p); });
+ALL.forEach(function(p){ p.mem = []; p.used = []; p.messages = []; p.log = []; rollMood(p); });
 
 
 /* ---------- UI ---------- */
@@ -7059,7 +7316,7 @@ function renderSugg(p){
     suggEl.appendChild(b);
   });
 }
-var SESSION_ID = Math.random().toString(36).slice(2, 8);
+var SESSION_ID = R().toString(36).slice(2, 8);
 function ask(p, text){
   text = text.trim();
   if (!text) return;
@@ -7081,7 +7338,7 @@ function ask(p, text){
   /* the side panel only: the conversation never reaches the shared world (the avatar does not react, and nobody
      repeats it later), since every viewer must see the same office */
   p.mem.push({ q:text, intent:res.intent, reason:res.reason }); if (p.mem.length > 3) p.mem.shift();
-  var delay = 650 + Math.random() * 650 + Math.min(900, reply.length * 6);
+  var delay = 650 + R() * 650 + Math.min(900, reply.length * 6);
   setTimeout(function(){
     var i = p.log.indexOf(typing);
     if (i >= 0) p.log.splice(i, 1, { who:"them", text:reply });
@@ -7511,7 +7768,7 @@ else if (/[?&]demo=1/.test(location.search || "") === false) { document.getEleme
 function liveFail(e){ var m = (e && (e.message || e.error_description)) || String(e);
   return new Error({ wrong_code:"That code is not right.", locked:"Too many wrong codes for this name. Try again in an hour.", mission_closed:"This mission is closed. Check the open ones.", excluded:"You are the one in this mission, so you can't win it.", not_admin:"This account can't review photos." }[m] || m); }
 function dataToBlob(d){ var b = atob(d.split(",")[1]), a = new Uint8Array(b.length); for (var i = 0; i < b.length; i++) a[i] = b.charCodeAt(i); return new Blob([a], { type:"image/jpeg" }); }
-function uid(){ return (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2)); }
+function uid(){ return (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + R().toString(36).slice(2)); }
 async function chalRefresh(){
   var r = await Promise.all([
     SB.from("missions").select("id,title,pts,special,ord,exclude"),
@@ -7592,7 +7849,7 @@ if (window.__chal) { window.__chal.live = CH.live; window.__chal.liveSubmit = li
 if (CH.live) {
   liveCheckAdmin().catch(function(){}).then(function(){ return chalSync(false); });
   /* keep the board and the panel fresh: every 20 s while the panel is open, every 2 min otherwise */
-  setInterval(function(){ if (!document.hidden && (!chalEl.hidden || Math.random() < 1 / 6)) chalSync(false); }, 20000);
+  setInterval(function(){ if (!document.hidden && (!chalEl.hidden || R() < 1 / 6)) chalSync(false); }, 20000);
 }
 /* a mission was won: the panel shows it; the office itself does not react, it is the same for every viewer */
 function chalCelebrate(team, m){}
@@ -8026,23 +8283,10 @@ function swapShoes(dstRoot, srcRoot, opt){
   m.bind(new T.Skeleton(newBones), dstBody.matrixWorld.clone());
 }
 PEOPLE.forEach(function(p){ makeRig(p); });
-/* opening the page after hours: whoever has already left is simply not there */
-PEOPLE.forEach(function(p){
-  if (p.guest || !homeNow(p)) return;
-  p.trip = { kind:"home", target:null, path:aislePath(p.seat, p.side, EXIT_SPOT, 0), d:0, back:false };
-  p.state = "away"; p.t0 = WT(); p.dur = 99999; p.root.visible = false; p.rig.sit = 0; p.rig.walkW = 1;
-});
-/* whoever is out for lunch is simply out (lunch follows the clock) */
-PEOPLE.forEach(function(p){
-  if (p.guest || p.state === "away") return;
-  if (lunchNow(p) !== "out") return;
-  p.trip = { kind:"lunch", target:null, path:aislePath(p.seat, p.side, EXIT_SPOT, 0), d:0, back:false };
-  p.state = "away"; p.t0 = WT(); p.dur = 99999; p.root.visible = false; p.rig.sit = 0; p.rig.walkW = 1;
-});
 PEOPLE.forEach(function(g){
   if (!g.guest) return;
   g.seat = EXIT_SPOT.clone(); g.side = 0; g.sitHeading = -Math.PI / 2; g.heading = g.sitHeading;
-  g.root.position.copy(EXIT_SPOT); g.root.visible = false; g.state = "gone"; g.rig.sit = 0;
+  g.root.position.copy(EXIT_SPOT); g.root.visible = false; g.rig.sit = 0;
   if (g.chip) g.chip.hidden = true;
 });
 /* ---------- remote colleagues: each one lives in a small scene rendered to a wall screen ---------- */
@@ -8121,12 +8365,16 @@ REMOTE.forEach(function(p, i){
   p.spot = new V3(p.sx, 0, -3.15);
   p.seat = new V3(p.sx, 0, -4.1);
 });
-function updateRemote(p, t, dt){
-  var r = p.rig;
-  r.sit = 1; r.walkTarget = 0;
+/* director: a remote colleague's mood (it shows in what people say to them) */
+function simRemote(p, t, dt){
   p.mood.v += (moodTarget(p) - p.mood.v) * dt * 0.01;
   moodDrift(p, t);
-  if (Math.random() < dt * 0.2) recomputeMood(p);
+  if (R() < dt * 0.2) recomputeMood(p);
+}
+function updateRemote(p, t, dt){
+  var r = p.rig;
+  p.sayText = bubbleAt(p, t);
+  r.sit = 1; r.walkTarget = 0;
   if (t > p.typeNext) { p.typeOn = !p.typeOn; p.typeNext = t + (p.typeOn ? rand(2, 7) : rand(0.8, 3.5)); }
   if (p.act && t - p.act.t0 > p.act.dur + 0.5) p.act = null;
   if (p.answering && t > p.answering) p.answering = 0;
@@ -8199,6 +8447,98 @@ window.addEventListener("hashchange", focusFromHash);
 focusFromHash();
 
 
+/* ---------- running the director ---------- */
+/* keys a person has before the world starts (looks, desk, rig, chat panel): everything else is world state or
+   drawing state and is cleared when the world starts over; these drawing keys survive a restart */
+var BASE_KEYS = null, KEEP_KEYS = { typeAmp:1, mouseAmp:1, swivel:1, heading:1, postW:1, postCur:1, gazeYaw:1, seatFix:1, toeAdj:1, footFix:1, seatCal:1, seatCalT:1, footCal:1,
+  skipDt:1, tagW:1, tagH:1, tagAway:1, tagText:1, bubbleOn:1, onScreen:1, rollOff:1, tuck:1, carry:1, carrySteam:1, deskSteam:1, deskSteamP:1, cupAway:1, hotUntil:1, fxSay:1 };
+/* the world at the start of its day (SIM.START), the same on every screen */
+function resetWorld(){
+  var tz = torontoAt(WORLD_NOW());
+  SIM.day = { y:tz.y, mo:tz.mo, d:tz.d };
+  SIM.on = true; SIM.now = SIM.START; SIM.T = SIM.START - SIM.DT; SIM.minute = -1; SIM.ticks = 0;
+  try {
+    dayTick();
+    SIM.rng = wrng("director");
+    if (!BASE_KEYS) { BASE_KEYS = {}; ALL.forEach(function(p){ var k = {}; Object.keys(p).forEach(function(n){ k[n] = 1; }); BASE_KEYS[p.id] = k; }); }
+    ALL.forEach(function(p){ var bk = BASE_KEYS[p.id]; Object.keys(p).forEach(function(n){ if (!bk[n] && !KEEP_KEYS[n]) p[n] = undefined; }); });
+    chats = []; SAYS.length = 0; CHAT_RECENT.length = 0; OFFICE_EV.length = 0; POI = [];
+    KNOW = {}; KNOWFROM = {}; RIT_DONE = {}; perceive.wx = undefined; chatter.retry = false;
+    HUDDLE.next = 0; HUDDLE.on = null; GUESTS.next = 0; GUESTS.cur = null;
+    MISHAP.next = 0; MISHAP.cur = null; MISHAP.book.down = false; MISHAP.book.backAt = 0;
+    TREATS.on = false; TREATS.day = 0; TREATS.until = 0; TREATS.at = 99;
+    PLYTIX.on = false; PLYTIX.next = 0; PLYTIX.until = 0; PLYTIX.lastAt = 0;
+    BOXEV.day = 0; BOXEV.on = false; BOXEV.done = false; BOXEV.open = 0;
+    TEAMCALL.on = false; TEAMCALL.next = 0; TEAMCALL.speaker = null; TEAMCALL.said = {};
+    ALONE.next = 0; ALONE.said = [];
+    DOGS.petAt = 0; DOGS.pet = 0;
+    LIFE.printers.forEach(function(pr){ pr.job = null; });
+    ALL.forEach(function(p, i){ simResetPerson(p, i, SIM.START); });
+    NAPS.fill(0); STEPS.fill(-1);
+  } finally { SIM.on = false; }
+}
+/* one step of the world at tick time T */
+function simTick(T){
+  SIM.now = T;
+  var mi = Math.floor(T / 60);
+  if (mi !== SIM.minute) { SIM.minute = mi; dayTick(); }
+  DAY.h = T / 3600;
+  for (var i = 0; i < PEOPLE.length; i++) simAgent(PEOPLE[i], T, SIM.DT);
+  /* remote moods move slowly: every 5 s is plenty */
+  if (SIM.ticks % 5 === 0) REMOTE.forEach(function(p){ simRemote(p, T, 5 * SIM.DT); });
+  simChats(T);
+  simPerceive(T, SIM.DT);
+  simMishaps(T);
+  guestTick(T);
+  huddleTick(T, SIM.DT);
+  simLife(T, SIM.DT);
+  SIM.ticks++;
+}
+/* nothing left to happen today: everybody gone home in the evening, or the office closed */
+function simQuiet(T){
+  if (!(DAY.closed || T >= 18.5 * 3600)) return false;
+  return PEOPLE.every(function(p){ return p.guest ? p.state === "gone" : p.state === "away" && p.trip && p.trip.kind === "home"; }) && !chats.length;
+}
+/* bring the world up to world time t (whole ticks only, so it never depends on the frame rate) */
+function simTo(t){
+  var target = Math.floor(t / SIM.DT) * SIM.DT;
+  if (target <= SIM.T) return 0;
+  var n = 0;
+  SIM.on = true;
+  try {
+    while (SIM.T < target) {
+      if (simQuiet(SIM.T)) { SIM.T = target; SIM.now = target; break; }
+      SIM.T = Math.round((SIM.T + SIM.DT) * 1000) / 1000;
+      simTick(SIM.T); n++;
+    }
+  } finally { SIM.on = false; }
+  return n;
+}
+/* ---------- checks: the same world on every screen ----------
+   __worldSnap() is what this screen shows now; __worldAt(sec) builds the world from the start of the day up to
+   that world second (then puts this screen back where it was) and returns the same kind of snapshot. */
+function worldSnap(t){
+  var out = {};
+  PEOPLE.forEach(function(p){
+    var ps = posAt(p, t), tr = p.trip;
+    out[p.id] = { state:p.state, trip:tr ? tr.kind + (tr.back ? ":back" : "") : "", x:+ps.x.toFixed(2), z:+ps.z.toFixed(2), heading:+headAt(p, t).toFixed(2), vis:visAt(p, t),
+      act:p.act && t >= p.act.t0 && t - p.act.t0 <= p.act.dur ? p.act.n : "", chat:p.chatWith ? p.chatWith.id : "", say:sayAt(p, t) || "", posture:p.posture || "", status:p.statusNow || "" };
+  });
+  return out;
+}
+window.__worldSnap = function(){ return worldSnap(SIM.T); };
+window.__worldAt = function(sec, viaSec){
+  var t0 = performance.now();
+  resetWorld();
+  if (viaSec !== undefined) simTo(viaSec);
+  simTo(sec);
+  var snap = worldSnap(Math.floor(sec)), ms = performance.now() - t0;
+  resetWorld(); simTo(WT());
+  return { ms:+ms.toFixed(1), snap:snap };
+};
+window.__sim = SIM;
+window.__simDbg = function(){ return { chats:chats.length, says:SAYS.length, ev:OFFICE_EV.length, poi:POI.length, recent:CHAT_RECENT.length, memo:PEOPLE.map(function(p){ return (p.memo || []).length; }).join(","), goals:PEOPLE.map(function(p){ return p.plan ? p.plan.goals.length : 0; }).join(",") }; };
+
 /* ---------- loop ---------- */
 var clock = new T.Clock(), headPos = new V3(), tv = new V3();
 var aoFailed = false, DT_MAX = 0.12;
@@ -8262,9 +8602,10 @@ function frame(){
     DYN.t0 = nowMs; DYN.frames = 0;
   }
   var m0 = performance.now();
-  PEOPLE.forEach(function(p){ updateAgent(p, t, dt); });
-  updateChats(t);
-  perceive(t, dt);
+  /* the world first (whole ticks up to this world second), then everyone is drawn from it */
+  simTo(t);
+  PEOPLE.forEach(function(p){ poseAgent(p, t, dt); });
+  renderPerceive(t, dt);
   mark("agents", m0); m0 = performance.now();
   /* people off screen animate at a third of the rate */
   PEOPLE.forEach(function(p){ cupTick(p, t); });
@@ -8278,14 +8619,11 @@ function frame(){
     }
   });
   REMOTE.forEach(function(p){ updateRemote(p, t, dt); });
-  updateMishaps(t, dt);
-  guestTick(t);
+  renderMishaps(t, dt);
   officeHours(t, dt);
   screensTick(t, dt);
-  huddleTick(t, dt);
-  lifeTick(t, dt);
-  PEOPLE.forEach(function(p){ rollUpdate(p, dt); });
-  if (!(Math.abs(t - (window.__dayT || -9)) < 1)) { window.__dayT = t; dayTick(); clockTick(); }
+  renderLife(t, dt);
+  if (!(Math.abs(t - (window.__dayT || -9)) < 1)) { window.__dayT = t; clockTick(); }
   wallClockTick();
 
   mark("rigs", m0);
@@ -8373,7 +8711,7 @@ function frame(){
     tv.project(camera);
     p.onScreen = !(tv.z > 1 || tv.x < -1.25 || tv.x > 1.25 || tv.y < -1.25 || tv.y > 1.25);
     if (!p.onScreen || (!p.root.visible && !deskCard && p !== focus) || (p.offline && p !== focus)) { tag.classList.add("off"); drawBubble(p, null); return; }
-    drawBubble(p, p.sayText);
+    drawBubble(p, bubbleAt(p, t));
     var x = (tv.x + 1) / 2 * w, y = (1 - tv.y) / 2 * h;
     if (!p.tagW || p.tagAway !== deskCard) { p.tagAway = deskCard; p.tagW = tag.offsetWidth || 70; p.tagH = tag.offsetHeight || 24; }
     var rect = { l:x - p.tagW / 2, r:x + p.tagW / 2, t:y - p.tagH - 6, b:y - 6 };
@@ -8389,6 +8727,15 @@ function frame(){
   });
   mark("labels", m0);
 }
+/* the weather the people react to is read once (up to 2.5 s), then the world catches up to now */
+try { await Promise.race([WX_FIRST, new Promise(function(res){ setTimeout(res, 2500); })]); } catch (e) {}
+(function(){
+  var l0 = performance.now();
+  resetWorld();
+  var n = simTo(WT());
+  SIM.loadMs = +(performance.now() - l0).toFixed(1); SIM.loadTicks = n;
+  console.info("[world] caught up " + n + " ticks to " + fmtH(WT() / 3600) + " in " + SIM.loadMs + " ms");
+})();
 requestAnimationFrame(frame);
 })();
 
