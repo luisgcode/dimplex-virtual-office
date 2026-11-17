@@ -2158,10 +2158,16 @@ function cupTick(p, t){
   /* the desk cup goes with them to the kitchen */
   if (fetching && p.cup && !(MISHAP.cur && MISHAP.cur.cup === p.cup)) { if (p.cup.visible) { p.cup.visible = false; p.cupAway = true; } }
   else if (p.cupAway && !fetching) { p.cupAway = false; if (p.cup) p.cup.visible = true; p.hotUntil = t + 180 + 120 * ((Math.floor(t) * 0.618 + p.idx * 0.37) % 1); }
-  var carrying = fetching && tr.back && p.root.visible && p.state === "walk";
+  /* !! matters: three.js only hides an object when visible is exactly false, a null left the mug drawn at the origin */
+  var carrying = !!(fetching && tr.back && p.root.visible && p.state === "walk" && visAt(p, t));
+  if (carrying) {
+    b.RightHand.getWorldPosition(_fh);
+    /* a hand that has not been posed yet sits at the world origin: never leave the mug standing in the middle of the floor */
+    if (Math.abs(_fh.x) < 0.01 && Math.abs(_fh.z) < 0.01) carrying = false;
+  }
   p.carry.visible = carrying;
   if (carrying) {
-    b.RightHand.getWorldPosition(_fh); b.RightHandMiddle1 ? b.RightHandMiddle1.getWorldPosition(_fm) : _fm.copy(_fh);
+    b.RightHandMiddle1 ? b.RightHandMiddle1.getWorldPosition(_fm) : _fm.copy(_fh);
     p.carry.position.copy(_fh).lerp(_fm, 0.55); p.carry.position.y -= 0.03;
     p.carry.rotation.set(0, p.heading + Math.PI / 2, 0);
     steamTick(p.carrySteam, t, 1);
@@ -3550,6 +3556,28 @@ function catPlanOut(S, prank, D){
     catWalk(S, aislePath(fl, D.side, EXIT_SPOT.clone(), 0), 0.62);
   }
 }
+/* director: Debbie goes and puts back whatever Pixel knocked over (it stays down until she gets there).
+   If she cannot go (busy, away), it is back on its own a few seconds later. */
+var DEB_FIX = {
+  cup:{ label:"Fixing the cup Pixel knocked over", line:["There you go, all cleaned up. Sorry again!", "Fixed! Pixel owes you a coffee lol", "All good, sorry about that!"] },
+  trophy:{ label:"Putting the trophy back", line:["Back where it belongs.", "Our trophy is safe, don't worry.", "Okay, trophy is back up!"] },
+  tree:{ label:"Standing the tree back up", line:["There, the tree is up again.", "Tree saved!", "Okay, back up. Pixel!!"] }
+};
+function debbieFix(kind, T){
+  var D = BY.debbie, rec = CATW[kind];
+  if (!rec) return;
+  if (!D || D.state !== "sit" || D.chatWith || D.trip || !visAt(D, T)) { rec.fix = T + 8; return; }
+  var spot, face;
+  if (kind === "cup") { var q = rec.q; spot = new V3(q.seat.x * 0.62, 0, q.seat.z - 0.5); face = catTopOf(q); }
+  else if (kind === "trophy") { spot = new V3(-1.2, 0, 0.42); face = new V3(-2.18, 0.4, 0.52); }
+  else { spot = new V3(0.5, 0, 5.45); face = CAT_TREE_TOP.clone(); }
+  var F = DEB_FIX[kind];
+  goSpot(D, T, spot, face, 5.5, F.label, "fixprinter", function(q2, t2){
+    rec.fix = t2 + 2.2;
+    sayLater(q2, choose(F.line), t2 + 2.6, 2.6);
+  });
+  rec.fix = T + 90;
+}
 /* director: the events of a visit, at their times */
 function catFire(e, T){
   var D = BY.debbie, at = e.at, nb, wit;
@@ -3561,16 +3589,19 @@ function catFire(e, T){
   else if (e.k === "bye") { if (catAtDesk(D, T)) sayLater(D, choose(["Bye Pixel!", "Off you go!", "See you later, baby."]), at + 0.3, 2.4); }
   else if (e.k === "swat") {
     var V = e.q;
-    CATW.cup = { q:V, t0:at, fix:at + 8 };
+    /* the cup stays on the floor until the visit is over, then Debbie comes to pick it up */
+    CATW.cup = { q:V, t0:at, fix:at + 600, pending:true };
     sayLater(V, choose(["HEY!! My cup!", "Nooo, really?!", "Debbie!! Pixel!!", "Did Pixel just..."]), at + 0.5, 2.8);
     sayLater(D, choose(["Pixel!! I'm so sorry!!", "Oh no, I'm so sorry!! Bad kitty!", "Sorry sorry sorry! I'll get you a new one lol"]), at + 3.3, 3);
   } else if (e.k === "tree") {
-    CATW.tree = { t0:at, fix:at + 8 };
+    CATW.tree = { t0:at, fix:at + 600 };
+    debbieFix("tree", T);
     var near = PEOPLE.filter(function(q){ return q.state === "sit" && visAt(q, T) && !q.remote && !q.guest; }).sort(function(x, y){ return Math.abs(x.z - 5.75) - Math.abs(y.z - 5.75) || x.idx - y.idx; });
     if (near[0]) sayLater(near[0], choose(["THE TREE!!", "Nooo, the tree!!", "Did Pixel just knock the tree over?!"]), at + 0.5, 2.6);
     if (visAt(D, T) && D !== near[0]) sayLater(D, choose(["PIXEL!! Nooo!", "Pixel, what did you do?!", "Pixel!! Come back here!"]), at + 2.6, 2.8);
   } else if (e.k === "trophy") {
-    CATW.trophy = { t0:at, fix:at + 8 };
+    CATW.trophy = { t0:at, fix:at + 600 };
+    debbieFix("trophy", T);
     sayLater(D, choose(["NOOO, the trophy!!", "Not the trophy!!", "Our first place!! Noo!"]), at + 0.4, 2.8);
     wit = PEOPLE.filter(function(q){ return q !== D && q.state === "sit" && visAt(q, T) && !q.remote && !q.guest; });
     if (wit.length) sayLater(choose(wit), choose(["Did Pixel just take down the trophy?! lol", "Hahaha Pixel has no respect", "The trophy!! Is it okay?"]), at + 3.4, 3);
@@ -3593,6 +3624,7 @@ function simCat(t){
       last = L[L.length - 1];
     }
     if (t >= last.t1) { CAT.on = false; if (CAT.want) CAT.next = t + 30; }
+    if (!CAT.on && CATW.cup && CATW.cup.pending) { CATW.cup.pending = false; debbieFix("cup", t); }
     return;
   }
   var sr, hr = Math.floor(DAY.h);
@@ -8683,7 +8715,7 @@ try {
 } catch (e) { composer = null; aoPass = null; }
 loadingEl.hidden = true;
 window.__voReady = true;
-window.__dbg = { renderer:renderer, scene:scene, sun:sun, T:T, seasonFx:seasonFx };
+window.__dbg = { renderer:renderer, scene:scene, camera:camera, sun:sun, T:T, seasonFx:seasonFx };
 window.__vo = { people:BY, focus:function(id){ focusOn(BY[id]); }, ask:function(id, q){ ask(BY[id], q); }, converse:function(id, q){ return converse(BY[id], q).text; }, goal:goal, view:view, season:function(){ SEASONW.next = 1; return SEASON; }, mishap:function(k){ MISHAP.cur = null; return startMishap(k, WT()); }, mishaps:MISHAP };
 /* ?mishap=cat (or book, spill, chair, restart) makes it happen a few seconds after the page opens, to watch it on demand */
 (function(){
