@@ -1907,8 +1907,9 @@ function desk(p){
   });
   add(G.box, metalDark, 1.56, 0.3, 0.02, 0, 0.52, -1.16, g, false);
   /* Luis types on the laptop itself (no separate keyboard), mouse to its right */
-  if (p.id !== "luis") deskKeyboard(g, 0, -0.56);
-  p.mouseM = deskMouse(g, p.id === "luis" ? 0.3 : 0.32, -0.55);
+  /* keyboard and mouse close to the front edge, where the hands of someone sitting in the chair land */
+  if (p.id !== "luis") deskKeyboard(g, 0, -0.44);
+  p.mouseM = deskMouse(g, p.id === "luis" ? 0.3 : 0.32, -0.44);
   p.cup = add(G.cyl, M(p.side > 0 ? "#ffffff" : "#E31837", { roughness:0.4 }), 0.04, 0.1, 0.04, -0.62, 0.81, -0.5, g);
   lunchProps(p, g);
   p.cup.userData.dyn = true;
