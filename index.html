@@ -3880,11 +3880,11 @@ var REAL_MODELS = {
   carla:{ url:"models/carla.glb", height:1.64, tint:{ Shirt:"#e8b33a", Zipper:"#d9d4ca", Pants:"#2a2f3a" }, ownHair:true, hairScale:[1.0, 0.88, 1.0], hairY:0.12, hairZ:-0.02 },
   erica:{ footDrop:0.065, url:"models/erica.glb", height:1.66, tint:{ Suit:"#a3a8b0", Shirt:"#a8adb5", Pants:"#1d1f24", SwappedShoes:"#1a1b1e" }, hair:"#6b4630", highlight:"#6b4630", len:1.45, curl:1.6, locks:22, thick:1.1, shoesFrom:{ model:"stephanieb", mesh:"Sneakers", hide:["Heels"] }, ownHair:true, hairScale:[1.0, 0.88, 1.0], hairY:0.12, hairZ:-0.02 },
   allyson:{ url:"models/allyson.glb", height:1.66, tint:{ Shirt:"#7a4d9e", Pants:"#2c2a33", Shoes:"#5a2830" }, ownHair:true, hairScale:[1.0, 0.88, 1.0], hairY:0.12, hairZ:-0.02 },
-  debbie:{ footDrop:0.065, url:"models/debbie.glb", height:1.63, tint:{ Suit:"#2a2b30", Shirt:"#3a3b40", Pants:"#17181b", SwappedShoes:"#141518" }, shoesFrom:{ model:"stephanieb", mesh:"Sneakers", hide:["Heels"], scale:0.84 }, ownHair:true, hairScale:[1.0, 0.88, 1.0], hairY:0.12, hairZ:-0.02, earrings:"#d4af5a" },
+  debbie:{ footDrop:0.065, url:"models/debbie.glb", height:1.63, tint:{ Suit:"#2a2b30", Shirt:"#3a3b40", Pants:"#17181b", SwappedShoes:"#141518" }, shoesFrom:{ model:"stephanieb", mesh:"Sneakers", hide:["Heels"] }, footScale:0.84, ownHair:true, hairScale:[1.0, 0.88, 1.0], hairY:0.12, hairZ:-0.02, earrings:"#d4af5a" },
   olivia:{ footDrop:0.065, url:"models/olivia.glb", height:1.66, tint:{ Shirt:"#c9ad84", Pants:"#4a4f58", SwappedShoes:"#ecebe6" }, shoesFrom:{ model:"stephanieb", mesh:"Sneakers", hide:["Shoe"] }, ownHair:true, hairScale:[1.0, 0.88, 1.0], hairY:0.12, hairZ:-0.02, earrings:"#d4af5a" },
   marissa:{ url:"models/marissa.glb", height:1.65, tint:{ Shirt:"#4f7cc4", Shorts:"#2a2d35" }, ownHair:true, hairScale:[1.0, 0.88, 1.0], hairY:0.12, hairZ:-0.02, glasses:true },
   nolan:{ url:"models/nolan.glb", height:1.8, tint:{ Suit:"#2b3a52", Shirt:"#e9eef4", Tie:"#8a2432", Pants:"#2b2f36" } },
-  elena:{ footDrop:0.065, url:"models/elena.glb", height:1.65, tint:{ Shirt:"#b0476b", Pants:"#262a31", SwappedShoes:"#1a1b1e" }, shoesFrom:{ model:"stephanieb", mesh:"Sneakers", hide:["Heels"], scale:0.92 }, earrings:"#d4af5a" },
+  elena:{ footDrop:0.065, url:"models/elena.glb", height:1.65, tint:{ Shirt:"#b0476b", Pants:"#262a31", SwappedShoes:"#1a1b1e" }, shoesFrom:{ model:"stephanieb", mesh:"Sneakers", hide:["Heels"] }, footScale:0.92, earrings:"#d4af5a" },
   tessa:{ url:"models/stephanieb.glb", height:1.66, tint:{ Shirt:"#3e8e6a", Pants:"#2a2d35" }, ownHair:true, hairScale:[1.0, 0.88, 1.0], hairY:0.12, hairZ:-0.02 },
   grant:{ url:"models/grant.glb", height:1.79, tint:{ Shirt:"#6b6f76", Pants:"#23272e" }, ownHair:true, hairScale:[1.0, 0.9, 1.0], hairY:0.1, hairZ:-0.02, glasses:true },
   hana:{ url:"models/hana.glb", height:1.62, tint:{ Cloth:"#d9d4c7", SwappedPants:"#2c313b" }, pantsFrom:{ model:"stephanieb", mesh:"Pants", hide:["Socks"] }, ownHair:true, hairScale:[1.0, 0.88, 1.0], hairY:0.12, hairZ:-0.02, earrings:"#d4af5a" },
@@ -4510,6 +4510,7 @@ function makeRig(p, sc){
   var real = p.model && REAL[p.model];
   /* characters modelled on heels stand that much taller: with flat shoes swapped in, lower them to the floor */
   p.footDrop = real ? (REAL_MODELS[p.model].footDrop || 0) : 0;
+  p.footScale = real ? (REAL_MODELS[p.model].footScale || 0) : 0;
   var model = SkeletonUtils.clone(real ? real.scene : GLTF.scene);
   p.k = p.id === "debbie" || p.id === "olivia" ? 0.945 : 1;
   model.scale.setScalar(real ? real.scale : CH_SCALE * p.k);
@@ -4590,6 +4591,9 @@ function updateRig(p, t, dt){
   r.walk.timeScale = p.pace || 1;
   r.nod.setEffectiveWeight(r.nodW);
   r.mixer.update(dt);
+  /* models made with heels read a longer foot: the whole foot (skin and swapped shoe together) is scaled down,
+     so the shoe never ends up smaller than the foot inside it */
+  if (p.footScale && r.b.LeftFoot && r.b.RightFoot) { r.b.LeftFoot.scale.setScalar(p.footScale); r.b.RightFoot.scale.setScalar(p.footScale); }
   var sit = ease(r.sit);
   r.model.position.y = -(p.seatDrop || SEAT_DROP) * sit - (p.footDrop || 0) - (p.footFix || 0) * (1 - sit) + (p.seatFix || 0) * sit;
   r.proxy.scale.y = 1 - 0.3 * sit; r.proxy.position.y = 0.9 * (1 - 0.3 * sit);
@@ -8478,6 +8482,25 @@ function swapShoes(dstRoot, srcRoot, opt){
     setComp(sw, i, 0, 1); setComp(sw, i, 1, 0); setComp(sw, i, 2, 0); setComp(sw, i, 3, 0);
   }
   g.computeVertexNormals();
+  /* the model's own bare foot was shaped for its original shoes (heels): under a flat sneaker the heel or toes poke
+     out. Fold the body's foot inside the ankle so only the swapped shoe shows. */
+  (function(){
+    var bg = dstBody.geometry.clone(), bp = bg.attributes.position, bi = bg.attributes.skinIndex, bw = bg.attributes.skinWeight;
+    var bones = dstBody.skeleton.bones;
+    for (var i = 0; i < bp.count; i++) {
+      var best = 0, w = -1;
+      for (var j = 0; j < 4; j++) if (comp(bw, i, j) > w) { w = comp(bw, i, j); best = comp(bi, i, j); }
+      var bn = bones[best] && bones[best].name || "";
+      if (!/(Foot|Toe)/.test(bn)) continue;
+      var sd = /Right/.test(bn) ? "Right" : "Left", fb = dB["mixamorig" + sd + "Foot"];
+      if (!fb) continue;
+      /* move the vertex to the ankle joint (the model is still in its rest pose here, so world to mesh space is enough) */
+      v.copy(fb.getWorldPosition(new V3())).applyMatrix4(dstInv);
+      bp.setXYZ(i, v.x, v.y, v.z);
+    }
+    bg.computeVertexNormals();
+    dstBody.geometry = bg;
+  })();
   var m = new T.SkinnedMesh(g, srcMesh.material.clone());
   m.name = "SwappedShoes"; m.castShadow = true; m.frustumCulled = false;
   dstBody.parent.add(m);
