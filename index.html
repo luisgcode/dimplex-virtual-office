@@ -2627,9 +2627,9 @@ function buildSeason(){
       sm.scale.set(q[1], 1.0, 1); sm.position.set(-2.785, 2.15, q[0]); sm.rotation.y = Math.PI / 2; sm.renderOrder = 2; sm.userData.dyn = true; scene.add(sm);
       seasonFx.snow.push({ tex:tex, ph:k * 0.37, m:sm });
     });
-    /* wreaths either side of the logo, with a ring of warm lights */
+    /* a wreath with a ring of warm lights (the left wall end is the photo wall now) */
     var wreathBulb = null;
-    [[-2.6, 0], [5.65, 0]].forEach(function(q){
+    [[5.65, 0]].forEach(function(q){
       var wg = new T.Group(); wg.position.set(-2.77, 2.12, q[0]); wg.rotation.y = Math.PI / 2; scene.add(wg);
       var wr = new T.Mesh(new T.TorusGeometry(0.24, 0.075, 10, 28), M("#1f6a3c", { roughness:0.85 })); wr.castShadow = true; wg.add(wr);
       for (var b = 0; b < 9; b++) { var ba = b * Math.PI * 2 / 9 + 0.3; add(G.lowSph, M(b % 3 ? "#c8202f" : "#ffd36b", { roughness:0.3, metalness:0.2 }), 0.03, 0.03, 0.03, Math.cos(ba) * 0.24, Math.sin(ba) * 0.24, 0.07, wg, false); }
@@ -7791,7 +7791,6 @@ var ray = new T.Raycaster(), ndc = new T.Vector2();
 var petEl = document.getElementById("petcard");
 /* the office pets: Pixel (Debbie's cat), Finn and Nina (Erica's dogs) */
 var PETS = {
-  team:{ wide:true, tag:"Team photo", no:"", img:"img/team-plants.jpg", name:"Bad Bunny Halloween 2026", role:"The Dimplex team at the office", rows:[] },
   pixel:{ no:"0001", img:"img/pixel.jpg", name:"Pixel", role:"Debbie's cat", rows:[["Department", "Naps and quality control"], ["Desk", "Debbie's, the free end"], ["Known for", "Knocking things off desks"], ["Access", "Every room, no badge needed"]] },
   finn:{ no:"0002", img:"img/finn.jpg", name:"Finn", role:"Erica's dog", rows:[["Breed", "German Shorthaired Pointer"], ["Department", "Office security"], ["Desk", "Next to Erica's, the big bed"], ["Known for", "Keeping an eye on Pixel"], ["Access", "Wherever Erica goes"]] },
   nina:{ no:"0003", img:"img/nina.jpg", name:"Nina", role:"Erica's dog", rows:[["Breed", "German Shorthaired Pointer"], ["Department", "Welcome committee"], ["Desk", "Next to Erica's, the small bed"], ["Known for", "Sleeping through every meeting"], ["Access", "Wherever Erica goes"]] }
@@ -8224,31 +8223,35 @@ function chalBoardDraw(){
   CH.board = { c:c, g:c.getContext("2d"), tex:tex, hit:hitM };
   chalBoardDraw();
 })();
-/* ---------- the team photo on the wall (Bad Bunny Halloween 2026); a click opens it as a badge ---------- */
-var TEAMPIC = null;
-(function(){
-  var W = 1100, H = 467;
-  var tex = new T.TextureLoader().load("img/team-plants.jpg");
+/* ---------- the photo wall: the far end of the left wall, a collage of team photos; a click opens each one as a badge ----------
+   To add a photo: put it in img/, add a line here (y and z = centre on the wall, w = frame width in metres, px = image size). */
+var WALL_PHOTOS = [
+  { id:"bb26", img:"img/team-plants.jpg", px:[1100, 467], z:-3.0, y:1.75, w:0.38, name:"Bad Bunny Halloween 2026", role:"The Dimplex team at the office" }
+];
+var PHOTO_HITS = [];
+WALL_PHOTOS.forEach(function(ph){
+  PETS["photo_" + ph.id] = { wide:true, tag:"Team photo", no:"", img:ph.img, name:ph.name, role:ph.role || "", rows:[] };
+  var tex = new T.TextureLoader().load(ph.img);
   tex.colorSpace = T.SRGBColorSpace; tex.anisotropy = maxAniso;
   var gr = new T.Group();
-  /* far end of the left wall, past the second window, above the corner plant; smaller than a monitor */
-  gr.position.set(-2.785, 1.45, -3.0); gr.rotation.y = Math.PI / 2; scene.add(gr);
-  var fw = 0.38, fh = fw * H / W;
-  var frame = new T.Mesh(new T.BoxGeometry(fw + 0.04, fh + 0.04, 0.02), M("#2b2420", { roughness:0.55 })); gr.add(frame);
+  gr.position.set(-2.785, ph.y, ph.z); gr.rotation.y = Math.PI / 2; scene.add(gr);
+  var fw = ph.w, fh = fw * ph.px[1] / ph.px[0];
+  gr.add(new T.Mesh(new T.BoxGeometry(fw + 0.04, fh + 0.04, 0.02), M("#2b2420", { roughness:0.55 })));
   var mat = new T.Mesh(new T.PlaneGeometry(fw + 0.012, fh + 0.012), M("#f6f4ef", { roughness:0.9 })); mat.position.z = 0.0105; gr.add(mat);
   var pic = new T.Mesh(new T.PlaneGeometry(fw - 0.012, fh - 0.012), new T.MeshStandardMaterial({ map:tex, roughness:0.6, emissive:0xffffff, emissiveMap:tex, emissiveIntensity:0.12 }));
   pic.position.z = 0.012; gr.add(pic);
-  var hitM = new T.Mesh(new T.PlaneGeometry(fw + 0.12, fh + 0.12), new T.MeshBasicMaterial({ visible:false })); hitM.position.z = 0.03; gr.add(hitM);
-  TEAMPIC = { g:gr, hit:hitM };
-})();
+  var hitM = new T.Mesh(new T.PlaneGeometry(fw + 0.06, fh + 0.06), new T.MeshBasicMaterial({ visible:false })); hitM.position.z = 0.03; gr.add(hitM);
+  hitM.userData.photo = "photo_" + ph.id; PHOTO_HITS.push(hitM);
+});
 function pick(e){
   var rect = canvas.getBoundingClientRect();
   ndc.set(((e.clientX - rect.left) / rect.width) * 2 - 1, -((e.clientY - rect.top) / rect.height) * 2 + 1);
   ray.setFromCamera(ndc, camera);
   /* the Challenges board on the wall */
   if (CH.board && ray.intersectObject(CH.board.hit, false).length) { chalShow(true, "mission"); return; }
-  /* the team photo on the wall */
-  if (TEAMPIC && ray.intersectObject(TEAMPIC.hit, false).length) { petCard(true, "team"); return; }
+  /* the photo wall */
+  var phHit = ray.intersectObjects(PHOTO_HITS, false);
+  if (phHit.length) { petCard(true, phHit[0].object.userData.photo); return; }
   /* Pixel, Debbie's cat: her own ID card */
   if (CAT.on && CAT.g && CAT.g.visible && CAT.hit && ray.intersectObject(CAT.hit, false).length) { petCard(true, "pixel"); return; }
   /* the dogs sit close together: open the card of the one nearest to the click line */
