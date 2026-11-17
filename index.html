@@ -7791,7 +7791,7 @@ var ray = new T.Raycaster(), ndc = new T.Vector2();
 var petEl = document.getElementById("petcard");
 /* the office pets: Pixel (Debbie's cat), Finn and Nina (Erica's dogs) */
 var PETS = {
-  team:{ wide:true, tag:"Team photo", no:"", img:"img/team-plants.jpg", name:"Plant day", role:"The Dimplex team at the office", rows:[] },
+  team:{ wide:true, tag:"Team photo", no:"", img:"img/team-plants.jpg", name:"Bad Bunny Halloween 2026", role:"The Dimplex team at the office", rows:[] },
   pixel:{ no:"0001", img:"img/pixel.jpg", name:"Pixel", role:"Debbie's cat", rows:[["Department", "Naps and quality control"], ["Desk", "Debbie's, the free end"], ["Known for", "Knocking things off desks"], ["Access", "Every room, no badge needed"]] },
   finn:{ no:"0002", img:"img/finn.jpg", name:"Finn", role:"Erica's dog", rows:[["Breed", "German Shorthaired Pointer"], ["Department", "Office security"], ["Desk", "Next to Erica's, the big bed"], ["Known for", "Keeping an eye on Pixel"], ["Access", "Wherever Erica goes"]] },
   nina:{ no:"0003", img:"img/nina.jpg", name:"Nina", role:"Erica's dog", rows:[["Breed", "German Shorthaired Pointer"], ["Department", "Welcome committee"], ["Desk", "Next to Erica's, the small bed"], ["Known for", "Sleeping through every meeting"], ["Access", "Wherever Erica goes"]] }
@@ -8224,65 +8224,12 @@ function chalBoardDraw(){
   CH.board = { c:c, g:c.getContext("2d"), tex:tex, hit:hitM };
   chalBoardDraw();
 })();
-/* ---------- the team photo on the wall: a small drawn version of the plant day photo; a click opens the real one ---------- */
+/* ---------- the team photo on the wall (Bad Bunny Halloween 2026); a click opens it as a badge ---------- */
 var TEAMPIC = null;
 (function(){
-  var W = 1024, H = 436;
-  var tex = canvasTex(W, H, function(g){
-    /* the office behind them: white wall, a poster with the four icons, shelves on the right */
-    var wall = g.createLinearGradient(0, 0, 0, H); wall.addColorStop(0, "#f2f2ef"); wall.addColorStop(1, "#e3e3df");
-    g.fillStyle = wall; g.fillRect(0, 0, W, H);
-    g.fillStyle = "#d8dadd"; g.fillRect(0, 0, 40, H); g.fillRect(W - 120, 0, 120, H);
-    g.fillStyle = "#c9cbcf"; g.fillRect(0, H * 0.83, W, H * 0.17);
-    g.fillStyle = "#e9e9ef"; g.fillRect(44, 32, 140, 100); g.strokeStyle = "#b9bcc3"; g.lineWidth = 2; g.strokeRect(44, 32, 140, 100);
-    ["#2f4c7c", "#b0904f", "#5a6066", "#3a3f46"].forEach(function(c2, i){ g.fillStyle = c2; g.beginPath(); var cx = 66 + i * 32, cy = 78; for (var k = 0; k < 6; k++) { var a = Math.PI / 3 * k + Math.PI / 6; g.lineTo(cx + 13 * Math.cos(a), cy + 13 * Math.sin(a)); } g.closePath(); g.fill(); });
-    g.fillStyle = "#7b6a55"; g.fillRect(W - 100, 150, 90, 10); g.fillRect(W - 100, 190, 90, 10);
-    g.fillStyle = "#c79b5c"; g.fillRect(W - 96, 168, 40, 20); g.fillStyle = "#4b7fb4"; g.fillRect(W - 50, 170, 34, 18);
-    /* the people: where, how tall, sweater, trousers, hair, skin */
-    var P = [
-      [0.17, 0.42, "#2f5b47", "#2a2d33", "#6b4a32", "#e9c4a6"], [0.24, 0.47, "#5d5c3c", "#2a2d33", "#3a2a22", "#e2b996"],
-      [0.31, 0.36, "#1e1f24", "#1b1c21", "#1c1714", "#efcdb0"], [0.51, 0.34, "#25262b", "#1b1c21", "#3a2a22", "#d9ae8c"],
-      [0.61, 0.33, "#6b4f3e", "#24252a", "#b08a5a", "#efcdb0"], [0.73, 0.37, "#1d1d22", "#1b1c21", "#7a5a3e", "#efcdb0"],
-      [0.84, 0.30, "#8f9a95", "#1e1f24", "#5b3e2a", "#e9c4a6"], [0.64, 0.50, "#7fa35a", "#2a2d33", "#1c1714", "#d9ae8c"],
-      [0.42, 0.36, "#f0ede6", "#e6e1d6", "#2a1f1a", "#d9ae8c"]
-    ];
-    function frond(x, y, len, ang){
-      g.strokeStyle = "#4e7a3c"; g.lineWidth = 3; g.beginPath(); g.moveTo(x, y);
-      var ex = x + Math.cos(ang) * len, ey = y + Math.sin(ang) * len; g.lineTo(ex, ey); g.stroke();
-      g.strokeStyle = "#5f8f47"; g.lineWidth = 2;
-      for (var k = 1; k < 12; k++) { var px = x + (ex - x) * k / 12, py = y + (ey - y) * k / 12, l = 18 * (1 - k / 14);
-        g.beginPath(); g.moveTo(px, py); g.lineTo(px + Math.cos(ang - 0.9) * l, py + Math.sin(ang - 0.9) * l); g.moveTo(px, py); g.lineTo(px + Math.cos(ang + 0.9) * l, py + Math.sin(ang + 0.9) * l); g.stroke(); }
-    }
-    P.forEach(function(q, i){
-      var x = q[0] * W, top = q[1] * H, front = i === 8;
-      var hr = front ? 24 : 21, bw = front ? 92 : 80;
-      g.fillStyle = q[3]; g.fillRect(x - bw * 0.32, top + hr * 2 + 110, bw * 0.64, H - (top + hr * 2 + 110));
-      g.fillStyle = q[2]; g.beginPath(); g.moveTo(x - bw / 2, top + hr * 2 + 12); g.quadraticCurveTo(x, top + hr * 2 - 4, x + bw / 2, top + hr * 2 + 12);
-      g.lineTo(x + bw * 0.46, top + hr * 2 + 125); g.lineTo(x - bw * 0.46, top + hr * 2 + 125); g.closePath(); g.fill();
-      g.fillStyle = q[4]; g.beginPath(); g.ellipse(x, top + hr * 0.9, hr * 1.12, hr * 1.25, 0, 0, Math.PI * 2); g.fill();
-      if (i === 6) g.fillRect(x - hr * 1.15, top + hr, hr * 2.3, hr * 2.2);
-      g.fillStyle = q[5]; g.beginPath(); g.ellipse(x, top + hr * 1.15, hr * 0.82, hr, 0, 0, Math.PI * 2); g.fill();
-      g.fillStyle = "#2b2420"; g.beginPath(); g.arc(x - hr * 0.3, top + hr * 1.05, 2.4, 0, 7); g.arc(x + hr * 0.3, top + hr * 1.05, 2.4, 0, 7); g.fill();
-      g.strokeStyle = "#a65a4a"; g.lineWidth = 2; g.beginPath(); g.arc(x, top + hr * 1.35, hr * 0.35, 0.15 * Math.PI, 0.85 * Math.PI); g.stroke();
-      if (i === 1) { g.strokeStyle = "#333"; g.lineWidth = 2; g.strokeRect(x - hr * 0.62, top + hr * 0.92, hr * 0.5, hr * 0.32); g.strokeRect(x + hr * 0.12, top + hr * 0.92, hr * 0.5, hr * 0.32); }
-      if (!front) { frond(x + 10, top + hr * 2 + 60, 120 + (i % 3) * 25, -Math.PI / 2 - 0.25 + (i % 4) * 0.17); frond(x - 6, top + hr * 2 + 64, 90, -Math.PI / 2 + 0.45 - (i % 2) * 0.2); }
-      else {
-        g.fillStyle = "#f4f2ee"; g.beginPath(); g.arc(x - bw * 0.55, top + hr * 2 + 20, 13, 0, 7); g.arc(x + bw * 0.55, top + hr * 2 - 10, 13, 0, 7); g.fill();
-        g.fillStyle = "#7a4a2a"; g.beginPath(); g.ellipse(x - bw * 0.35, top + hr * 2 + 26, 26, 16, -0.6, 0, Math.PI * 2); g.fill();
-        g.strokeStyle = "#f4efe6"; g.lineWidth = 2; g.beginPath(); g.moveTo(x - bw * 0.48, top + hr * 2 + 34); g.lineTo(x - bw * 0.22, top + hr * 2 + 18); g.stroke();
-      }
-    });
-    /* the two chairs in front, each with a laptop on a video call */
-    [0.23, 0.64].forEach(function(cx0){
-      var x = cx0 * W;
-      g.fillStyle = "#1f2024"; g.fillRect(x - 70, H * 0.66, 140, 120);
-      g.fillStyle = "#2a2c31"; g.fillRect(x - 64, H * 0.92, 128, 14);
-      g.fillStyle = "#c7cbd1"; g.fillRect(x - 52, H * 0.86, 104, 50);
-      g.fillStyle = "#9fc7e8"; g.fillRect(x - 46, H * 0.875, 92, 36);
-      g.fillStyle = "#e9c4a6"; g.beginPath(); g.arc(x, H * 0.92, 9, 0, 7); g.fill();
-    });
-    for (var k = 0; k < 14; k++) frond(26 + k * 3, H - 6, 90 + (k % 4) * 15, -Math.PI / 2 - 0.5 + k * 0.07);
-  });
+  var W = 1100, H = 467;
+  var tex = new T.TextureLoader().load("img/team-plants.jpg");
+  tex.colorSpace = T.SRGBColorSpace; tex.anisotropy = maxAniso;
   var gr = new T.Group();
   /* far end of the left wall, past the second window, above the corner plant; smaller than a monitor */
   gr.position.set(-2.785, 1.45, -3.0); gr.rotation.y = Math.PI / 2; scene.add(gr);
