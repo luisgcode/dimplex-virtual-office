@@ -3500,6 +3500,32 @@ function dogsTick(t, dt){
 var PRANK_FORCE = (/[?&]catprank=(cup|trophy|tree)/.exec(location.search || "") || [])[1] || "";
 /* what the cat knocked over, as world state: { q, t0, fix } (q only for a cup) */
 var CATW = { cup:null, trophy:null, tree:null };
+/* a coffee dropped on the way back from the kitchen: { q, at, fix, pos }. One or two a day at most, someone nearby
+   comes to help clean it up. Planned by the director like everything else, so everyone sees the same mess. */
+var DROPW = { cur:null, day:0, n:0 };
+function dropCoffee(p, t){
+  var dk = dayKey();
+  if (DROPW.day !== dk) { DROPW.day = dk; DROPW.n = 0; }
+  if (DROPW.n >= 2 || (DROPW.cur && t < DROPW.cur.fix + 1) || p.guest || p.remote || R() > 0.22) return false;
+  DROPW.n++;
+  /* it lands in the aisle beside their desk, a bit ahead of where they stop */
+  var pos = new V3(p.seat.x * 0.32, 0, p.seat.z + (R() - 0.5) * 0.8);
+  var rec = { q:p, at:t, fix:t + 600, pos:pos, rot:R() * Math.PI * 2, color:cupColor(p) };
+  DROPW.cur = rec;
+  sayLater(p, choose(["Oops!! My coffee...", "Nooo, my coffee!", "Oh no. That was a full cup lol", "Great. Just great. My coffee."]), t + 0.2, 2.8);
+  var helpers = PEOPLE.filter(function(q){ return q !== p && !q.guest && !q.remote && q.state === "sit" && !q.chatWith && !q.trip && visAt(q, t); })
+    .sort(function(a, b){ return Math.hypot(a.seat.x - pos.x, a.seat.z - pos.z) - Math.hypot(b.seat.x - pos.x, b.seat.z - pos.z) || a.idx - b.idx; });
+  var h = helpers[0];
+  if (!h) { rec.fix = t + 14; return true; }
+  /* the helper stands in the middle of the aisle, beside the mess, not on top of it */
+  var spot = new V3(pos.x * 0.15, 0, pos.z + (pos.z > h.seat.z ? -0.3 : 0.3));
+  goSpot(h, t, spot, pos.clone(), 9, "Helping clean up a spilled coffee", "fixprinter", function(q2, t2){
+    rec.fix = t2 + 6.5;
+    sayLater(q2, choose(["Here, I've got paper towels.", "Don't worry, happens to everyone.", "All good, I'll grab it.", "No harm done. Want me to make you another?"]), t2 + 0.3, 2.8);
+    sayLater(p, choose(["Thank you!! You're the best.", "Thanks, I owe you one.", "Ugh, thank you."]), t2 + 3.2, 2.4);
+  });
+  return true;
+}
 function catFloorOf(q){ q.deskOuter.updateWorldMatrix(true, false); var f = q.deskOuter.localToWorld(new V3(-0.55, 0, -0.1)); f.y = 0; return f; }
 function catTopOf(q, out){ q.deskGroup.updateWorldMatrix(true, false); return q.deskGroup.localToWorld((out || new V3()).set(-0.42, 0.7625, -0.72)); }
 var CAT_UNDER = new V3(-2.18, 0.7625, 0.52), CAT_TREE_TOP = new V3(1.0, 0.75, 5.78), CAT_TREE_LAND = new V3(0.55, 0, 5.6);
@@ -3718,8 +3744,30 @@ function catPosAt(t, out){
   }
   return s;
 }
+/* drawing: the dropped coffee, a mug on its side and a puddle, from the world's record */
+var DROP_G = null;
+function dropRender(t){
+  var r = DROPW.cur;
+  var on = !!(r && t >= r.at && t < r.fix);
+  if (!on) { if (DROP_G) DROP_G.visible = false; return; }
+  if (!DROP_G) {
+    DROP_G = new T.Group(); scene.add(DROP_G);
+    var mat = M("#ffffff", { roughness:0.4 }); DROP_G.userData.mat = mat;
+    var mug = new T.Group(); mug.position.set(0, 0.034, 0); mug.rotation.z = Math.PI / 2; DROP_G.add(mug);
+    add(G.cyl, mat, 0.034, 0.085, 0.034, 0, 0, 0, mug, false);
+    add(G.box, mat, 0.012, 0.04, 0.008, 0.04, 0.005, 0, mug, false);
+    var pud = add(G.cyl, M("#5b3a22", { roughness:0.1, transparent:true, opacity:0.85 }), 0.16, 0.003, 0.11, 0.12, 0.002, 0.02, DROP_G, false);
+    DROP_G.userData.pud = pud;
+  }
+  DROP_G.visible = true;
+  DROP_G.position.copy(r.pos); DROP_G.rotation.y = r.rot;
+  if (DROP_G.userData.col !== r.color) { DROP_G.userData.col = r.color; DROP_G.userData.mat.color.set(r.color); }
+  /* the puddle spreads in the first second */
+  var k = clamp((t - r.at) / 0.9, 0.15, 1); DROP_G.userData.pud.scale.set(0.16 * k, 0.003, 0.11 * k);
+}
 /* drawing: things the cat knocked over, from the world's record */
 function fallRender(t){
+  dropRender(t);
   var C = CATW.cup;
   PEOPLE.forEach(function(q){
     var c = q.cup; if (!c) return;
@@ -6645,7 +6693,7 @@ function simEnd(p, te, T){
   if (st === "down") { p.trip = null; setState(p, "sit", te, 0); p.decideAt = te + rand(3, 8); return; }
   if (st === "walk") {
     if (tr.back && p.guest) { p.trip = null; setState(p, "gone", t, 0); GUESTS.cur = null; GUESTS.next = t + rand(180, 420); }
-    else if (tr.back) { setState(p, "down", t, 0.6); p.walkPhone = false; p.act = null; }
+    else if (tr.back) { if (tr.kind === "coffee") dropCoffee(p, t); setState(p, "down", t, 0.6); p.walkPhone = false; p.act = null; }
     else if (tr.kind === "meeting") setState(p, "away", t, 1800);
     else if (tr.kind === "lunch" || tr.kind === "home") setState(p, "away", t, 0);
     else if (tr.kind === "coffee") {
@@ -8715,6 +8763,7 @@ try {
 } catch (e) { composer = null; aoPass = null; }
 loadingEl.hidden = true;
 window.__voReady = true;
+window.__dropw = DROPW;
 window.__dbg = { renderer:renderer, scene:scene, camera:camera, sun:sun, T:T, seasonFx:seasonFx };
 window.__vo = { people:BY, focus:function(id){ focusOn(BY[id]); }, ask:function(id, q){ ask(BY[id], q); }, converse:function(id, q){ return converse(BY[id], q).text; }, goal:goal, view:view, season:function(){ SEASONW.next = 1; return SEASON; }, mishap:function(k){ MISHAP.cur = null; return startMishap(k, WT()); }, mishaps:MISHAP };
 /* ?mishap=cat (or book, spill, chair, restart) makes it happen a few seconds after the page opens, to watch it on demand */
@@ -8757,7 +8806,7 @@ function resetWorld(){
     TEAMCALL.on = false; TEAMCALL.next = 0; TEAMCALL.speaker = null; TEAMCALL.said = {};
     ALONE.next = 0; ALONE.said = [];
     DOGS.petAt = 0; DOGS.pet = 0; DOGW.walk = null; DOGW.list.forEach(function(d){ d.st = 0; d.stretchAt = 0; });
-    CAT.on = false; CAT.segs = null; CAT.evs = []; CAT.lastSlot = -1; CAT.next = 0; CAT.prank = ""; CATW.cup = CATW.trophy = CATW.tree = null;
+    CAT.on = false; CAT.segs = null; CAT.evs = []; CAT.lastSlot = -1; CAT.next = 0; CAT.prank = ""; CATW.cup = CATW.trophy = CATW.tree = null; DROPW.cur = null; DROPW.day = 0; DROPW.n = 0;
     SEASONW.next = 0; SEASONW.until = 0;
     LIFE.printers.forEach(function(pr){ pr.job = null; });
     ALL.forEach(function(p, i){ simResetPerson(p, i, SIM.START); });
