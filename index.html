@@ -411,6 +411,61 @@ var loadingEl = document.getElementById("loading");
 var T = THREE;
 function fail(msg){ loadingEl.hidden = true; fallback.textContent = msg; fallback.hidden = false; }
 
+/* ---------- world time ----------
+   Everyone watching sees the same office at the same moment, like one shared game world. The office runs on one
+   clock: the server's clock (read once from the Date header of this page, so a wrong clock on the viewer's machine
+   does not matter) shown in Toronto time, whatever time zone the viewer is in.
+   ?time=16:45 and ?day=fri still override it for testing. */
+var WORLD_OFF = 0;
+try {
+  var wAc = typeof AbortController === "function" ? new AbortController() : null, wTo = setTimeout(function(){ if (wAc) wAc.abort(); }, 2500);
+  var wT0 = Date.now(), wRes = await fetch(location.href, { method:"HEAD", cache:"no-store", signal:wAc ? wAc.signal : undefined });
+  clearTimeout(wTo);
+  var wHd = wRes.headers.get("Date"), wSv = wHd ? Date.parse(wHd) : NaN;
+  /* the header has whole seconds: take the middle of that second against the middle of the round trip */
+  if (!isNaN(wSv)) { var wOff = wSv + 500 - (wT0 + Date.now()) / 2; if (Math.abs(wOff) >= 2000) WORLD_OFF = wOff; }
+} catch (e) {}
+var TZ_FMT = new Intl.DateTimeFormat("en-US", { timeZone:"America/Toronto", hourCycle:"h23", weekday:"short", year:"numeric", month:"numeric", day:"numeric", hour:"numeric", minute:"numeric", second:"numeric" });
+var TZ_WD = { Sun:0, Mon:1, Tue:2, Wed:3, Thu:4, Fri:5, Sat:6 }, TZ_C = { s:NaN, p:null };
+/* Toronto wall time of an instant: y, mo (1-12), d, h, mi, s, wd (0 = Sunday). Cached per second. */
+function torontoAt(ms){
+  var sec = Math.floor(ms / 1000);
+  if (sec !== TZ_C.s) {
+    var o = {}; TZ_FMT.formatToParts(new Date(sec * 1000)).forEach(function(x){ o[x.type] = x.value; });
+    TZ_C.s = sec; TZ_C.p = { y:+o.year, mo:+o.month, d:+o.day, h:(+o.hour) % 24, mi:+o.minute, s:+o.second, wd:TZ_WD[o.weekday] };
+  }
+  return TZ_C.p;
+}
+var DAYQ = (function(){
+  var s = location.search || "", q = /[?&]time=(\d{1,2}):(\d{2})/.exec(s), dq = /[?&]day=(sun|mon|tue|wed|thu|fri|sat)/i.exec(s), off = 0;
+  if (q) { var n = torontoAt(Date.now() + WORLD_OFF); off = ((+q[1]) * 60 + (+q[2]) - (n.h * 60 + n.mi)) * 60000; }
+  return { off:off, day:dq ? ["sun","mon","tue","wed","thu","fri","sat"].indexOf(dq[1].toLowerCase()) : -1 };
+})();
+/* "now" for the world, in ms: the server clock plus the ?time= override */
+function WORLD_NOW(){ return Date.now() + WORLD_OFF + DAYQ.off; }
+/* the world moment as a Date whose local fields are the Toronto wall time (so getHours, getDate, getMonth and getDay
+   read Toronto values on any machine). Only for reading fields, never for getTime against the real clock. */
+function worldDate(){ var ms = WORLD_NOW(), p = torontoAt(ms); return new Date(p.y, p.mo - 1, p.d, p.h, p.mi, p.s, ms - Math.floor(ms / 1000) * 1000); }
+/* world time in seconds since Toronto midnight of the world date: the clock every world system runs on.
+   (On the two nights a year the clocks change it jumps an hour at 2 am, when the office is empty.) */
+function WT(){ var ms = WORLD_NOW(), p = torontoAt(ms); return p.h * 3600 + p.mi * 60 + p.s + (ms - Math.floor(ms / 1000) * 1000) / 1000; }
+function worldDateKey(){ var p = torontoAt(WORLD_NOW()); return p.y * 10000 + p.mo * 100 + p.d; }
+var WORLD_DATE = worldDateKey();
+/* keyed randomness: the same keys give the same numbers for every viewer on the same day */
+function hmix(h, v){
+  h = Math.imul(h ^ (v >>> 0), 2654435761) >>> 0; h = Math.imul(h ^ (h >>> 16), 2246822507) >>> 0;
+  h = Math.imul(h ^ (h >>> 13), 3266489909) >>> 0; return (h ^ (h >>> 16)) >>> 0;
+}
+function hkey(k){
+  if (typeof k === "number") return Math.floor(k) >>> 0;
+  var h = 2166136261; k = String(k); for (var i = 0; i < k.length; i++) h = Math.imul(h ^ k.charCodeAt(i), 16777619) >>> 0; return h;
+}
+function wrng(){
+  var h = hmix(0x9e3779b9, dayKey());
+  for (var i = 0; i < arguments.length; i++) h = hmix(h, hkey(arguments[i]));
+  var r = seeded(h % 2147483646 + 1); r(); r(); return r;
+}
+
 /* ---------- team ---------- */
 var PEOPLE = [
   { id:"erica", model:"erica", name:"Erica", role:"Manager, Marketing", side:1, z:-1.05, personality:"One of the bosses. Always heading to the next meeting.", topics:"Meetings, calendars and the next call", shirt:"#4a4d52", dot:"#3d6fb0", pants:"#1d1f24", skin:"#efcfbd", hair:"#6b4630", highlight:"#6b4630", style:"softwave", part:0, eyeColor:"#4a2c1c", vneck:true, alwaysSmile:true, sleeves:true, screen:"cal",
@@ -646,11 +701,14 @@ function wxKind(code){
 }
 var WX_TEXT = { snow:"Snow", rain:"Rain", cloud:"Cloudy", clear:"Clear" };
 function wxFetch(){
-  fetch("https://api.open-meteo.com/v1/forecast?latitude=43.36&longitude=-80.31&current=temperature_2m,weather_code,is_day&timezone=America%2FToronto")
+  fetch("https://api.open-meteo.com/v1/forecast?latitude=43.36&longitude=-80.31&current=temperature_2m,weather_code,is_day&daily=weather_code&past_days=14&forecast_days=1&timezone=America%2FToronto")
     .then(function(r){ return r.json(); })
     .then(function(j){
       var c = j && j.current; if (!c) return;
       WX.kind = wxKind(c.weather_code); WX.temp = Math.round(c.temperature_2m); WX.isDay = c.is_day === 1;
+      /* the days it snowed (Toronto dates), for the snow piling up on the sills */
+      var dl = j.daily; WX.snowDays = [];
+      if (dl && dl.time && dl.weather_code) dl.time.forEach(function(ds, i){ var a = /^(\d+)-(\d+)-(\d+)$/.exec(ds); if (a && wxKind(dl.weather_code[i]) === "snow") WX.snowDays.push((+a[1]) * 1000 + (+a[2] - 1) * 40 + (+a[3])); });
     }).catch(function(){});
 }
 wxFetch(); setInterval(wxFetch, 15 * 60 * 1000);
@@ -687,11 +745,11 @@ var SNOWPILE = { days:0, at:-99, sills:[] };
 })();
 function snowDaysNow(){
   var q = /[?&]snowdays=(\d+)/.exec(location.search || ""); if (q) return +q[1];
-  var kind = WX_FORCE || WX.kind, today = dayKey(), log = [];
-  try { log = JSON.parse(localStorage.getItem("vo.snow") || "[]"); } catch (e) {}
-  if (kind === "snow" && log.indexOf(today) < 0) { log.push(today); log = log.slice(-20); try { localStorage.setItem("vo.snow", JSON.stringify(log)); } catch (e) {} }
+  /* past days come from the weather service (the same for every viewer); today counts while it is snowing now */
+  var kind = WX_FORCE || WX.kind, today = dayKey(), log = (WX.snowDays || []).filter(function(k){ return k !== today; });
+  if (kind === "snow") log.push(today);
   /* count back from today: days in a row it snowed; a warm day melts it */
-  var n = 0, d = new Date(DAY.d || new Date());
+  var n = 0, d = new Date(DAY.d || worldDate());
   for (var i = 0; i < 14; i++) {
     var k = d.getFullYear() * 1000 + d.getMonth() * 40 + d.getDate();
     if (log.indexOf(k) >= 0) n++; else if (i > 0) break;
@@ -1918,7 +1976,7 @@ var WALLCLOCK = (function(){
   return { c:c, ctx:c.getContext("2d"), tex:tex, last:"" };
 })();
 function wallClockTick(){
-  var d = new Date(Date.now() + DAYQ.off), hh = d.getHours(), mm = d.getMinutes(), col = d.getSeconds() % 2 === 0;
+  var d = worldDate(), hh = d.getHours(), mm = d.getMinutes(), col = d.getSeconds() % 2 === 0;
   var key = hh + ":" + mm + (col ? ":" : " ");
   if (key === WALLCLOCK.last) return;
   WALLCLOCK.last = key;
@@ -2096,7 +2154,7 @@ var NO_LUNCH = /[?&]lunch=off/.test(location.search || "");
 /* morning arrival: everyone starts at 8, each person shows up somewhere between 8:00 and 8:30, closer to 8 more often.
    The time changes every day but stays the same within a day (seeded by the date and the person). */
 function arriveH(p){
-  var d = DAY.d || new Date(), key = d.getFullYear() * 1000 + d.getMonth() * 40 + d.getDate();
+  var d = DAY.d || worldDate(), key = d.getFullYear() * 1000 + d.getMonth() * 40 + d.getDate();
   if (p.arriveKey !== key) {
     var hs = 0; for (var i = 0; i < p.id.length; i++) hs = (hs * 31 + p.id.charCodeAt(i)) % 100000;
     var r = seeded((key * 7919 + hs * 104729) % 2147483646 + 1); r(); r();
@@ -2123,11 +2181,11 @@ var HOLIDAYS = { "2026-01-01":"New Year's Day", "2026-02-16":"Family Day", "2026
   "2027-09-06":"Labour Day", "2027-10-11":"Thanksgiving", "2027-12-24":"Christmas Eve", "2027-12-27":"Christmas Day", "2027-12-28":"Boxing Day", "2027-12-31":"New Year's Eve" };
 function holidayNow(){
   if (/[?&]holiday=1/.test(location.search || "")) return "Holiday";
-  var d = DAY.d || new Date(), k = d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2);
+  var d = DAY.d || worldDate(), k = d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2);
   return DAYQ.day >= 0 ? "" : (HOLIDAYS[k] || "");
 }
 function dayRand(p, salt){
-  var d = DAY.d || new Date(), key = d.getFullYear() * 1000 + d.getMonth() * 40 + d.getDate();
+  var d = DAY.d || worldDate(), key = d.getFullYear() * 1000 + d.getMonth() * 40 + d.getDate();
   var hs = salt; for (var i = 0; i < p.id.length; i++) hs = (hs * 31 + p.id.charCodeAt(i)) % 100000;
   var r = seeded((key * 7919 + hs * 104729) % 2147483646 + 1); r(); r(); return r();
 }
@@ -2145,9 +2203,10 @@ var TEAMCALL_FORCE = /[?&]teamcall=1/.test(location.search || "");
 function teamCallNow(){ return TEAMCALL_FORCE || (!!DAY.fri && !DAY.closed && DAY.h >= 11 && DAY.h < 11.5); }
 function homeNow(p){ return !p.guest && !p.remote && (!!DAY.closed || wfhToday(p) || DAY.h >= leaveOf(p) || DAY.h < arriveH(p)); }
 var OFFICE_DARK = 0;
-function officeHours(t, dt){
-  /* at 5 pm the office lights go off and it is properly dark (only the Christmas lights stay on), a bit darker as the
-     night goes on; at 8 am the office lights come back on and the Christmas lights go off */
+/* how dark the office should be right now (the lights fade toward it): at 5 pm the office lights go off and it is
+   properly dark (only the Christmas lights stay on), a bit darker as the night goes on; at 8 am they come back on.
+   World logic reads this, never the fading OFFICE_DARK, so it does not depend on when the page was opened. */
+function darkTarget(){
   var hh = DAY.h, dark = 0;
   if (DAY.closed) dark = 1;
   else {
@@ -2156,6 +2215,10 @@ function officeHours(t, dt){
     /* someone still working: half the lights stay on over the desks */
     if (dark > 0.5 && PEOPLE.some(function(q){ return !q.guest && !q.remote && q.state === "sit" && q.root.visible; })) dark = 0.5;
   }
+  return dark;
+}
+function officeHours(t, dt){
+  var dark = darkTarget();
   OFFICE_DARK = lerp(OFFICE_DARK, dark, 1 - Math.exp(-dt * 2.2));
   weatherTick(t);
   if (TROPHY) TROPHY.spin.rotation.y += dt * 0.6;
@@ -2199,7 +2262,7 @@ function lunchNow(p){ if (NO_LUNCH) return ""; var L = LUNCH[p.id]; return L && 
 var SEASON = (function(){
   var q = /[?&]theme=(halloween|christmas|none)\b/.exec(location.search || "");
   if (q) return q[1];
-  var now = new Date(), m = now.getMonth() + 1, d = now.getDate();
+  var now = torontoAt(WORLD_NOW()), m = now.mo, d = now.d;
   if ((m === 10 && d >= 15) || (m === 11 && d <= 1)) return "halloween";
   if ((m === 11 && d >= 12) || m === 12 || (m === 1 && d <= 6)) return "christmas";
   return "none";
@@ -2543,14 +2606,14 @@ function seasonTick(t, dt){
   }
   var L = seasonFx.line;
   if (L) {
-    if (t > L.t1 && !L.replied && L.b) { L.replied = true; if (L.a.bubble.textContent === L.text) showBubble(L.a, null); showBubble(L.b, L.reply); L.t2 = t + 3.6; }
-    if (t > L.t2) { if (L.b && L.b.bubble.textContent === L.reply) showBubble(L.b, null); if (!L.b && L.a.bubble.textContent === L.text) showBubble(L.a, null); seasonFx.line = null; }
+    if (t > L.t1 && !L.replied && L.b) { L.replied = true; if (L.a.sayText === L.text) showBubble(L.a, null); showBubble(L.b, L.reply); L.t2 = t + 3.6; }
+    if (t > L.t2) { if (L.b && L.b.sayText === L.reply) showBubble(L.b, null); if (!L.b && L.a.sayText === L.text) showBubble(L.a, null); seasonFx.line = null; }
     return;
   }
   if (!seasonFx.next) seasonFx.next = t + rand(8, 18);
   if (t < seasonFx.next) return;
   seasonFx.next = t + rand(35, 75);
-  var who = PEOPLE.filter(function(q){ return q.state === "sit" && q.root.visible && !q.chatWith && !q.bubbleOn && !q.answering && q.onScreen; });
+  var who = PEOPLE.filter(function(q){ return q.state === "sit" && q.root.visible && !q.chatWith && !q.sayText && !q.answering; });
   if (!who.length || teamCallNow() || chats.some(function(c){ return c.bubbles; })) return;
   var a0 = choose(who), near = who.filter(function(q){ return q !== a0 && Math.abs(q.z - a0.z) < 2.2; });
   var b0 = near.length && Math.random() < 0.75 ? choose(near) : null;
@@ -2575,7 +2638,7 @@ function updateSays(t){
   for (var i = SAYS.length - 1; i >= 0; i--) {
     var s = SAYS[i];
     if (!s.on && t >= s.t0) { if (!s.p.chatWith) showBubble(s.p, s.text); s.on = true; }
-    if (t > s.t1) { if (s.p.bubble.textContent === s.text && !s.p.chatWith) showBubble(s.p, null); SAYS.splice(i, 1); }
+    if (t > s.t1) { if (s.p.sayText === s.text && !s.p.chatWith) showBubble(s.p, null); SAYS.splice(i, 1); }
   }
 }
 var MISHAP = { next:0, cur:null, book:null, puddle:null };
@@ -2730,7 +2793,7 @@ function startMishap(kind, t){
     logEvent("spill", m.p, t);
     startAct(m.p, "point", t + 0.5, 2.0);
     /* grab napkins and wipe the desk */
-    setTimeout(function(){ if (m.p.state === "sit" && !m.p.chatWith && (!m.p.act || m.p.act.n === "point")) startAct(m.p, "wipe", clock.elapsedTime, 5.5); }, 2600);
+    setTimeout(function(){ if (m.p.state === "sit" && !m.p.chatWith && (!m.p.act || m.p.act.n === "point")) startAct(m.p, "wipe", WT(), 5.5); }, 2600);
   } else if (kind === "restart") {
     /* the computer has to restart for updates: black screen, a spinner, a percentage that crawls, and a bored wait */
     /* left row only: those screens face the usual view */
@@ -2765,7 +2828,7 @@ function aloneTick(t){
   var here = PEOPLE.filter(function(q){ return !q.guest && !q.remote && q.root.visible && (q.state === "sit" || q.state === "walk"); });
   if (here.length !== 1 || DAY.closed) return;
   var p = here[0];
-  if (p.state !== "sit" || p.chatWith || p.answering || p.bubbleOn || teamCallNow()) return;
+  if (p.state !== "sit" || p.chatWith || p.answering || p.sayText || teamCallNow()) return;
   var late = DAY.h >= 17, L = [
     "It's so quiet in here.", "Hello? Anyone?", "Just me and the plants now.", "Everyone left without me lol",
     "I can hear the fridge from here.", "Honestly, I love the quiet.", "Last one in again.", "Okay, I'm talking to myself now.",
@@ -2880,7 +2943,7 @@ function ghostBuild(){
   GHOST.g = g; GHOST.body = mat; GHOST.eyes = eyeM; GHOST.halo = halo;
 }
 function ghostTick(t, dt, present){
-  var night = OFFICE_DARK > 0.8 && !present.length && (DAY.h >= 22 || DAY.h < 5.5);
+  var night = darkTarget() > 0.8 && !present.length && (DAY.h >= 22 || DAY.h < 5.5);
   if (!GHOST.on) {
     if (!GHOST.next) GHOST.next = t + (GHOST.want ? 4 : rand(60, 120));
     if (t < GHOST.next) return;
@@ -3325,9 +3388,7 @@ function catTick(t, dt){
       /* the clock decides, so everyone with the office open sees the same visit at the same time:
          each hour has about a 2 in 3 chance of one visit, at a minute between :05 and :50 */
       var hr = Math.floor(DAY.h), slot = dayKey() * 100 + hr;
-      var hs = (Math.imul(dayKey(), 2654435761) ^ Math.imul(hr + 1, 1597334677)) >>> 0;
-      hs = Math.imul(hs ^ (hs >>> 16), 2246822507) >>> 0; hs = Math.imul(hs ^ (hs >>> 13), 3266489909) >>> 0; hs = (hs ^ (hs >>> 16)) >>> 0;
-      sr = seeded(hs % 2147483646 + 1); sr(); sr();
+      sr = wrng("cat", hr);
       var at = hr + (5 + sr() * 45) / 60;
       if (sr() > 0.65 || CAT.lastSlot === slot || DAY.h < at || DAY.h > at + 2 / 60) return;
       if (!(D && D.root.visible && !lunchNow(D) && !teamCallNow() && !DAY.closed)) return;
@@ -3719,13 +3780,13 @@ var WINTER_LOOKS = {
 };
 function dayOutfitSeed(p, salt){
   /* ?outfit=3 jumps 3 days ahead, to preview other outfits */
-  var d = new Date(), m = /[?&]outfit=(\d+)/.exec(location.search || "");
+  var d = worldDate(), m = /[?&]outfit=(\d+)/.exec(location.search || "");
   var key2 = d.getFullYear() * 1000 + d.getMonth() * 40 + d.getDate() + (m ? +m[1] * 37 : 0);
   var hs = 7; (p.id + salt).split("").forEach(function(ch){ hs = (hs * 31 + ch.charCodeAt(0)) % 100003; });
   var r = seeded((key2 * 4801 + hs * 7919) % 2147483646 + 1); r(); r(); return r;
 }
 function dayLook(p){
-  var r = dayOutfitSeed(p, "#look"), mo = new Date().getMonth(), winter = mo >= 10 || mo <= 2;
+  var r = dayOutfitSeed(p, "#look"), mo = worldDate().getMonth(), winter = mo >= 10 || mo <= 2;
   var usual = r() < 0.12, pool = winter && r() < 0.6 ? WINTER_LOOKS : DAY_LOOKS, names = Object.keys(pool);
   var nm = names[Math.floor(r() * names.length)];
   return { usual:usual, name:nm, look:pool[nm] };
@@ -4415,7 +4476,7 @@ function updateRig(p, t, dt){
         if (a.n === "rubeyes" && (n === "LeftForeArm" || n === "RightForeArm")) dd = v3a(SCR, dd[0] + 0.06 * Math.sin(t * 9), dd[1], dd[2]);
         if (a.n === "wave" && n === "RightForeArm") dd = v3a(SCR, dd[0] + 0.45 * Math.sin(t * 9), dd[1], dd[2]);
         if ((a.n === "talk" || a.n === "answer") && n === "RightForeArm") dd = v3a(SCR, dd[0] + 0.15 * MV.hands * Math.sin(t * 4.3), dd[1] + 0.2 * MV.hands * Math.sin(t * 3.1), dd[2]);
-        if (a.n === "turn" && n === "RightForeArm" && p.bubbleOn) dd = v3a(SCR, dd[0] + 0.1 * MV.hands * Math.sin(t * 3.7), dd[1] + 0.25 * Math.min(1.3, MV.hands) + 0.18 * MV.hands * Math.sin(t * 2.9), dd[2]);
+        if (a.n === "turn" && n === "RightForeArm" && p.sayText) dd = v3a(SCR, dd[0] + 0.1 * MV.hands * Math.sin(t * 3.7), dd[1] + 0.25 * Math.min(1.3, MV.hands) + 0.18 * MV.hands * Math.sin(t * 2.9), dd[2]);
         aim(b[n], b[CHILD[n]], dd, w, _rq);
       }
       if (a.n === "turn" || a.n === "answer") {
@@ -4460,15 +4521,9 @@ function updateRig(p, t, dt){
     b.Spine2.rotation.x += 0.04 * lw * Math.sin(t * 17);
   }
   /* looking around: the head (and a little of the chest) follows whatever caught their eye */
-  if (p.gazeYaw && Math.abs(p.gazeYaw) > 0.01 && focus !== p && !(a && (a.n === "turn" || a.n === "answer" || a.n === "leanFire"))) {
+  if (p.gazeYaw && Math.abs(p.gazeYaw) > 0.01 && !(a && (a.n === "turn" || a.n === "answer" || a.n === "leanFire"))) {
     yawBone(b.Spine1, clamp(p.gazeYaw * 0.18, -0.3, 0.3) * sit);
     yawBone(b.Head, clamp(p.gazeYaw * 0.6, -1.0, 1.0));
-  }
-  /* while their card is open, people turn to face the viewer */
-  if (focus === p && !a && !p.remote) {
-    var fy = clamp(camYaw(p), -2.2, 2.2);
-    yawBone(b.Spine1, clamp(fy * 0.25, -0.45, 0.45));
-    yawBone(b.Head, clamp(fy * 0.55, -1.0, 1.0));
   }
   var f = p.face;
   if (f) {
@@ -4485,7 +4540,7 @@ function updateRig(p, t, dt){
     f.eyes[0].scale.y = bl * (1 - 0.3 * sm); f.eyes[1].scale.y = bl * (1 - 0.3 * sm);
     f.brows.forEach(function(br){ br.rotation.z = -br.userData.s * (0.1 - 0.28 * fr + 0.06 * sm); br.position.y = 1.69 + 0.003 * sm - 0.003 * fr; });
     f.curve.position.x = 0;
-    var talking = (p.answering && t < p.answering && t > (p.speakFrom || 0)) || p.bubbleOn || (a && a.n === "talk" && t - a.t0 < a.dur);
+    var talking = (p.answering && t < p.answering && t > (p.speakFrom || 0)) || !!p.sayText || (a && a.n === "talk" && t - a.t0 < a.dur);
     var open = talking ? 0.3 + 0.7 * Math.abs(Math.sin(t * 12.5 + Math.sin(t * 3.3) * 2.2)) : 0;
     p.mouthOpen = lerp(p.mouthOpen || 0, open, 1 - Math.exp(-dt * 18));
     f.mouth.scale.y = f.mouth.userData.base * (1 + p.mouthOpen * 2.4);
@@ -4672,18 +4727,14 @@ function makeRequest(p, t){
 }
 
 /* ---------- real clock and the shape of the day ----------
-   The office runs on the viewer's real clock. Mornings are slow and full of coffee, the slump hits after lunch,
+   The office runs on the world clock (server time, Toronto). Mornings are slow and full of coffee, the slump hits after lunch,
    everyone perks up near home time, and heavy weekdays (Monday, Thursday) wear people down faster.
    ?time=16:45 and ?day=fri override the clock for testing. */
-var DAYQ = (function(){
-  var s = location.search || "", q = /[?&]time=(\d{1,2}):(\d{2})/.exec(s), dq = /[?&]day=(sun|mon|tue|wed|thu|fri|sat)/i.exec(s), off = 0;
-  if (q) { var n = new Date(); off = ((+q[1]) * 60 + (+q[2]) - (n.getHours() * 60 + n.getMinutes())) * 60000; }
-  return { off:off, day:dq ? ["sun","mon","tue","wed","thu","fri","sat"].indexOf(dq[1].toLowerCase()) : -1 };
-})();
+/* DAYQ (the ?time= and ?day= overrides) lives with the world time helpers at the top */
 var WEEKDAY = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
 var DAY_LOAD = [0.9, 1.35, 1.05, 1.2, 1.3, 1.1, 0.9];
 var DAY = {};
-function officeNow(){ var d = new Date(Date.now() + DAYQ.off); return { d:d, h:d.getHours() + d.getMinutes() / 60, wd:DAYQ.day >= 0 ? DAYQ.day : d.getDay() }; }
+function officeNow(){ var d = worldDate(); return { d:d, h:d.getHours() + d.getMinutes() / 60, wd:DAYQ.day >= 0 ? DAYQ.day : d.getDay() }; }
 function dayTick(){
   var o = officeNow(), h = o.h, wd = o.wd, fri = wd === 5, wknd = wd === 0 || wd === 6, k, label, bias, coffee, pace;
   if (h < 9) { k = "early"; label = "Waking up"; bias = -0.4; coffee = 2.6; pace = 0.86; }
@@ -4712,8 +4763,9 @@ function dayTick(){
 dayTick();
 function moodTarget(p){ return clamp(MOODS[p.mood.base].v + DAY.bias * (p.dayK || 1), -1, 1); }
 
+var T_LOAD = WT();
 ALL.forEach(function(p, i){
-  p.idx = i; p.pace = 1; p.nextAct = rand(3, 10);
+  p.idx = i; p.pace = 1; p.nextAct = T_LOAD + rand(3, 10);
   p.w = PERSONA[p.id];
   var early = DAY.key === "early" || DAY.key === "morning";
   p.dayK = rand(0.7, 1.3);
@@ -4721,11 +4773,11 @@ ALL.forEach(function(p, i){
   p.leaveH = p.id === "luis" ? 16 : rand(16.75, 16.97);
   if (!p.guest && !p.remote) p.leaveH = leaveOf(p);
   p.needs = { energy:clamp(rand(0.45, 1) - (early ? 0.25 : 0) - (DAY.load - 1) * 0.5, 0.12, 1), focus:rand(0.3, 0.9), social:rand(0, 0.6), coffee:clamp(rand(0, 0.55) + (early ? 0.3 : 0), 0, 1) };
-  p.state = "sit"; p.t0 = 0; p.dur = 0;
-  p.decideAt = rand(4, 45);  /* spread out, so the page never opens with everyone doing the same thing */
-  p.typeOn = Math.random() < 0.7; p.typeNext = rand(0.5, 5); p.typeAmp = 0;
+  p.state = "sit"; p.t0 = T_LOAD; p.dur = 0;
+  p.decideAt = T_LOAD + rand(4, 45);  /* spread out, so the page never opens with everyone doing the same thing */
+  p.typeOn = Math.random() < 0.7; p.typeNext = T_LOAD + rand(0.5, 5); p.typeAmp = 0;
   p.act = null; p.trip = null; p.chatWith = null; p.visitor = null; p.log = [];
-  if (p.walker) p.cal = { next:rand(3, 20) * 60 };
+  if (p.walker) p.cal = { next:T_LOAD + rand(3, 20) * 60 };
 });
 
 /* ---------- paths along the aisle (keep right, so people pass each other) ---------- */
@@ -4891,11 +4943,10 @@ function logEvent(kind, p, t){
   OFFICE_EV.push({ kind:kind, p:p, t:t, used:0 });
   if (OFFICE_EV.length > 12) OFFICE_EV.shift();
 }
-/* lines already used, kept in this browser so a new visit does not replay the same chats */
-var CHAT_RECENT = (function(){ try { return JSON.parse(localStorage.getItem("vo.said") || "[]"); } catch (e) { return []; } })();
+/* lines already used today (in memory only: the world must not depend on what one browser saw before) */
+var CHAT_RECENT = [];
 function saidKey(k){
   CHAT_RECENT.push(k); if (CHAT_RECENT.length > 60) CHAT_RECENT.shift();
-  try { localStorage.setItem("vo.said", JSON.stringify(CHAT_RECENT)); } catch (e) {}
 }
 function chatter(a, b, t, casualOnly){
   var C = [];
@@ -4999,7 +5050,7 @@ function chatter(a, b, t, casualOnly){
   /* what is really happening outside right now */
   /* news going round the office: whoever knows tells whoever doesn't yet. It grows a little with every retelling */
   NEWS.forEach(function(nw){
-    if (Date.now() > nw.until || !knowsNews(a, nw.id) || knowsNews(b, nw.id) || a.guest || b.guest || a.remote) return;
+    if (worldDate().getTime() > nw.until || !knowsNews(a, nw.id) || knowsNews(b, nw.id) || a.guest || b.guest || a.remote) return;
     var nk = "nw" + nw.id + b.id; if (CHAT_RECENT.indexOf(nk) < 0) {
       var hop = (KNOW[nw.id] || []).indexOf(a.id), NL = nw.lines.slice(), src = KNOWFROM[nw.id] && BY[KNOWFROM[nw.id][a.id]];
       if (nw.drift && hop > 0) NL[0] = nw.drift[Math.min(hop, nw.drift.length) - 1];
@@ -5021,19 +5072,13 @@ function chatter(a, b, t, casualOnly){
     if (OA.cameras[a.id] !== undefined && OA.cameras[b.id] !== undefined && OA.cameras[a.id] !== OA.cameras[b.id])
       add(0.8, "opc" + bondKey(a, b), OA.cameras[a.id] ? ["Cameras on for Friday's call, right?", "Do we have to? lol", "Yes! It's nicer to see everyone."] : ["Can we keep cameras off on Friday?", "No! I like seeing everyone.", "Fine. Hair day it is lol"]);
   }
-  /* what the visitor on the screen asked them */
-  if (a.viewerQs && !a.remote) {
-    var vq = a.viewerQs.filter(function(x){ return !x.told && t - x.t < 1800; })[0];
-    if (vq) add(3.2, "vq" + a.id + vq.t.toFixed(0), [vq.quote ? "Someone just asked me \"" + vq.quote + "\" lol" : "Someone was asking me questions earlier" + (vq.about ? ", about " + vq.about : "") + ".",
-      choose(["Ha, what did you say?", "They asked me stuff too!", "We're popular today.", "Who was it?"]), choose(["I gave them the short version.", "I hope I helped lol", "No idea, but they were nice."])], vq);
-  }
   /* frustrated: it comes up */
   if (a.frus > 0.5 && a.frusWhy) add(3, "fr" + a.id + (a.frusAt || 0).toFixed(0), ["Sorry if I'm grumpy. " + a.frusWhy.charAt(0).toUpperCase() + a.frusWhy.slice(1) + ".",
     choose(["Oh no. Want me to take a look?", "Ugh, been there. Take a break?", "That's the worst. You've got this."]), choose(["Thanks. I needed that.", "Maybe after lunch lol", "Okay, deep breath."])]);
   /* what they were on yesterday */
   if (b.yday && !b.remote) add(1.2, "yd" + b.id + dayKey(), ["Did you finish " + lc(b.yday) + " yesterday?", choose(["Yes! Finally.", "Almost lol. Today for sure.", "Don't ask.", "Mostly. Small fixes left."])]);
   if (DAY.eom) add(1.4, "eom" + a.id, choose([["Month end. Send help.", "Reports due again?", "Every. Single. Month."], ["How's month end treating you?", "Ask me on Monday lol", "That bad, huh."]]));
-  if (PLYTIX.lastAt && clock.elapsedTime - PLYTIX.lastAt < 1800) add(2, "pd" + a.id, ["That Plytix outage though.", "I lost twenty minutes lol", "At least it came back."]);
+  if (PLYTIX.lastAt && WT() - PLYTIX.lastAt < 1800) add(2, "pd" + a.id, ["That Plytix outage though.", "I lost twenty minutes lol", "At least it came back."]);
   if (TREATS.on && b.hadTreat) add(1.6, "tr" + a.id + b.id, ["Did you try the cookies?", "Two of them. Don't judge.", "No judgement here lol"]);
   var wk = WX_FORCE || WX.kind, tc = WX.temp;
   /* small talk about what is really going on outside (Open-Meteo, Cambridge ON) */
@@ -5122,8 +5167,13 @@ function chatter(a, b, t, casualOnly){
 
 /* ---------- chats with a rare small bubble ---------- */
 var chats = [];
+/* what someone is saying out loud is world state (p.sayText); the bubble on screen only draws it, in the label pass */
 function showBubble(p, text){
   if (p.guest) text = null;
+  p.sayText = text || null;
+}
+function drawBubble(p, text){
+  if (!p.bubble) return;
   if (text) {
     if (p.bubble.textContent !== text) p.bubble.textContent = text;
     if (!p.bubbleOn) { p.bubbleOn = true; p.bubble.classList.add("show"); }
@@ -5209,30 +5259,23 @@ function updateChats(t){
    Carla, Stephanie and Debbie talk the most, Olivia and Erica get along, the two managers work as a pair, Luis keeps to himself. */
 var AFF = { "carla|stephanie":3, "carla|debbie":3, "debbie|stephanie":3, "erica|olivia":2.6, "allyson|erica":2.4, "olivia|stephanieb":2.6, "marissa|stephanieb":2.2 };
 /* bonds change with what happens: help brings people closer, interruptions push them apart.
-   Kept in this browser and fading slowly, so the office remembers last week a little. */
-var BOND = (function(){
-  try {
-    var o = JSON.parse(localStorage.getItem("vo.bond") || "{}"), days = o._at ? (Date.now() - o._at) / 864e5 : 0;
-    for (var k in o) if (k !== "_at") o[k] *= Math.pow(0.85, days);
-    return o;
-  } catch (e) { return {}; }
-})();
+   In memory only, starting neutral: the shared world cannot depend on what one browser remembers. */
+var BOND = {};
 function bondKey(a, b){ return a.id < b.id ? a.id + "|" + b.id : b.id + "|" + a.id; }
 /* remember something: changes the bond, and each side keeps a line they can bring up in a chat */
 function bond(a, b, dv, memA, memB){
   if (!a || !b || a.guest || b.guest || a === b) return;
-  var k = bondKey(a, b), t = clock.elapsedTime;
+  var k = bondKey(a, b), t = WT();
   BOND[k] = clamp((BOND[k] || 0) + dv, -0.8, 1.5);
   if (memA) (a.memo = a.memo || []).push({ t:t, text:memA });
   if (memB) (b.memo = b.memo || []).push({ t:t, text:memB });
-  try { BOND._at = Date.now(); localStorage.setItem("vo.bond", JSON.stringify(BOND)); } catch (e) {}
 }
-function recentMemo(p){ var m = p.memo && p.memo[p.memo.length - 1]; return m && clock.elapsedTime - m.t < 1800 ? m.text : ""; }
+function recentMemo(p){ var m = p.memo && p.memo[p.memo.length - 1]; return m && WT() - m.t < 1800 ? m.text : ""; }
 function aff(a, b){ var k = bondKey(a, b); var v = Math.max(0.3, (AFF[k] || 1) + (BOND[k] || 0)); if (a.id === "luis" || b.id === "luis") v *= 0.25; return v; }
 function pickByAff(p, list){ var tot = 0; list.forEach(function(q){ tot += aff(p, q); }); var r = Math.random() * tot; for (var i = 0; i < list.length; i++) { r -= aff(p, list[i]); if (r <= 0) return list[i]; } return list[0]; }
 
 /* ---------- decisions ---------- */
-function available(q){ return q.state === "sit" && q.root.visible && !q.chatWith && !q.visitor && !q.answering && !(q.dnd > clock.elapsedTime) && !(q.act && q.act.plan); }
+function available(q){ return q.state === "sit" && q.root.visible && !q.chatWith && !q.visitor && !q.answering && !(q.dnd > WT()) && !(q.act && q.act.plan); }
 function neighbours(p){ return PEOPLE.filter(function(q){ return q !== p && Math.abs(q.z - p.z) < 2.0 && available(q); }); }
 function bossAway(p){ return PEOPLE.some(function(q){ return q !== p && q.trip && q.trip.kind === "meeting"; }); }
 function luisDeepWork(q){ return q.id === "luis" && q.typeOn && q.needs.focus > 0.5; }
@@ -5307,7 +5350,7 @@ function decide(p, t){
   if (nbs.length && !withdrawn) { var tq = pickByAff(p, nbs); opts.push({ k:"talk", s:n.social * w.shop * 1.1 * sociable * (0.7 + 0.3 * aff(p, tq)) + rand(0, 0.3), q:tq }); }
   /* Carla checks on anyone who seems down */
   /* Carla checks on someone who seems down, but rarely and never the same person twice within the hour */
-  if (p.id === "carla" && t > 90 && Math.random() < 0.25) PEOPLE.forEach(function(q){
+  if (p.id === "carla" && Math.random() < 0.25) PEOPLE.forEach(function(q){
     if (q !== p && !q.guest && available(q) && q.mood.v < -0.3 && !luisDeepWork(q) && !(q.caredAt && t - q.caredAt < 3600)) opts.push({ k:"visit", s:0.9 + rand(0, 0.4), q:q, care:true });
   });
   /* walk up to a wall screen and talk to a remote colleague */
@@ -5363,7 +5406,7 @@ function decide(p, t){
   /* treats on the counter */
   if (TREATS.on && !p.hadTreat && !p.remote) opts.push({ k:"treat", s:0.75 + n.social * 0.3 + rand(0, 0.4) });
   /* friends look after whoever is having a rough day, not only Carla */
-  if (p.id !== "carla" && t > 120 && Math.random() < 0.15) PEOPLE.forEach(function(q){
+  if (p.id !== "carla" && Math.random() < 0.15) PEOPLE.forEach(function(q){
     if (q !== p && !q.guest && available(q) && q.mood.v < -0.3 && aff(p, q) >= 2.2 && !luisDeepWork(q) && !(q.caredAt && t - q.caredAt < 3600)) opts.push({ k:"visit", s:0.8 + rand(0, 0.4), q:q, care:true });
   });
   /* requests for Luis: walk over or ask from the desk */
@@ -5505,7 +5548,7 @@ function perceive(t, dt){
         p.trip.help = true;
       }
     }
-    var free = p.state === "sit" && p.root.visible && !p.chatWith && !p.answering && focus !== p && !(p.act && (p.act.n === "turn" || p.act.n === "answer" || p.act.n === "leanFire"));
+    var free = p.state === "sit" && p.root.visible && !p.chatWith && !p.answering && !(p.act && (p.act.n === "turn" || p.act.n === "answer" || p.act.n === "leanFire"));
     if (!free) { p.gazeAt = null; p.gazeNext = 0; }
     else if (!p.gazeNext || t > p.gazeNext) {
       p.gazeNext = t + rand(1.2, 3.4); p.gazeAt = null;
@@ -5574,29 +5617,31 @@ function calibrate(p, t){
     p.footCal = true;
   }
 }
-function OFFICE_DARK_NOW(){ return OFFICE_DARK > 0.5; }
+function OFFICE_DARK_NOW(){ return darkTarget() > 0.5; }
 
 /* ---------- agenda: every person starts the day with their own plan ----------
    Two pieces of work with a deadline (different every day), and for most a call at the desk.
    Deadlines make them focus and skip chats as the time gets close; finishing one lifts the mood. */
-function makePlan(p){
-  var d = DAY.d || new Date(), key = d.getFullYear() * 1000 + d.getMonth() * 40 + d.getDate();
+function planGoals(p, key){
   var hs = 0; for (var i = 0; i < p.id.length; i++) hs = (hs * 31 + p.id.charCodeAt(i)) % 100000;
   var r = seeded((key * 6271 + hs * 15485863) % 2147483646 + 1); r(); r();
   var pool = (PROFILE[p.id] && PROFILE[p.id].work || ["Working through my list"]).slice();
   var g1 = pool.splice(Math.floor(r() * pool.length), 1)[0], g2 = pool.length ? pool[Math.floor(r() * pool.length)] : g1;
+  return { r:r, g1:g1, g2:g2 };
+}
+function makePlan(p){
+  var d = DAY.d || worldDate(), key = d.getFullYear() * 1000 + d.getMonth() * 40 + d.getDate();
+  var pg = planGoals(p, key), r = pg.r, g1 = pg.g1, g2 = pg.g2;
   var call = null;
   if (!p.walker && !p.remote && !p.guest && r() < 0.8) { var at = 9.5 + r() * 6; if (at > 11.8 && at < 13.6) at += 1.9; call = { at:at, dur:150 + r() * 150, done:false }; }
   p.plan = { goals:[{ label:g1, due:9.75 + r() * 1.5, done:false }, { label:g2, due:14 + r() * 2.2, done:false }], call:call, key:key };
-  try {
-    var prev = JSON.parse(localStorage.getItem("vo.plan." + p.id) || "null");
-    if (prev && prev.key !== key) p.yday = prev.g[1] || prev.g[0];
-    else if (prev && prev.yday) p.yday = prev.yday;
-    localStorage.setItem("vo.plan." + p.id, JSON.stringify({ key:key, g:[g1, g2], yday:p.yday || null }));
-  } catch (e) {}
+  /* what they were on the last working day: worked out from that date, the same for every viewer */
+  var yd = new Date(d.getFullYear(), d.getMonth(), d.getDate() - 1);
+  while (yd.getDay() === 0 || yd.getDay() === 6) yd.setDate(yd.getDate() - 1);
+  p.yday = planGoals(p, yd.getFullYear() * 1000 + yd.getMonth() * 40 + yd.getDate()).g2;
   return p.plan;
 }
-function planOf(p){ var d = DAY.d || new Date(), key = d.getFullYear() * 1000 + d.getMonth() * 40 + d.getDate(); return p.plan && p.plan.key === key ? p.plan : makePlan(p); }
+function planOf(p){ var d = DAY.d || worldDate(), key = d.getFullYear() * 1000 + d.getMonth() * 40 + d.getDate(); return p.plan && p.plan.key === key ? p.plan : makePlan(p); }
 function fmtH(h){ var hh = Math.floor(h), mm = Math.floor((h - hh) * 60 / 15) * 15; return (hh % 12 || 12) + ":" + (mm < 10 ? "0" : "") + mm; }
 /* the goal on the table right now, and how urgent it is (0 relaxed, 1 due any minute) */
 function goalNow(p){
@@ -5610,9 +5655,9 @@ function goalNow(p){
       g.done = true;
       if (left > -0.3 && p.state === "sit" && p.root.visible) {
         moodShift(p, 0.18, "I finally wrapped up " + g.label.charAt(0).toLowerCase() + g.label.slice(1));
-        if (!p.act && !p.chatWith) { startAct(p, "fist", clock.elapsedTime, 2.2); if (Math.random() < 0.5) sayLater(p, choose(["Done!!", "Finally!", "And... done.", "Yes! Off my list."]), clock.elapsedTime + 0.3, 2.4); }
-        (p.memo = p.memo || []).push({ t:clock.elapsedTime, text:"I just wrapped up " + g.label.charAt(0).toLowerCase() + g.label.slice(1) + ". One less thing." });
-        if (g.from && !p.report) p.report = { to:g.from, label:g.label, at:clock.elapsedTime + rand(20, 90) };
+        if (!p.act && !p.chatWith) { startAct(p, "fist", WT(), 2.2); if (Math.random() < 0.5) sayLater(p, choose(["Done!!", "Finally!", "And... done.", "Yes! Off my list."]), WT() + 0.3, 2.4); }
+        (p.memo = p.memo || []).push({ t:WT(), text:"I just wrapped up " + g.label.charAt(0).toLowerCase() + g.label.slice(1) + ". One less thing." });
+        if (g.from && !p.report) p.report = { to:g.from, label:g.label, at:WT() + rand(20, 90) };
         p.workNow = null;
       }
       continue;
@@ -5690,7 +5735,7 @@ function rollOver(p, q, gap){
 }
 
 /* ---------- everyday life: errands, rituals, shared moments ---------- */
-function dayKey(){ var d = DAY.d || new Date(); return d.getFullYear() * 1000 + d.getMonth() * 40 + d.getDate(); }
+function dayKey(){ var d = DAY.d || worldDate(); return d.getFullYear() * 1000 + d.getMonth() * 40 + d.getDate(); }
 var WIN_LABEL = "Looking out the window for a minute";
 /* walk to a spot, stand there a while (with an optional act or a little script), walk back */
 function goSpot(p, t, spot, face, stay, label, act, onArrive, onLeave){
@@ -5739,9 +5784,9 @@ var NEWS = [
     drift:["Did you hear the pumpkin won by like twenty votes?", "Apparently the pumpkin won by a crazy amount.", "I heard the pumpkin got almost every single vote lol"], lines:["Did you see the final votes? The pumpkin won by a landslide.", "And the costume missed a tie by ONE vote.", "Robbed lol"] }
 ];
 var KNOWFROM = {};
-var KNOW = (function(){ try { return JSON.parse(localStorage.getItem("vo.news") || "{}"); } catch (e) { return {}; } })();
+var KNOW = {};
 function knowsNews(p, id){ return (KNOW[id] || []).indexOf(p.id) >= 0; }
-function learnNews(p, id){ (KNOW[id] = KNOW[id] || []); if (KNOW[id].indexOf(p.id) < 0) KNOW[id].push(p.id); try { localStorage.setItem("vo.news", JSON.stringify(KNOW)); } catch (e) {} }
+function learnNews(p, id){ (KNOW[id] = KNOW[id] || []); if (KNOW[id].indexOf(p.id) < 0) KNOW[id].push(p.id); }
 /* screens follow the task in the status */
 function goalMode(p){
   if (!p || p.remote || p.guest) return null;
@@ -5772,7 +5817,7 @@ function lifeTick(t, dt){
   var sh = clamp((DAY.h - 7) / 11, 0, 1);
   sun.position.set(lerp(16, -8, sh), 18 + 4 * Math.sin(sh * Math.PI), lerp(12, 17, sh));
   /* dusk: desk lamps come on (earlier in winter) */
-  var mo = (DAY.d || new Date()).getMonth(), dusk = [16.9, 17.5, 18.9, 19.6, 20.3, 20.7, 20.7, 20.2, 19.3, 18.3, 16.9, 16.6][mo] - 0.6;
+  var mo = (DAY.d || worldDate()).getMonth(), dusk = [16.9, 17.5, 18.9, 19.6, 20.3, 20.7, 20.7, 20.2, 19.3, 18.3, 16.9, 16.6][mo] - 0.6;
   var wxDark = (WX_FORCE || WX.kind) === "rain" || (WX_FORCE || WX.kind) === "snow";
   PEOPLE.forEach(function(p){
     if (p.guest || p.remote) return;
@@ -5781,7 +5826,7 @@ function lifeTick(t, dt){
     /* frustration fades on its own in about twenty minutes */
     if (p.frus > 0) p.frus = Math.max(0, p.frus - dt * 0.0007);
     if (p.lamp) {
-      var want = here && p.state === "sit" && (DAY.h > dusk || OFFICE_DARK > 0.3 || (wxDark && DAY.h > dusk - 1.5)) && p.idx % 2 === 0;
+      var want = here && p.state === "sit" && (DAY.h > dusk || darkTarget() > 0.3 || (wxDark && DAY.h > dusk - 1.5)) && p.idx % 2 === 0;
       if (want !== p.lamp.on) { p.lamp.on = want; p.lamp.shade.material = want ? p.lamp.mOn : p.lamp.mOff; }
       p.lamp.pool.material.opacity = lerp(p.lamp.pool.material.opacity, want ? 0.16 : 0, 1 - Math.exp(-dt * 4));
       p.lamp.pool.visible = p.lamp.pool.material.opacity > 0.005;
@@ -6096,15 +6141,13 @@ function updateAgent(p, t, dt){
         /* looking at a screen together: turn toward a point in the world */
         var sp = p.act.pt, hd2 = Math.atan2(sp.x - p.root.position.x, sp.z - p.root.position.z) - p.sitHeading;
         swivelTarget = clamp(Math.atan2(Math.sin(hd2), Math.cos(hd2)), -1.4, 1.4) * bump(t - p.act.t0, 0, p.act.dur, 1.0);
-      } else if (focus === p) {
-        swivelTarget = clamp((camYaw(p) + p.swivel) * 0.5, -1.2, 1.2);
       }
-      if (!p.act && focus !== p && !p.typeOn && !p.mouseOn && !p.chatWith) swivelTarget += mv(p).swivel * Math.sin(t * 0.7 + (p.mSeed || 0));
+      if (!p.act && !p.typeOn && !p.mouseOn && !p.chatWith) swivelTarget += mv(p).swivel * Math.sin(t * 0.7 + (p.mSeed || 0));
       /* the chair stays at whatever angle it was left after a chat */
-      if (!p.act && focus !== p && !p.chatWith) swivelTarget += (p.restSwivel || 0) * (p.typeOn || p.mouseOn ? 0.4 : 1);
+      if (!p.act && !p.chatWith) swivelTarget += (p.restSwivel || 0) * (p.typeOn || p.mouseOn ? 0.4 : 1);
       p.swivel = lerp(p.swivel, swivelTarget, 1 - Math.exp(-dt * 5));
       if (p.chairG) p.chairG.rotation.y = p.swivel;
-      p.statusNow = p.answering ? "Answering your question" : p.chatWith ? "Chatting with " + p.chatWith.name : p.act && p.act.n === "vcall" ? "In the Friday team call" : ln === "desk" ? (p.act && p.act.n === "eat" ? "Lunch at the desk" : "Lunch at the desk, scrolling the phone") : PLYTIX.on ? "Waiting for Plytix to come back" : p.lateToday && DAY.h >= 16.9 ? "Finishing one last thing" : p.walker ? p.walker.text.sit : p.status;
+      p.statusNow = p.chatWith ? "Chatting with " + p.chatWith.name : p.act && p.act.n === "vcall" ? "In the Friday team call" : ln === "desk" ? (p.act && p.act.n === "eat" ? "Lunch at the desk" : "Lunch at the desk, scrolling the phone") : PLYTIX.on ? "Waiting for Plytix to come back" : p.lateToday && DAY.h >= 16.9 ? "Finishing one last thing" : p.walker ? p.walker.text.sit : p.status;
       return;
     }
     st = p.state; k = 0; tr = p.trip;
@@ -6145,7 +6188,7 @@ function updateAgent(p, t, dt){
     if (rem <= 0.04 && r.walkW < 0.25) {
       if (tr.back && p.guest) { p.trip = null; setState(p, "gone", t, 0); GUESTS.cur = null; GUESTS.next = t + rand(180, 420); }
       else if (tr.back) { setState(p, "down", t, 0.6); p.walkPhone = false; p.act = null; }
-      else if (tr.kind === "meeting") { setState(p, "away", t, 1800); try { localStorage.setItem("vo.meet." + p.id, String(Date.now() + 1800000)); } catch (e) {} }
+      else if (tr.kind === "meeting") setState(p, "away", t, 1800);
       else if (tr.kind === "lunch" || tr.kind === "home") setState(p, "away", t, 99999);
       else if (tr.kind === "coffee") {
         /* someone already at the machine: wait in line */
@@ -6276,7 +6319,6 @@ function updateAgent(p, t, dt){
       p.lastEvent = { kind:"meeting", t:t };
       logEvent(longM ? "longmeeting" : "meeting", p, t);
       p.cal.next = t + rand(20, 60) * 60;
-      try { localStorage.removeItem("vo.meet." + p.id); } catch (e) {}
       startReturn(p, t);
     }
   }
@@ -6638,7 +6680,7 @@ var ACT_TEXT = {
   checklist:"Going through the booth checklist", eat:"Lunch at the desk", yawn:"Fighting a yawn", rubeyes:"Resting my eyes for a second", facepalm:"Why is this happening", fist:"Done! Feels good", warmhands:"Warming up my hands", tidy:"Tidying up the desk", lookdown:"Typing away", write:"Writing it down in my notebook", chin:"Thinking this one through", wipe:"Cleaning up my spilled drink, don't ask", call:"On the phone with a venue"
 };
 function doingNow(p){
-  var tr = p.trip, t = clock.elapsedTime;
+  var tr = p.trip, t = WT();
   if (p.id === "luis" && p.lastRequest && t - p.lastRequest.t < 180 && !tr && !p.chatWith) return "Working on " + p.lastRequest.from + "'s request, " + p.lastRequest.task;
   if (tr) {
     if (tr.kind === "coffee") return tr.back ? "Walking back with my " + drinkOf(p) : "Grabbing a " + drinkOf(p) + ", back in a sec";
@@ -6683,7 +6725,7 @@ var OPEN = {
 };
 function howReply(p){
   var n = p.needs, m = p.mood.kind, prof = PROFILE[p.id], bits = [fresh(p, OPEN[m])], why = p.moodWhy;
-  var t = clock.elapsedTime;
+  var t = WT();
   if (DAY.homeSoon && p.mood.v > 0.3) { bits.push(fresh(p, DAY.fri ? ["It's Friday and it's almost five!","Weekend mode is loading."] : ["Almost home time!","The finish line is in sight."])); why = DAY.fri ? "the weekend is almost here" : "home time is almost here"; }
   else if ((DAY.key === "early" || DAY.key === "morning") && n.energy < 0.55) { bits.push(fresh(p, ["Not fully awake yet.","Still booting up, honestly."])); why = "it is early and the " + drinkOf(p) + " has not kicked in"; }
   else if (p.lastEvent && t - p.lastEvent.t < 60 && p.lastEvent.kind === "chat" && (m === "great" || m === "good" || m === "excited")) { bits.push("Just had a good chat with " + p.lastEvent.with + "."); why = "talking to " + p.lastEvent.with + " always helps"; }
@@ -6764,7 +6806,7 @@ function converse(p, raw){
   return r;
 }
 function converseCore(p, raw){
-  var s = norm(raw), words = s.trim().split(" "), t = clock.elapsedTime, prof = PROFILE[p.id];
+  var s = norm(raw), words = s.trim().split(" "), t = WT(), prof = PROFILE[p.id];
   if (isPrivate(s, words)) {
     return { text:fresh(p, ["Let's keep it to work stuff! ", "I keep personal things out of the office. ", "That's not something I talk about at work. ", "Ha, let's stick to work. "]) + WORK_NUDGE[p.id], intent:"private", reason:"I keep chats here about work" };
   }
@@ -6813,7 +6855,6 @@ function converseCore(p, raw){
   });
   var deep = p.id === "luis" && p.typeOn && p.needs.focus > 0.6 && p.state === "sit";
   var pre = deep && Math.random() < 0.7 ? fresh(p, ["Headphones off for a sec. ","Okay, quick one. ","Mm? Sure. "]) : "";
-  if (deep && !p.annoyedAt) { moodShift(p, -0.06, "I keep getting pulled out of the zone"); p.annoyedAt = t; }
 
   /* someone else on the team knows this better: point there */
   var other = null, os = 0;
@@ -7030,31 +7071,15 @@ function ask(p, text){
   try { past = JSON.parse(localStorage.getItem("vo.asked." + p.id) || "[]"); } catch (e) {}
   var seen = past.filter(function(x){ return x.q === norm; })[0];
   if (seen && !res.system && norm.length > 3) {
-    var ago = seen.d === today ? (seen.s === SESSION_ID && clock.elapsedTime - (seen.t || 0) < 600 ? "a minute ago" : "earlier today") : "the other day";
+    var ago = seen.d === today ? (seen.s === SESSION_ID && performance.now() / 1000 - (seen.t || 0) < 600 ? "a minute ago" : "earlier today") : "the other day";
     reply = choose(["You asked me that " + ago + "! ", "Déjà vu! You asked me that " + ago + ". ", "Ha, you asked me that " + ago + ". "]) + reply;
   }
-  past = past.filter(function(x){ return x.q !== norm; }); past.push({ q:norm, d:today, t:clock.elapsedTime, s:SESSION_ID }); past = past.slice(-40);
+  past = past.filter(function(x){ return x.q !== norm; }); past.push({ q:norm, d:today, t:performance.now() / 1000, s:SESSION_ID }); past = past.slice(-40);
   try { localStorage.setItem("vo.asked." + p.id, JSON.stringify(past)); } catch (e) {}
-  /* and they may mention it to a colleague later: quoted only when it is one of the suggested questions */
-  if (!res.system && !p.remote) {
-    var sugg = ["How are you?", "What are you doing?", "Want a coffee?"].concat((KB[p.id] ? KB[p.id].qa : []).map(function(e){ return e.q; }));
-    var quoted = sugg.filter(function(sq){ return sq.toLowerCase() === text.toLowerCase(); })[0];
-    var ABOUT = { coffee:"coffee", work:"what I'm working on", mood:"how I'm doing", week:"the week", weather:"the weather", lunch:"lunch", xmas:"Christmas", weekend:"the weekend" };
-    if (!(p.viewerQs || []).some(function(x){ return !x.told && x.quote === (quoted || null) && x.about === (ABOUT[res.intent] || null); }))
-    (p.viewerQs = p.viewerQs || []).push({ t:clock.elapsedTime, quote:quoted || null, about:ABOUT[res.intent] || null, told:false });
-    if (p.viewerQs.length > 5) p.viewerQs.shift();
-  }
+  /* the side panel only: the conversation never reaches the shared world (the avatar does not react, and nobody
+     repeats it later), since every viewer must see the same office */
   p.mem.push({ q:text, intent:res.intent, reason:res.reason }); if (p.mem.length > 3) p.mem.shift();
   var delay = 650 + Math.random() * 650 + Math.min(900, reply.length * 6);
-  var now = clock.elapsedTime;
-  if (!res.system && p.root.visible && (p.state === "sit" || p.state === "visit" || p.state === "coffee")) {
-    var talkDur = clamp(reply.length / 16, 2.5, 6.5) + delay / 1000;
-    p.answering = now + talkDur;
-    p.speakFrom = now + delay / 1000;
-    startAct(p, "answer", now, talkDur);
-    p.rig.nodTarget = 0.35;
-    setTimeout(function(){ if (p.rig) p.rig.nodTarget = 0; }, talkDur * 1000);
-  }
   setTimeout(function(){
     var i = p.log.indexOf(typing);
     if (i >= 0) p.log.splice(i, 1, { who:"them", text:reply });
@@ -7070,8 +7095,6 @@ askForm.addEventListener("submit", function(e){
 
 function focusOn(p){
   if (p && p.guest) return;
-  /* the same person clicked again and again: they notice the viewer */
-  if (p) { p.viewClicks = (p.viewClicks || 0) + 1; if (p.viewClicks >= 3 && !p.remote && p.root.visible && !p.chatWith && Math.random() < 0.6) sayLater(p, choose(["You again? lol", "Hi again!", "Okay, I know you're watching me.", "Back so soon?", "We have to stop meeting like this."]), clock.elapsedTime + 0.5, 2.6); }
   focus = p;
   lastInteract = performance.now() / 1000;
   goal.r = aspect < 0.9 ? Math.max(2.6, 1.9 / aspect) : 2.7;
@@ -7569,13 +7592,8 @@ if (CH.live) {
   /* keep the board and the panel fresh: every 20 s while the panel is open, every 2 min otherwise */
   setInterval(function(){ if (!document.hidden && (!chalEl.hidden || Math.random() < 1 / 6)) chalSync(false); }, 20000);
 }
-/* the winner cheers and the people around congratulate */
-function chalCelebrate(team, m){
-  var t = clock.elapsedTime, ws = team.map(function(id){ return BY[id]; }).filter(Boolean), w = ws[0]; if (!w) return;
-  ws.forEach(function(q, k){ if (q.root.visible && !q.remote) { if (q.state === "sit" && !q.chatWith) startAct(q, "fist", t + 0.3 + k * 0.4, 2.6); if (k < 2) sayLater(q, choose(["Yes! " + m.pts + " points!", "Got it!", ws.length > 1 ? "Team effort!" : "That one's mine!"]), t + 0.5 + k * 1.4, 2.8); } });
-  var near = PEOPLE.filter(function(q){ return ws.indexOf(q) < 0 && q.state === "sit" && q.root.visible && !q.guest && !q.chatWith; });
-  near.sort(function(){ return Math.random() - 0.5; }).slice(0, 2).forEach(function(q, k){ sayLater(q, choose(["Congrats " + w.name + "!", "Nice one, " + w.name + "!", "Well played!"]), t + 2.2 + k * 1.6, 2.6); });
-}
+/* a mission was won: the panel shows it; the office itself does not react, it is the same for every viewer */
+function chalCelebrate(team, m){}
 
 /* ---------- the board on the wall ---------- */
 function chalBoardDraw(){
@@ -8010,17 +8028,14 @@ PEOPLE.forEach(function(p){ makeRig(p); });
 PEOPLE.forEach(function(p){
   if (p.guest || !homeNow(p)) return;
   p.trip = { kind:"home", target:null, path:aislePath(p.seat, p.side, EXIT_SPOT, 0), d:0, back:false };
-  p.state = "away"; p.t0 = 0; p.dur = 99999; p.root.visible = false; p.rig.sit = 0; p.rig.walkW = 1;
+  p.state = "away"; p.t0 = WT(); p.dur = 99999; p.root.visible = false; p.rig.sit = 0; p.rig.walkW = 1;
 });
-/* real time survives a reload: whoever is in a 30 minute meeting stays in it until it really ends, and whoever is
-   out for lunch is simply out (lunch follows the clock) */
+/* whoever is out for lunch is simply out (lunch follows the clock) */
 PEOPLE.forEach(function(p){
   if (p.guest || p.state === "away") return;
-  var end = 0; try { end = +localStorage.getItem("vo.meet." + p.id) || 0; } catch (e) {}
-  var left = (end - Date.now()) / 1000, out = lunchNow(p) === "out";
-  if (!out && left < 20) { if (end) try { localStorage.removeItem("vo.meet." + p.id); } catch (e) {} return; }
-  p.trip = { kind:out ? "lunch" : "meeting", target:null, path:aislePath(p.seat, p.side, EXIT_SPOT, 0), d:0, back:false };
-  p.state = "away"; p.t0 = 0; p.dur = out ? 99999 : left; p.root.visible = false; p.rig.sit = 0; p.rig.walkW = 1;
+  if (lunchNow(p) !== "out") return;
+  p.trip = { kind:"lunch", target:null, path:aislePath(p.seat, p.side, EXIT_SPOT, 0), d:0, back:false };
+  p.state = "away"; p.t0 = WT(); p.dur = 99999; p.root.visible = false; p.rig.sit = 0; p.rig.walkW = 1;
 });
 PEOPLE.forEach(function(g){
   if (!g.guest) return;
@@ -8092,7 +8107,7 @@ REMOTE.forEach(function(p, i){
     gc.fillText((p.fullName || p.name).split(" ").map(function(s){ return s.charAt(0); }).join("").slice(0, 2), w / 2, h / 2 - 12);
     gc.fillStyle = "#aab3bd"; gc.font = "600 20px " + FONT; gc.fillText("Camera off", w / 2, h / 2 + 52);
   });
-  p.camNext = rand(25, 90); p.camOff = false;
+  p.camNext = WT() + rand(25, 90); p.camOff = false;
   var scr = new T.Mesh(G.plane, new T.MeshBasicMaterial({ map:rt.texture }));
   p.scrMat = scr.material; p.liveTex = rt.texture;
   scr.scale.set(1.9, 1.07, 1); scr.position.z = 0.037; scr.userData.pid = p.id; g.add(scr);
@@ -8138,7 +8153,7 @@ function updateRemote(p, t, dt){
     p.camOffSaid = false;
     p.scrMat.map = p.camOff ? p.offTex : p.liveTex;
   }
-  p.statusNow = p.answering ? "Answering your question" : p.chatWith ? "On a video call with " + p.chatWith.name : teamCallNow() ? "In the Friday team call" : p.camOff ? "Camera off, still online" : p.status;
+  p.statusNow = p.chatWith ? "On a video call with " + p.chatWith.name : teamCallNow() ? "In the Friday team call" : p.camOff ? "Camera off, still online" : p.status;
   updateRig(p, t, dt);
 }
 
@@ -8166,14 +8181,14 @@ try {
 loadingEl.hidden = true;
 window.__voReady = true;
 window.__dbg = { renderer:renderer, scene:scene, sun:sun, T:T, seasonFx:seasonFx };
-window.__vo = { people:BY, focus:function(id){ focusOn(BY[id]); }, ask:function(id, q){ ask(BY[id], q); }, converse:function(id, q){ return converse(BY[id], q).text; }, goal:goal, view:view, season:function(){ seasonFx.next = 1; return SEASON; }, mishap:function(k){ MISHAP.cur = null; return startMishap(k, clock.elapsedTime); }, mishaps:MISHAP };
+window.__vo = { people:BY, focus:function(id){ focusOn(BY[id]); }, ask:function(id, q){ ask(BY[id], q); }, converse:function(id, q){ return converse(BY[id], q).text; }, goal:goal, view:view, season:function(){ seasonFx.next = 1; return SEASON; }, mishap:function(k){ MISHAP.cur = null; return startMishap(k, WT()); }, mishaps:MISHAP };
 /* ?mishap=cat (or book, spill, chair, restart) makes it happen a few seconds after the page opens, to watch it on demand */
 (function(){
   var f = /[?&]mishap=(cat|book|spill|chair|restart)/.exec(location.search || "");
-  if (f) setTimeout(function(){ MISHAP.cur = null; startMishap(f[1], clock.elapsedTime); }, 7000);
+  if (f) setTimeout(function(){ MISHAP.cur = null; startMishap(f[1], WT()); }, 7000);
   /* ?act=luis.write makes someone do an action after a few seconds, for checking */
   var fa = /[?&]act=(\w+)\.(\w+)/.exec(location.search || "");
-  if (fa && BY[fa[1]]) setTimeout(function(){ var q = BY[fa[1]]; q.typeOn = false; q.mouseOn = false; startAct(q, fa[2], clock.elapsedTime, 40); }, 7000);
+  if (fa && BY[fa[1]]) setTimeout(function(){ var q = BY[fa[1]]; q.typeOn = false; q.mouseOn = false; startAct(q, fa[2], WT(), 40); }, 7000);
 })();
 var snapCam = 0;
 /* a link like #p-luis opens that person's card on load */
@@ -8217,7 +8232,11 @@ function frame(){
   STATS.last = nowMs;
   STATS.calls = renderer.info.render.calls; STATS.tris = renderer.info.render.triangles;
   renderer.info.reset();
-  var dt = Math.min(clock.getDelta(), DT_MAX), t = clock.elapsedTime;
+  /* t is world time (seconds since Toronto midnight, the same for every viewer); rt is this page's render clock,
+     only for the camera and other things the world never sees */
+  var dt = Math.min(clock.getDelta(), DT_MAX), rt = clock.elapsedTime, t = WT();
+  /* a new day in the world: start it fresh */
+  if (worldDateKey() !== WORLD_DATE) { WORLD_DATE = -1; location.reload(); return; }
   frameNo++;
   if (!LBL) LBL = ALL.slice();
   /* adaptive quality: measure for 3 s, then drop AO, shadow resolution and pixel ratio until we hold about 45 fps */
@@ -8264,7 +8283,7 @@ function frame(){
   huddleTick(t, dt);
   lifeTick(t, dt);
   PEOPLE.forEach(function(p){ rollUpdate(p, dt); });
-  if (!(t - (window.__dayT || -9) < 1)) { window.__dayT = t; dayTick(); clockTick(); }
+  if (!(Math.abs(t - (window.__dayT || -9)) < 1)) { window.__dayT = t; dayTick(); clockTick(); }
   wallClockTick();
 
   mark("rigs", m0);
@@ -8290,15 +8309,15 @@ function frame(){
   if (snapCam > 0) snapCam--;
   view.tx = lerp(view.tx, goal.tx, kk); view.ty = lerp(view.ty, goal.ty, kk); view.tz = lerp(view.tz, goal.tz, kk);
   view.r = lerp(view.r, goal.r, kk); view.th = lerp(view.th, goal.th, kk); view.ph = lerp(view.ph, goal.ph, kk);
-  var idle = reduceMotion ? 0 : clamp(t - lastInteract - 4, 0, 3) / 3;
+  var idle = reduceMotion ? 0 : clamp(nowMs / 1000 - lastInteract - 4, 0, 3) / 3;
   if (lastInteract < 0) idle = reduceMotion ? 0 : 1;
   /* nobody has touched the mouse for 2 minutes: the office turns slowly, a full turn every 4 minutes (for a TV in the background) */
   var still = performance.now() / 1000 - lastMove > SPIN_AFTER && !reduceMotion;
   spinV = lerp(spinV, still ? Math.PI * 2 / 240 : 0, 1 - Math.exp(-dt * (still ? 0.25 : 2.5)));
   spinTh = (spinTh + spinV * dt) % (Math.PI * 2);
   window.__spin = { th:spinTh, v:spinV, idle:performance.now() / 1000 - lastMove };
-  var th = view.th + spinTh + idle * 0.04 * Math.sin(t * 0.17);
-  var ph = view.ph + idle * 0.012 * Math.sin(t * 0.23);
+  var th = view.th + spinTh + idle * 0.04 * Math.sin(rt * 0.17);
+  var ph = view.ph + idle * 0.012 * Math.sin(rt * 0.23);
   basis(th, ph);
   camera.position.set(view.tx + camDir.x * 70, view.ty + camDir.y * 70, view.tz + camDir.z * 70);
   camera.lookAt(view.tx, view.ty, view.tz);
@@ -8351,7 +8370,8 @@ function frame(){
     tv.y += p.remote ? 0 : 0.3;
     tv.project(camera);
     p.onScreen = !(tv.z > 1 || tv.x < -1.25 || tv.x > 1.25 || tv.y < -1.25 || tv.y > 1.25);
-    if (!p.onScreen || (!p.root.visible && !deskCard && p !== focus) || (p.offline && p !== focus)) { tag.classList.add("off"); showBubble(p, null); return; }
+    if (!p.onScreen || (!p.root.visible && !deskCard && p !== focus) || (p.offline && p !== focus)) { tag.classList.add("off"); drawBubble(p, null); return; }
+    drawBubble(p, p.sayText);
     var x = (tv.x + 1) / 2 * w, y = (1 - tv.y) / 2 * h;
     if (!p.tagW || p.tagAway !== deskCard) { p.tagAway = deskCard; p.tagW = tag.offsetWidth || 70; p.tagH = tag.offsetHeight || 24; }
     var rect = { l:x - p.tagW / 2, r:x + p.tagW / 2, t:y - p.tagH - 6, b:y - 6 };
