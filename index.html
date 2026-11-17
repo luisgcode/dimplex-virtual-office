@@ -779,6 +779,24 @@ function wxFetch(){
     }).catch(function(){});
 }
 var WX_FIRST = wxFetch(); setInterval(wxFetch, 15 * 60 * 1000);
+/* new version of the office: every 2 minutes ask the server whether the page changed (ETag / Last-Modified);
+   when it did, reload as soon as nobody is looking (tab hidden) or the viewer has not touched anything for 2 minutes,
+   so whoever has the office open since the morning gets the latest changes without refreshing by hand */
+(function(){
+  var base = null, pending = false, lastTouch = Date.now();
+  ["pointerdown", "pointermove", "keydown", "wheel", "touchstart"].forEach(function(ev){ addEventListener(ev, function(){ lastTouch = Date.now(); }, { passive:true }); });
+  function tag(r){ return r.headers.get("ETag") || r.headers.get("Last-Modified") || ""; }
+  function check(){
+    fetch(location.pathname, { method:"HEAD", cache:"no-store" }).then(function(r){
+      var v = tag(r); if (!v || !r.ok) return;
+      if (base === null) base = v; else if (v !== base) pending = true;
+      maybe();
+    }).catch(function(){});
+  }
+  function maybe(){ if (pending && (document.hidden || Date.now() - lastTouch > 120000)) location.reload(); }
+  check(); setInterval(check, 120000); setInterval(maybe, 15000);
+  document.addEventListener("visibilitychange", maybe);
+})();
 /* rain streaks past the windows (snow uses the falling flakes already there) */
 (function(){
   var rt = canvasTex(128, 256, function(g, w, h){
