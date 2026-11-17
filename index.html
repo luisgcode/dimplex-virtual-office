@@ -5073,21 +5073,26 @@ function legOf(q){ var tr = q.trip; return tr && tr.w && (q.state === "walk" || 
 function legAt(tr, t, out){ along(tr.path, walkD(tr.w, t - tr.ts)); return out.copy(tmpPos); }
 /* earliest start (from t0, in 0.8 s steps) that keeps at least 0.5 m from every other walker */
 function planLeg(p, tr, t0){
-  var others = PEOPLE.filter(function(q){ return q !== p && legOf(q); }).map(legOf), ts = t0, k, u, ok, i;
-  for (k = 0; k < 9 && others.length; k++) {
-    ts = t0 + k * 0.8; ok = true;
-    for (u = 0.4; u < tr.w.D - 0.3 && ok; u += 0.25) {
+  var others = PEOPLE.filter(function(q){ return q !== p && legOf(q); }).map(legOf), ts = t0, k, u, i, best = t0, bestGap = -1;
+  if (!others.length) return t0;
+  /* up to 20 s of waiting; if no start is fully clear, take the one that passes the others widest */
+  for (k = 0; k < 26; k++) {
+    ts = t0 + k * 0.8;
+    var gap = 9;
+    for (u = 0.4; u < tr.w.D - 0.3 && gap >= 0.5; u += 0.25) {
       along(tr.path, walkD(tr.w, u)); _lpA.copy(tmpPos);
       for (i = 0; i < others.length; i++) {
         var o = others[i], uo = ts + u - o.ts;
         if (uo < 0 || uo > o.w.D) continue;
         along(o.path, walkD(o.w, uo));
-        if (Math.hypot(tmpPos.x - _lpA.x, tmpPos.z - _lpA.z) < 0.5) { ok = false; break; }
+        var d = Math.hypot(tmpPos.x - _lpA.x, tmpPos.z - _lpA.z);
+        if (d < gap) gap = d;
       }
     }
-    if (ok) break;
+    if (gap >= 0.5) return ts;
+    if (gap > bestGap) { bestGap = gap; best = ts; }
   }
-  return ts;
+  return best;
 }
 /* set up the leg: path, speed (fixed for the whole leg) and start time */
 function planWalk(p, tr, path, t0){
