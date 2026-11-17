@@ -2301,7 +2301,15 @@ function dayRand(p, salt){
   var hs = salt; for (var i = 0; i < p.id.length; i++) hs = (hs * 31 + p.id.charCodeAt(i)) % 100000;
   var r = seeded((key * 7919 + hs * 104729) % 2147483646 + 1); r(); r(); return r();
 }
-function wfhToday(p){ var S = SCHEDULE[p.id]; return !NO_WFH && !!S && !!S.wfh && S.wfh.indexOf(DAY.wd) >= 0; }
+/* one-off days at home (YYYY-MM-DD: ids), on top of the usual weekly day */
+var WFH_DAYS = { "2026-11-17":["olivia"] };
+function dateKeyStr(){ var d = DAY.d || worldDate(); return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2); }
+function wfhToday(p){
+  if (NO_WFH) return false;
+  var extra = WFH_DAYS[dateKeyStr()];
+  if (extra && extra.indexOf(p.id) >= 0) return true;
+  var S = SCHEDULE[p.id]; return !!S && !!S.wfh && S.wfh.indexOf(DAY.wd) >= 0;
+}
 /* now and then someone stays late to finish one last thing */
 function lateToday(p){ return !p.remote && !p.guest && p.id !== "luis" && dayRand(p, 77) < 0.12; }
 function leaveOf(p){
@@ -7576,7 +7584,9 @@ function renderPortrait(){
   if (w < 20 || h < 20) return;
   var away = (!p.remote && !p.root.visible) || (p.remote && p.camOff);
   if (pview.dataset.away !== (away ? "1" : "0")) pview.dataset.away = away ? "1" : "0";
-  var msg = p.remote ? "Camera off" : p.trip && p.trip.kind === "coffee" ? "Getting a " + drinkOf(p) : "In a meeting";
+  var tk = p.trip && p.trip.kind;
+  var msg = p.remote ? "Camera off" : tk === "coffee" ? "Getting a " + drinkOf(p) : tk === "lunch" ? "Out for lunch"
+    : wfhToday(p) ? "Working from home" : (tk === "home" || homeNow(p) || p.state === "gone") ? "Not in the office" : "In a meeting";
   if (pview.dataset.msg !== msg) pview.dataset.msg = msg;
   if (away) return;
   pcam.aspect = w / h; pcam.updateProjectionMatrix();
