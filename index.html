@@ -3880,11 +3880,11 @@ var REAL_MODELS = {
   carla:{ url:"models/carla.glb", height:1.64, tint:{ Shirt:"#e8b33a", Zipper:"#d9d4ca", Pants:"#2a2f3a" }, ownHair:true, hairScale:[1.0, 0.88, 1.0], hairY:0.12, hairZ:-0.02 },
   erica:{ footDrop:0.065, url:"models/erica.glb", height:1.66, tint:{ Suit:"#a3a8b0", Shirt:"#a8adb5", Pants:"#1d1f24", SwappedShoes:"#1a1b1e" }, hair:"#6b4630", highlight:"#6b4630", len:1.45, curl:1.6, locks:22, thick:1.1, shoesFrom:{ model:"stephanieb", mesh:"Sneakers", hide:["Heels"] }, ownHair:true, hairScale:[1.0, 0.88, 1.0], hairY:0.12, hairZ:-0.02 },
   allyson:{ url:"models/allyson.glb", height:1.66, tint:{ Shirt:"#7a4d9e", Pants:"#2c2a33", Shoes:"#5a2830" }, ownHair:true, hairScale:[1.0, 0.88, 1.0], hairY:0.12, hairZ:-0.02 },
-  debbie:{ footDrop:0.065, url:"models/debbie.glb", height:1.63, tint:{ Suit:"#2a2b30", Shirt:"#3a3b40", Pants:"#17181b", SwappedShoes:"#141518" }, shoesFrom:{ model:"stephanieb", mesh:"Sneakers", hide:["Heels"] }, ownHair:true, hairScale:[1.0, 0.88, 1.0], hairY:0.12, hairZ:-0.02, earrings:"#d4af5a" },
+  debbie:{ footDrop:0.065, url:"models/debbie.glb", height:1.63, tint:{ Suit:"#2a2b30", Shirt:"#3a3b40", Pants:"#17181b", SwappedShoes:"#141518" }, shoesFrom:{ model:"stephanieb", mesh:"Sneakers", hide:["Heels"], scale:0.84 }, ownHair:true, hairScale:[1.0, 0.88, 1.0], hairY:0.12, hairZ:-0.02, earrings:"#d4af5a" },
   olivia:{ footDrop:0.065, url:"models/olivia.glb", height:1.66, tint:{ Shirt:"#c9ad84", Pants:"#4a4f58", SwappedShoes:"#ecebe6" }, shoesFrom:{ model:"stephanieb", mesh:"Sneakers", hide:["Shoe"] }, ownHair:true, hairScale:[1.0, 0.88, 1.0], hairY:0.12, hairZ:-0.02, earrings:"#d4af5a" },
   marissa:{ url:"models/marissa.glb", height:1.65, tint:{ Shirt:"#4f7cc4", Shorts:"#2a2d35" }, ownHair:true, hairScale:[1.0, 0.88, 1.0], hairY:0.12, hairZ:-0.02, glasses:true },
   nolan:{ url:"models/nolan.glb", height:1.8, tint:{ Suit:"#2b3a52", Shirt:"#e9eef4", Tie:"#8a2432", Pants:"#2b2f36" } },
-  elena:{ footDrop:0.065, url:"models/elena.glb", height:1.65, tint:{ Shirt:"#b0476b", Pants:"#262a31", SwappedShoes:"#1a1b1e" }, shoesFrom:{ model:"stephanieb", mesh:"Sneakers", hide:["Heels"] }, earrings:"#d4af5a" },
+  elena:{ footDrop:0.065, url:"models/elena.glb", height:1.65, tint:{ Shirt:"#b0476b", Pants:"#262a31", SwappedShoes:"#1a1b1e" }, shoesFrom:{ model:"stephanieb", mesh:"Sneakers", hide:["Heels"], scale:0.92 }, earrings:"#d4af5a" },
   tessa:{ url:"models/stephanieb.glb", height:1.66, tint:{ Shirt:"#3e8e6a", Pants:"#2a2d35" }, ownHair:true, hairScale:[1.0, 0.88, 1.0], hairY:0.12, hairZ:-0.02 },
   grant:{ url:"models/grant.glb", height:1.79, tint:{ Shirt:"#6b6f76", Pants:"#23272e" }, ownHair:true, hairScale:[1.0, 0.9, 1.0], hairY:0.1, hairZ:-0.02, glasses:true },
   hana:{ url:"models/hana.glb", height:1.62, tint:{ Cloth:"#d9d4c7", SwappedPants:"#2c313b" }, pantsFrom:{ model:"stephanieb", mesh:"Pants", hide:["Socks"] }, ownHair:true, hairScale:[1.0, 0.88, 1.0], hairY:0.12, hairZ:-0.02, earrings:"#d4af5a" },
@@ -5970,7 +5970,11 @@ function calibrate(p, t){
      can still be in its standing pose, and measuring then sank people into their chairs */
   if (p.state === "sit" && r.sit > 0.995) r.sitSince = r.sitSince || t; else r.sitSince = 0;
   if (frameNo < 90 || !r.sitSince || t - r.sitSince < 1.5) return;
-  if (p.state === "sit" && r.sit > 0.995 && !p.act && !p.postCur && !p.posture && !(p.roll > 0.01) && p.chairG && (p.seatCal || 0) < 2 && t > (p.seatCalT || 0)) {
+  /* the seat height only looks at the hips, so crossed legs or a hand on the mouse do not spoil it; postures that move
+     the hips (recline, sitting on the edge) and big acts still wait. The toe check after it needs a plain pose. */
+  var hipsStill = !(p.posture && /recline|edge|lean|slouch|curl/i.test(p.posture)) && !(p.postCur && /recline|edge|lean|slouch|curl/i.test(p.postCur)) && !(p.act && /stand|turn|leanFire|stretch|yawn|answer/.test(p.act.n));
+  var plain = !p.act && !p.postCur && !p.posture;
+  if (p.state === "sit" && r.sit > 0.995 && (p.seatCal ? plain : hipsStill) && !(p.roll > 0.01) && p.chairG && (p.seatCal || 0) < 2 && t > (p.seatCalT || 0)) {
     if (!p.seatCal) {
       r.b.Hips.getWorldPosition(_calC);
       var lo = lowestSkin(p, _calC.x, _calC.z, 0.12, _calC.y - 0.3);
@@ -8458,7 +8462,8 @@ function swapShoes(dstRoot, srcRoot, opt){
   var v = new V3(), inv = new T.Matrix4(), dstInv = dstBody.matrixWorld.clone().invert();
   var newBones = [], idxMap = {};
   srcMesh.skeleton.bones.forEach(function(b, i){ var d = dB[b.name]; if (!d) return; idxMap[i] = newBones.length; newBones.push(d); });
-  var ratio = { Left:footLen(dB, "Left") / footLen(sB, "Left"), Right:footLen(dB, "Right") / footLen(sB, "Right") };
+  /* the foot length comes from the model's own shoes: in heels the foot reads longer, so a model can trim the result */
+  var ratio = { Left:footLen(dB, "Left") / footLen(sB, "Left") * (opt.scale || 1), Right:footLen(dB, "Right") / footLen(sB, "Right") * (opt.scale || 1) };
   for (var i = 0; i < pa.count; i++) {
     var best = 0, bw = -1;
     for (var j = 0; j < 4; j++) if (comp(sw, i, j) > bw) { bw = comp(sw, i, j); best = comp(si, i, j); }
