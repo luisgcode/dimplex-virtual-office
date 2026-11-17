@@ -720,8 +720,12 @@ var WX_TEXT = { snow:"Snow", rain:"Rain", cloud:"Cloudy", clear:"Clear" };
    and then kept, so the director gets the same input on every screen whatever the time the page was opened */
 var SIMWX = null;
 function simWx(T){
-  var h = Math.floor(T / 3600), H = SIMWX, c = H && H.code[h], tp = H && H.temp[h];
-  return { kind:WX_FORCE || (c === undefined || c === null ? "clear" : wxKind(c)), temp:tp === undefined || tp === null ? null : Math.round(tp), isDay:H && H.day[h] !== undefined && H.day[h] !== null ? H.day[h] === 1 : null };
+  var h = Math.floor(T / 3600), H = SIMWX;
+  /* the same hour gives the same answer: keep the last one (it is read many times a second) */
+  if (simWx.h === h && simWx.H === H && simWx.o) return simWx.o;
+  var c = H && H.code[h], tp = H && H.temp[h];
+  simWx.h = h; simWx.H = H;
+  return simWx.o = { kind:WX_FORCE || (c === undefined || c === null ? "clear" : wxKind(c)), temp:tp === undefined || tp === null ? null : Math.round(tp), isDay:H && H.day[h] !== undefined && H.day[h] !== null ? H.day[h] === 1 : null };
 }
 function wxFetch(){
   return fetch("https://api.open-meteo.com/v1/forecast?latitude=43.36&longitude=-80.31&current=temperature_2m,weather_code,is_day&hourly=temperature_2m,weather_code,is_day&daily=weather_code&past_days=14&forecast_days=1&timezone=America%2FToronto")
@@ -731,7 +735,12 @@ function wxFetch(){
       if (hr && hr.time && !SIMWX) {
         var tz = torontoAt(WORLD_NOW()), pre = tz.y + "-" + ("0" + tz.mo).slice(-2) + "-" + ("0" + tz.d).slice(-2) + "T", H = { code:[], temp:[], day:[] };
         hr.time.forEach(function(ts, i){ if (ts.indexOf(pre) === 0) { var hh = +ts.slice(11, 13); H.code[hh] = hr.weather_code[i]; H.temp[hh] = hr.temperature_2m[i]; H.day[hh] = hr.is_day ? hr.is_day[i] : null; } });
-        if (H.code.length) SIMWX = H;
+        if (H.code.length) {
+          SIMWX = H;
+          /* it came after the world was built without it (slow network): build it again, so this screen ends up in
+             the same world as the screens that had the record from the start */
+          if (SIM.loadMs !== undefined) { resetWorld(); simTo(WT()); }
+        }
       }
       var c = j && j.current; if (!c) return;
       WX.kind = wxKind(c.weather_code); WX.temp = Math.round(c.temperature_2m); WX.isDay = c.is_day === 1;
@@ -1001,6 +1010,36 @@ function monitor(parent, x, z, w, h, kind, ry){
    monitor is a chat that keeps getting replies, Olivia zooms in and out of a product photo, and everyone else scrolls
    and switches between tasks now and then. Screens freeze when their owner is away and go dark after hours. */
 var LIVE_SCREENS = [];
+/* ---------- world schedules for screens and small habits ----------
+   Segment k of a schedule starts near k * P seconds of world time (shifted by up to J * P), and what happens in it
+   comes from its own keyed random stream, so every screen shows the same thing at the same second without
+   anything being stepped. wrng keys include the date. */
+function gridStart(key, k, P, J){ return k * P + J * P * wrng(key, k)(); }
+function gridAt(key, t, P, J){ var k = Math.floor(t / P); if (t < gridStart(key, k, P, J)) k--; return k; }
+/* a quiet stretch inside each period of length P: [start, end) seconds, or null when the period has none */
+function gridGap(key, k, P, minL, maxL){ var r = wrng(key, k, 7), len = minL + (maxL - minL) * r(), s = k * P + (P - len) * r(); return [s, s + len]; }
+function inGap(key, t, P, minL, maxL){ var g = gridGap(key, Math.floor(t / P), P, minL, maxL); return t >= g[0] && t < g[1]; }
+/* the goal someone was on at world hour h (what their screen shows): the first one still due, among the ones they
+   already had then */
+function goalModeAt(p, h){
+  if (!p || p.remote || p.guest) return null;
+  var pl = planOf(p), best = null, first = true;
+  pl.goals.slice().sort(function(a, b){ return a.due - b.due; }).forEach(function(g){
+    if (best !== null || (g.at !== undefined && g.at > h) || g.due <= h) return;
+    if (!first && g.due - h > 4) { best = ""; return; }
+    first = false; best = g.label;
+  });
+  var L = best || "";
+  if (!L) return null;
+  if (/fireplace|flame|Optimyst/i.test(L)) return "flame";
+  if (/page|site|menu|Convectair|Cadet/i.test(L)) return "cms";
+  if (/sell sheet|copy|answer|specs|write/i.test(L)) return "doc";
+  if (/dashboard|report|numbers|budget/i.test(L)) return "dash";
+  if (/image|photo|banner|design/i.test(L)) return "design";
+  if (/booth|event|show/i.test(L)) return "floor";
+  if (/ticket/i.test(L)) return "ticket";
+  return null;
+}
 function liveCanvas(w, h){ var c = document.createElement("canvas"); c.width = w; c.height = h; var t = new T.CanvasTexture(c); t.colorSpace = T.SRGBColorSpace; t.anisotropy = maxAniso; return { c:c, g:c.getContext("2d"), tex:t }; }
 function codeSheet(){
   var L = liveCanvas(512, 1280), g = L.g, r = seeded(404), w = 512, h = 1280;
@@ -1019,9 +1058,9 @@ function codeSheet(){
   return L.tex;
 }
 /* a chat window: messages appear one after another, the newest at the bottom, with a typing indicator in between */
-function chatScreen(){
+function chatScreen(n){
   var L = liveCanvas(512, 320);
-  L.msgs = []; L.next = 0; L.typing = 0;
+  L.msgs = []; L.seg = null; L.typing = 0; L.key = "chat" + n;
   L.draw = function(){
     var g = L.g, w = 512, h = 320;
     g.fillStyle = "#1f1e1d"; g.fillRect(0, 0, w, h);
@@ -1041,16 +1080,17 @@ function chatScreen(){
     }
     L.tex.needsUpdate = true;
   };
+  /* one message every few seconds, mine then theirs (a world schedule: the same chat on every screen) */
   L.tick = function(t){
-    if (t < L.next) { if (L.typing) L.draw(); return; } /* called at ~8 fps */
-    if (L.typing) { L.typing = 0; L.msgs.push({ me:false, w:300 + R() * 120, lines:2 + Math.floor(R() * 5) }); L.next = t + rand(4, 9); }
-    else if (!L.msgs.length || L.msgs[L.msgs.length - 1].me === false) { L.msgs.push({ me:true, w:90 + R() * 170, lines:1 + Math.floor(R() * 2) }); L.typing = 1; L.next = t + rand(1.5, 3); }
-    else { L.typing = 1; L.next = t + rand(1.5, 3); }
-    if (L.msgs.length > 14) L.msgs.shift();
+    var k = gridAt(L.key, t, 3.5, 0.5);
+    if (k !== L.seg) {
+      L.seg = k; L.msgs = [];
+      for (var j = k - 13; j <= k; j++) { var r = wrng(L.key, j, 1); L.msgs.push((j & 1) === 0 ? { me:true, w:90 + r() * 170, lines:1 + Math.floor(r() * 2) } : { me:false, w:300 + r() * 120, lines:2 + Math.floor(r() * 5) }); }
+      L.typing = (k & 1) === 0 ? 1 : 0;
+    }
     L.draw();
   };
-  L.msgs.push({ me:true, w:180, lines:1 }, { me:false, w:360, lines:4 });
-  L.draw();
+  L.tick(0);
   return L;
 }
 /* a photo editor: a lifestyle shot that the designer zooms into, pans across, and zooms back out of */
@@ -1142,28 +1182,36 @@ function photoScreen(){
     }
     L.tex.needsUpdate = true;
   };
+  /* the work switches about every 25 s, from a world schedule (the same edit on every screen) */
+  var MP = 24, MJ = 0.5, ZP = 4.5, KEY = "photo", FLAT = { z:1, cx:320, cy:210 }, FULL = { x:56, y:28, w:376, h:280 };
+  var FORCE_M = MODES.indexOf(SCREEN_FORCE) >= 0 ? SCREEN_FORCE : null;
+  function modeOf(k){
+    var r = wrng(KEY, k, 1), m = MODES[Math.floor(r() * MODES.length)], rp = wrng(KEY, k - 1, 1), pm = MODES[Math.floor(rp() * MODES.length)];
+    if (m === pm) m = MODES[(MODES.indexOf(m) + 1) % MODES.length];
+    return { m:FORCE_M || m, r:r };
+  }
+  function zoomT(k, j){ if (j < 0) return FLAT; var r = wrng(KEY + "z", k, j); return r() < 0.35 ? FLAT : { z:1.6 + 1.6 * r(), cx:180 + 290 * r(), cy:120 + 180 * r() }; }
+  function mix(a, b, e){ return { z:lerp(a.z, b.z, e), cx:lerp(a.cx, b.cx, e), cy:lerp(a.cy, b.cy, e) }; }
+  /* zoom and centre inside a zoom stretch that started at s0: eased from one spot to the next */
+  function zoomIn(k, s0, t){ var j = Math.floor((t - s0) / ZP); return mix(zoomT(k, j - 1), zoomT(k, j), ease((t - s0 - j * ZP) / 1.6)); }
+  function cropAt(i){
+    var CR = CROPS[i % 4], vw = 376, vh = 280, cw = vw * 0.86, ch = cw * CR[1] / CR[0];
+    if (ch > vh * 0.86) { ch = vh * 0.86; cw = ch * CR[0] / CR[1]; }
+    return { x:56 + (vw - cw) / 2, y:28 + (vh - ch) / 2, w:cw, h:ch };
+  }
   L.tick = function(t, dt){
-    if (t > L.mEnd) {
-      var force = MODES.indexOf(SCREEN_FORCE) >= 0 ? SCREEN_FORCE : null, nx = L.mode;
-      if (force) nx = force; else if (L.mEnd) while (nx === L.mode) nx = choose(MODES);
-      L.mode = nx; L.m0 = t; L.mEnd = t + (nx === "export" ? 11 : nx === "banner" ? 16 : rand(20, 34));
-      L.file = choose(FILES); L.hd = Math.floor(R() * HEAD.length); L.cr = null; L.next = 0;
-    }
-    L.e = t - L.m0;
-    var T2;
-    if (L.mode === "zoom") {
-      if (t > L.next) { L.next = t + rand(3, 6); L.target = R() < 0.35 ? { z:1, cx:320, cy:210 } : { z:rand(1.6, 3.2), cx:rand(180, 470), cy:rand(120, 300) }; }
-      T2 = L.target || { z:1, cx:320, cy:210 };
-    } else T2 = { z:1, cx:320, cy:210 };
-    var k = 1 - Math.exp(-dt * 1.6);
-    L.z += (T2.z - L.z) * k; L.cx += (T2.cx - L.cx) * k; L.cy += (T2.cy - L.cy) * k;
+    var k = gridAt(KEY, t, MP, MJ), s0 = gridStart(KEY, k, MP, MJ), mo = modeOf(k);
+    if (k !== L.seg) { L.seg = k; L.file = FILES[Math.floor(mo.r() * FILES.length)]; L.hd = Math.floor(mo.r() * HEAD.length); }
+    L.mode = mo.m; L.e = t - s0;
+    var V;
+    if (L.mode === "zoom") V = zoomIn(k, s0, t);
+    else if (modeOf(k - 1).m === "zoom") { var p0 = gridStart(KEY, k - 1, MP, MJ); V = mix(zoomIn(k - 1, p0, s0), FLAT, ease(L.e / 1.6)); }
+    else V = FLAT;
+    L.z = V.z; L.cx = V.cx; L.cy = V.cy;
     if (L.mode === "crop") {
-      var CR = CROPS[Math.floor(L.e / 5) % 4], vw = 376, vh = 280, cw = vw * 0.86, ch = cw * CR[1] / CR[0];
-      if (ch > vh * 0.86) { ch = vh * 0.86; cw = ch * CR[0] / CR[1]; }
-      var tg = { x:56 + (vw - cw) / 2, y:28 + (vh - ch) / 2, w:cw, h:ch };
-      if (!L.cr) L.cr = { x:56, y:28, w:vw, h:vh };
-      var k3 = 1 - Math.exp(-dt * 3); ["x", "y", "w", "h"].forEach(function(q){ L.cr[q] += (tg[q] - L.cr[q]) * k3; });
-    }
+      var ci = Math.floor(L.e / 5), a = ci ? cropAt(ci - 1) : FULL, b = cropAt(ci), e2 = ease((L.e - ci * 5) / 1.0);
+      L.cr = { x:lerp(a.x, b.x, e2), y:lerp(a.y, b.y, e2), w:lerp(a.w, b.w, e2), h:lerp(a.h, b.h, e2) };
+    } else L.cr = null;
     L.draw();
   };
   L.draw();
@@ -1200,9 +1248,10 @@ function heatPage(brand){
   for (i = 0; i < 4; i++) { g.fillStyle = "#eef0f2"; g.fillRect(16 + i * 124, 190, 110, 82); g.fillStyle = "#ffffff"; g.fillRect(30 + i * 124, 220, 82, 16 + (i % 2) * 8); g.fillStyle = "#c3c9cf"; g.fillRect(16 + i * 124, 282, 80, 7); g.fillRect(16 + i * 124, 296, 54, 7); }
   return (HEAT_PAGES[brand] = c);
 }
+var PEERS = [["#6b5a4e", "#e8c4a4", "#3a2418"], ["#4f6b8c", "#f1d3c2", "#7a3b22"], ["#5c6e57", "#d9a27c", "#1e1512"], ["#7a6a8a", "#efcfbd", "#c9a05c"]];
 function activityScreen(pool, seed, baseImg, ownerId){
   var L = liveCanvas(512, 320), r = seeded(seed), W = 512, H = 320;
-  L.mode = pool[Math.floor(r() * pool.length)]; L.t0 = 0; L.next = 0; L.k = 0;
+  L.mode = pool[Math.floor(r() * pool.length)]; L.t0 = 0; L.seg = null; L.k = 0;
   L.rows = Array.from({ length:12 }, function(){ return { w:120 + r() * 220, s:60 + r() * 110, unread:r() < 0.4 }; });
   L.cells = Array.from({ length:60 }, function(){ return r() < 0.55; });
   L.slide = 0; L.scroll = 0; L.msgs = []; L.baseImg = baseImg || null;
@@ -1526,7 +1575,7 @@ function activityScreen(pool, seed, baseImg, ownerId){
     },
     /* a one to one video call: the other person big, yourself small in the corner */
     call1:function(g, t){
-      var who = L.peer || (L.peer = [["#6b5a4e", "#e8c4a4", "#3a2418"], ["#4f6b8c", "#f1d3c2", "#7a3b22"], ["#5c6e57", "#d9a27c", "#1e1512"], ["#7a6a8a", "#efcfbd", "#c9a05c"]][Math.floor(R() * 4)]);
+      var who = PEERS[L.peer || 0];
       g.fillStyle = "#292929"; g.fillRect(0, 0, W, H);
       g.fillStyle = "#3d3e66"; g.fillRect(0, 0, W, 24); bar(g, 12, 9, 90, "#c5c7f0");
       var bg = g.createLinearGradient(0, 30, 0, H - 40); bg.addColorStop(0, who[0]); bg.addColorStop(1, "#2a2a2e");
@@ -1600,19 +1649,22 @@ function activityScreen(pool, seed, baseImg, ownerId){
       }
     }
   };
+  L.key = "scr" + seed;
   L.tick = function(t, dt){
-    /* each activity lasts a good while: a minute to two and a half */
-    if (!L.next) L.next = t + rand(25, 70);
-    if (t > L.next) {
-      var m = R() < 0.14 ? "call1" : pool[Math.floor(R() * pool.length)];
-      /* what is on the screen matches what they say they are working on */
-      var gm = ownerId && typeof goalMode === "function" ? goalMode(BY[ownerId]) : null;
-      if (gm && R() < 0.5) m = gm;
-      if (DAY.eom && R() < 0.3) m = R() < 0.5 ? "report" : "dash";
-      if (m === L.mode) m = pool[(pool.indexOf(m) + 1) % pool.length];
-      L.mode = m; L.peer = null; L.next = t + (m === "call1" ? rand(40, 90) : rand(60, 150)); L.k = 0;
+    /* each activity lasts a good while: about a minute to two and a half, from a world schedule (the same on every screen) */
+    var k = gridAt(L.key, t, 105, 0.6);
+    if (k !== L.seg) {
+      L.seg = k; L.t0 = gridStart(L.key, k, 105, 0.6);
+      var r = wrng(L.key, k, 1), m = r() < 0.14 ? "call1" : pool[Math.floor(r() * pool.length)];
+      /* what is on the screen matches what they were working on when it came up */
+      var gm = ownerId && BY[ownerId] ? goalModeAt(BY[ownerId], L.t0 / 3600) : null;
+      if (gm && r() < 0.5) m = gm;
+      if (DAY.eom && r() < 0.3) m = r() < 0.5 ? "report" : "dash";
+      var rp = wrng(L.key, k - 1, 1); rp();
+      if (m === pool[Math.floor(rp() * pool.length)]) m = pool[(pool.indexOf(m) + 1) % pool.length];
+      L.mode = m; L.peer = Math.floor(r() * PEERS.length);
     }
-    L.k += dt * (L.mode === "mail" ? 0.35 : L.mode === "slides" ? 0.12 : 0.5);
+    L.k = Math.max(0, t - L.t0) * (L.mode === "mail" ? 0.35 : L.mode === "slides" ? 0.12 : 0.5);
     if (SCREEN_FORCE && DRAW[SCREEN_FORCE]) L.mode = SCREEN_FORCE;
     else if (SCREEN_FORCE === "all") { var dk = Object.keys(DRAW); L.mode = dk[Math.floor(t / 1.5) % dk.length]; }
     /* a broken drawing never takes the office down: fall back to the inbox */
@@ -1665,7 +1717,7 @@ function screensTick(t, dt){
     LIVE_SCREENS.forEach(function(s){
       s.owner = PEOPLE.find(function(q){ return q.deskGroup === s.desk; }) || null;
       if (s.kind === "code") { s.map = codeSheet(); s.m.material.map = s.map; s.scroll = 1 - 320 / 1280; s.to = s.scroll; }
-      else if (s.kind === "chat") { s.live = chatScreen(); s.m.material.map = s.live.tex; }
+      else if (s.kind === "chat") { s.live = chatScreen(LIVE_SCREENS.indexOf(s)); s.m.material.map = s.live.tex; }
       else if (s.kind === "swatch" && s.owner && s.owner.id === "olivia") { s.live = photoScreen(); s.m.material.map = s.live.tex; (window.__olivia = window.__olivia || []).push(s.live); }
       else if (s.kind !== "off") {
         var pool = (ACT_POOLS[s.owner ? s.owner.id : "_"] || ACT_POOLS._).slice();
@@ -1695,17 +1747,18 @@ function screensTick(t, dt){
     var active = p && p.state === "sit" && !(p.trip && p.trip.kind === "home") && !lunchNow(p);
     if (!active || !s.m.visible) continue;
     if (s.map) {
-      /* code scrolls while typing, and jumps to another part of the file now and then */
-      if (R() < dt * 0.12) s.to = clamp(s.to + (R() < 0.5 ? -1 : 1) * rand(0.08, 0.3), 0, 1 - 320 / 1280);
-      if (p.typeOn) s.to = Math.max(0, s.to - dt * 0.004);
-      s.scroll += (s.to - s.scroll) * (1 - Math.exp(-dt * 3));
+      /* code scrolls slowly while they write, and jumps to another part of the file now and then (a world schedule) */
+      var ck = "code" + i, cg = gridAt(ck, t, 8, 0.8), cs = gridStart(ck, cg, 8, 0.8), CMAX = 1 - 320 / 1280;
+      var cAt = function(kk, tt){ return clamp(CMAX * wrng(ck, kk, 1)() - 0.004 * Math.max(0, tt - gridStart(ck, kk, 8, 0.8)), 0, CMAX); };
+      s.scroll = lerp(cAt(cg - 1, cs), cAt(cg, t), ease((t - cs) / 1.0));
       s.map.offset.y = s.scroll;
     } else if (s.live) {
       if ((frameNo + i) % 7 === 0) s.live.tick(t, dt * 7);
     } else if (s.alts) {
       var tx = s.alts[s.cur];
       tx.offset.y = 0.07 + 0.07 * Math.sin(t * 0.25 + i);
-      if (t > s.next) { s.cur = (s.cur + 1) % s.alts.length; s.m.material.map = s.alts[s.cur]; s.next = t + (s.cur ? rand(8, 18) : rand(20, 45)); }
+      var ak = gridAt("alts" + i, t, 20, 0.6) % s.alts.length; if (ak < 0) ak += s.alts.length;
+      if (ak !== s.cur) { s.cur = ak; s.m.material.map = s.alts[s.cur]; }
     }
   }
   if (anyCall && frameNo % 4 === 0) TEAM_SCREEN.tick(t, dt * 4);
@@ -2104,7 +2157,7 @@ function cupTick(p, t){
   var b = p.rig.b, tr = p.trip, fetching = tr && tr.kind === "coffee";
   /* the desk cup goes with them to the kitchen */
   if (fetching && p.cup && !(MISHAP.cur && MISHAP.cur.cup === p.cup)) { if (p.cup.visible) { p.cup.visible = false; p.cupAway = true; } }
-  else if (p.cupAway && !fetching) { p.cupAway = false; if (p.cup) p.cup.visible = true; p.hotUntil = t + rand(180, 300); }
+  else if (p.cupAway && !fetching) { p.cupAway = false; if (p.cup) p.cup.visible = true; p.hotUntil = t + 180 + 120 * ((Math.floor(t) * 0.618 + p.idx * 0.37) % 1); }
   var carrying = fetching && tr.back && p.root.visible && p.state === "walk";
   p.carry.visible = carrying;
   if (carrying) {
@@ -2206,8 +2259,9 @@ var HOLIDAYS = { "2026-01-01":"New Year's Day", "2026-02-16":"Family Day", "2026
   "2026-09-07":"Labour Day", "2026-10-12":"Thanksgiving", "2026-12-24":"Christmas Eve", "2026-12-25":"Christmas Day", "2026-12-28":"Boxing Day", "2026-12-31":"New Year's Eve",
   "2027-01-01":"New Year's Day", "2027-02-15":"Family Day", "2027-03-26":"Good Friday", "2027-05-24":"Victoria Day", "2027-07-01":"Canada Day", "2027-08-02":"Civic Holiday",
   "2027-09-06":"Labour Day", "2027-10-11":"Thanksgiving", "2027-12-24":"Christmas Eve", "2027-12-27":"Christmas Day", "2027-12-28":"Boxing Day", "2027-12-31":"New Year's Eve" };
+var Q_HOLIDAY = /[?&]holiday=1/.test(location.search || "");
 function holidayNow(){
-  if (/[?&]holiday=1/.test(location.search || "")) return "Holiday";
+  if (Q_HOLIDAY) return "Holiday";
   var d = DAY.d || worldDate(), k = d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2);
   return DAYQ.day >= 0 ? "" : (HOLIDAYS[k] || "");
 }
@@ -2253,7 +2307,7 @@ function officeHours(t, dt){
   var dark = darkTarget();
   OFFICE_DARK = lerp(OFFICE_DARK, dark, 1 - Math.exp(-dt * 2.2));
   weatherTick(t);
-  if (TROPHY) TROPHY.spin.rotation.y += dt * 0.6;
+  if (TROPHY) TROPHY.spin.rotation.y = (t * 0.6) % (Math.PI * 2);
   /* the sky outside the office goes dark too */
   if (!officeHours.bg) officeHours.bg = { day:scene.background.clone(), night:new T.Color(0x0b0f17) };
   scene.background.copy(officeHours.bg.day).lerp(officeHours.bg.night, OFFICE_DARK);
@@ -2636,29 +2690,30 @@ function seasonTick(t, dt){
     ms.m.position.x = ms.x + 0.35 * Math.sin(t * 0.11 + ms.ph);
     ms.m.position.z = ms.z + 0.25 * Math.sin(t * 0.07 + ms.ph * 2);
   }
-  var L = seasonFx.line;
-  if (L) {
-    if (t > L.t1 && !L.replied && L.b) { L.replied = true; if (L.a.fxSay === L.text) showBubble(L.a, null); showBubble(L.b, L.reply); L.t2 = t + 3.6; }
-    if (t > L.t2) { if (L.b && L.b.fxSay === L.reply) showBubble(L.b, null); if (L.a.fxSay === L.text) showBubble(L.a, null); seasonFx.line = null; }
-    return;
-  }
-  if (!seasonFx.next) seasonFx.next = t + rand(8, 18);
-  if (t < seasonFx.next) return;
-  seasonFx.next = t + rand(35, 75);
-  var who = PEOPLE.filter(function(q){ return q.state === "sit" && q.root.visible && !q.chatWith && !bubbleAt(q, t) && !q.answering; });
+}
+/* director: now and then someone says the seasonal line out loud, and a neighbour answers */
+var SEASONW = { next:0, until:0 };
+function simSeason(t){
+  if (!SZ) return;
+  if (!SEASONW.next) SEASONW.next = t + rand(8, 18);
+  if (t < SEASONW.next || t <= SEASONW.until) return;
+  SEASONW.next = t + rand(35, 75);
+  var who = PEOPLE.filter(function(q){ return q.state === "sit" && !q.guest && visAt(q, t) && !q.chatWith && !sayAt(q, t) && !q.answering; });
   if (!who.length || teamCallNow() || chats.some(function(c){ return c.bubbles; })) return;
   var a0 = choose(who), near = who.filter(function(q){ return q !== a0 && Math.abs(q.z - a0.z) < 2.2; });
   var b0 = near.length && R() < 0.75 ? choose(near) : null;
-  /* holiday small talk follows the real weather outside, never a guess */
-  var wkS = WX_FORCE || WX.kind, tS = WX.temp, extra = [];
+  /* holiday small talk follows the day's weather record (the same on every screen), never a guess */
+  var SW = simWx(t), wkS = SW.kind, tS = SW.temp, extra = [];
   if (wkS === "snow") extra = ["Look at that snow, so festive!", "Snow for the holidays, finally.", "It's really snowing out there!"];
   else if (wkS === "rain") extra = ["Rain? In December? Come on.", "Not exactly a white Christmas out there."];
   else if (tS !== null && tS <= -5) extra = ["It's " + tS + " out there. Hot chocolate weather.", "Too cold for snow, apparently."];
   else extra = ["Still no snow out there.", "We need some snow for the holidays."];
-  var text = choose(SZ.says.concat(extra));
-  showBubble(a0, text);
-  seasonFx.line = { a:a0, b:b0, text:text, reply:choose(SZ.replies), t1:t + 3.6, t2:t + 3.8, replied:false };
+  var text = choose(SZ.says.concat(extra)), reply = choose(SZ.replies);
+  sayLater(a0, text, t, 2.4);
+  if (b0) sayLater(b0, reply, t + 3.6, 2.4);
+  SEASONW.until = t + (b0 ? 7.2 : 3.8);
 }
+function seasonDue(t){ return !SZ ? Infinity : !SEASONW.next ? t + 1 : Math.max(SEASONW.next, SEASONW.until + 0.001); }
 buildSeason();
 /* ---------- small mishaps: rare, short and harmless ----------
    Every couple of minutes at most, one of: a cat strolls in front of a remote colleague's camera, a book slides off
@@ -2983,45 +3038,72 @@ function ghostBuild(){
   g.visible = false; scene.add(g); scene.add(halo); halo.visible = false;
   GHOST.g = g; GHOST.body = mat; GHOST.eyes = eyeM; GHOST.halo = halo;
 }
-function ghostTick(t, dt, present){
-  var night = darkTarget() > 0.8 && !present.length && (DAY.h >= 22 || DAY.h < 5.5);
-  if (!GHOST.on) {
-    if (!GHOST.next) GHOST.next = t + (GHOST.want ? 4 : rand(60, 120));
-    if (t < GHOST.next) return;
-    /* one roll a minute: about once every hour and a half of watching the office at night */
-    GHOST.next = t + (GHOST.want ? 5 : 60);
-    if (!night || (!GHOST.want && R() > 0.011)) return;
-    if (!GHOST.g) ghostBuild();
-    GHOST.on = true; GHOST.d = 0; GHOST.seg = 0; GHOST.pause = rand(0.35, 0.65); GHOST.stopped = 0;
-    GHOST.g.position.copy(GHOST_PATH[0]); GHOST.g.visible = GHOST.halo.visible = true;
+/* when it walks, as a function of the date and the time: one roll a minute through the night (about once every hour
+   and a half), never again within 25 minutes of the last one. The same nights for every viewer */
+var GHOST_V = 0.42, GHOST_STOP = 4.5;
+function ghostLen(){ var L = 0; for (var i = 1; i < GHOST_PATH.length; i++) L += GHOST_PATH[i].distanceTo(GHOST_PATH[i - 1]); return L; }
+function ghostRuns(){
+  var dk = dayKey();
+  if (GHOST.runsDay === dk) return GHOST.runs;
+  var L = ghostLen(), runs = [], until = -1;
+  for (var m = 0; m < 1440; m++) {
+    var s = m * 60, h = s / 3600;
+    if (s < until || !(h >= 22 || h < 5.5)) continue;
+    var r = wrng("ghost", m);
+    if (r() >= 0.011) continue;
+    var pause = 0.35 + 0.3 * r(), dur = L / GHOST_V + GHOST_STOP;
+    runs.push({ t0:s, dur:dur, pause:pause });
+    until = s + dur + 1500;
   }
-  var g = GHOST.g, P = GHOST_PATH, total = 0, i;
-  for (i = 1; i < P.length; i++) total += P[i].distanceTo(P[i - 1]);
-  /* drifts slowly, stops halfway down the aisle, turns to look at you, then moves on */
-  var u = GHOST.d / total;
-  if (u > GHOST.pause && GHOST.stopped < 4.5) GHOST.stopped += dt;
-  else GHOST.d += dt * 0.42;
-  u = Math.min(1, GHOST.d / total);
-  var left = GHOST.d, p = P[P.length - 1].clone(), dir = new V3(0, 0, 1);
+  GHOST.runsDay = dk; GHOST.runs = runs; GHOST.L = L;
+  return runs;
+}
+/* the walk going on at world time t, or null (?ghost=1: one right away and then every 20 s, on this screen only) */
+function ghostRunAt(t){
+  if (GHOST.want) {
+    var L = ghostLen(), dur = L / GHOST_V + GHOST_STOP;
+    if (!GHOST.wantT0) GHOST.wantT0 = t + 4;
+    var e = t - GHOST.wantT0;
+    if (e < 0) return null;
+    var k = Math.floor(e / (dur + 20)), t0 = GHOST.wantT0 + k * (dur + 20);
+    return t - t0 < dur ? { t0:t0, dur:dur, pause:0.5 } : null;
+  }
+  var runs = ghostRuns();
+  for (var i = 0; i < runs.length; i++) if (t >= runs[i].t0 && t < runs[i].t0 + runs[i].dur) return runs[i];
+  return null;
+}
+function ghostTick(t, present){
+  var night = darkTarget() > 0.8 && !present.length && (DAY.h >= 22 || DAY.h < 5.5);
+  var run = (night || GHOST.want) ? ghostRunAt(t) : null;
+  GHOST.on = !!run;
+  if (!run) { if (GHOST.g) GHOST.g.visible = GHOST.halo.visible = false; return; }
+  if (!GHOST.g) ghostBuild();
+  var g = GHOST.g, P = GHOST_PATH, total = GHOST.L || ghostLen(), i;
+  /* drifts slowly, stops partway down the aisle, turns to look at you, then moves on */
+  var e = t - run.t0, dStop = run.pause * total, eStop = dStop / GHOST_V, d, stopped = 0;
+  if (e < eStop) d = e * GHOST_V;
+  else if (e < eStop + GHOST_STOP) { d = dStop; stopped = e - eStop; }
+  else d = dStop + (e - eStop - GHOST_STOP) * GHOST_V;
+  var u = Math.min(1, d / total), left = d, p = _ghP.copy(P[P.length - 1]), dir = _ghD.set(0, 0, 1);
   for (i = 1; i < P.length; i++) { var L = P[i].distanceTo(P[i - 1]); if (left <= L) { p.copy(P[i - 1]).lerp(P[i], left / L); dir.subVectors(P[i], P[i - 1]).normalize(); break; } left -= L; }
+  g.visible = GHOST.halo.visible = true;
   var bob = 0.18 + 0.06 * Math.sin(t * 1.8);
   g.position.set(p.x + 0.04 * Math.sin(t * 1.1), bob, p.z);
   var yaw = Math.atan2(dir.x, dir.z);
-  if (GHOST.stopped > 0 && GHOST.stopped < 4.5) { var look = Math.atan2(camera.position.x - g.position.x, camera.position.z - g.position.z); yaw = lerp(yaw, look, clamp(Math.min(GHOST.stopped, 4.5 - GHOST.stopped) * 1.5, 0, 1)); }
+  if (stopped > 0) { var look = Math.atan2(camera.position.x - g.position.x, camera.position.z - g.position.z); yaw = lerp(yaw, look, clamp(Math.min(stopped, GHOST_STOP - stopped) * 1.5, 0, 1)); }
   g.rotation.y = yaw; g.rotation.z = 0.06 * Math.sin(t * 1.3);
   var sc = 1 + 0.03 * Math.sin(t * 2.4); g.scale.set(sc, 1 / sc, sc);
   /* fades in and out; a little flicker */
   var a = clamp(Math.min(u, 1 - u) * 8, 0, 1) * (0.86 + 0.14 * Math.sin(t * 7.3) * Math.sin(t * 2.9));
-  if (!night && !GHOST.want) a *= 0;
   GHOST.body.opacity = 0.55 * a; GHOST.eyes.opacity = 0.9 * a; GHOST.halo.material.opacity = 0.16 * a;
   GHOST.halo.position.set(g.position.x, 0.005, g.position.z);
-  if (u >= 1 || (!night && !GHOST.want)) { GHOST.on = false; g.visible = GHOST.halo.visible = false; GHOST.next = t + (GHOST.want ? 20 : 1500); }
 }
+var _ghP = new V3(), _ghD = new V3();
 var LIFE = { printers:[], counter:null, tray:null, box:null, can:null, sheet:null };
 /* ---------- Debbie's cat: now and then it wanders in, says hi at her chair, naps on her desk, then leaves.
    A spotted golden tabby (bengal look): dark rosettes, banded tail with a black tip, white muzzle, green eyes.
    ?cat=1 calls it right away and again shortly after each visit */
-var CAT = { g:null, on:false, next:0, want:/[?&]cat=1/.test(location.search || ""), ph:"", t0:0 };
+var CAT = { g:null, on:false, next:0, want:/[?&]cat=1/.test(location.search || ""), segs:null, evs:[], lastSlot:-1, prank:"" };
 window.__cat = CAT;
 /* coat painted from Debbie's photos: warm brown with a gold sheen, dense black rosettes on the body,
    barred legs, stripes on the forehead and cheeks */
@@ -3277,75 +3359,124 @@ function dogMoveTo(d, target, dt, vmax){
   d.gait = (d.gait || 0) + dt * v / 0.18 * Math.PI;
   return dist;
 }
-/* director: Erica pets the dogs once in a while (they are on their beds whenever she is at her desk) */
+/* world side of the dogs (reset with the world): Erica's walk in or out that they follow, and their stretches */
+var DOGW = { walk:null, list:[{ st:0, stretchAt:0 }, { st:0, stretchAt:0 }] };
+var DOG_BEDS = [{ at:new V3(1.55, 0, -2.45), yaw:-Math.PI / 2 - 0.25 }, { at:new V3(1.75, 0, -3.2), yaw:-Math.PI / 2 + 0.2 }];
+/* how far behind Erica each dog walks (seconds), and how fast they trot from her desk to their beds */
+var DOG_LAG = [0.8, 1.35], DOG_TROT = 0.9;
+/* where a dog is at world time t: { mode:"gone"|"bed"|"walk", pos, yaw } (pure: the world state and the clock) */
+var _dgA = new V3(), _dgB = new V3();
+function dogAt(i, t, out){
+  var E = BY.erica, W = DOGW.walk, bed = DOG_BEDS[i], lag = DOG_LAG[i], side = i ? 0.28 : -0.22;
+  out = out || { pos:new V3(), yaw:0, mode:"gone" };
+  out.mode = "bed"; out.pos.copy(bed.at); out.yaw = bed.yaw;
+  if (!E) { out.mode = "gone"; return out; }
+  function trail(tt){
+    along(W.path, walkD(W.w, tt - W.ts)); _dgA.copy(tmpPos);
+    var hd = along(W.path, walkD(W.w, tt - W.ts + 0.05));
+    _dgA.x += side * Math.cos(hd); _dgA.z -= side * Math.sin(hd);
+    return hd;
+  }
+  if (W && !W.back) {
+    /* leaving with Erica at the end of the day: up from the bed, then right behind her and out */
+    if (t < W.ts) return out;
+    var p0 = W.path.pts[0], hd = trail(t - lag), k = ease((t - W.ts) / Math.max(1.4, Math.hypot(p0.x - bed.at.x, p0.z - bed.at.z) / 0.9));
+    out.pos.lerpVectors(bed.at, _dgA, k); out.yaw = hd; out.mode = "walk";
+    if (t - lag > W.ts + W.w.D + 0.5 || Math.abs(out.pos.x) > 4.4) out.mode = "gone";
+    return out;
+  }
+  if (W && W.back) {
+    /* arriving with her in the morning: in right behind her, then over to their beds */
+    if (t - lag < W.ts) { out.mode = "gone"; return out; }
+    var te = W.ts + W.w.D + lag;
+    if (t < te) { out.yaw = trail(t - lag); out.pos.copy(_dgA); out.mode = Math.abs(_dgA.x) > 4.4 ? "gone" : "walk"; return out; }
+    trail(te - lag); _dgB.copy(_dgA);
+    var L = Math.hypot(bed.at.x - _dgB.x, bed.at.z - _dgB.z), d = (t - te) * DOG_TROT;
+    if (d < L) { out.pos.lerpVectors(_dgB, bed.at, d / L); out.yaw = Math.atan2(bed.at.x - _dgB.x, bed.at.z - _dgB.z); out.mode = "walk"; }
+    return out;
+  }
+  /* no walk today yet: they are in only if Erica is */
+  if (homeNow(E) && (E.state === "away" || !visAt(E, t))) out.mode = "gone";
+  return out;
+}
+var _dogTmp = { pos:new V3(), yaw:0, mode:"" };
+/* director: Erica pets the dogs once in a while (they are on their beds whenever she is at her desk), the walk they
+   follow her on, and when each one gets up for a stretch */
+function dogsWalkWatch(){
+  var E = BY.erica, tr = E && E.trip;
+  if (tr && tr.kind === "home" && tr.w && (E.state === "walk" || E.state === "up") && (!DOGW.walk || DOGW.walk.src !== tr || DOGW.walk.back !== !!tr.back || DOGW.walk.ts !== tr.ts))
+    DOGW.walk = { src:tr, path:tr.path, w:tr.w, ts:tr.ts, back:!!tr.back };
+}
 function simDogs(t){
   var E = BY.erica;
   if (!E) return;
   if (!DOGS.petAt) DOGS.petAt = t + (DOGS_FAST ? 25 : rand(700, 1400));
-  if (t > DOGS.petAt && !DOGS.pet && idleAtDesk(E)) {
-    DOGS.petAt = t + (DOGS_FAST ? 60 : rand(1500, 2700));
+  if (t > DOGS.petAt && !DOGS.pet) {
+    /* busy right now: she tries again a little later */
+    if (!idleAtDesk(E)) DOGS.petAt = t + 20;
+    else { DOGS.petAt = t + (DOGS_FAST ? 60 : rand(1500, 2700));
     goSpot(E, t, new V3(1.05, 0, -2.8), new V3(1.65, 0.2, -2.8), 7, "Saying hi to the dogs", "fixprinter", function(q, t2){
       DOGS.pet = t2; sayLater(E, choose(["Hi Finn! Hi Nina!", "Who's a good dog? Finn is!", "Nina, sweetie, are you comfy?", "Hello my loves!", "Are you two comfy?"]), t2 + 0.4, 2.6);
-    }, function(){ DOGS.pet = 0; });
+    }, function(){ DOGS.pet = 0; }); }
   }
+  DOGW.list.forEach(function(d, i){
+    if (!d.stretchAt) d.stretchAt = t + (DOGS_FAST ? 12 + i * 20 : rand(600, 1500));
+    if (d.st && t - d.st > 6.2) { d.st = 0; d.stretchAt = t + (DOGS_FAST ? 40 : rand(900, 1800)); }
+    if (!d.st && t >= d.stretchAt) {
+      /* only on the bed, with Erica around and nobody bothering them; otherwise try again in a minute */
+      if (dogAt(i, t, _dogTmp).mode === "bed" && !catNearDogs(t) && !DOGS.pet && E.state !== "away") d.st = t;
+      else d.stretchAt = t + 60;
+    }
+  });
 }
+/* the next world second the dogs need the director */
+function dogsDue(t){
+  var n = Infinity, E = BY.erica;
+  if (!E) return n;
+  if (DOGS.petAt) n = Math.min(n, DOGS.petAt + 1); else n = t + 1;
+  for (var i = 0; i < DOGW.list.length; i++) { var d = DOGW.list[i]; n = Math.min(n, !d.stretchAt ? t + 1 : d.st ? d.st + 7.2 : d.stretchAt); }
+  return n;
+}
+/* Pixel close to the dog beds (they look up at it) */
+var _catN = new V3();
+function catNearDogs(t){ return !!catPosAt(t, _catN) && Math.abs(_catN.x) < 2.9 && _catN.z < 6.2; }
+/* drawing: the dogs from dogAt, the stretch times and the petting */
 function dogsTick(t, dt){
   var E = BY.erica;
   if (!E) return;
   if (!DOGS.built) {
     DOGS.built = true;
-    DOGS.list.push(dogBuild("big", new V3(1.55, 0, -2.45), -Math.PI / 2 - 0.25));
-    DOGS.list.push(dogBuild("small", new V3(1.75, 0, -3.2), -Math.PI / 2 + 0.2));
-    var inNow = !homeNow(E);
-    DOGS.list.forEach(function(d, i){ d.mode = inNow ? "bed" : "gone"; d.root.visible = inNow; d.stretchAt = t + (DOGS_FAST ? 12 + i * 20 : rand(600, 1500)); });
+    DOGS.list.push(dogBuild("big", DOG_BEDS[0].at, DOG_BEDS[0].yaw));
+    DOGS.list.push(dogBuild("small", DOG_BEDS[1].at, DOG_BEDS[1].yaw));
   }
-  var leaving = E.trip && DOG_LEAVE[E.trip.kind];
-  var walkingOut = leaving && E.state === "walk";
-  var eAway = homeNow(E) && (E.state === "away" || !E.root.visible);
-  var catNear = CAT.on && CAT.g && CAT.g.visible && Math.abs(CAT.g.position.x) < 2.9 && CAT.g.position.z < 6.2;
-  var fwd = new V3(Math.sin(E.heading), 0, Math.cos(E.heading));
+  var catNear = catPosAt(t, _catN) && Math.abs(_catN.x) < 2.9 && _catN.z < 6.2;
   DOGS.list.forEach(function(d, i){
-    var off = 0.75 + i * 0.5, side = i ? 0.28 : -0.22;
-    if (eAway) { d.mode = "gone"; d.root.visible = false; d.st = 0; return; }
-    if (walkingOut) {
-      var tgt = E.root.position.clone().addScaledVector(fwd, -off); tgt.x += side * Math.cos(E.heading); tgt.z -= side * Math.sin(E.heading);
-      if (d.mode === "gone") { d.root.position.copy(tgt); d.root.rotation.y = E.heading; }
-      d.mode = "follow"; d.st = 0;
-      var dist = dogMoveTo(d, tgt, dt, 1.7);
-      dogWalkPose(d, t, dist > 0.05); d.w = 1; d.hw = 0;
-      d.root.visible = Math.abs(d.root.position.x) < 4.4;
-      return;
-    }
-    if (d.mode === "follow" || d.mode === "gone") { if (d.mode === "gone") { d.root.position.copy(E.root.position).addScaledVector(fwd, -off); } d.mode = "tobed"; d.root.visible = true; }
-    if (d.mode === "tobed") {
-      var dd = dogMoveTo(d, d.bedAt, dt, 0.9);
-      dogWalkPose(d, t, dd > 0.03); d.w = 1;
-      if (dd < 0.03) { d.mode = "bed"; d.root.position.copy(d.bedAt); }
+    var S = dogAt(i, t, d.at || (d.at = { pos:new V3(), yaw:0, mode:"" }));
+    d.mode = S.mode;
+    if (S.mode === "gone") { d.root.visible = false; d.w = 0; d.hw = 0; return; }
+    d.root.visible = true;
+    d.root.position.copy(S.pos);
+    if (S.mode === "walk") {
+      d.root.rotation.y = S.yaw;
+      d.gait = t * 9.4;
+      dogWalkPose(d, t, true); d.w = 1; d.hw = 0;
       return;
     }
     /* on the bed */
-    d.root.visible = true;
-    var want = catNear ? 1 : 0, look = null;
-    if (catNear) { d.st = 0; look = Math.atan2(CAT.g.position.x - d.root.position.x, CAT.g.position.z - d.root.position.z); }
-    /* a stretch: up, a long bow, a turn on the bed, back down */
-    if (!catNear && !d.st && t > d.stretchAt && !DOGS.pet && E.state !== "away") { d.st = t; d.stYaw = d.root.rotation.y; }
-    var bow = 0;
-    if (d.st) {
-      var e = t - d.st;
+    var ws = DOGW.list[i], e = ws.st ? t - ws.st : -1, want = catNear ? 1 : 0, bow = 0;
+    if (e >= 0 && e < 6.2 && !catNear) {
       if (e < 4.6) want = 1;
       if (e > 0.9 && e < 2.6) bow = Math.sin(Math.PI * (e - 0.9) / 1.7);
-      if (e > 2.6 && e < 4.4) { d.root.rotation.y = d.stYaw + Math.PI * 2 * ease((e - 2.6) / 1.8); d.gait = (d.gait || 0) + dt * 9; }
-      if (e > 6.2) { d.st = 0; d.root.rotation.y = d.stYaw; d.stretchAt = t + (DOGS_FAST ? 40 : rand(900, 1800)); }
-    }
-    if (look !== null) d.lookYaw = look;
-    var target = d.st ? null : (catNear ? d.lookYaw : d.baseYaw);
-    if (target !== null) { var dy = Math.atan2(Math.sin(target - d.root.rotation.y), Math.cos(target - d.root.rotation.y)); d.root.rotation.y += dy * (1 - Math.exp(-dt * (d.w > 0.5 ? 4 : 2))); }
+    } else e = -1;
+    var yawT = catNear ? Math.atan2(_catN.x - S.pos.x, _catN.z - S.pos.z) : S.yaw;
+    if (e > 2.6 && e < 4.4) d.root.rotation.y = S.yaw + Math.PI * 2 * ease((e - 2.6) / 1.8);
+    else { var dy = Math.atan2(Math.sin(yawT - d.root.rotation.y), Math.cos(yawT - d.root.rotation.y)); d.root.rotation.y += dy * (1 - Math.exp(-dt * (d.w > 0.5 ? 4 : 2))); }
     d.w = want > d.w ? Math.min(1, d.w + dt / (0.7 + i * 0.25)) : Math.max(0, d.w - dt / 1.4);
     dogPose(d, ease(d.w));
     d.standLegs.forEach(function(l){ l.rotation.x = 0; });
     d.body.rotation.x = 0.32 * bow;
     if (bow > 0) { d.standLegs[0].rotation.x = d.standLegs[2].rotation.x = -0.7 * bow; d.tail.rotation.z = 0.5; d.tail.rotation.x = 1.3 - 0.8 * bow; } else d.tail.rotation.x = 1.3;
-    if (d.st && t - d.st > 2.6 && t - d.st < 4.4) { var ph2 = d.gait; d.standLegs[0].rotation.x = 0.35 * Math.sin(ph2); d.standLegs[3].rotation.x = 0.35 * Math.sin(ph2); d.standLegs[1].rotation.x = -0.35 * Math.sin(ph2); d.standLegs[2].rotation.x = -0.35 * Math.sin(ph2); }
+    if (e > 2.6 && e < 4.4) { var ph2 = (e - 2.6) * 9; d.standLegs[0].rotation.x = 0.35 * Math.sin(ph2); d.standLegs[3].rotation.x = 0.35 * Math.sin(ph2); d.standLegs[1].rotation.x = -0.35 * Math.sin(ph2); d.standLegs[2].rotation.x = -0.35 * Math.sin(ph2); }
     /* being petted: heads up, eyes open, tails going */
     var petting = DOGS.pet && t - DOGS.pet < 7 && d.w < 0.1;
     d.hw += ((petting ? 1 : 0) - d.hw) * (1 - Math.exp(-dt * 4));
@@ -3357,222 +3488,254 @@ function dogsTick(t, dt){
     }
   });
 }
-/* ---------- the cat's mischief: on some visits it knocks a cup off someone's desk on the way in, or swats the
-   pumpkin trophy off the shelf before leaving. Someone then picks it up and puts it back.
-   ?catprank=cup or ?catprank=trophy forces one (with ?cat=1) */
+/* ---------- the cat's mischief: on some visits it knocks a cup off someone's desk on the way in, swats the
+   pumpkin trophy off the shelf before leaving, or jumps into the big tree. Whatever falls is back in place a few
+   seconds later. ?catprank=cup, trophy or tree forces one (with ?cat=1) */
 var PRANK_FORCE = (/[?&]catprank=(cup|trophy|tree)/.exec(location.search || "") || [])[1] || "";
-var CAT_FIX = [];
-function catFloorOf(q){ var f = q.deskOuter.localToWorld(new V3(-0.55, 0, -0.1)); f.y = 0; return f; }
-function knockCup(q, t){
-  var c = q.cup; if (!c) return;
-  var liftY = q.deskGroup.position.y;
-  c.userData.fall = { t0:t, from:c.position.clone(), to:new V3(-0.75, 0.04 - liftY, -0.18) };
-  q.cupDown = true;
-}
-function knockTrophy(t){
-  if (!TROPHY || TROPHY.down) return;
-  TROPHY.down = true; TROPHY.fall = { t0:t, from:TROPHY.tg.position.clone(), to:new V3(1.05, -1.74 + 0.02, -0.2) };
-}
-function fallTick(t){
-  PEOPLE.forEach(function(q){
-    var c = q.cup; if (!c || !c.userData.fall) return;
-    var f = c.userData.fall, u = clamp((t - f.t0) / 0.55, 0, 1);
-    c.position.lerpVectors(f.from, f.to, u); c.position.y = lerp(f.from.y, f.to.y, u * u);
-    c.rotation.x = 1.5 * u; c.rotation.z = 0.6 * u;
-    if (u >= 1) c.userData.fall = null;
-  });
-  if (TROPHY && TROPHY.fall) {
-    var f = TROPHY.fall, u = clamp((t - f.t0) / 0.75, 0, 1), tg = TROPHY.tg;
-    tg.position.lerpVectors(f.from, f.to, u); tg.position.y = lerp(f.from.y, f.to.y, u * u);
-    tg.rotation.z = TROPHY.rot.z - 1.45 * ease(u); tg.rotation.x = TROPHY.rot.x + 0.4 * u;
-    if (u >= 1) TROPHY.fall = null;
+/* what the cat knocked over, as world state: { q, t0, fix } (q only for a cup) */
+var CATW = { cup:null, trophy:null, tree:null };
+function catFloorOf(q){ q.deskOuter.updateWorldMatrix(true, false); var f = q.deskOuter.localToWorld(new V3(-0.55, 0, -0.1)); f.y = 0; return f; }
+function catTopOf(q, out){ q.deskGroup.updateWorldMatrix(true, false); return q.deskGroup.localToWorld((out || new V3()).set(-0.42, 0.7625, -0.72)); }
+var CAT_UNDER = new V3(-2.18, 0.7625, 0.52), CAT_TREE_TOP = new V3(1.0, 0.75, 5.78), CAT_TREE_LAND = new V3(0.55, 0, 5.6);
+/* Debbie can have the cat over: at her desk, not busy */
+function catAtDesk(D, t){ return D && D.state === "sit" && visAt(D, t) && !D.chatWith && !teamCallNow() && !lunchNow(D) && !DAY.closed; }
+/* the director plans a visit as timed segments (walk, hi, up, nap, ...) and timed events (lines, knocks); the
+   drawing poses the cat from the segments and the clock */
+function catSeg(S, ph, dur, o){ var s = o || {}; s.ph = ph; s.t0 = S.at; s.t1 = S.at + dur; S.list.push(s); S.at = s.t1; return s; }
+function catWalk(S, path, v, o){ o = o || {}; o.path = path; o.v = v; return catSeg(S, "walk", path.L / v, o); }
+function catEv(at, k, o){ var e = o || {}; e.at = at; e.k = k; CAT.evs.push(e); CAT.evs.sort(function(a, b){ return a.at - b.at; }); }
+function catPlan(t, D, prank, victim, nap){
+  var S = { list:[], at:t }, debF = catFloorOf(D), w;
+  if (prank === "tree") {
+    w = catWalk(S, makePath([EXIT_SPOT.clone(), new V3(2.2, 0, 6.6), new V3(0.75, 0, 6.2), new V3(0.62, 0, 5.85)]), 0.62);
+    catEv(w.t0 + (w.t1 - w.t0) * 0.55, "seen");
+    var tj = catSeg(S, "tjump", 0.9, { from:w.path.pts[w.path.pts.length - 1].clone() });
+    catEv(tj.t0 + 0.41, "tree");
+    catWalk(S, makePath([CAT_TREE_LAND.clone(), new V3(0.5, 0, 6.6), new V3(2.2, 0, 7.0), EXIT_SPOT.clone()]), 1.9);
+    return S.list;
   }
-  var TR = seasonFx.tree2;
-  if (TR && TR.userData.fall) {
-    var tf = TR.userData.fall, tu = clamp((t - tf.t0) / (tf.up ? 1.2 : 0.8), 0, 1);
-    TR.rotation.z = tf.up ? 1.42 * (1 - ease(tu)) : 1.42 * tu * tu;
-    if (tu >= 1) { TR.userData.down = !tf.up; TR.userData.fall = null; }
+  if (victim) {
+    var vF = catFloorOf(victim);
+    w = catWalk(S, aislePath(EXIT_SPOT.clone(), 0, vF, victim.side), 0.62);
+    catEv(w.t0 + (w.t1 - w.t0) * 0.55, "seen");
+    catSeg(S, "pup", 0.7, { q:victim, from:vF });
+    var sw = catSeg(S, "swat", 1.9, { q:victim });
+    catEv(sw.t0 + 0.9, "swat", { q:victim });
+    catSeg(S, "pdown", 0.7, { q:victim, to:vF });
+    catWalk(S, aislePath(vF, victim.side, debF, D.side), 0.9);
+  } else {
+    w = catWalk(S, aislePath(EXIT_SPOT.clone(), 0, debF, D.side), 0.62);
+    catEv(w.t0 + (w.t1 - w.t0) * 0.55, "seen");
   }
-  for (var i = CAT_FIX.length - 1; i >= 0; i--) if (t >= CAT_FIX[i].at) { var fx = CAT_FIX.splice(i, 1)[0]; fx.fn(t); }
+  var hi = catSeg(S, "hi", 5, { at:debF });
+  catEv(hi.t0 + 0.4, "hi");
+  catSeg(S, "up", 0.75, { from:debF });
+  var np = catSeg(S, "nap", nap);
+  catEv(np.t0 + 4, "nap");
+  catPlanOut(S, prank, D);
+  return S.list;
 }
-function fixCup(q){
-  if (!q.cupDown) return;
-  q.cup.userData.fall = null; q.cup.rotation.set(0, 0, 0); q.cup.position.set(-0.62, 0.81, -0.5); q.cupDown = false;
+/* after the nap: the trophy run, or down and out */
+function catPlanOut(S, prank, D){
+  var fl = catFloorOf(D);
+  if (prank === "trophy" && !(CATW.trophy && S.at < CATW.trophy.fix + 1)) {
+    catSeg(S, "toshelf", 1.4);
+    var lp = catSeg(S, "leap", 1.0);
+    catEv(lp.t0 + 0.45, "trophy");
+    catSeg(S, "down", 0.75, { from:CAT_UNDER });
+    catWalk(S, aislePath(fl, D.side, EXIT_SPOT.clone(), 0), 1.35);
+  } else {
+    var dn = catSeg(S, "down", 0.75);
+    catEv(dn.t0, "bye");
+    catWalk(S, aislePath(fl, D.side, EXIT_SPOT.clone(), 0), 0.62);
+  }
 }
-function knockTree(t){ var TR = seasonFx.tree2; if (!TR || TR.userData.down || TR.userData.fall) return; TR.userData.fall = { t0:t, up:false }; }
-function fixTree(t){ var TR = seasonFx.tree2; if (!TR || !TR.userData.down) return; TR.userData.fall = { t0:t, up:true }; }
-function fixTrophy(){
-  if (!TROPHY || !TROPHY.down) return;
-  TROPHY.fall = null; TROPHY.tg.position.copy(TROPHY.base); TROPHY.tg.rotation.copy(TROPHY.rot); TROPHY.down = false;
+/* director: the events of a visit, at their times */
+function catFire(e, T){
+  var D = BY.debbie, at = e.at, nb, wit;
+  if (e.k === "seen") {
+    nb = neighbours(D).filter(function(q){ return q.state === "sit" && visAt(q, T); });
+    if (nb.length && R() < 0.7) sayLater(choose(nb), choose(["Wait, is that Pixel?!", "Debbie, Pixel is here lol", "We have a visitor!", "Omg Pixel!!"]), at, 2.8);
+  } else if (e.k === "hi") sayLater(D, choose(["Hi Pixel! What are you doing here?", "Pixel! Hi baby!", "Look who came to visit!", "Hello sweetie!", "Hi my love! Came to check on me?"]), at, 3);
+  else if (e.k === "nap") sayLater(D, choose(["Okay Pixel, you can stay a bit.", "That's my desk, you know.", "So comfy, huh?", "Don't sit on my keyboard!"]), at, 3);
+  else if (e.k === "bye") { if (catAtDesk(D, T)) sayLater(D, choose(["Bye Pixel!", "Off you go!", "See you later, baby."]), at + 0.3, 2.4); }
+  else if (e.k === "swat") {
+    var V = e.q;
+    CATW.cup = { q:V, t0:at, fix:at + 8 };
+    sayLater(V, choose(["HEY!! My cup!", "Nooo, really?!", "Debbie!! Pixel!!", "Did Pixel just..."]), at + 0.5, 2.8);
+    sayLater(D, choose(["Pixel!! I'm so sorry!!", "Oh no, I'm so sorry!! Bad kitty!", "Sorry sorry sorry! I'll get you a new one lol"]), at + 3.3, 3);
+  } else if (e.k === "tree") {
+    CATW.tree = { t0:at, fix:at + 8 };
+    var near = PEOPLE.filter(function(q){ return q.state === "sit" && visAt(q, T) && !q.remote && !q.guest; }).sort(function(x, y){ return Math.abs(x.z - 5.75) - Math.abs(y.z - 5.75) || x.idx - y.idx; });
+    if (near[0]) sayLater(near[0], choose(["THE TREE!!", "Nooo, the tree!!", "Did Pixel just knock the tree over?!"]), at + 0.5, 2.6);
+    if (visAt(D, T) && D !== near[0]) sayLater(D, choose(["PIXEL!! Nooo!", "Pixel, what did you do?!", "Pixel!! Come back here!"]), at + 2.6, 2.8);
+  } else if (e.k === "trophy") {
+    CATW.trophy = { t0:at, fix:at + 8 };
+    sayLater(D, choose(["NOOO, the trophy!!", "Not the trophy!!", "Our first place!! Noo!"]), at + 0.4, 2.8);
+    wit = PEOPLE.filter(function(q){ return q !== D && q.state === "sit" && visAt(q, T) && !q.remote && !q.guest; });
+    if (wit.length) sayLater(choose(wit), choose(["Did Pixel just take down the trophy?! lol", "Hahaha Pixel has no respect", "The trophy!! Is it okay?"]), at + 3.4, 3);
+  }
 }
-/* the cat still runs per screen (phase 3), so nobody walks over for it (that would change the shared world):
-   whatever it knocked over is back in place a few seconds later */
-function sendFixer(q, spot, item, label, t, after){
-  function fix(t3){ if (item === "cup") fixCup(after); else if (item === "tree") fixTree(t3); else fixTrophy(); }
-  CAT_FIX.push({ at:t + 8, fn:fix });
-}
-function catTick(t, dt){
-  fallTick(t);
+/* director: when Pixel comes over. The clock decides, so it is the same visit for everyone: each hour has about a
+   2 in 3 chance of one visit, at a minute between :05 and :50, if Debbie is in */
+function simCat(t){
   var D = BY.debbie;
-  var atDesk = D && D.state === "sit" && D.root.visible && !D.chatWith && !teamCallNow() && !lunchNow(D) && !DAY.closed;
-  /* a one-off visit for everyone who has the office open (reloaded) in this window */
-  var now1 = !CAT.onceDone && dayKey() === 2026416 && DAY.h >= 11.7 && DAY.h < 12;
-  if (!CAT.on) {
-    var sr = Math.random;
-    if (CAT.want || now1) {
-      if (!CAT.next || (now1 && CAT.next > t + 5)) CAT.next = t + 5;
-      if (t < CAT.next) return;
-      CAT.next = t + 5;
-      if (!atDesk) return;
-      if (now1) CAT.onceDone = true;
-    } else {
-      /* the clock decides, so everyone with the office open sees the same visit at the same time:
-         each hour has about a 2 in 3 chance of one visit, at a minute between :05 and :50 */
-      var hr = Math.floor(DAY.h), slot = dayKey() * 100 + hr;
-      sr = wrng("cat", hr);
-      var at = hr + (5 + sr() * 45) / 60;
-      if (sr() > 0.65 || CAT.lastSlot === slot || DAY.h < at || DAY.h > at + 2 / 60) return;
-      if (!(D && D.root.visible && !lunchNow(D) && !teamCallNow() && !DAY.closed)) return;
-      CAT.lastSlot = slot;
+  if (!D || !D.deskOuter) return;
+  while (CAT.evs.length && CAT.evs[0].at <= t) catFire(CAT.evs.shift(), t);
+  if (CAT.on) {
+    var L = CAT.segs, last = L[L.length - 1], np = null;
+    for (var i = 0; i < L.length; i++) if (L[i].ph === "nap" && L[i].t0 <= t && t < L[i].t1) np = L[i];
+    /* Debbie got up or got busy: the nap ends early */
+    if (np && t - np.t0 > 3 && !catAtDesk(D, t)) {
+      L.length = L.indexOf(np) + 1; np.t1 = t;
+      CAT.evs = CAT.evs.filter(function(e){ return e.at <= t; });
+      var S = { list:L, at:t }; catPlanOut(S, CAT.prank, D);
+      last = L[L.length - 1];
     }
-    if (!CAT.g) catBuild();
-    var debF = catFloorOf(D), r = sr();
-    /* one prank at most per visit, each about 1 visit in 7 */
-    CAT.prank = PRANK_FORCE || (r < 0.15 ? "cup" : r < 0.3 ? "trophy" : r < 0.45 ? "tree" : "");
-    if (CAT.prank === "tree" && (!seasonFx.tree2 || seasonFx.tree2.userData.down)) CAT.prank = "";
-    CAT.victim = null;
-    if (CAT.prank === "cup") {
-      var vs = PEOPLE.filter(function(q){ return q !== D && !q.remote && !q.guest && q.cup && q.cup.visible && !q.cupDown && q.state === "sit" && q.root.visible && q.deskOuter && !(MISHAP.cur && MISHAP.cur.cup === q.cup); });
-      if (vs.length) CAT.victim = vs[Math.floor(sr() * vs.length)]; else CAT.prank = "";
-    }
-    if (CAT.prank === "tree") { CAT.path = makePath([EXIT_SPOT.clone(), new V3(2.2, 0, 6.6), new V3(0.75, 0, 6.2), new V3(0.62, 0, 5.85)]); CAT.then = "tjump"; }
-    else if (CAT.victim) { CAT.path = aislePath(EXIT_SPOT.clone(), 0, catFloorOf(CAT.victim), CAT.victim.side); CAT.then = "pup"; }
-    else { CAT.path = aislePath(EXIT_SPOT.clone(), 0, debF, D.side); CAT.then = "hi"; }
-    CAT.on = true; CAT.ph = "walk"; CAT.v = 0.62; CAT.d = 0; CAT.t0 = t; CAT.g.visible = true; CAT.yaw = 0; CAT.said = {};
-    CAT.nap = CAT.want ? 25 : rand(30, 60);
+    if (t >= last.t1) { CAT.on = false; if (CAT.want) CAT.next = t + 30; }
+    return;
   }
-  var g = CAT.g, sp2 = catSpots(D), u, k, a, b;
-  if (CAT.ph === "walk") {
-    var path = CAT.path, v = CAT.v;
-    CAT.d = Math.min(path.L, CAT.d + v * dt); CAT.gait = (CAT.gait || 0) + dt * v / 0.2 * Math.PI;
-    var w = catPathTo(path, CAT.d);
-    g.position.copy(w.pos); CAT.yaw = w.yaw; catPose(t, "walk", 1);
-    g.visible = Math.abs(g.position.x) < 4.4;
-    if (!CAT.said.seen && CAT.d > path.L * 0.55 && CAT.then !== "gone") {
-      CAT.said.seen = true;
-      var nb = neighbours(D).filter(function(q){ return q.state === "sit" && q.root.visible; });
-      if (nb.length && R() < 0.7) fxSayLater(choose(nb), choose(["Wait, is that Pixel?!", "Debbie, Pixel is here lol", "We have a visitor!", "Omg Pixel!!"]), t, 2.8);
-    }
-    if (CAT.d >= path.L) {
-      if (CAT.then === "hi") { CAT.ph = "hi"; CAT.t0 = t; fxSayLater(D, choose(["Hi Pixel! What are you doing here?", "Pixel! Hi baby!", "Look who came to visit!", "Hello sweetie!", "Hi my love! Came to check on me?"]), t + 0.4, 3); }
-      else if (CAT.then === "pup") { CAT.ph = "pup"; CAT.t0 = t; CAT.from = g.position.clone(); }
-      else if (CAT.then === "tjump") { CAT.ph = "tjump"; CAT.t0 = t; CAT.from = g.position.clone(); }
-      else { CAT.on = false; g.visible = false; CAT.next = t + (CAT.want ? 30 : rand(2400, 4200)); }
-    }
-  } else if (CAT.ph === "pup" || CAT.ph === "pdown") {
-    /* the cup run: up on the victim's desk, a swat, back down */
-    var V = CAT.victim, vTop = V.deskGroup.localToWorld(new V3(-0.42, 0.7625, -0.72)), vFloor = catFloorOf(V);
-    u = clamp((t - CAT.t0) / 0.7, 0, 1); k = ease(u);
-    a = CAT.ph === "pup" ? CAT.from : vTop; b = CAT.ph === "pup" ? vTop : vFloor;
-    g.position.lerpVectors(a, b, k); g.position.y += 0.3 * Math.sin(Math.PI * u);
-    CAT.yaw = Math.atan2(b.x - a.x, b.z - a.z); catPose(t, "jump", Math.sin(Math.PI * u));
-    if (u >= 1) {
-      if (CAT.ph === "pup") { CAT.ph = "swat"; CAT.t0 = t; }
-      else { CAT.path = aislePath(vFloor, V.side, catFloorOf(D), D.side); CAT.then = "hi"; CAT.ph = "walk"; CAT.d = 0; CAT.v = 0.9; }
-    }
-  } else if (CAT.ph === "swat") {
-    var V2 = CAT.victim, cupW = V2.cup.getWorldPosition(new V3());
-    g.position.copy(V2.deskGroup.localToWorld(new V3(-0.42, 0.7625, -0.72)));
-    CAT.yaw = Math.atan2(cupW.x - g.position.x, cupW.z - g.position.z);
+  var sr, hr = Math.floor(DAY.h);
+  if (CAT.want) {
+    if (!CAT.next) CAT.next = t + 5;
+    if (t < CAT.next) return;
+    CAT.next = t + 5;
+    if (!catAtDesk(D, t)) return;
+    sr = wrng("catwant", t);
+  } else {
+    if (CAT.lastSlot === hr) return;
+    sr = wrng("cat", hr);
+    var at = hr + (5 + sr() * 45) / 60;
+    if (sr() > 0.65 || DAY.h < at || DAY.h > at + 2 / 60) return;
+    if (!(visAt(D, t) && !lunchNow(D) && !teamCallNow() && !DAY.closed)) return;
+    CAT.lastSlot = hr;
+  }
+  var r = sr(), prank = PRANK_FORCE || (r < 0.15 ? "cup" : r < 0.3 ? "trophy" : r < 0.45 ? "tree" : ""), victim = null;
+  if (prank === "tree" && (!seasonFx.tree2 || (CATW.tree && t < CATW.tree.fix + 2))) prank = "";
+  if (prank === "cup") {
+    var vs = PEOPLE.filter(function(q){ return q !== D && !q.remote && !q.guest && q.cup && q.deskOuter && q.state === "sit" && visAt(q, t) && !(CATW.cup && CATW.cup.q === q && t < CATW.cup.fix) && !(MISHAP.cur && MISHAP.cur.cup === q.cup); });
+    if (vs.length) victim = vs[Math.floor(sr() * vs.length)]; else prank = "";
+  }
+  CAT.prank = prank; CAT.on = true;
+  CAT.segs = catPlan(t, D, prank, victim, CAT.want ? 25 : 30 + 30 * sr());
+}
+/* the next world second the cat needs the director */
+function catDue(t){
+  if (CAT.on) {
+    var n = CAT.segs[CAT.segs.length - 1].t1;
+    if (CAT.evs.length) n = Math.min(n, CAT.evs[0].at);
+    for (var i = 0; i < CAT.segs.length; i++) { var s = CAT.segs[i]; if (s.ph === "nap" && t < s.t1) n = Math.min(n, Math.max(s.t0 + 3, t + 1)); }
+    return n;
+  }
+  if (CAT.want) return CAT.next || t + 1;
+  var hr = Math.floor(t / 3600), dk = dayKey();
+  if (CAT.lastSlot !== hr) {
+    if (CAT.slotKey !== dk * 100 + hr) { var sr = wrng("cat", hr); CAT.slotKey = dk * 100 + hr; CAT.slotAt = (hr + (5 + sr() * 45) / 60) * 3600; CAT.slotOn = sr() <= 0.65; }
+    if (CAT.slotOn && t <= CAT.slotAt + 120) return t < CAT.slotAt ? CAT.slotAt : t + 1;
+  }
+  return (hr + 1) * 3600 + 300;
+}
+/* the segment of the visit at world time t (null: no cat) */
+function catSegAt(t){
+  var L = CAT.segs;
+  if (!L || !L.length || t < L[0].t0 || t >= L[L.length - 1].t1) return null;
+  for (var i = 0; i < L.length; i++) if (t < L[i].t1) return L[i];
+  return null;
+}
+function angLerp(a, b, k){ return a + Math.atan2(Math.sin(b - a), Math.cos(b - a)) * k; }
+/* where the cat is at world time t and which way it faces (pure): returns the segment, or null */
+var _ctA = new V3(), _ctB = new V3();
+function catPosAt(t, out){
+  var s = catSegAt(t), D = BY.debbie;
+  if (!s) return null;
+  var sp = catSpots(D), u, a, b, k;
+  s.yaw = 0; s.lift = 0;
+  if (s.ph === "walk") { s.d = clamp(s.v * (t - s.t0), 0, s.path.L); s.yaw = along(s.path, s.d); out.copy(tmpPos); }
+  else if (s.ph === "hi") {
+    out.copy(s.at);
+    var look = Math.atan2(D.seat.x - out.x, D.seat.z - out.z), pw = CAT.segs[CAT.segs.indexOf(s) - 1];
+    var y0 = pw && pw.path ? along(pw.path, pw.path.L) : look;
+    s.yaw = angLerp(y0, look + 0.9 * Math.sin((t - s.t0) * 1.2), ease((t - s.t0) / 0.8));
+  } else if (s.ph === "up" || s.ph === "down" || s.ph === "pup" || s.ph === "pdown") {
+    u = clamp((t - s.t0) / (s.t1 - s.t0), 0, 1); k = ease(u);
+    if (s.ph === "up") { a = _ctA.copy(s.from); b = _ctB.copy(sp.top); }
+    else if (s.ph === "down") { a = _ctA.copy(s.from || sp.top); b = _ctB.copy(sp.floor); }
+    else if (s.ph === "pup") { a = _ctA.copy(s.from); b = catTopOf(s.q, _ctB); }
+    else { a = catTopOf(s.q, _ctA); b = _ctB.copy(s.to); }
+    out.lerpVectors(a, b, k); out.y += (s.ph === "pup" ? 0.3 : 0.32) * Math.sin(Math.PI * u);
+    s.yaw = Math.atan2(b.x - a.x, b.z - a.z); s.lift = Math.sin(Math.PI * u);
+  } else if (s.ph === "swat") {
+    catTopOf(s.q, out);
+    s.q.cup.getWorldPosition(_ctA);
+    s.yaw = Math.atan2(_ctA.x - out.x, _ctA.z - out.z);
+  } else if (s.ph === "tjump") {
+    u = clamp((t - s.t0) / 0.9, 0, 1);
+    if (u < 0.5) { out.lerpVectors(s.from, CAT_TREE_TOP, ease(u * 2)); out.y += 0.25 * Math.sin(Math.PI * u * 2); }
+    else out.lerpVectors(CAT_TREE_TOP, CAT_TREE_LAND, ease((u - 0.5) * 2));
+    s.yaw = Math.atan2(1.25 - s.from.x, 5.75 - s.from.z); s.lift = Math.sin(Math.PI * u);
+  } else if (s.ph === "nap") {
+    out.copy(sp.top);
+    s.yaw = angLerp(Math.atan2(sp.top.x - sp.floor.x, sp.top.z - sp.floor.z), sp.face, ease((t - s.t0) / 1.5));
+  } else if (s.ph === "toshelf") {
+    u = clamp((t - s.t0) / 1.4, 0, 1);
+    out.lerpVectors(sp.top, CAT_UNDER, ease(u)); s.yaw = Math.atan2(CAT_UNDER.x - sp.top.x, CAT_UNDER.z - sp.top.z);
+  } else if (s.ph === "leap") {
+    u = clamp((t - s.t0) / 1.0, 0, 1);
+    out.copy(CAT_UNDER); out.y += 0.85 * Math.sin(Math.PI * u); out.x -= 0.22 * Math.sin(Math.PI * u);
+    s.yaw = -Math.PI / 2; s.lift = Math.sin(Math.PI * u);
+  }
+  return s;
+}
+/* drawing: things the cat knocked over, from the world's record */
+function fallRender(t){
+  var C = CATW.cup;
+  PEOPLE.forEach(function(q){
+    var c = q.cup; if (!c) return;
+    var down = !!(C && C.q === q && t >= C.t0 && t < C.fix);
+    if (down) {
+      if (!q.cupFall) q.cupFall = c.position.clone();
+      var u = clamp((t - C.t0) / 0.55, 0, 1), to = _ctA.set(-0.75, 0.04 - q.deskGroup.position.y, -0.18);
+      c.position.lerpVectors(q.cupFall, to, u); c.position.y = lerp(q.cupFall.y, to.y, u * u);
+      c.rotation.x = 1.5 * u; c.rotation.z = 0.6 * u;
+    } else if (q.cupFall) { q.cupFall = null; c.rotation.set(0, 0, 0); c.position.set(-0.62, 0.81, -0.5); }
+  });
+  var TP = CATW.trophy;
+  if (TROPHY) {
+    if (TP && t >= TP.t0 && t < TP.fix) {
+      var f = clamp((t - TP.t0) / 0.75, 0, 1), tg = TROPHY.tg, to2 = _ctB.set(1.05, -1.74 + 0.02, -0.2);
+      tg.position.lerpVectors(TROPHY.base, to2, f); tg.position.y = lerp(TROPHY.base.y, to2.y, f * f);
+      tg.rotation.z = TROPHY.rot.z - 1.45 * ease(f); tg.rotation.x = TROPHY.rot.x + 0.4 * f;
+      TROPHY.shownDown = true;
+    } else if (TROPHY.shownDown) { TROPHY.shownDown = false; TROPHY.tg.position.copy(TROPHY.base); TROPHY.tg.rotation.copy(TROPHY.rot); }
+  }
+  var TR = seasonFx.tree2, TW = CATW.tree;
+  if (TR && TW && t >= TW.t0) {
+    var e = t - TW.t0, rz = e < 0.8 ? 1.42 * (e / 0.8) * (e / 0.8) : t < TW.fix ? 1.42 : 1.42 * (1 - ease((t - TW.fix) / 1.2));
+    TR.rotation.z = rz; TR.userData.shown = rz > 0;
+  } else if (TR && TR.userData.shown) { TR.userData.shown = false; TR.rotation.z = 0; }
+}
+/* drawing: Pixel from the visit's segments and the clock */
+var _ctP = new V3();
+function renderCat(t, dt){
+  fallRender(t);
+  var s = catPosAt(t, _ctP);
+  if (!s) { if (CAT.g) CAT.g.visible = false; return; }
+  if (!CAT.g) { catBuild(); s = catPosAt(t, _ctP); }
+  var g = CAT.g;
+  g.position.copy(_ctP); g.visible = true;
+  CAT.body.scale.y = 1; CAT.head.rotation.set(0, 0, 0);
+  if (s.ph === "walk") { CAT.gait = s.d / 0.2 * Math.PI; catPose(t, "walk", 1); g.visible = Math.abs(g.position.x) < 4.4; }
+  else if (s.ph === "toshelf") { CAT.gait = (t - s.t0) * 8; catPose(t, "walk", 1); }
+  else if (s.ph === "hi") { catPose(t, "stand", 0); CAT.head.rotation.x = -0.45; }
+  else if (s.ph === "nap") { catPose(t, "lie", 0); CAT.body.scale.y = 1 + 0.025 * Math.sin(t * 2.2); CAT.head.rotation.x = 0.15; CAT.head.rotation.y = 0.2 * Math.sin(t * 0.3); }
+  else if (s.ph === "swat") {
     catPose(t, "stand", 0);
-    var sw = t - CAT.t0;
+    var sw = t - s.t0;
     CAT.legs[0].rotation.x = sw < 1.6 ? -0.9 - 0.5 * Math.sin(sw * 9) : 0;
     CAT.head.rotation.x = -0.2;
-    if (sw > 0.9 && !V2.cupDown) {
-      knockCup(V2, t);
-      fxSayLater(V2, choose(["HEY!! My cup!", "Nooo, really?!", "Debbie!! Pixel!!", "Did Pixel just..."]), t + 0.5, 2.8);
-      fxSayLater(D, choose(["Pixel!! I'm so sorry!!", "Oh no, I'm so sorry!! Bad kitty!", "Sorry sorry sorry! I'll get you a new one lol"]), t + 3.3, 3);
-      sendFixer(V2, catFloorOf(V2), "cup", "Picking up my cup", t, V2);
-    }
-    if (sw > 1.9) { CAT.legs[0].rotation.x = 0; CAT.head.rotation.x = 0; CAT.ph = "pdown"; CAT.t0 = t; }
-  } else if (CAT.ph === "tjump") {
-    /* leaps into the big tree by the entrance: it goes over, and the cat bolts */
-    u = clamp((t - CAT.t0) / 0.9, 0, 1);
-    var tTop = new V3(1.0, 0.75, 5.78);
-    if (u < 0.5) { g.position.lerpVectors(CAT.from, tTop, ease(u * 2)); g.position.y += 0.25 * Math.sin(Math.PI * u * 2); }
-    else { g.position.lerpVectors(tTop, new V3(0.55, 0, 5.6), ease((u - 0.5) * 2)); }
-    CAT.yaw = Math.atan2(1.25 - CAT.from.x, 5.75 - CAT.from.z); catPose(t, "jump", Math.sin(Math.PI * u));
-    if (u > 0.45 && !CAT.said.tree) {
-      CAT.said.tree = true; knockTree(t);
-      var near = PEOPLE.filter(function(q){ return q.state === "sit" && q.root.visible && !q.remote && !q.guest; }).sort(function(x, y){ return Math.abs(x.z - 5.75) - Math.abs(y.z - 5.75); });
-      if (near[0]) fxSayLater(near[0], choose(["THE TREE!!", "Nooo, the tree!!", "Did Pixel just knock the tree over?!"]), t + 0.5, 2.6);
-      if (D.root.visible && D !== near[0]) fxSayLater(D, choose(["PIXEL!! Nooo!", "Pixel, what did you do?!", "Pixel!! Come back here!"]), t + 2.6, 2.8);
-      var fx = near.filter(function(q){ return available(q); })[0] || near[0];
-      if (fx) sendFixer(fx, new V3(0.55, 0, 5.35), "tree", "Standing the tree back up", t, null);
-    }
-    if (u >= 1) { CAT.ph = "walk"; CAT.path = makePath([g.position.clone(), new V3(0.5, 0, 6.6), new V3(2.2, 0, 7.0), EXIT_SPOT.clone()]); CAT.then = "gone"; CAT.d = 0; CAT.v = 1.9; }
-  } else if (CAT.ph === "hi") {
-    /* rubs against the chair and looks up at Debbie */
-    var look = Math.atan2(D.seat.x - g.position.x, D.seat.z - g.position.z);
-    CAT.yaw = lerp(CAT.yaw, look + 0.9 * Math.sin((t - CAT.t0) * 1.2), 1 - Math.exp(-dt * 3));
-    catPose(t, "stand", 0); CAT.head.rotation.x = -0.45;
-    if (t - CAT.t0 > 5) { CAT.ph = "up"; CAT.t0 = t; CAT.from = g.position.clone(); CAT.head.rotation.x = 0; }
-  } else if (CAT.ph === "up" || CAT.ph === "down") {
-    u = clamp((t - CAT.t0) / 0.75, 0, 1); k = ease(u);
-    a = CAT.ph === "up" ? CAT.from : (CAT.downFrom || sp2.top); b = CAT.ph === "up" ? sp2.top : sp2.floor;
-    g.position.lerpVectors(a, b, k); g.position.y += 0.32 * Math.sin(Math.PI * u);
-    CAT.yaw = Math.atan2(b.x - a.x, b.z - a.z);
-    catPose(t, "jump", Math.sin(Math.PI * u));
-    if (u >= 1) {
-      if (CAT.ph === "up") { CAT.ph = "nap"; CAT.t0 = t; }
-      else { CAT.ph = "walk"; CAT.path = CAT.outPath2 || aislePath(sp2.floor, D.side, EXIT_SPOT.clone(), 0); CAT.outPath2 = null; CAT.then = "gone"; CAT.d = 0; CAT.downFrom = null; }
-    }
-  } else if (CAT.ph === "nap") {
-    g.position.copy(sp2.top);
-    CAT.yaw = lerp(CAT.yaw, sp2.face, 1 - Math.exp(-dt * 2));
-    catPose(t, "lie", 0);
-    CAT.body.scale.y = 1 + 0.025 * Math.sin(t * 2.2);
-    CAT.head.rotation.x = 0.15; CAT.head.rotation.y = 0.2 * Math.sin(t * 0.3);
-    var el = t - CAT.t0;
-    if (el > 4 && !CAT.said.nap) { CAT.said.nap = true; fxSayLater(D, choose(["Okay Pixel, you can stay a bit.", "That's my desk, you know.", "So comfy, huh?", "Don't sit on my keyboard!"]), t, 3); }
-    if (el > CAT.nap || !atDesk && el > 3) {
-      CAT.body.scale.y = 1; CAT.head.rotation.set(0, 0, 0);
-      if (CAT.prank === "trophy" && TROPHY && !TROPHY.down) { CAT.ph = "toshelf"; CAT.t0 = t; CAT.from = g.position.clone(); }
-      else {
-        CAT.ph = "down"; CAT.t0 = t; CAT.v = 0.62;
-        if (atDesk) fxSayLater(D, choose(["Bye Pixel!", "Off you go!", "See you later, baby."]), t + 0.3, 2.4);
-      }
-    }
-  } else if (CAT.ph === "toshelf") {
-    /* trots along the desk (over the keyboard) to right under the trophy shelf */
-    var under = new V3(-2.18, 0.7625, 0.52);
-    u = clamp((t - CAT.t0) / 1.4, 0, 1);
-    g.position.lerpVectors(CAT.from, under, ease(u)); CAT.yaw = Math.atan2(under.x - CAT.from.x, under.z - CAT.from.z);
-    CAT.gait = (CAT.gait || 0) + dt * 8; catPose(t, "walk", 1);
-    if (u >= 1) { CAT.ph = "leap"; CAT.t0 = t; CAT.from = under.clone(); }
-  } else if (CAT.ph === "leap") {
-    /* a big jump at the shelf: the trophy goes flying, the cat lands back on the desk */
-    u = clamp((t - CAT.t0) / 1.0, 0, 1);
-    g.position.copy(CAT.from); g.position.y += 0.85 * Math.sin(Math.PI * u); g.position.x -= 0.22 * Math.sin(Math.PI * u);
-    CAT.yaw = -Math.PI / 2; catPose(t, "jump", Math.sin(Math.PI * u));
-    if (u > 0.45 && !TROPHY.down) {
-      knockTrophy(t);
-      fxSayLater(D, choose(["NOOO, the trophy!!", "Not the trophy!!", "Our first place!! Noo!"]), t + 0.4, 2.8);
-      var wit = PEOPLE.filter(function(q){ return q !== D && q.state === "sit" && q.root.visible && !q.remote && !q.guest; });
-      if (wit.length) fxSayLater(choose(wit), choose(["Did Pixel just take down the trophy?! lol", "Hahaha Pixel has no respect", "The trophy!! Is it okay?"]), t + 3.4, 3);
-      var fixer = available(D) ? D : (wit.length ? choose(wit) : D);
-      sendFixer(fixer, new V3(-1.45, 0, 0.32), "trophy", "Putting the trophy back", t, null);
-    }
-    if (u >= 1) {
-      /* and runs off, fast */
-      CAT.ph = "down"; CAT.t0 = t; CAT.downFrom = g.position.clone(); CAT.v = 1.35;
-      CAT.outPath2 = aislePath(sp2.floor, D.side, EXIT_SPOT.clone(), 0);
-    }
-  }
-  if (CAT.ph === "walk" && CAT.then === "gone" && CAT.prank === "trophy") CAT.v = 1.35;
-  if (CAT.ph === "walk" && CAT.then === "gone" && CAT.prank === "tree") CAT.v = 1.9;
-  g.rotation.y = CAT.yaw;
-  CAT.shadow.visible = CAT.ph === "walk" || CAT.ph === "hi";
+  } else catPose(t, "jump", s.lift);
+  g.rotation.y = s.yaw;
+  CAT.shadow.visible = s.ph === "walk" || s.ph === "hi";
 }
 (function(){
   var body = M("#ecebe7", { roughness:0.6 }), dark = M("#2b2e33", { roughness:0.5 }), paperM = M("#fbfbf8", { roughness:0.9 });
@@ -3625,6 +3788,7 @@ function catTick(t, dt){
   var lampOn = new T.MeshBasicMaterial({ color:0xffd98a, toneMapped:false }), lampOff = M("#3a3d42", { roughness:0.4 });
   PEOPLE.forEach(function(p, pi){
     if (p.guest || p.remote || !p.chairG) return;
+    var jr = seeded(hkey("desk" + p.id) % 2147483646 + 1), choose = function(a){ return a[Math.floor(jr() * a.length)]; };
     var jc = M(choose(["#2a2b30", "#3b4a5e", "#5a4636", "#6b6f76", "#1d2a3a", "#7a2e35"]), { roughness:0.85 });
     if (p.id !== "luis") {
       var jk = new T.Group(); jk.position.set(0, 0.86, 0.36); jk.rotation.x = -0.1; p.chairG.add(jk);
@@ -4822,8 +4986,12 @@ function dayTick(){
   if (DAY.holiday) DAY.label = DAY.holiday + ", office closed";
   else if (wknd) DAY.label = "Weekend, office closed";
   /* the last three working days of the month: reports, pressure, less chatting */
-  var dd = new Date(o.d), left = 0; for (var i = 1; i <= 6; i++) { dd.setDate(dd.getDate() + 1); if (dd.getMonth() !== o.d.getMonth()) break; if (dd.getDay() > 0 && dd.getDay() < 6) left++; }
-  DAY.eom = !wknd && left < 3 && !DAY.holiday;
+  var dkey = o.d.getFullYear() * 10000 + o.d.getMonth() * 100 + o.d.getDate();
+  if (dayTick.eomKey !== dkey) {
+    var dd = new Date(o.d), left = 0; for (var i = 1; i <= 6; i++) { dd.setDate(dd.getDate() + 1); if (dd.getMonth() !== o.d.getMonth()) break; if (dd.getDay() > 0 && dd.getDay() < 6) left++; }
+    dayTick.eomKey = dkey; dayTick.left = left;
+  }
+  DAY.eom = !wknd && dayTick.left < 3 && !DAY.holiday;
   if (DAY.eom && !DAY.holiday && k !== "lunch") DAY.label = "Month end crunch";
   if (typeof teamCallNow === "function" && teamCallNow()) DAY.label = "Friday team call";
   return DAY;
@@ -4846,7 +5014,7 @@ function simResetPerson(p, i, T0){
   p.act = null; p.trip = null; p.chatWith = null; p.visitor = null;
   if (p.walker) p.cal = { next:T0 + rand(3, 20) * 60 };
   rollMood(p);
-  p.mSeed = (i * 2.399) % 6.28;
+  p.mSeed = 0.5 + (i * 2.399) % 5.6;
   if (p.remote) return;
   if (p.guest) { p.state = "gone"; return; }
   /* the office is empty in the morning: everyone starts at home and walks in at their arrival time */
@@ -4937,7 +5105,7 @@ function rollAt(p, t){
   return v < 0.002 ? 0 : v;
 }
 function rollStart(p, to, t){ NAPS[p.idx] = 0; p.rollR0 = rollAt(p, t); p.rollTo = to; p.rollOnAt = t; p.rollOffAt = null; }
-function rollStop(p, t){ if (p.rollTo && (p.rollOffAt === null || p.rollOffAt === undefined)) p.rollOffAt = t; }
+function rollStop(p, t){ if (p.rollTo && (p.rollOffAt === null || p.rollOffAt === undefined)) { p.rollOffAt = t; NAPS[p.idx] = 0; } }
 /* where someone is at world time t (pure: the director's state plus the clock) */
 var OUT_KINDS = { meeting:1, coffee:1, lunch:1, home:1 }, _visV = new V3();
 function posAt(p, t, out){
@@ -5704,7 +5872,9 @@ function reactTo(kind, p, t, ep){
 }
 /* director: who looks where. Calm people look around more, focused people barely look up.
    It also notices the weather and sends a neighbour over to help after a spill. */
-function simPerceive(t, dt){
+function simPerceive(t, dt, glob){
+  simPerceivePeople(t);
+  if (!glob) return;
   if (POI.length && POI.some(function(o){ return t >= o.t1; })) POI = POI.filter(function(o){ return t < o.t1; });
   /* weather changes outside: somebody near a window notices */
   var wk = simWx(t).kind;
@@ -5717,10 +5887,16 @@ function simPerceive(t, dt){
       if (ws && !ws.remote) sayLater(ws, wk === "snow" ? choose(["Look, it's snowing!", "Snow! It's really coming down.", "Is that snow? Already?"]) : choose(["Oh, it started raining.", "Rain again. Glad I'm inside.", "Listen to that rain."]), t + (first ? 16 : 1.5), 3);
     }
   }
-  PEOPLE.forEach(function(p, i){
-    if (STEPS[i] !== t || p.remote || (p.guest && p.state === "gone")) return;
+}
+/* director: the people who took a step this second look up, shift in their chair, go and help */
+function simPerceivePeople(t){
+  for (var i = 0; i < PEOPLE.length; i++) {
+    var p = PEOPLE[i];
+    if (STEPS[i] !== t || p.remote || (p.guest && p.state === "gone")) continue;
     simStand(p, t);
     simPosture(p, t);
+    /* the new posture or standing times count for their next step */
+    if (p.state === "sit" && !p.guest) simNap(p, t, SIM.DT);
     /* going over to help with a spill */
     if (p.helpAt && t > p.helpAt) {
       var q = p.helpFor; p.helpAt = 0; p.helpFor = null;
@@ -5730,7 +5906,7 @@ function simPerceive(t, dt){
         p.trip.help = true;
       }
     }
-  });
+  }
 }
 function perceive(){}
 /* drawing: who looks where. Calm people look around more, focused people barely look up. A new choice every
@@ -6017,11 +6193,19 @@ var RITUALS = [
   { id:"allyson", h:9.0, act:"checklist", dur:12 }
 ];
 var RIT_DONE = {};
+/* each person's ritual hours and rituals, looked up often by the director */
+var RIT_H = {}, RIT_OF = {};
+RITUALS.forEach(function(ri, k){ (RIT_OF[ri.id] = RIT_OF[ri.id] || []).push(k); if (ri.h) (RIT_H[ri.id] = RIT_H[ri.id] || []).push(ri.h); });
 /* director: the people side of everyday life (rituals, cups, printers, treats, Plytix, the sample box, plants, the
    Friday call). The drawing side (lamps, props in hands, printer lights) is in renderLife. */
-function simLife(t, dt){
-  var dk = dayKey(), present = presentAt(t);
-  PEOPLE.forEach(function(p, i){
+function simLife(t, dt, glob){
+  var dk = dayKey();
+  dogsWalkWatch();
+  for (var pi = 0; pi < PEOPLE.length; pi++) simLifePerson(PEOPLE[pi], pi, t, dt, dk);
+  if (glob) simLifeWorld(t, dt, dk);
+}
+/* director: everyday life for someone who took a step this second (cup, printing, rituals) */
+function simLifePerson(p, i, t, dt, dk){
     if (STEPS[i] !== t || p.guest || p.remote) return;
     var el = t - (p.lifeT === undefined ? t - dt : p.lifeT); p.lifeT = t;
     if (p.lateToday === undefined) p.lateToday = lateToday(p);
@@ -6037,8 +6221,9 @@ function simLife(t, dt){
     }
     p.printNeed = Math.min(1.2, (p.printNeed || 0) + el * 0.00011);
     /* rituals */
-    if (p.state === "sit") RITUALS.forEach(function(ri, k){
-      if (ri.id !== p.id) return;
+    var mine = RIT_OF[p.id];
+    if (p.state === "sit" && mine) mine.forEach(function(k){
+      var ri = RITUALS[k];
       var h0 = ri.at === "arrive" ? arriveH(p) + 0.03 : ri.h;
       if (DAY.h < h0 || DAY.h > h0 + 0.5) return;
       var key = k + ":" + dk; if (RIT_DONE[key] || !idleAtDesk(p)) return;
@@ -6048,7 +6233,10 @@ function simLife(t, dt){
       else if (ri.kind === "stretch") lifeStretch(p, t);
       else if (ri.kind === "window") lifeWindow(p, t);
     });
-  });
+}
+/* director: the office-wide part of everyday life */
+function simLifeWorld(t, dt, dk){
+  var present = presentAt(t);
   LIFE.printers.forEach(function(pr){ if (pr.job && t - pr.job.t0 > 120) pr.job = null; });
   /* Friday team call: someone talks now and then, the purple frame follows whoever speaks */
   var inCall = present.filter(function(q){ return q.act && q.act.n === "vcall"; });
@@ -6142,7 +6330,7 @@ function renderLife(t, dt){
   sun.position.set(lerp(16, -8, sh), 18 + 4 * Math.sin(sh * Math.PI), lerp(12, 17, sh));
   /* dusk: desk lamps come on (earlier in winter) */
   var mo = (DAY.d || worldDate()).getMonth(), dusk = [16.9, 17.5, 18.9, 19.6, 20.3, 20.7, 20.7, 20.2, 19.3, 18.3, 16.9, 16.6][mo] - 0.6;
-  var wxDark = (WX_FORCE || WX.kind) === "rain" || (WX_FORCE || WX.kind) === "snow";
+  var wxK = simWx(t).kind, wxDark = wxK === "rain" || wxK === "snow";
   PEOPLE.forEach(function(p){
     if (p.guest || p.remote) return;
     var here = !(p.state === "away" && p.trip && p.trip.kind === "home"), carrying = p.trip && p.trip.kind === "home" && p.state !== "away";
@@ -6157,7 +6345,7 @@ function renderLife(t, dt){
     if (p.bagDesk) p.bagDesk.visible = here && !carrying;
     var b = p.rig && p.rig.b;
     if (p.carryBag) { p.carryBag.visible = !!carrying && p.root.visible && p.id !== "luis"; if (p.carryBag.visible) { b.RightHand.getWorldPosition(p.carryBag.position); p.carryBag.position.y -= 0.14; p.carryBag.rotation.y = p.heading + Math.PI / 2; } }
-    if (p.umbrella) { p.umbrella.visible = !!carrying && p.root.visible && (WX_FORCE || WX.kind) === "rain"; if (p.umbrella.visible) { b.LeftHand.getWorldPosition(p.umbrella.position); } }
+    if (p.umbrella) { p.umbrella.visible = !!carrying && p.root.visible && wxK === "rain"; if (p.umbrella.visible) { b.LeftHand.getWorldPosition(p.umbrella.position); } }
     /* clutter builds up, gone after the evening tidy */
     if (p.clutter) {
       var tidied = p.tidyDay === dk && (!p.act || p.act.n !== "tidy" || t - p.act.t0 > 2.5);
@@ -6187,8 +6375,8 @@ function renderLife(t, dt){
   else { var bo = clamp((t - BOXEV.open) / 1.6, 0, 1); LIFE.box.f1.rotation.x = 2.2 * ease(bo); LIFE.box.f2.rotation.x = -2.2 * ease(bo); }
   var waterer = BY.carla;
   if (waterer && waterer.trip && waterer.trip.label === "Watering the plants" && waterer.state === "stay" && waterer.rig.b) { waterer.rig.b.RightHand.getWorldPosition(LIFE.can.position); LIFE.can.position.y -= 0.06; LIFE.can.rotation.y = waterer.heading; LIFE.can.visible = true; } else LIFE.can.visible = false;
-  ghostTick(t, dt, present);
-  catTick(t, dt);
+  ghostTick(t, present);
+  renderCat(t, dt);
   dogsTick(t, dt);
   ambientTick(t, dt, present);
 }
@@ -6376,23 +6564,27 @@ function simAgent(p, t, dt){
 }
 /* the next moment a seated person needs a full step */
 function simNap(p, t, dt){
-  var nx = p.decideAt, L = LUNCH[p.id], h = function(x){ return x * 3600; };
+  /* busy (an act, a chat, a visitor, answering): what ends it wakes them, the next decision waits until then */
+  var free = !p.act && !p.chatWith && !p.visitor && !p.answering;
+  var nx = free ? p.decideAt : Infinity, L = LUNCH[p.id], H = 3600, i, rh = RIT_H[p.id];
+  if (p.answering) nx = Math.min(nx, p.answering + 0.001);
   if (p.act) nx = Math.min(nx, p.act.t0 + p.act.dur + 0.6);
   if (p.moodNext) nx = Math.min(nx, p.moodNext);
   if (p.cal) nx = Math.min(nx, p.cal.next);
   var pl = p.guest ? null : planOf(p);
-  if (pl && pl.call && !pl.call.done) nx = Math.min(nx, h(pl.call.at));
+  if (pl && pl.call && !pl.call.done) nx = Math.min(nx, pl.call.at * H);
   if (p.pendingCoffee) nx = Math.min(nx, p.pendingCoffee);
-  if (!p.typeOn) nx = Math.min(nx, p.typeNext || 0);
+  if (!p.typeOn && free) nx = Math.min(nx, p.typeNext || 0);
   if (p.rollEnd) nx = Math.min(nx, p.rollEnd);
-  if (p.rollTo && rollAt(p, t) > 0) nx = t;
-  if (STANDERS[p.id]) nx = Math.min(nx, p.standOn ? p.standEnd + dt : (p.standNext || 0) + dt);
-  if (p.postNext) nx = Math.min(nx, p.postNext + dt);
+  /* rolling the chair over or back: at the end of each push */
+  if (p.rollTo && rollAt(p, t) > 0) { var ra = p.rollOnAt + 2.2, rb = p.rollOffAt !== null && p.rollOffAt !== undefined ? p.rollOffAt + 2.2 : Infinity; nx = Math.min(nx, ra > t ? ra : rb > t ? rb : t + dt); }
+  if (STANDERS[p.id]) nx = Math.min(nx, p.standOn ? p.standEnd + dt : free ? (p.standNext || 0) + dt : Infinity);
+  if (p.postNext && p.postNext >= t) nx = Math.min(nx, p.postNext + dt);
   if (p.helpAt) nx = Math.min(nx, p.helpAt + dt);
-  RITUALS.forEach(function(ri){ if (ri.id === p.id && ri.h && h(ri.h) > t) nx = Math.min(nx, h(ri.h) + dt); });
+  if (rh) for (i = 0; i < rh.length; i++) if (rh[i] * H > t) nx = Math.min(nx, rh[i] * H + dt);
   if (!p.guest) {
-    var lv = h(leaveOf(p)); if (lv > t) nx = Math.min(nx, lv);
-    if (L) { if (h(L[0]) > t) nx = Math.min(nx, h(L[0])); if (h(L[1]) > t) nx = Math.min(nx, h(L[1])); }
+    var lv = leaveOf(p) * H; if (lv > t) nx = Math.min(nx, lv);
+    if (L) { if (L[0] * H > t) nx = Math.min(nx, L[0] * H); if (L[1] * H > t) nx = Math.min(nx, L[1] * H); }
     if (DAY.fri) { if (39600 > t) nx = Math.min(nx, 39600); if (41400 > t) nx = Math.min(nx, 41400); }
   }
   NAPS[p.idx] = nx <= t ? t + dt : nx;
@@ -6473,7 +6665,7 @@ function simEnd(p, te, T){
             startChat(p, q, t, cd, [choose(["Could you take " + lc(task) + "? Today if possible.", "Quick favour: " + lc(task) + ", by " + fmtH(due) + "?", "Can I give you one more? " + task + "."]),
               choose(["Sure, I'll add it to my list.", "On it. By " + fmtH(due) + ".", "Yep, leave it with me."]),
               choose(["Thank you!", "You're the best.", "Appreciate it!"])]);
-            pl2.goals.push({ label:task, due:due, done:false, from:p });
+            pl2.goals.push({ label:task, due:due, done:false, from:p, at:DAY.h });
             pl2.goals.sort(function(a, b){ return (a.done ? 99 : a.due) - (b.done ? 99 : b.due); });
           }
           else if (tr.owe) {
@@ -8354,7 +8546,7 @@ REMOTE.forEach(function(p, i){
     gc.fillText((p.fullName || p.name).split(" ").map(function(s){ return s.charAt(0); }).join("").slice(0, 2), w / 2, h / 2 - 12);
     gc.fillStyle = "#aab3bd"; gc.font = "600 20px " + FONT; gc.fillText("Camera off", w / 2, h / 2 + 52);
   });
-  p.camNext = WT() + rand(25, 90); p.camOff = false;
+  p.camOff = false;
   var scr = new T.Mesh(G.plane, new T.MeshBasicMaterial({ map:rt.texture }));
   p.scrMat = scr.material; p.liveTex = rt.texture;
   scr.scale.set(1.9, 1.07, 1); scr.position.z = 0.037; scr.userData.pid = p.id; g.add(scr);
@@ -8372,15 +8564,37 @@ function simRemote(p, t, dt){
   moodDrift(p, t);
   if (R() < dt * 0.2) recomputeMood(p);
 }
+/* off the call: before they start and after 5, and on days off */
+function remoteOffline(p){ return !!DAY.closed || DAY.h >= 17 || DAY.h < arriveH(p); }
+/* director: a remote colleague answering a video call (the small things they do on camera are a schedule, below) */
+function simRemoteAct(p, t){
+  if (p.act && t - p.act.t0 > p.act.dur + 0.5) p.act = null;
+  if (p.answering && t > p.answering) p.answering = 0;
+  if (p.chatWith && (!p.act || p.act.n !== "answer")) startAct(p, "answer", t, 4);
+}
+function remoteDue(p, t){
+  var n = Infinity;
+  if (p.act) n = Math.min(n, p.act.t0 + p.act.dur + 0.501);
+  if (p.answering) n = Math.min(n, p.answering + 0.001);
+  if (p.chatWith && (!p.act || p.act.n !== "answer")) n = t + 1;
+  return n;
+}
+/* what a remote colleague does on camera between calls (a sip, the phone, a stretch): every 7 to 20 s, from a
+   world schedule, so it is the same on every screen without the director stepping it */
+var REMOTE_ACTS = ["sip", "phone", "stretch", "leanBack", "sip"];
+function remoteIdleAct(p, t){
+  if (p.chatWith || p.answering || remoteOffline(p)) return null;
+  var key = "ract" + p.id, k = gridAt(key, t, 14, 0.5), s0 = gridStart(key, k, 14, 0.5);
+  if (!p.idleAct || p.idleAct.k !== k) { var r = wrng(key, k, 1); p.idleAct = { k:k, n:REMOTE_ACTS[Math.floor(r() * REMOTE_ACTS.length)], t0:s0, dur:2.2 + 2 * r(), target:null }; }
+  return t - s0 <= p.idleAct.dur + 0.5 ? p.idleAct : null;
+}
+var CAM_ON = /[?&]cam=on/.test(location.search || "");
 function updateRemote(p, t, dt){
   var r = p.rig;
   p.sayText = bubbleAt(p, t);
   r.sit = 1; r.walkTarget = 0;
-  if (t > p.typeNext) { p.typeOn = !p.typeOn; p.typeNext = t + (p.typeOn ? rand(2, 7) : rand(0.8, 3.5)); }
-  if (p.act && t - p.act.t0 > p.act.dur + 0.5) p.act = null;
-  if (p.answering && t > p.answering) p.answering = 0;
-  if (p.chatWith && (!p.act || p.act.n !== "answer")) startAct(p, "answer", t, 4);
-  if (!p.act && !p.chatWith && !p.answering && t > p.nextAct) { startAct(p, choose(["sip","phone","stretch","leanBack","sip"]), t); p.nextAct = t + rand(6, 16); }
+  /* typing in bursts with short pauses (a world schedule, the same on every screen) */
+  p.typeOn = !inGap("rtype" + p.id, t, 6, 0.8, 3.2);
   p.typeAmp = lerp(p.typeAmp, p.typeOn && !p.act ? 1 : 0, 1 - Math.exp(-dt * 4));
   p.glowM.opacity = 0.26 + (p.chatWith || p.answering ? 0.18 : 0) + 0.04 * Math.sin(t * 2 + p.sx);
   /* remote colleagues log off at 5 */
@@ -8392,20 +8606,18 @@ function updateRemote(p, t, dt){
   }
   if (offline) {
     if (!p.camOff || p.scrMat.map !== p.offTex) { p.camOff = true; p.scrMat.map = p.offTex; }
-    p.glowM.opacity = 0; p.camNext = t + 30;
+    p.glowM.opacity = 0;
     p.statusNow = DAY.wknd || DAY.fri ? "Offline for the weekend" : DAY.holiday ? "Offline, holiday" : "Offline, back tomorrow";
     return;
   }
-  /* now and then the camera goes off for a while (?cam=on keeps it on, for checking looks) */
-  if (t > p.camNext && /[?&]cam=on/.test(location.search)) { p.camNext = t + 999; if (p.camOff) { p.camOff = false; p.scrMat.map = p.liveTex; } }
-  if (t > p.camNext) {
-    p.camOff = !p.camOff;
-    p.camNext = t + (p.camOff ? rand(30, 120) : rand(60, 200));
-    p.camOffSaid = false;
-    p.scrMat.map = p.camOff ? p.offTex : p.liveTex;
-  }
+  /* now and then the camera goes off for a while, from a world schedule (?cam=on keeps it on, for checking looks) */
+  var camOff = !CAM_ON && inGap("rcam" + p.id, t, 205, 30, 120);
+  if (camOff !== !!p.camOff || p.scrMat.map !== (camOff ? p.offTex : p.liveTex)) { p.camOff = camOff; p.camOffSaid = false; p.scrMat.map = camOff ? p.offTex : p.liveTex; }
   p.statusNow = p.chatWith ? "On a video call with " + p.chatWith.name : teamCallNow() ? "In the Friday team call" : p.camOff ? "Camera off, still online" : p.status;
+  var wAct = p.act;
+  if (!wAct || t - wAct.t0 > wAct.dur + 0.5) p.act = remoteIdleAct(p, t);
   updateRig(p, t, dt);
+  p.act = wAct;
 }
 
 scene.traverse(function(o){ if (o.material && o.material.isMeshStandardMaterial && o.material.envMapIntensity === 1) o.material.envMapIntensity = 0.5; });
@@ -8432,7 +8644,7 @@ try {
 loadingEl.hidden = true;
 window.__voReady = true;
 window.__dbg = { renderer:renderer, scene:scene, sun:sun, T:T, seasonFx:seasonFx };
-window.__vo = { people:BY, focus:function(id){ focusOn(BY[id]); }, ask:function(id, q){ ask(BY[id], q); }, converse:function(id, q){ return converse(BY[id], q).text; }, goal:goal, view:view, season:function(){ seasonFx.next = 1; return SEASON; }, mishap:function(k){ MISHAP.cur = null; return startMishap(k, WT()); }, mishaps:MISHAP };
+window.__vo = { people:BY, focus:function(id){ focusOn(BY[id]); }, ask:function(id, q){ ask(BY[id], q); }, converse:function(id, q){ return converse(BY[id], q).text; }, goal:goal, view:view, season:function(){ SEASONW.next = 1; return SEASON; }, mishap:function(k){ MISHAP.cur = null; return startMishap(k, WT()); }, mishaps:MISHAP };
 /* ?mishap=cat (or book, spill, chair, restart) makes it happen a few seconds after the page opens, to watch it on demand */
 (function(){
   var f = /[?&]mishap=(cat|book|spill|chair|restart)/.exec(location.search || "");
@@ -8452,12 +8664,12 @@ focusFromHash();
 /* keys a person has before the world starts (looks, desk, rig, chat panel): everything else is world state or
    drawing state and is cleared when the world starts over; these drawing keys survive a restart */
 var BASE_KEYS = null, KEEP_KEYS = { typeAmp:1, mouseAmp:1, swivel:1, heading:1, postW:1, postCur:1, gazeYaw:1, seatFix:1, toeAdj:1, footFix:1, seatCal:1, seatCalT:1, footCal:1,
-  skipDt:1, tagW:1, tagH:1, tagAway:1, tagText:1, bubbleOn:1, onScreen:1, rollOff:1, tuck:1, carry:1, carrySteam:1, deskSteam:1, deskSteamP:1, cupAway:1, hotUntil:1, fxSay:1 };
+  skipDt:1, tagW:1, tagH:1, tagAway:1, tagText:1, bubbleOn:1, onScreen:1, rollOff:1, tuck:1, carry:1, carrySteam:1, deskSteam:1, deskSteamP:1, cupAway:1, hotUntil:1, fxSay:1, cupFall:1, idleAct:1 };
 /* the world at the start of its day (SIM.START), the same on every screen */
 function resetWorld(){
   var tz = torontoAt(WORLD_NOW());
   SIM.day = { y:tz.y, mo:tz.mo, d:tz.d };
-  SIM.on = true; SIM.now = SIM.START; SIM.T = SIM.START - SIM.DT; SIM.minute = -1; SIM.ticks = 0;
+  SIM.on = true; SIM.now = SIM.START; SIM.T = SIM.START - SIM.DT; SIM.minute = -1; SIM.ticks = 0; SIM.due = -Infinity; SIM.d = SIM_D0;
   try {
     dayTick();
     SIM.rng = wrng("director");
@@ -8472,7 +8684,9 @@ function resetWorld(){
     BOXEV.day = 0; BOXEV.on = false; BOXEV.done = false; BOXEV.open = 0;
     TEAMCALL.on = false; TEAMCALL.next = 0; TEAMCALL.speaker = null; TEAMCALL.said = {};
     ALONE.next = 0; ALONE.said = [];
-    DOGS.petAt = 0; DOGS.pet = 0;
+    DOGS.petAt = 0; DOGS.pet = 0; DOGW.walk = null; DOGW.list.forEach(function(d){ d.st = 0; d.stretchAt = 0; });
+    CAT.on = false; CAT.segs = null; CAT.evs = []; CAT.lastSlot = -1; CAT.next = 0; CAT.prank = ""; CATW.cup = CATW.trophy = CATW.tree = null;
+    SEASONW.next = 0; SEASONW.until = 0;
     LIFE.printers.forEach(function(pr){ pr.job = null; });
     ALL.forEach(function(p, i){ simResetPerson(p, i, SIM.START); });
     NAPS.fill(0); STEPS.fill(-1);
@@ -8484,15 +8698,20 @@ function simTick(T){
   var mi = Math.floor(T / 60);
   if (mi !== SIM.minute) { SIM.minute = mi; dayTick(); }
   DAY.h = T / 3600;
-  for (var i = 0; i < PEOPLE.length; i++) simAgent(PEOPLE[i], T, SIM.DT);
-  /* remote moods move slowly: every 5 s is plenty */
-  if (SIM.ticks % 5 === 0) REMOTE.forEach(function(p){ simRemote(p, T, 5 * SIM.DT); });
-  simChats(T);
-  simPerceive(T, SIM.DT);
-  simMishaps(T);
-  guestTick(T);
-  huddleTick(T, SIM.DT);
-  simLife(T, SIM.DT);
+  for (var i = 0; i < PEOPLE.length; i++) if (T >= NAPS[i]) simAgent(PEOPLE[i], T, SIM.DT);
+  /* remote moods move slowly: once a minute of world time is plenty */
+  if (T % 60 === 0) REMOTE.forEach(function(p){ simRemote(p, T, 60); });
+  for (var j = 0; j < REMOTE.length; j++) simRemoteAct(REMOTE[j], T);
+  /* the other parts only when something can happen in them (simDue) */
+  var D = SIM.d;
+  if (T >= D.chat) simChats(T);
+  simPerceive(T, SIM.DT, T >= D.perc);
+  if (T >= D.mish) simMishaps(T);
+  if (T >= D.guest) guestTick(T);
+  if (T >= D.hud) huddleTick(T, SIM.DT);
+  simLife(T, SIM.DT, T >= D.life);
+  if (T >= D.cat) simCat(T);
+  if (T >= D.season) simSeason(T);
   SIM.ticks++;
 }
 /* nothing left to happen today: everybody gone home in the evening, or the office closed */
@@ -8500,7 +8719,66 @@ function simQuiet(T){
   if (!(DAY.closed || T >= 18.5 * 3600)) return false;
   return PEOPLE.every(function(p){ return p.guest ? p.state === "gone" : p.state === "away" && p.trip && p.trip.kind === "home"; }) && !chats.length;
 }
-/* bring the world up to world time t (whole ticks only, so it never depends on the frame rate) */
+/* the next world second at which anything in the world can happen, worked out from the world state after a step.
+   simTo skips the seconds in between (nothing in them would change anything), and each part of the director runs
+   only at the steps where something can happen in it (SIM.d). It all reads world state and the clock only, so a
+   screen that steps every frame and a screen that builds the day in one go run exactly the same steps. When a
+   check waits on something that is hard to time, it asks for the very next second (always safe); when it waits on
+   people (who is at their desk), it runs at every step anyway, since only a step can change that. */
+var SIM_D0 = { chat:0, perc:0, mish:0, guest:0, hud:0, life:0, cat:0, season:0 };
+function simDue(T){
+  var h = T / 3600, i, x, hr = Math.floor(T / 3600), D = SIM.d === SIM_D0 ? (SIM.d = {}) : SIM.d;
+  var tc = teamCallNow(), tcEnd = 11.5 * 3600, next = T + 1, n = Infinity;
+  for (i = 0; i < PEOPLE.length; i++) if (NAPS[i] < n) n = NAPS[i];
+  /* remote moods once a minute, and answering calls */
+  n = Math.min(n, (Math.floor(T / 60) + 1) * 60);
+  for (i = 0; i < REMOTE.length; i++) n = Math.min(n, remoteDue(REMOTE[i], T));
+  /* chats: each new line (a laugh can come with it) and the end */
+  x = Infinity;
+  for (i = 0; i < chats.length; i++) {
+    var c = chats[i];
+    x = Math.min(x, c.t0 + c.dur + 0.001);
+    if (c.bubbles) { var li = c.li === undefined ? -1 : c.li; if (li + 1 < c.lines.length) x = Math.min(x, c.t0 + 0.6 + (li + 1) * LINE_GAP + 0.001); }
+  }
+  D.chat = x;
+  /* the weather changes on the hour */
+  D.perc = (hr + 1) * 3600;
+  /* mishaps and the quiet-office lines */
+  x = ALONE.next;
+  if (MISHAP.cur || !MISHAP.next) x = next;
+  else {
+    x = Math.min(x, T >= MISHAP.next && tc ? tcEnd : MISHAP.next + 0.001);
+    if (MISHAP.book.down) x = Math.min(x, MISHAP.book.backAt + 0.001);
+  }
+  D.mish = x;
+  /* visitors from other teams, the managers' huddle */
+  D.guest = GUESTS.cur ? Infinity : GUESTS.next || next;
+  D.hud = HUDDLE.on || !HUDDLE.next ? next : T >= HUDDLE.next && tc ? tcEnd : HUDDLE.next;
+  /* everyday life: printers, the Friday call, Plytix, treats, the sample box, plants, the fireplace, the dogs */
+  var dk = dayKey(), run = Infinity;
+  x = Infinity;
+  for (i = 0; i < LIFE.printers.length; i++) if (LIFE.printers[i].job) x = Math.min(x, LIFE.printers[i].job.t0 + 120.001);
+  if (tc) x = Math.min(x, TEAMCALL.on ? TEAMCALL.next + 0.001 : next);
+  else { if (TEAMCALL.on) x = next; if (DAY.fri && h < 11) x = Math.min(x, 11 * 3600); }
+  if (!PLYTIX.next || PLYTIX.on) x = next;
+  else if (T <= PLYTIX.next) x = Math.min(x, PLYTIX.next + 0.001);
+  else if (h <= 8.5) x = Math.min(x, 8.5 * 3600 + 1);
+  else if (tc) x = Math.min(x, tcEnd);
+  else if (h < 16.5 && !DAY.closed) run = 0;
+  if (TREATS.day !== dk || BOXEV.day !== dk) x = next;
+  if (TREATS.on) x = Math.min(x, TREATS.until * 3600 + 0.001, 16.9 * 3600 + 0.001, leaveOf(PEOPLE[0]) * 3600 + 0.001);
+  else if (TREATS.at < 99) { var ta = TREATS.at * 3600; if (T < ta) x = Math.min(x, ta); else if (h < TREATS.at + 0.2) { if (tc) x = Math.min(x, tcEnd); else run = 0; } }
+  if (!BOXEV.done && !BOXEV.on && BOXEV.at < 99) { var ba = BOXEV.at * 3600; if (T < ba) x = Math.min(x, ba); else if (h < BOXEV.at + 0.5) x = next; }
+  if (DAY.fri && RIT_DONE["water" + dk] === undefined && h < 11.5) x = Math.min(x, h > 10 ? next : 10 * 3600 + 1);
+  if (!RIT_DONE["fire" + dk] && h < 10.5 && BY.stephanie && BY.stephanie.state === "sit") { var tw = simWx(T).temp; if (Q_COLD || (tw !== null && tw <= 0)) x = next; }
+  x = Math.min(x, dogsDue(T));
+  D.life = Math.min(x, run);
+  D.cat = catDue(T);
+  D.season = seasonDue(T);
+  return Math.min(n, D.chat, D.perc, D.mish, D.guest, D.hud, x, D.cat, D.season);
+}
+/* bring the world up to world time t (whole ticks only, so it never depends on the frame rate). Seconds where
+   nothing is due (simDue) are skipped: the same ones on every screen, however the screen got there */
 function simTo(t){
   var target = Math.floor(t / SIM.DT) * SIM.DT;
   if (target <= SIM.T) return 0;
@@ -8508,10 +8786,20 @@ function simTo(t){
   SIM.on = true;
   try {
     while (SIM.T < target) {
-      if (simQuiet(SIM.T)) { SIM.T = target; SIM.now = target; break; }
-      SIM.T = Math.round((SIM.T + SIM.DT) * 1000) / 1000;
+      if (simQuiet(SIM.T)) { SIM.T = target; break; }
+      var next = Math.round((SIM.T + SIM.DT) * 1000) / 1000;
+      if (SIM.due > next) {
+        var nt = Math.ceil(SIM.due / SIM.DT - 1e-9) * SIM.DT;
+        if (nt > target) { SIM.T = target; break; }
+        next = nt;
+      }
+      SIM.T = next;
       simTick(SIM.T); n++;
+      SIM.due = simDue(SIM.T);
     }
+    /* the drawing reads the hour and the day's labels: keep them at the target second even when it was skipped */
+    SIM.now = SIM.T; DAY.h = SIM.T / 3600;
+    var mi = Math.floor(SIM.T / 60); if (mi !== SIM.minute) { SIM.minute = mi; dayTick(); DAY.h = SIM.T / 3600; }
   } finally { SIM.on = false; }
   return n;
 }
@@ -8525,19 +8813,30 @@ function worldSnap(t){
     out[p.id] = { state:p.state, trip:tr ? tr.kind + (tr.back ? ":back" : "") : "", x:+ps.x.toFixed(2), z:+ps.z.toFixed(2), heading:+headAt(p, t).toFixed(2), vis:visAt(p, t),
       act:p.act && t >= p.act.t0 && t - p.act.t0 <= p.act.dur ? p.act.n : "", chat:p.chatWith ? p.chatWith.id : "", say:sayAt(p, t) || "", posture:p.posture || "", status:p.statusNow || "" };
   });
+  /* the rest of the world: Pixel, the dogs, what got knocked over, the remote colleagues, the ghost */
+  var cv = new V3(), cs = catPosAt(t, cv), f2 = function(v){ return v.x.toFixed(2) + "," + v.z.toFixed(2); };
+  out.__cat = cs ? cs.ph + "@" + f2(cv) + " " + CAT.prank : "";
+  out.__dogs = [0, 1].map(function(i){ var d = dogAt(i, t); return d.mode + "@" + f2(d.pos) + (DOGW.list[i].st ? " stretch" + DOGW.list[i].st : ""); }).join(" | ") + (DOGS.pet ? " pet" + DOGS.pet : "");
+  out.__knock = ["cup", "trophy", "tree"].map(function(k){ var c = CATW[k]; return c ? k + c.t0 + (c.q ? c.q.id : "") : ""; }).join(" ");
+  out.__remote = REMOTE.map(function(p){ return (p.act && t - p.act.t0 <= p.act.dur ? p.act.n + p.act.t0 : "") + "/" + (p.chatWith ? p.chatWith.id : "") + "/" + (sayAt(p, t) || "") + "/" + (inGap("rcam" + p.id, t, 205, 30, 120) ? "camoff" : "cam") + "/" + ((remoteIdleAct(p, t) || {}).n || ""); }).join(" | ");
+  var gr = ghostRunAt(t); out.__ghost = gr ? "run" + gr.t0 : "";
   return out;
 }
 window.__worldSnap = function(){ return worldSnap(SIM.T); };
-window.__worldAt = function(sec, viaSec, keep){
+window.__worldAt = function(sec, viaSec, keep, step){
   var t0 = performance.now();
   resetWorld();
   if (viaSec !== undefined) simTo(viaSec);
+  /* step: like a screen left open, a frame at a time (step seconds apart) from viaSec */
+  if (step && viaSec !== undefined) for (var x = viaSec; x < sec; x += step) simTo(x);
   simTo(sec);
   var snap = worldSnap(Math.floor(sec)), ms = performance.now() - t0;
   if (!keep) { resetWorld(); simTo(WT()); }
   return { ms:+ms.toFixed(1), snap:snap };
 };
 window.__sim = SIM;
+/* for checks: move the world on to world second t (no reset) */
+window.__simTo = function(t){ return simTo(t); };
 /* a check over a stretch of the day: jumps in position between world seconds (teleports), walks, chats and lines */
 window.__worldSweep = function(from, to){
   resetWorld(); simTo(from);
@@ -8551,6 +8850,15 @@ window.__worldSweep = function(from, to){
         if (vis && L && L.vis && tt - L.t <= 0.26) { var d = Math.hypot(ps.x - L.x, ps.z - L.z); if (d > 0.6) jumps.push(p.id + "@" + tt + " " + L.st + ">" + p.state + " d=" + d.toFixed(2)); }
         last[p.id] = { x:ps.x, z:ps.z, vis:vis, t:tt, st:p.state };
       });
+      /* Pixel and the dogs too */
+      var cs = catPosAt(tt, v), cvis = !!cs && Math.abs(v.x) < 4.4, CL = last.__cat;
+      if (cvis && CL && CL.vis && tt - CL.t <= 0.26) { var dc = Math.hypot(v.x - CL.x, v.z - CL.z); if (dc > 0.6) jumps.push("cat@" + tt + " " + CL.st + ">" + cs.ph + " d=" + dc.toFixed(2)); }
+      last.__cat = { x:v.x, z:v.z, vis:cvis, t:tt, st:cs ? cs.ph : "" };
+      for (var di = 0; di < 2; di++) {
+        var dg = dogAt(di, tt), dvis = dg.mode !== "gone", DL = last["__dog" + di];
+        if (dvis && DL && DL.vis && tt - DL.t <= 0.26) { var dd = Math.hypot(dg.pos.x - DL.x, dg.pos.z - DL.z); if (dd > 0.6) jumps.push("dog" + di + "@" + tt + " " + DL.st + ">" + dg.mode + " d=" + dd.toFixed(2)); }
+        last["__dog" + di] = { x:dg.pos.x, z:dg.pos.z, vis:dvis, t:tt, st:dg.mode };
+      }
     }
     var wk = PEOPLE.filter(function(p){ return p.state === "walk" && visAt(p, s) && p.trip.w && s > p.trip.ts && s < p.trip.ts + p.trip.w.D; });
     for (var i = 0; i < wk.length; i++) for (var j = i + 1; j < wk.length; j++) { var a = posAt(wk[i], s), b = posAt(wk[j], s); if (Math.hypot(a.x - b.x, a.z - b.z) < 0.45) close.push(wk[i].id + "/" + wk[j].id + "@" + s); }
