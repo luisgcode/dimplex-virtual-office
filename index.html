@@ -4775,7 +4775,7 @@ function camYaw(p){
 }
 
 /* ---------- behaviour: a small needs-based agent per person ----------
-   Every visit starts from fresh random needs (Math.random, no fixed seed). Each person keeps
+   Needs start from the day's seeded stream (the same for every viewer). Each person keeps
    energy, focus, social and coffee needs that drift over time, and every few seconds scores
    what to do next from those needs, their personality and what the others are doing. */
 function rand(a, b){ return a + R() * (b - a); }
@@ -5506,8 +5506,8 @@ function chatter(a, b, t, casualOnly){
 /* ---------- chats with a rare small bubble ---------- */
 var chats = [];
 /* what someone says out loud is world state: it comes from the director's chats and SAYS, so sayAt(p, t) is the
-   same on every screen. Lines from systems that are still per screen (season small talk, Pixel) are only looks:
-   they go to p.fxSay / FXSAYS and never feed back into the world. */
+   same on every screen (season small talk and Pixel included). A line that is only a look on one screen would go
+   to p.fxSay / FXSAYS, which never feed back into the world. */
 var FXSAYS = [];
 function showBubble(p, text){ if (p && !p.guest) p.fxSay = text || null; }
 function fxSayLater(p, text, t0, dur){ if (p && !p.guest) FXSAYS.push({ p:p, text:text, t0:t0, t1:t0 + dur + 1.2 }); }
