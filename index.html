@@ -7469,6 +7469,10 @@ function renderPortrait(){
       if (pDir.lengthSq() < 1e-6) pDir.set(camDir.x, 0, camDir.z);
       pDir.normalize();
       if (window.__voPYaw) pDir.applyAxisAngle(UP, window.__voPYaw);
+    } else if (seated) {
+      /* the scanned models have no face rig to aim at: film from the way the chair faces */
+      var hy = (p.heading || 0) + (p.swivel || 0);
+      pDir.set(Math.sin(hy), 0, Math.cos(hy));
     } else pDir.set(camDir.x, 0, camDir.z).normalize();
     if (pcam.fov !== (seated ? 42 : 28)) pcam.fov = seated ? 42 : 28;
     pcam.position.set(pHead.x + pDir.x * dd, pHead.y + 0.12 - (window.__voPDrop || 0), pHead.z + pDir.z * dd);
