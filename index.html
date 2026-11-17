@@ -68,7 +68,8 @@ h1 em{font-style:normal;color:var(--accent)}
 .petcard .pc-tag{color:var(--accent)}
 .petcard .pc-photo{width:150px;height:150px;border-radius:50%;object-fit:cover;margin:12px 0 8px;border:3px solid var(--accent)}
 .petcard.wide{width:min(620px,calc(100% - 32px))}
-.petcard.wide .pc-photo{width:100%;height:auto;aspect-ratio:1100/467;border-radius:10px;border:0;margin:12px 0 10px}
+.petcard.wide .pc-photo{width:100%;height:auto;aspect-ratio:auto;max-height:62vh;object-fit:contain;border-radius:10px;border:0;margin:12px 0 10px}
+.petcard.wide.tall{width:min(380px,calc(100% - 32px))}
 .petcard.wide .pc-dl:empty{display:none}
 .petcard .pc-name{margin:0;font:800 22px/1.1 var(--f-body)}
 .petcard .pc-role{margin:2px 0 10px;color:var(--muted);font-size:12px}
@@ -7799,6 +7800,7 @@ function petCard(on, id){
   if (on) {
     var P = PETS[id || "pixel"];
     petEl.classList.toggle("wide", !!P.wide);
+    petEl.classList.toggle("tall", !!P.tall);
     var tg = petEl.querySelector(".pc-tag"); if (tg) tg.textContent = P.tag || "Office ID";
     document.getElementById("petNo").textContent = P.no ? "No. " + P.no : "";
     var ph = document.getElementById("petPhoto"); ph.src = P.img; ph.alt = P.name + ", " + P.role;
@@ -8226,11 +8228,12 @@ function chalBoardDraw(){
 /* ---------- the photo wall: the far end of the left wall, a collage of team photos; a click opens each one as a badge ----------
    To add a photo: put it in img/, add a line here (y and z = centre on the wall, w = frame width in metres, px = image size). */
 var WALL_PHOTOS = [
-  { id:"bb26", img:"img/team-plants.jpg", px:[1100, 467], z:-3.0, y:1.75, w:0.38, name:"Bad Bunny Halloween 2026", role:"The Dimplex team at the office" }
+  { id:"bb26", img:"img/team-plants.jpg", px:[1100, 467], z:-3.12, y:1.82, w:0.38, name:"Bad Bunny Halloween 2026", role:"The Dimplex team at the office" },
+  { id:"arcade", img:"img/team-arcade.jpg", px:[560, 995], z:-2.66, y:1.62, w:0.2, name:"Arcade day", role:"The Dimplex team out of the office" }
 ];
 var PHOTO_HITS = [];
 WALL_PHOTOS.forEach(function(ph){
-  PETS["photo_" + ph.id] = { wide:true, tag:"Team photo", no:"", img:ph.img, name:ph.name, role:ph.role || "", rows:[] };
+  PETS["photo_" + ph.id] = { wide:true, tall:ph.px[1] > ph.px[0], tag:"Team photo", no:"", img:ph.img, name:ph.name, role:ph.role || "", rows:[] };
   var tex = new T.TextureLoader().load(ph.img);
   tex.colorSpace = T.SRGBColorSpace; tex.anisotropy = maxAniso;
   var gr = new T.Group();
