@@ -1016,7 +1016,7 @@ var LIVE_SCREENS = [];
    anything being stepped. wrng keys include the date. */
 function gridStart(key, k, P, J){ return k * P + J * P * wrng(key, k)(); }
 function gridAt(key, t, P, J){ var k = Math.floor(t / P); if (t < gridStart(key, k, P, J)) k--; return k; }
-/* a quiet stretch inside each period of length P: [start, end) seconds, or null when the period has none */
+/* a quiet stretch inside each period of length P: [start, end) seconds of world time */
 function gridGap(key, k, P, minL, maxL){ var r = wrng(key, k, 7), len = minL + (maxL - minL) * r(), s = k * P + (P - len) * r(); return [s, s + len]; }
 function inGap(key, t, P, minL, maxL){ var g = gridGap(key, Math.floor(t / P), P, minL, maxL); return t >= g[0] && t < g[1]; }
 /* the goal someone was on at world hour h (what their screen shows): the first one still due, among the ones they
@@ -4875,22 +4875,21 @@ function standPose(p, t){
   p.standWas = p.standW > 0;
 }
 var POSTURE_FORCE = (/[?&]posture=(\w+)/.exec(location.search || "") || [])[1];
-/* director: which way they sit, and when they shift */
-function simPosture(p, t){
-  if (p.postNext && t <= p.postNext && p.state === "sit" && !p.standOn && !p.rollTo && !(p.act && p.act.n === "wobble")) return;
-  var seated = p.state === "sit" && visAt(p, t) && !p.remote && !(rollAt(p, t) > 0.01) && !(p.act && p.act.n === "wobble") && !(standW(p, t) > 0.02);
-  if (!seated) { p.posture = null; p.postNext = 0; }
-  else if (POSTURE_FORCE && POSTURE[POSTURE_FORCE]) p.posture = POSTURE_FORCE;
-  else if (!p.postNext || t > p.postNext) {
-    var h = SITS[p.id] || SITS._, tot = 0, i, pick = "";
-    if (!p.postNext) { p.postNext = t + rand(5, h.every[1] * 0.5); }
-    else {
-      h.opts.forEach(function(o){ tot += o[1]; });
-      var r = R() * tot; for (i = 0; i < h.opts.length; i++) { r -= h.opts[i][1]; if (r <= 0) { pick = h.opts[i][0]; break; } }
-      p.posture = pick || null;
-      p.postNext = t + rand(h.every[0], h.every[1]) * (pick === "feetUp" ? 0.7 : 1);
-    }
+/* which way they sit at world time t: a new pick every few minutes from a world schedule (the same on every
+   screen, nothing for the director to step), and the plain way while they are not simply sitting */
+function postureAt(p, t){
+  var seated = p.state === "sit" && visAt(p, t) && !p.remote && !(rollAt(p, t) > 0.01) && !(p.act && p.act.n === "wobble" && t - p.act.t0 <= p.act.dur + 0.5) && !(standW(p, t) > 0.02);
+  if (!seated) return null;
+  if (POSTURE_FORCE && POSTURE[POSTURE_FORCE]) return POSTURE_FORCE;
+  var h = SITS[p.id] || SITS._, key = "post" + p.id, k = gridAt(key, t, (h.every[0] + h.every[1]) / 2, 0.8);
+  if (p.postK !== k) {
+    var r = wrng(key, k, 1), tot = 0, i, x, pick = "";
+    for (i = 0; i < h.opts.length; i++) tot += h.opts[i][1];
+    x = r() * tot;
+    for (i = 0; i < h.opts.length; i++) { x -= h.opts[i][1]; if (x <= 0) { pick = h.opts[i][0]; break; } }
+    p.postK = k; p.postPick = pick || null;
   }
+  return p.postPick;
 }
 /* drawing: settle out of the old posture before moving into the new one */
 function postureTick(p, t, dt){
@@ -5651,7 +5650,8 @@ function frustrate(p, t, why, amt){
   moodShift(p, -0.15, why);
 }
 /* reading the room: don't walk up to someone mid frustration or mid celebration */
-function moodyNow(q){ return (q.frus || 0) > 0.6 || !!(q.act && /^(facepalm|fist|rubeyes)$/.test(q.act.n)); }
+var MOODY_ACTS = { facepalm:1, fist:1, rubeyes:1 };
+function moodyNow(q){ return (q.frus || 0) > 0.6 || !!(q.act && MOODY_ACTS[q.act.n]); }
 /* opinions they hold, and argue about a little */
 var OPINIONS = {
   fireplace:{ stephanie:"Revillusion", olivia:"Revillusion", allyson:"Revillusion", carla:"Optimyst", debbie:"Optimyst", luis:"Ignite XL", erica:"Ignite XL" },
@@ -5681,12 +5681,17 @@ function decide(p, t){
   var sociable = (1 - 0.6 * (p.frus || 0)) * (1 + 0.5 * mv) * (1 - 0.55 * urg) * (DAY.fri && DAY.h > 14 ? 1.25 : 1) * (DAY.wd === 1 ? 0.75 : DAY.fri ? 1.12 : 1) * (DAY.eom ? 0.8 : 1);
   var withdrawn = p.mood.kind === "stressed" && prof.traits.stressTol < 0.6;
   opts.push({ k:"micro", s:(1 - n.energy) * 0.9 * w.breaky + (mv < 0 ? 0.25 : 0) + (DAY.h > 14.4 && DAY.h < 15.6 ? 0.25 : 0) + rand(0, 0.6) });
-  var coffeeN = PEOPLE.filter(function(q){ return q.trip && q.trip.kind === "coffee"; }).length;
+  var coffeeN = 0, qi, q;
+  for (qi = 0; qi < PEOPLE.length; qi++) if (PEOPLE[qi].trip && PEOPLE[qi].trip.kind === "coffee") coffeeN++;
   if (coffeeN < (DAY.coffee > 1.8 ? 2 : 1)) opts.push({ k:"coffee", s:n.coffee * 1.3 * w.coffee * (DAY.coffee > 1.8 ? 1.25 : 1) + rand(0, 0.25) });
-  var best = null, bs = -1;
-  PEOPLE.forEach(function(q){
-    if (q === p || !available(q)) return;
-    if (moodyNow(q) && !q.remote) { if (!p.waitFor && aff(p, q) >= 1.2 && R() < 0.3) p.waitFor = { q:q, at:t + rand(150, 360) }; return; }
+  /* one pass over everyone: who to walk over to, and who is near enough to talk to from the desk */
+  var best = null, bs = -1, nbs = [];
+  for (qi = 0; qi < PEOPLE.length; qi++) {
+    q = PEOPLE[qi];
+    if (q === p || !available(q)) continue;
+    var moody = moodyNow(q);
+    if (Math.abs(q.z - p.z) < 2.0 && !moody && !luisDeepWork(q)) nbs.push(q);
+    if (moody && !q.remote) { if (!p.waitFor && aff(p, q) >= 1.2 && R() < 0.3) p.waitFor = { q:q, at:t + rand(150, 360) }; continue; }
     var sc = n.social * w.social * 1.35 * sociable + rand(0, 0.3);
     if (luisDeepWork(q)) sc *= 0.2;
     if (Math.abs(q.z - p.z) < 2.2) sc *= 1.1;
@@ -5694,9 +5699,8 @@ function decide(p, t){
     sc *= 0.6 + 0.4 * aff(p, q);
     if (q.id === "luis" && p.walker) sc *= 0.12; /* the managers talk to Luis on Teams, they almost never walk over */
     if (sc > bs) { bs = sc; best = q; }
-  });
+  }
   if (best && !withdrawn) opts.push({ k:"visit", s:bs * 0.45, q:best });
-  var nbs = neighbours(p).filter(function(q){ return !luisDeepWork(q) && !moodyNow(q); });
   if (nbs.length && !withdrawn) { var tq = pickByAff(p, nbs); opts.push({ k:"talk", s:n.social * w.shop * 1.1 * sociable * (0.7 + 0.3 * aff(p, tq)) + rand(0, 0.3), q:tq }); }
   /* Carla checks on anyone who seems down */
   /* Carla checks on someone who seems down, but rarely and never the same person twice within the hour */
@@ -5765,8 +5769,9 @@ function decide(p, t){
     var since = t - p.lastReqAt;
     opts.push({ k:"request", s:(clamp(since / 110, 0, 1.4) + rand(0, 0.3)) * (p.walker ? 0.15 : 1) });
   }
-  opts.sort(function(a, b){ return b.s - a.s; });
+  /* the best option (the first one on a tie) */
   var o = opts[0];
+  for (qi = 1; qi < opts.length; qi++) if (opts[qi].s > o.s) o = opts[qi];
   /* less walking around: optional trips away from the desk are skipped about half the time
      (promises, agreed breaks, reports, delegated tasks and waited visits always happen) */
   var optionalWalk = (o.k === "visit" && !o.owe && !o.appt && !o.report && !o.delegate && !o.waited) || o.k === "coffee" || o.k === "print" || o.k === "treat" || o.k === "request";
@@ -5894,8 +5899,7 @@ function simPerceivePeople(t){
     var p = PEOPLE[i];
     if (STEPS[i] !== t || p.remote || (p.guest && p.state === "gone")) continue;
     simStand(p, t);
-    simPosture(p, t);
-    /* the new posture or standing times count for their next step */
+    /* new standing times count for their next step */
     if (p.state === "sit" && !p.guest) simNap(p, t, SIM.DT);
     /* going over to help with a spill */
     if (p.helpAt && t > p.helpAt) {
@@ -6201,7 +6205,7 @@ RITUALS.forEach(function(ri, k){ (RIT_OF[ri.id] = RIT_OF[ri.id] || []).push(k); 
 function simLife(t, dt, glob){
   var dk = dayKey();
   dogsWalkWatch();
-  for (var pi = 0; pi < PEOPLE.length; pi++) simLifePerson(PEOPLE[pi], pi, t, dt, dk);
+  for (var pi = 0; pi < PEOPLE.length; pi++) if (STEPS[pi] === t) simLifePerson(PEOPLE[pi], pi, t, dt, dk);
   if (glob) simLifeWorld(t, dt, dk);
 }
 /* director: everyday life for someone who took a step this second (cup, printing, rituals) */
@@ -6569,7 +6573,6 @@ function simNap(p, t, dt){
   var nx = free ? p.decideAt : Infinity, L = LUNCH[p.id], H = 3600, i, rh = RIT_H[p.id];
   if (p.answering) nx = Math.min(nx, p.answering + 0.001);
   if (p.act) nx = Math.min(nx, p.act.t0 + p.act.dur + 0.6);
-  if (p.moodNext) nx = Math.min(nx, p.moodNext);
   if (p.cal) nx = Math.min(nx, p.cal.next);
   var pl = p.guest ? null : planOf(p);
   if (pl && pl.call && !pl.call.done) nx = Math.min(nx, pl.call.at * H);
@@ -6579,7 +6582,6 @@ function simNap(p, t, dt){
   /* rolling the chair over or back: at the end of each push */
   if (p.rollTo && rollAt(p, t) > 0) { var ra = p.rollOnAt + 2.2, rb = p.rollOffAt !== null && p.rollOffAt !== undefined ? p.rollOffAt + 2.2 : Infinity; nx = Math.min(nx, ra > t ? ra : rb > t ? rb : t + dt); }
   if (STANDERS[p.id]) nx = Math.min(nx, p.standOn ? p.standEnd + dt : free ? (p.standNext || 0) + dt : Infinity);
-  if (p.postNext && p.postNext >= t) nx = Math.min(nx, p.postNext + dt);
   if (p.helpAt) nx = Math.min(nx, p.helpAt + dt);
   if (rh) for (i = 0; i < rh.length; i++) if (rh[i] * H > t) nx = Math.min(nx, rh[i] * H + dt);
   if (!p.guest) {
@@ -6736,6 +6738,7 @@ function poseAgent(p, t, dt){
   posAt(p, t, p.root.position);
   rollUpdate(p, t);
   standPose(p, t);
+  p.posture = postureAt(p, t);
   postureTick(p, t, dt);
   r.walkTarget = 0;
   r.nodTarget = p.chatWith ? (chats.some(function(c){ return c.a === p; }) ? 0.45 : 0.35) : 0;
@@ -8664,7 +8667,7 @@ focusFromHash();
 /* keys a person has before the world starts (looks, desk, rig, chat panel): everything else is world state or
    drawing state and is cleared when the world starts over; these drawing keys survive a restart */
 var BASE_KEYS = null, KEEP_KEYS = { typeAmp:1, mouseAmp:1, swivel:1, heading:1, postW:1, postCur:1, gazeYaw:1, seatFix:1, toeAdj:1, footFix:1, seatCal:1, seatCalT:1, footCal:1,
-  skipDt:1, tagW:1, tagH:1, tagAway:1, tagText:1, bubbleOn:1, onScreen:1, rollOff:1, tuck:1, carry:1, carrySteam:1, deskSteam:1, deskSteamP:1, cupAway:1, hotUntil:1, fxSay:1, cupFall:1, idleAct:1 };
+  skipDt:1, tagW:1, tagH:1, tagAway:1, tagText:1, bubbleOn:1, onScreen:1, rollOff:1, tuck:1, carry:1, carrySteam:1, deskSteam:1, deskSteamP:1, cupAway:1, hotUntil:1, fxSay:1, cupFall:1, idleAct:1, posture:1, postK:1, postPick:1 };
 /* the world at the start of its day (SIM.START), the same on every screen */
 function resetWorld(){
   var tz = torontoAt(WORLD_NOW());
@@ -8811,7 +8814,7 @@ function worldSnap(t){
   PEOPLE.forEach(function(p){
     var ps = posAt(p, t), tr = p.trip;
     out[p.id] = { state:p.state, trip:tr ? tr.kind + (tr.back ? ":back" : "") : "", x:+ps.x.toFixed(2), z:+ps.z.toFixed(2), heading:+headAt(p, t).toFixed(2), vis:visAt(p, t),
-      act:p.act && t >= p.act.t0 && t - p.act.t0 <= p.act.dur ? p.act.n : "", chat:p.chatWith ? p.chatWith.id : "", say:sayAt(p, t) || "", posture:p.posture || "", status:p.statusNow || "" };
+      act:p.act && t >= p.act.t0 && t - p.act.t0 <= p.act.dur ? p.act.n : "", chat:p.chatWith ? p.chatWith.id : "", say:sayAt(p, t) || "", posture:postureAt(p, t) || "", status:p.statusNow || "" };
   });
   /* the rest of the world: Pixel, the dogs, what got knocked over, the remote colleagues, the ghost */
   var cv = new V3(), cs = catPosAt(t, cv), f2 = function(v){ return v.x.toFixed(2) + "," + v.z.toFixed(2); };
@@ -8835,6 +8838,10 @@ window.__worldAt = function(sec, viaSec, keep, step){
   return { ms:+ms.toFixed(1), snap:snap };
 };
 window.__sim = SIM;
+/* for checks: what every live screen shows at world second t (mode and progress), and the remote cameras */
+window.__screensAt = function(t){
+  return LIVE_SCREENS.map(function(s2, i){ var L = s2.live; if (!L || !L.tick) return s2.map ? "code" : ""; L.tick(t, 0); return (L.mode || "chat") + ":" + (L.seg === undefined ? "" : L.seg) + (L.msgs ? ":" + L.msgs.length + "/" + L.typing : "") + (L.file ? ":" + L.file + ":" + L.z.toFixed(2) : ""); }).join(" ");
+};
 /* for checks: move the world on to world second t (no reset) */
 window.__simTo = function(t){ return simTo(t); };
 /* a check over a stretch of the day: jumps in position between world seconds (teleports), walks, chats and lines */
