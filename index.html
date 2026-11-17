@@ -3891,8 +3891,9 @@ function renderCat(t, dt){
     um.traverse(function(o){ o.userData.dyn = true; }); um.visible = false; p.umbrella = um;
     /* desk clutter that piles up during the day */
     var cl = new T.Group(); p.deskGroup.add(cl);
-    var pp = add(G.box, paperM, 0.21, 0.01, 0.28, 0.42, 0.768, -0.4, cl, false); pp.rotation.y = 0.3;
-    var pp2 = add(G.box, paperM, 0.21, 0.006, 0.28, 0.46, 0.776, -0.42, cl, false); pp2.rotation.y = -0.15;
+    /* a little pile of printouts, well inside the desk top (they used to hang over the front edge) */
+    var pp = add(G.box, paperM, 0.21, 0.01, 0.28, 0.66, 0.768, -0.62, cl, false); pp.rotation.y = 0.2;
+    var pp2 = add(G.box, paperM, 0.21, 0.006, 0.28, 0.68, 0.776, -0.64, cl, false); pp2.rotation.y = -0.1;
     var cup2 = add(G.cyl, M(choose(["#ffffff", "#e8d9c4", "#2f5d8a"]), { roughness:0.4 }), 0.037, 0.09, 0.037, -0.4, 0.808, -0.66, cl, false);
     cl.traverse(function(o){ o.userData.dyn = true; }); p.clutter = { g:cl, papers:[pp, pp2], cup:cup2 };
     if (p.cup) p.cupBase = p.cup.position.clone();
