@@ -3313,21 +3313,34 @@ function catTick(t, dt){
   /* a one-off visit for everyone who has the office open (reloaded) in this window */
   var now1 = !CAT.onceDone && dayKey() === 2026416 && DAY.h >= 11.7 && DAY.h < 12;
   if (!CAT.on) {
-    if (!CAT.next || (now1 && CAT.next > t + 5)) CAT.next = t + (CAT.want || now1 ? 5 : rand(240, 600));
-    if (t < CAT.next) return;
-    CAT.next = t + (CAT.want || now1 ? 5 : 60);
-    /* one roll a minute while Debbie is at her desk: about one visit every hour and a half */
-    if (!atDesk || (!CAT.want && !now1 && Math.random() > 0.011)) return;
-    if (now1) CAT.onceDone = true;
+    var sr = Math.random;
+    if (CAT.want || now1) {
+      if (!CAT.next || (now1 && CAT.next > t + 5)) CAT.next = t + 5;
+      if (t < CAT.next) return;
+      CAT.next = t + 5;
+      if (!atDesk) return;
+      if (now1) CAT.onceDone = true;
+    } else {
+      /* the clock decides, so everyone with the office open sees the same visit at the same time:
+         each hour has about a 2 in 3 chance of one visit, at a minute between :05 and :50 */
+      var hr = Math.floor(DAY.h), slot = dayKey() * 100 + hr;
+      var hs = (Math.imul(dayKey(), 2654435761) ^ Math.imul(hr + 1, 1597334677)) >>> 0;
+      hs = Math.imul(hs ^ (hs >>> 16), 2246822507) >>> 0; hs = Math.imul(hs ^ (hs >>> 13), 3266489909) >>> 0; hs = (hs ^ (hs >>> 16)) >>> 0;
+      sr = seeded(hs % 2147483646 + 1); sr(); sr();
+      var at = hr + (5 + sr() * 45) / 60;
+      if (sr() > 0.65 || CAT.lastSlot === slot || DAY.h < at || DAY.h > at + 2 / 60) return;
+      if (!(D && D.root.visible && !lunchNow(D) && !teamCallNow() && !DAY.closed)) return;
+      CAT.lastSlot = slot;
+    }
     if (!CAT.g) catBuild();
-    var debF = catFloorOf(D), r = Math.random();
+    var debF = catFloorOf(D), r = sr();
     /* one prank at most per visit, each about 1 visit in 7 */
     CAT.prank = PRANK_FORCE || (r < 0.15 ? "cup" : r < 0.3 ? "trophy" : r < 0.45 ? "tree" : "");
     if (CAT.prank === "tree" && (!seasonFx.tree2 || seasonFx.tree2.userData.down)) CAT.prank = "";
     CAT.victim = null;
     if (CAT.prank === "cup") {
       var vs = PEOPLE.filter(function(q){ return q !== D && !q.remote && !q.guest && q.cup && q.cup.visible && !q.cupDown && q.state === "sit" && q.root.visible && q.deskOuter && !(MISHAP.cur && MISHAP.cur.cup === q.cup); });
-      if (vs.length) CAT.victim = choose(vs); else CAT.prank = "";
+      if (vs.length) CAT.victim = vs[Math.floor(sr() * vs.length)]; else CAT.prank = "";
     }
     if (CAT.prank === "tree") { CAT.path = makePath([EXIT_SPOT.clone(), new V3(2.2, 0, 6.6), new V3(0.75, 0, 6.2), new V3(0.62, 0, 5.85)]); CAT.then = "tjump"; }
     else if (CAT.victim) { CAT.path = aislePath(EXIT_SPOT.clone(), 0, catFloorOf(CAT.victim), CAT.victim.side); CAT.then = "pup"; }
