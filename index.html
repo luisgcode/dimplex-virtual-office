@@ -5256,22 +5256,18 @@ function updateChats(t){
 }
 
 /* ---------- who chats with whom ----------
-   Carla, Stephanie and Debbie talk the most, Olivia and Erica get along, the two managers work as a pair, Luis keeps to himself. */
-var AFF = { "carla|stephanie":3, "carla|debbie":3, "debbie|stephanie":3, "erica|olivia":2.6, "allyson|erica":2.4, "olivia|stephanieb":2.6, "marissa|stephanieb":2.2 };
-/* bonds change with what happens: help brings people closer, interruptions push them apart.
-   In memory only, starting neutral: the shared world cannot depend on what one browser remembers. */
-var BOND = {};
+   Everyone gets along with everyone the same: no favourites and nobody is closer or further from anyone,
+   so the office never suggests anything about real relationships. Luis keeps to himself. */
 function bondKey(a, b){ return a.id < b.id ? a.id + "|" + b.id : b.id + "|" + a.id; }
-/* remember something: changes the bond, and each side keeps a line they can bring up in a chat */
+/* remember something nice that happened: each side keeps a line they can bring up in a chat */
 function bond(a, b, dv, memA, memB){
   if (!a || !b || a.guest || b.guest || a === b) return;
-  var k = bondKey(a, b), t = WT();
-  BOND[k] = clamp((BOND[k] || 0) + dv, -0.8, 1.5);
+  var t = WT();
   if (memA) (a.memo = a.memo || []).push({ t:t, text:memA });
   if (memB) (b.memo = b.memo || []).push({ t:t, text:memB });
 }
 function recentMemo(p){ var m = p.memo && p.memo[p.memo.length - 1]; return m && WT() - m.t < 1800 ? m.text : ""; }
-function aff(a, b){ var k = bondKey(a, b); var v = Math.max(0.3, (AFF[k] || 1) + (BOND[k] || 0)); if (a.id === "luis" || b.id === "luis") v *= 0.25; return v; }
+function aff(a, b){ return a.id === "luis" || b.id === "luis" ? 0.25 : 1; }
 function pickByAff(p, list){ var tot = 0; list.forEach(function(q){ tot += aff(p, q); }); var r = Math.random() * tot; for (var i = 0; i < list.length; i++) { r -= aff(p, list[i]); if (r <= 0) return list[i]; } return list[0]; }
 
 /* ---------- decisions ---------- */
