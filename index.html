@@ -616,6 +616,31 @@ function add(geo, mat, sx, sy, sz, x, y, z, parent, shadow){
   parent.add(m);
   return m;
 }
+/* a Dimplex catalogue cover: a lit fireplace in a living room, the logo and the year (v: two different covers) */
+function catalogCover(v){
+  return canvasTex(256, 340, function(g, w, h){
+    /* the room: warm wall, wood floor */
+    var bg = g.createLinearGradient(0, 0, 0, h); bg.addColorStop(0, v ? "#3b3a40" : "#e9e2d6"); bg.addColorStop(1, v ? "#26252a" : "#cfc4b2");
+    g.fillStyle = bg; g.fillRect(0, 0, w, h);
+    g.fillStyle = v ? "#5b4636" : "#a98563"; g.fillRect(0, h * 0.72, w, h * 0.28);
+    /* the fireplace: a dark firebox in a stone or white surround, flames inside */
+    var fx = w * 0.16, fy = h * 0.36, fw = w * 0.68, fh = h * 0.34;
+    g.fillStyle = v ? "#d9d4cc" : "#f6f4ef"; g.fillRect(fx - 12, fy - 14, fw + 24, fh + 26);
+    g.fillStyle = "#121214"; g.fillRect(fx, fy, fw, fh);
+    for (var i = 0; i < 9; i++) {
+      var x = fx + 10 + i * (fw - 20) / 8, fl = g.createLinearGradient(0, fy + fh, 0, fy + fh * 0.25);
+      fl.addColorStop(0, "#ffd36b"); fl.addColorStop(0.45, "#ff8a1f"); fl.addColorStop(1, "rgba(220,60,20,0)");
+      g.fillStyle = fl; g.beginPath(); g.moveTo(x - 10, fy + fh - 6); g.quadraticCurveTo(x - 6, fy + fh * (0.45 + 0.1 * ((i * 7) % 3)), x, fy + fh * (0.22 + 0.08 * (i % 3)));
+      g.quadraticCurveTo(x + 6, fy + fh * 0.5, x + 10, fy + fh - 6); g.closePath(); g.fill();
+    }
+    g.fillStyle = "rgba(255,170,60,0.18)"; g.fillRect(fx - 12, fy + fh + 12, fw + 24, 26);
+    /* the brand bar and the title */
+    g.fillStyle = "#d7324f"; g.fillRect(0, 0, w, 58);
+    g.fillStyle = "#ffffff"; g.font = "bold 34px Arial, sans-serif"; g.textAlign = "center"; g.fillText("Dimplex", w / 2, 42);
+    g.fillStyle = v ? "#ffffff" : "#1a1a1a"; g.font = "bold 22px Arial, sans-serif"; g.fillText(v ? "Fireplaces 2026" : "Product Catalogue", w / 2, 96);
+    g.font = "15px Arial, sans-serif"; g.fillText(v ? "Electric fireplaces and inserts" : "2026 Edition", w / 2, 120);
+  });
+}
 function canvasTex(w, h, draw){
   var c = document.createElement("canvas");
   c.width = w; c.height = h;
@@ -3894,6 +3919,16 @@ function renderCat(t, dt){
     /* a little pile of printouts, well inside the desk top (they used to hang over the front edge) */
     var pp = add(G.box, paperM, 0.21, 0.01, 0.28, 0.66, 0.768, -0.62, cl, false); pp.rotation.y = 0.2;
     var pp2 = add(G.box, paperM, 0.21, 0.006, 0.28, 0.68, 0.776, -0.64, cl, false); pp2.rotation.y = -0.1;
+    /* Carla runs the catalogues: her pile is two Dimplex catalogues, a fireplace on the cover */
+    if (p.id === "carla") {
+      var catSide = M("#f4f1ea", { roughness:0.8 });
+      [[pp, 0], [pp2, 1]].forEach(function(e){
+        var cover = new T.MeshStandardMaterial({ map:catalogCover(e[1]), roughness:0.55 });
+        e[0].material = [catSide, catSide, cover, catSide, catSide, catSide];
+        e[0].scale.y = 0.014;
+      });
+      pp2.position.y = 0.783;
+    }
     var cup2 = add(G.cyl, M(choose(["#ffffff", "#e8d9c4", "#2f5d8a"]), { roughness:0.4 }), 0.037, 0.09, 0.037, -0.4, 0.808, -0.66, cl, false);
     cl.traverse(function(o){ o.userData.dyn = true; }); p.clutter = { g:cl, papers:[pp, pp2], cup:cup2 };
     if (p.cup) p.cupBase = p.cup.position.clone();
@@ -6447,8 +6482,9 @@ function renderLife(t, dt){
     /* clutter builds up, gone after the evening tidy */
     if (p.clutter) {
       var tidied = p.tidyDay === dk && (!p.act || p.act.n !== "tidy" || t - p.act.t0 > 2.5);
-      p.clutter.papers[0].visible = DAY.h > 10.5 && !tidied && here;
-      p.clutter.papers[1].visible = DAY.h > 13.8 && !tidied && here;
+      /* only Carla keeps paper on her desk: her catalogues, there all day */
+      p.clutter.papers[0].visible = p.id === "carla" && here;
+      p.clutter.papers[1].visible = p.id === "carla" && here;
       p.clutter.cup.visible = DAY.h > 14.5 && !tidied && here && p.id !== "debbie";
     }
     /* printout in hand on the way back */
