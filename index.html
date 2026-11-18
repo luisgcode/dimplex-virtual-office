@@ -124,6 +124,10 @@ h1 em{font-style:normal;color:var(--accent)}
 .chal th{font:700 11px/1 var(--f-body);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
 .chal td.n{text-align:right;font-weight:800;font-variant-numeric:tabular-nums}
 .chal tr.lead td{font-weight:800}
+.chal .pn{background:none;border:0;padding:0;font:inherit;color:inherit;cursor:pointer;text-align:left;text-decoration:underline dotted;text-decoration-color:var(--muted);text-underline-offset:3px}
+.chal .pn:hover{text-decoration-style:solid}
+.chal .pn:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+.chal .plist{display:flex;flex-direction:column;gap:8px;margin-top:10px}
 .chal .dn{display:flex;gap:10px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:8px;background:none;color:var(--ink);text-align:left;cursor:pointer;font:inherit;width:100%}
 .chal .dn img{width:56px;height:56px;border-radius:8px;object-fit:cover;flex:none}
 .chal .dn b{display:block;font-size:14px}
@@ -7955,7 +7959,10 @@ function chalRender(){
   var tb = el("table"), hd = el("tr"); ["#", "Name", "Points"].forEach(function(h, i){ var th = el("th", "", h); if (i === 2) th.style.textAlign = "right"; hd.appendChild(th); });
   var th0 = el("thead"); th0.appendChild(hd); tb.appendChild(th0); var bd = el("tbody");
   chalScores().forEach(function(r, i){
-    var tr = el("tr", r.n > 0 && CH.leaders.indexOf(r.p.id) >= 0 ? "lead crown" : ""); tr.appendChild(el("td", "", String(i + 1))); tr.appendChild(el("td", "", r.p.name)); tr.appendChild(el("td", "n", String(r.n))); bd.appendChild(tr);
+    var tr = el("tr", r.n > 0 && CH.leaders.indexOf(r.p.id) >= 0 ? "lead crown" : ""); tr.appendChild(el("td", "", String(i + 1))); /* a click on a name lists the missions that person completed, so anyone can see where the points came from */
+    var nt = el("td"), nb = el("button", "pn", r.p.name); nb.type = "button"; nb.setAttribute("aria-label", "Missions completed by " + r.p.name);
+    nb.addEventListener("click", (function(pid){ return function(){ CH.view = { kind:"person", id:pid }; chalRender(); }; })(r.p.id));
+    nt.appendChild(nb); tr.appendChild(nt); tr.appendChild(el("td", "n", String(r.n))); bd.appendChild(tr);
   });
   tb.appendChild(bd); Lf.appendChild(tb);
   Lf.appendChild(el("h3", "sec", "Achieved"));
@@ -7970,6 +7977,7 @@ function chalRender(){
   /* right: the missions, how it works, sending a photo, a proof, or the review */
   if (CH.view && CH.view.kind === "send") return chalSendForm(B, CH.view.id);
   if (CH.view && CH.view.kind === "proof") return chalProof(B, CH.view.i);
+  if (CH.view && CH.view.kind === "person") return chalPerson(B, CH.view.id);
   if (CH.view && CH.view.kind === "review") return chalReview(B);
   if (CHAL_ADMIN) {
     var rv = el("button", "go ghost", "Review photos (" + CH.st.subs.length + ")"); rv.type = "button";
@@ -8104,10 +8112,28 @@ function chalSubmit(mid, who, taken, img){
   if (!chalEl.hidden && !CH.view) chalRender();
 }
 /* for testing from the console */
-window.__chal = { st:function(){ return CH.st; }, submit:chalSubmit, approve:function(sid, team){ chalApprove(sid, team); }, reject:chalReject, reset:function(){ try { localStorage.removeItem(CHAL_KEY); } catch (e) {} CH.st = null; chalLoad(); chalBoardDraw(); }, scores:chalScores, players:function(){ return chalPlayers().map(function(q){ return q.id; }); } };
+window.__chal = { open:function(){ chalShow(true, "mission"); }, st:function(){ return CH.st; }, submit:chalSubmit, approve:function(sid, team){ chalApprove(sid, team); }, reject:chalReject, reset:function(){ try { localStorage.removeItem(CHAL_KEY); } catch (e) {} CH.st = null; chalLoad(); chalBoardDraw(); }, scores:chalScores, players:function(){ return chalPlayers().map(function(q){ return q.id; }); } };
+/* one person's completed missions: every approved photo they appear in, newest first, each opens its proof */
+function chalPerson(B, id){
+  var q = BY[id], back = el("button", "go ghost", "Back"); back.type = "button"; back.addEventListener("click", function(){ CH.view = null; chalRender(); }); B.appendChild(back);
+  var mine = [], tot = 0;
+  CH.st.done.forEach(function(d, i){ if ((d.team || [d.who]).indexOf(id) >= 0) { mine.push(i); tot += d.pts; } });
+  B.appendChild(el("h3", "ms-title", (q ? q.name : id) + " · " + ptsTxt(tot)));
+  if (!mine.length) { B.appendChild(el("p", "empty", "No missions completed yet.")); return; }
+  var list = el("div", "plist");
+  mine.reverse().forEach(function(i){
+    var d = CH.st.done[i], m = chalDef(d.mid), bt = el("button", "dn"); bt.type = "button";
+    var im = el("img"); im.src = d.img; im.alt = "Proof photo for " + (m ? m.title : d.mid); bt.appendChild(im);
+    var tx = el("div"); tx.appendChild(el("b", "", m ? m.title : d.mid));
+    tx.appendChild(el("span", "", ptsTxt(d.pts) + " · with " + chalNames(d) + " · " + fmtTime(d.at))); bt.appendChild(tx);
+    bt.addEventListener("click", function(){ CH.view = { kind:"proof", i:i, from:{ kind:"person", id:id } }; chalRender(); });
+    list.appendChild(bt);
+  });
+  B.appendChild(list);
+}
 function chalProof(B, i){
   var d = CH.st.done[i], m = chalDef(d.mid), w = el("div", "proof");
-  var back = el("button", "go ghost", "Back"); back.type = "button"; back.addEventListener("click", function(){ CH.view = null; chalRender(); });
+  var back = el("button", "go ghost", "Back"); back.type = "button"; back.addEventListener("click", function(){ CH.view = (CH.view && CH.view.from) || null; chalRender(); });
   w.appendChild(back);
   w.appendChild(el("h3", "ms-title", m ? m.title : d.mid));
   var im = el("img"); im.src = d.img; im.alt = "Proof photo: " + (m ? m.title : d.mid) + ", " + chalNames(d); w.appendChild(im);
