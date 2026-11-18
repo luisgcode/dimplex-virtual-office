@@ -392,6 +392,8 @@ body > header{display:none !important}
 } }
 </script>
 <script>
+/* a slow phone or connection: say it is still coming instead of a spinner that looks stuck */
+setTimeout(function(){ var l = document.getElementById("loading"); if (!window.__voReady && l && !l.hidden) l.lastChild.textContent = "Still loading the team, almost there…"; }, 12000);
 setTimeout(function(){ if (!window.__voReady) { var f = document.getElementById("fallback"), l = document.getElementById("loading"); if (!window.__voStarted) { l.hidden = true; f.textContent = "The 3D office could not start in this browser. Try a recent version of Chrome, Edge, Safari or Firefox."; f.hidden = false; } } }, 20000);
 </script>
 <script type="module">
@@ -545,6 +547,11 @@ try {
   renderer = new T.WebGLRenderer({ antialias:true, powerPreference:"high-performance" });
 } catch (e) { fail("The 3D office needs WebGL. Try a recent version of Chrome, Edge, Safari or Firefox."); return; }
 var isSmall = Math.min(window.innerWidth, window.innerHeight) < 700;
+/* phones and small tablets: the scanned people's textures are halved (1024 to 512), or the page needs about 280 MB of
+   graphics memory and mobile browsers kill the tab before the office shows */
+var LOWMEM = isSmall || (window.matchMedia && matchMedia("(pointer: coarse)").matches) || (navigator.deviceMemory > 0 && navigator.deviceMemory <= 4) || /[?&]lowmem/.test(location.search);
+/* if the browser drops the 3D context anyway, say so instead of leaving a frozen or blank page */
+renderer.domElement.addEventListener("webglcontextlost", function(e){ e.preventDefault(); fail("The office ran out of graphics memory on this device. Close other tabs and reload the page."); }, false);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = T.PCFShadowMap;
@@ -4018,7 +4025,7 @@ function renderCat(t, dt){
 })();
 
 /* ---------- characters: rigged, skinned mannequin with skeletal animation ---------- */
-var MODEL_URL = "https://cdn.jsdelivr.net/gh/mrdoob/three.js@r160/examples/models/gltf/Xbot.glb";
+var MODEL_URL = "models/Xbot.glb";
 /* pilot: real character models with hair and clothes, same Mixamo skeleton, so the same animations play on them */
 var REAL_MODELS = {
   /* each person: an artist-made character, recoloured per garment to match how they dress */
@@ -8450,6 +8457,24 @@ function paintLips(root, RB, color){
 }
 /* recolour one garment inside a shared texture: pixels whose hue falls in a range (and are saturated enough to be
    fabric, not skin or shadow) take the new colour, keeping their own light and dark */
+/* redraw every texture of a model wider than max into a smaller canvas (same orientation, so flipY stays as loaded) */
+function shrinkTextures(root, max){
+  var done = {};
+  root.traverse(function(o){
+    if (!o.isMesh || !o.material) return;
+    [].concat(o.material).forEach(function(m){
+      ["map", "normalMap", "roughnessMap", "metalnessMap", "emissiveMap", "aoMap"].forEach(function(k){
+        var t = m[k], img = t && t.image;
+        if (!img || done[t.uuid] || !(img.width > max)) return;
+        done[t.uuid] = 1;
+        var c = document.createElement("canvas"); c.width = max; c.height = Math.max(1, Math.round(img.height * max / img.width));
+        c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+        if (img.close) { try { img.close(); } catch (e) {} }
+        t.image = c; t.needsUpdate = true;
+      });
+    });
+  });
+}
 function remapTexture(root, rules){
   root.traverse(function(o){
     if (!o.isSkinnedMesh || !o.material.map || !o.material.map.image || o.userData.remapped) return;
@@ -8558,7 +8583,7 @@ function normalizeRig(sc){
 T.AnimationUtils.makeClipAdditive(CLIPS.agree);
 T.AnimationUtils.makeClipAdditive(CLIPS_R.agree);
 await Promise.all(Object.keys(REAL_MODELS).map(function(k){
-  return new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(REAL_MODELS[k].url).then(function(g){
+  return new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(LOWMEM ? REAL_MODELS[k].url.replace(/^models\//, "models/lite/") : REAL_MODELS[k].url).then(function(g){
     normalizeRig(g.scene);
     /* match the Xbot by skeleton height: head top over the hips line, measured on both rigs */
     function topY(sc){ sc.updateMatrixWorld(true); var o = sc.getObjectByName("mixamorigHeadTop_End") || sc.getObjectByName("mixamorigHead"), v = new V3(); o.getWorldPosition(v); return v.y; }
@@ -8568,6 +8593,7 @@ await Promise.all(Object.keys(REAL_MODELS).map(function(k){
     if (k === "luis" && BY.luis) REAL_MODELS.luis.remap[0].to = dayTint(BY.luis, "Shirt", "#34495e");
     if (REAL_MODELS[k].remap) { try { remapTexture(g.scene, REAL_MODELS[k].remap); } catch (e) { console.warn("remap", e); } }
     if (REAL_MODELS[k].lips) { try { paintLips(g.scene, REAL[k].headBox, REAL_MODELS[k].lips, REAL_MODELS[k].lipsAlpha); } catch (e) { window.__lips = "ERR " + e.message; } }
+    if (LOWMEM) shrinkTextures(g.scene, 512);
     g.scene.traverse(function(o){ if (o.isMesh && o.material) { o.material.envMapIntensity = 0.6; } });
   }).catch(function(e){ console.warn("model " + k, e); window.__modelErr = (window.__modelErr || "") + k + ": " + (e && e.message) + "; "; /* if the model fails, that person keeps the current look */ });
 }));
