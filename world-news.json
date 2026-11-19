@@ -2,29 +2,49 @@
   "date": "2026-11-19",
   "items": [
     {
-      "title": "Empire State Building Lit Up with Gold Marks Historic Milestone of NASA's Voyager 1",
+      "title": "Empire State Building Lit Up with Gold Marks Historic Milestone of NASA’s Voyager 1 This Week",
       "source": "goodnewsnetwork.org",
-      "lines": ["Did you see Voyager 1 is now one light day away from Earth?", "One light day? That's wild. It launched in the seventies, right?", "Yep. They lit the Empire State Building gold for it."]
-    },
-    {
-      "title": "Crows can make decisions twice as fast as humans, scientists discover",
-      "source": "sciencedaily.com",
-      "lines": ["Apparently crows make decisions twice as fast as we do.", "Faster than me picking lunch, for sure.", "Low bar, but yes lol"]
-    },
-    {
-      "title": "This Blue Whale Population Grew 1,000% Since the End of Antarctic Whaling",
-      "source": "goodnewsnetwork.org",
-      "lines": ["I just read a blue whale population grew 1,000 percent.", "Wait, really? That's amazing.", "Since Antarctic whaling ended. Good news for once!"]
-    },
-    {
-      "title": "World's Ugliest Hawaiian Shirt Was Designed to Make You Invisible to AI Surveillance Cameras",
-      "source": "odditycentral.com",
-      "lines": ["Someone made a Hawaiian shirt that hides you from AI cameras.", "Is it at least a nice shirt?", "They call it the ugliest one in the world lol"]
+      "lines": [
+        "Did you see Voyager 1 is now one full light day away from Earth?",
+        "Wait, so a signal takes a whole day to get back?",
+        "Yep, 24 hours. And the Empire State Building lit up gold to celebrate."
+      ]
     },
     {
       "title": "Bizarre deep-sea fish with a see-through head captured in stunning 4K",
       "source": "sciencedaily.com",
-      "lines": ["Have you seen the deep sea fish with a see through head?", "A see through head? No way.", "They filmed it in 4K. You can look right inside lol"]
+      "lines": [
+        "Apparently there is a fish with a see through head, called the barreleye.",
+        "That sounds made up. Where does it even live?",
+        "Nearly 2,000 feet down, and its eyes rotate forward to chase prey."
+      ]
+    },
+    {
+      "title": "Crows can make decisions twice as fast as humans, scientists discover",
+      "source": "sciencedaily.com",
+      "lines": [
+        "I just read that crows make visual decisions twice as fast as humans.",
+        "So the crows outside are judging us at double speed?",
+        "About 235 milliseconds on average. Faster than me picking a coffee."
+      ]
+    },
+    {
+      "title": "This 6-million-year-old whale may have had the most crooked face in mammal history",
+      "source": "sciencedaily.com",
+      "lines": [
+        "There was a whale 6 million years ago with a super crooked face.",
+        "How crooked are we talking?",
+        "Possibly the most lopsided mammal ever. Found in Peru, of all places."
+      ]
+    },
+    {
+      "title": "Scientists discover a giant 66-pound rodent that lived 34 million years ago",
+      "source": "sciencedaily.com",
+      "lines": [
+        "Scientists found a rodent in Thailand that weighed around 66 pounds.",
+        "That is not a mouse, that is a roommate.",
+        "And it lived 34 million years ago. Good luck fitting that in a trap."
+      ]
     }
   ]
 }
