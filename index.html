@@ -99,6 +99,9 @@ h1 em{font-style:normal;color:var(--accent)}
 .chal .mrow .mt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
 .chal .mrow .mt b{font:600 14px/1.3 var(--f-body)}
 .chal .mrow .mt span{font-size:11px;color:#b4500f;font-weight:600}
+.chal .mrow .mt span.spots{color:inherit;opacity:.8;font-weight:500}
+.chal .mrow .mt span.spots b{font:700 11px/1 var(--f-body);color:#c8102e;letter-spacing:1px;margin-right:4px}
+.chal .mrow.won .go[disabled],.chal select option[disabled]{opacity:.55}
 .chal .mrow .pts{margin-left:0}
 .chal .go.sm{padding:7px 10px;font-size:12px;white-space:nowrap}
 .chal .ms.special{border:2px solid #d4a72c;background:linear-gradient(180deg,rgba(212,167,44,.12),transparent 60%)}
@@ -8364,6 +8367,18 @@ function chalUpdateLeaders(){
   ALL.forEach(function(q){ if (q.tag) q.tag.classList.toggle("lead", CH.leaders.indexOf(q.id) >= 0); });
 }
 function chalNames(d){ return (d.team || [d.who]).map(function(id){ return BY[id] ? BY[id].name : id; }).join(", "); }
+/* every mission can be won by up to 3 different people; whoever already has points in it can't win it again */
+var CHAL_SLOTS = 3;
+function chalSlots(m){ return (m && m.slots) || CHAL_SLOTS; }
+function chalWins(mid){ return CH.st.done.filter(function(d){ return d.mid === mid; }); }
+function chalWinners(mid){ var w = []; chalWins(mid).forEach(function(d){ (d.team && d.team.length ? d.team : [d.who]).forEach(function(id){ if (w.indexOf(id) < 0) w.push(id); }); }); return w; }
+function chalSpotsTxt(m){
+  var wins = chalWins(m.id).sort(function(a, b){ return a.at - b.at; }), n = wins.length, tot = chalSlots(m);
+  if (!n) return null;
+  var who = wins.map(function(d){ return chalNames(d); });
+  var txt = n === 1 ? who[0] + " got the first one" : who.slice(0, -1).join(", ") + " and " + who[n - 1] + " got it";
+  return { dots:"●".repeat(n) + "○".repeat(Math.max(0, tot - n)), txt:n + "/" + tot + " · " + txt + (tot - n === 1 ? " · last spot" : " · " + (tot - n) + " spots left") };
+}
 function el(tag, cls, txt){ var e = document.createElement(tag); if (cls) e.className = cls; if (txt !== undefined) e.textContent = txt; return e; }
 
 /* the time the photo was taken, from its EXIF data (JPEG only); null when the photo does not carry it */
@@ -8450,7 +8465,7 @@ function chalRender(){
   var ptsSeen = {};
   all.forEach(function(x){ if (!x.m.special) ptsSeen[x.m.pts] = 1; });
   Object.keys(ptsSeen).map(Number).sort(function(x, y){ return x - y; }).forEach(function(v){ groups.push([v === 1 ? "1 point" : v + " points", function(m){ return !m.special && m.pts === v; }]); });
-  B.appendChild(el("p", "note", "Pick any mission you like. The first approved photo wins it."));
+  B.appendChild(el("p", "note", "Pick any mission you like. Each one has 3 spots: the first 3 approved photos from 3 different people win it."));
   groups.forEach(function(gp){
     var L = all.filter(function(x){ return gp[1](x.m); }).sort(function(a, b){ return (a.m.ord || 0) - (b.m.ord || 0); });
     if (!L.length) return;
@@ -8459,6 +8474,8 @@ function chalRender(){
     L.forEach(function(x){
       var m = x.m, pend = chalPending(m.id), row = el("div", "mrow" + (m.special ? " special" : "") + (pend ? " pending" : ""));
       var tx = el("div", "mt"); tx.appendChild(el("b", "", m.title));
+      var sp = chalSpotsTxt(m);
+      if (sp) { var ss = el("span", "spots"), dd = el("b", "", sp.dots); dd.setAttribute("aria-hidden", "true"); ss.appendChild(dd); ss.appendChild(document.createTextNode(sp.txt)); tx.appendChild(ss); }
       if (pend) tx.appendChild(el("span", "", "Photo waiting for review. You can still send yours."));
       row.appendChild(tx);
       row.appendChild(el("span", "pts", ptsTxt(m.pts)));
@@ -8473,11 +8490,12 @@ function chalRender(){
   var how = el("ol", "how");
   ["Pick any mission from the list, do it and take a photo of it.",
    "Tap Send your photo, choose your name and add the photo.",
-   "The office records the exact time your photo arrives. The first photo to arrive that gets approved wins.",
+   "The office records the exact time your photo arrives. Every mission has 3 spots: the first 3 approved photos win it, each from a different person.",
+   "Once you have points in a mission, your name is blocked for it, so someone else gets the next spot.",
    "Everyone who appears in the winning photo gets the points, not only the person who sent it.",
    "Photos stay private until they are approved. Then they show up under Achieved as the proof.",
    "You can do as many missions as you like, no need to wait for the check on the last one.",
-   "A mission with a photo waiting still takes more photos: if the first one is rejected, the next in line can win. Once a mission is won it moves to Achieved.",
+   "A mission with a photo waiting still takes more photos: if one is rejected, the next in line can win. Once all 3 spots are taken the mission closes.",
    "Keep screens, documents and anyone who did not agree to be in it out of the picture."].forEach(function(t){ how.appendChild(el("li", "", t)); });
   B.appendChild(how);
 }
@@ -8500,9 +8518,11 @@ function chalReview(B){
       if (x.taken && x.taken < o.at) box.appendChild(el("p", "warn", "Taken before this mission opened."));
       /* who is in the photo: all of them get the points. The sender is ticked already */
       var fs = el("fieldset", "who"), lg = el("legend", "", "Everyone in the photo gets the points:"); fs.appendChild(lg);
+      var won = chalWinners(o.id);
+      if (chalWins(o.id).length) box.appendChild(el("p", "ms-meta", "Spot " + (chalWins(o.id).length + 1) + " of " + chalSlots(m) + ". People who already have points here are greyed out."));
       chalPlayers().filter(function(q){ return !(m.exclude && m.exclude.indexOf(q.id) >= 0); }).forEach(function(q){
-        var lb = el("label", "ck"), cb = el("input"); cb.type = "checkbox"; cb.value = q.id; cb.checked = q.id === x.who;
-        lb.appendChild(cb); lb.appendChild(document.createTextNode(" " + q.name)); fs.appendChild(lb);
+        var has = won.indexOf(q.id) >= 0, lb = el("label", "ck"), cb = el("input"); cb.type = "checkbox"; cb.value = q.id; cb.checked = q.id === x.who && !has; cb.disabled = has;
+        lb.appendChild(cb); lb.appendChild(document.createTextNode(" " + q.name + (has ? " (already won)" : ""))); if (has) lb.style.opacity = ".5"; fs.appendChild(lb);
       });
       box.appendChild(fs);
       var row = el("div", "row"), ok = el("button", "go", "Approve, " + ptsTxt(m.pts) + " each"), no = el("button", "go ghost", "Reject"); ok.type = no.type = "button";
@@ -8521,7 +8541,10 @@ function chalSendForm(B, mid){
   f.appendChild(el("h3", "ms-title", m.title));
   var l1 = el("label", "", "Who are you"), sel = el("select"); sel.required = true;
   var o0 = el("option", "", "Choose your name"); o0.value = ""; sel.appendChild(o0);
-  chalPlayers().filter(function(q){ return !(m.exclude && m.exclude.indexOf(q.id) >= 0); }).forEach(function(q){ var o = el("option", "", q.name); o.value = q.id; sel.appendChild(o); });
+  var won = chalWinners(mid);
+  chalPlayers().filter(function(q){ return !(m.exclude && m.exclude.indexOf(q.id) >= 0); }).forEach(function(q){
+    var has = won.indexOf(q.id) >= 0, o = el("option", "", q.name + (has ? " · already has points here" : "")); o.value = q.id; o.disabled = has; sel.appendChild(o);
+  });
   l1.appendChild(sel); f.appendChild(l1);
   var l3 = el("label", "", "Photo"), fi = el("input"); fi.type = "file"; fi.accept = "image/*"; fi.required = true; l3.appendChild(fi); f.appendChild(l3);
   var pv = el("img", "prev"); pv.alt = "Your photo"; pv.hidden = true; f.appendChild(pv);
@@ -8546,7 +8569,7 @@ function chalSendForm(B, mid){
     var done = function(arrived){
       B.textContent = "";
       var ok = el("div", "ms"); ok.appendChild(el("h3", "ms-title", "Sent! Your photo arrived on " + fmtTime(arrived)));
-      ok.appendChild(el("p", "ms-meta", "It stays private until it is reviewed. If it is the first approved one, the points are yours."));
+      ok.appendChild(el("p", "ms-meta", "It stays private until it is reviewed. If it is approved while a spot is still free, the points are yours."));
       var b2 = el("button", "go", "Back to missions"); b2.type = "button"; b2.addEventListener("click", function(){ CH.view = null; chalRender(); }); ok.appendChild(b2);
       B.appendChild(ok);
     };
@@ -8569,7 +8592,7 @@ function chalSendForm(B, mid){
 var chalSeq = 0;
 function chalExcluded(mid, who){ var m = chalDef(mid); return !!(m && m.exclude && m.exclude.indexOf(who) >= 0); }
 function chalSubmit(mid, who, taken, img){
-  if (chalExcluded(mid, who)) return false;
+  if (chalExcluded(mid, who) || chalWinners(mid).indexOf(who) >= 0) return false;
   var at = Date.now();
   CH.st.subs.push({ id:"s" + at.toString(36) + (chalSeq++).toString(36), mid:mid, who:who, at:at, taken:taken, img:img });
   if (chalNeedNext()) chalOpenNext();
@@ -8610,10 +8633,17 @@ function chalApprove(sid, team){
   if (CH.live) return liveApprove(sid, team);
   var x = CH.st.subs.filter(function(q){ return q.id === sid; })[0]; if (!x) return;
   var m = chalDef(x.mid);
-  team = (team && team.length ? team : [x.who]).filter(function(id){ return !chalExcluded(x.mid, id); });
+  var won = chalWinners(x.mid);
+  team = (team && team.length ? team : [x.who]).filter(function(id){ return !chalExcluded(x.mid, id) && won.indexOf(id) < 0; });
   if (!team.length) return;
   CH.st.done.push({ mid:x.mid, who:x.who, team:team, pts:m.pts, at:x.at, taken:x.taken, img:x.img, ok:Date.now() });
-  /* the mission is closed: other photos for it are dropped */
+  won = won.concat(team);
+  if (chalWins(x.mid).length < chalSlots(m)) {
+    /* spots left: only this photo and photos from people who now have points here are dropped */
+    CH.st.subs = CH.st.subs.filter(function(q){ return q.mid !== x.mid || (q.id !== x.id && won.indexOf(q.who) < 0); });
+    chalSave(); chalRender(); chalBoardDraw(); chalCelebrate(team, m); return;
+  }
+  /* the last spot is taken: the mission is closed and other photos for it are dropped */
   CH.st.subs = CH.st.subs.filter(function(q){ return q.mid !== x.mid; });
   if (m.special) CH.st.specials = CH.st.specials.filter(function(o){ return o.id !== m.id; });
   else { CH.st.opens = CH.st.opens.filter(function(o){ return o.id !== m.id; }); if (chalNeedNext()) chalOpenNext(); }
@@ -8630,12 +8660,12 @@ CH.live = !!SB; CH.defs = {}; CH.admin = false; CH.seen = null;
 if (CH.live) { document.getElementById("chalDemo").hidden = true; CH.st = null; chalLoad(); }
 else if (/[?&]demo=1/.test(location.search || "") === false) { document.getElementById("chalDemo").textContent = "Offline"; }
 function liveFail(e){ var m = (e && (e.message || e.error_description)) || String(e);
-  return new Error({ wrong_code:"That code is not right.", locked:"Too many wrong codes for this name. Try again in an hour.", mission_closed:"This mission is closed. Check the open ones.", excluded:"You are the one in this mission, so you can't win it.", not_admin:"This account can't review photos." }[m] || m); }
+  return new Error({ wrong_code:"That code is not right.", locked:"Too many wrong codes for this name. Try again in an hour.", mission_closed:"This mission is closed. Check the open ones.", excluded:"You are the one in this mission, so you can't win it.", already_won:"You already have points in this mission. Leave the spot for someone else.", already_sent:"You already sent a photo for this mission. Wait for the review.", not_admin:"This account can't review photos." }[m] || m); }
 function dataToBlob(d){ var b = atob(d.split(",")[1]), a = new Uint8Array(b.length); for (var i = 0; i < b.length; i++) a[i] = b.charCodeAt(i); return new Blob([a], { type:"image/jpeg" }); }
 function uid(){ return (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + R().toString(36).slice(2)); }
 async function chalRefresh(){
   var r = await Promise.all([
-    SB.from("missions").select("id,title,pts,special,ord,exclude"),
+    SB.from("missions").select("id,title,pts,special,ord,exclude,slots"),
     SB.from("opened").select("mission_id,opened_at"),
     SB.from("achieved").select("*").order("approved_at"),
     SB.rpc("pending_missions")
@@ -8643,8 +8673,9 @@ async function chalRefresh(){
   r.forEach(function(x){ if (x.error) throw liveFail(x.error); });
   var defs = {}; r[0].data.forEach(function(m){ defs[m.id] = m; }); CH.defs = defs;
   var done = r[2].data.map(function(a){ return { mid:a.mission_id, who:a.sender, team:a.team, pts:a.pts, at:Date.parse(a.received_at), taken:a.taken_at ? Date.parse(a.taken_at) : null, img:SB.storage.from("proof").getPublicUrl(a.photo_path).data.publicUrl }; });
-  var doneIds = done.map(function(d){ return d.mid; });
-  var open = r[1].data.filter(function(o){ return doneIds.indexOf(o.mission_id) < 0 && defs[o.mission_id]; })
+  /* a mission stays open until all its spots are taken */
+  var winCount = {}; done.forEach(function(d){ winCount[d.mid] = (winCount[d.mid] || 0) + 1; });
+  var open = r[1].data.filter(function(o){ return defs[o.mission_id] && (winCount[o.mission_id] || 0) < chalSlots(defs[o.mission_id]); })
     .map(function(o){ return { id:o.mission_id, at:Date.parse(o.opened_at) }; })
     .sort(function(a, b){ return defs[a.id].ord - defs[b.id].ord; });
   var subs = [];
@@ -8657,8 +8688,8 @@ async function chalRefresh(){
   } else r[3].data.forEach(function(pm){ for (var i = 0; i < pm.n; i++) subs.push({ id:"p" + pm.mission_id + i, mid:pm.mission_id }); });
   CH.st = { opens:open.filter(function(o){ return !defs[o.id].special; }), specials:open.filter(function(o){ return defs[o.id].special; }), done:done, subs:subs };
   /* someone else's mission got approved since the last look: the winners cheer in the office */
-  var keys = done.map(function(d){ return d.mid; });
-  if (CH.seen) done.filter(function(d){ return CH.seen.indexOf(d.mid) < 0; }).forEach(function(d){ chalCelebrate(d.team || [d.who], { pts:d.pts }); });
+  var keys = done.map(function(d){ return d.mid + "|" + d.at; });
+  if (CH.seen) done.filter(function(d){ return CH.seen.indexOf(d.mid + "|" + d.at) < 0; }).forEach(function(d){ chalCelebrate(d.team || [d.who], { pts:d.pts }); });
   CH.seen = keys;
 }
 var chalSyncing = false;
