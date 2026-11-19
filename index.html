@@ -493,6 +493,9 @@ function R(){ return SIM.on ? SIM.rng() : Math.random(); }
 var NAPS = new Float64Array(64), STEPS = new Float64Array(64);
 
 /* ---------- team ---------- */
+/* the people who work in Plytix: every Plytix question goes to them, the others never talk shop about it */
+var PLYTIX_TEAM = { luis:1, debbie:1, stephanie:1 };
+var PLYTIX_WHO = ["luis", "debbie", "stephanie"];
 var PEOPLE = [
   { id:"erica", model:"erica", name:"Erica", role:"Manager, Marketing", side:1, z:-1.05, personality:"One of the bosses. Always heading to the next meeting.", topics:"Meetings, calendars and the next call", shirt:"#4a4d52", dot:"#3d6fb0", pants:"#1d1f24", skin:"#efcfbd", hair:"#6b4630", highlight:"#6b4630", style:"softwave", part:0, eyeColor:"#4a2c1c", vneck:true, alwaysSmile:true, sleeves:true, screen:"cal",
     blurb:"Her calendar has no empty squares. If her chair is empty, check the Meeting Room.",
@@ -1767,7 +1770,7 @@ function activityScreen(pool, seed, baseImg, ownerId){
     else if (SCREEN_FORCE === "all") { var dk = Object.keys(DRAW); L.mode = dk[Math.floor(t / 1.5) % dk.length]; }
     /* a broken drawing never takes the office down: fall back to the inbox */
     var inTeam = ownerId === "_team";
-    try { (DRAW[inTeam ? "team" : typeof PLYTIX !== "undefined" && PLYTIX.on && ownerId && ownerId !== "erica" && ownerId !== "allyson" ? "down" : L.mode] || DRAW.mail)(L.g, t); } catch (e) { console.warn("screen " + L.mode, e); L.mode = "mail"; }
+    try { (DRAW[inTeam ? "team" : typeof PLYTIX !== "undefined" && PLYTIX.on && ownerId && PLYTIX_TEAM[ownerId] ? "down" : L.mode] || DRAW.mail)(L.g, t); } catch (e) { console.warn("screen " + L.mode, e); L.mode = "mail"; }
     L.tex.needsUpdate = true;
   };
   L.tick(0, 0);
@@ -5410,21 +5413,21 @@ var TEAM_TOPICS = [
   { own:"carla", mode:"tell", L:["Show badges are ready to pick up.", "Already? You're amazing.", "On it, as always."] },
   /* shared systems: "who" lists everyone who talks about it, any two of them can bring it up */
   /* Plytix: where every product starts, it touches the whole team */
-  { who:"all", L:["Is the new product in Plytix yet?", "Added it this morning.", "Perfect, I'll check the images."] },
-  { who:"all", L:["Plytix has the new picture but the page still shows the old one.", "Did the sync run last night?", "I'll check first thing tomorrow."] },
-  { who:"all", L:["Who changed the titles in Plytix?", "Guilty. It's the new naming format.", "Looks much cleaner."] },
-  { who:"all", L:["The Plytix import worked overnight!", "Finally. Everything showing?", "Almost everything."] },
-  { who:"all", L:["Can you fill the Web Listing number in Plytix?", "The one that sets the order on the page?", "That one. Empty ones jump to the front."] },
-  { who:"all", L:["Plytix again?", "Plytix always.", "It's basically our second office."] },
-  { who:"all", L:["Which image slots go on the website?", "Only the Web Img ones.", "Good, I was looking at the wrong gallery."] },
-  { who:"all", L:["Did you fix the specs in Plytix or on the site?", "Plytix. Always Plytix first.", "Got it, everything else follows."] },
-  { who:"all", L:["How many products are still missing in Plytix?", "Fewer every week.", "We're getting there."] },
-  { who:"all", L:["The French text is in Plytix now.", "With the accents?", "With the accents."] },
+  { who:PLYTIX_WHO, L:["Is the new product in Plytix yet?", "Added it this morning.", "Perfect, I'll check the images."] },
+  { who:PLYTIX_WHO, L:["Plytix has the new picture but the page still shows the old one.", "Did the sync run last night?", "I'll check first thing tomorrow."] },
+  { who:PLYTIX_WHO, L:["Who changed the titles in Plytix?", "Guilty. It's the new naming format.", "Looks much cleaner."] },
+  { who:PLYTIX_WHO, L:["The Plytix import worked overnight!", "Finally. Everything showing?", "Almost everything."] },
+  { who:PLYTIX_WHO, L:["Can you fill the Web Listing number in Plytix?", "The one that sets the order on the page?", "That one. Empty ones jump to the front."] },
+  { who:PLYTIX_WHO, L:["Plytix again?", "Plytix always.", "It's basically our second office."] },
+  { who:PLYTIX_WHO, L:["Which image slots go on the website?", "Only the Web Img ones.", "Good, I was looking at the wrong gallery."] },
+  { who:PLYTIX_WHO, L:["Did you fix the specs in Plytix or on the site?", "Plytix. Always Plytix first.", "Got it, everything else follows."] },
+  { who:PLYTIX_WHO, L:["How many products are still missing in Plytix?", "Fewer every week.", "We're getting there."] },
+  { who:PLYTIX_WHO, L:["The French text is in Plytix now.", "With the accents?", "With the accents."] },
   /* CommerceTools: the bridge between Plytix and the websites */
-  { who:["luis", "stephanie", "debbie", "olivia"], L:["The product came back from the sync disabled.", "Classic CommerceTools. Enable it and check the category.", "Doing it now."] },
-  { who:["luis", "stephanie", "debbie", "olivia"], L:["Is it live in CommerceTools?", "Published, and I cleared the cache.", "Then it should be on the page."] },
-  { who:["luis", "stephanie", "debbie", "olivia"], L:["CommerceTools kept the old picture.", "Delete it there, the new one comes from Plytix.", "On it."] },
-  { who:["luis", "stephanie", "debbie", "olivia"], L:["Why isn't that product on the listing page?", "It lost its category in CommerceTools.", "Of course it did."] },
+  { who:PLYTIX_WHO, L:["The product came back from the sync disabled.", "Classic CommerceTools. Enable it and check the category.", "Doing it now."] },
+  { who:PLYTIX_WHO, L:["Is it live in CommerceTools?", "Published, and I cleared the cache.", "Then it should be on the page."] },
+  { who:PLYTIX_WHO, L:["CommerceTools kept the old picture.", "Delete it there, the new one comes from Plytix.", "On it."] },
+  { who:PLYTIX_WHO, L:["Why isn't that product on the listing page?", "It lost its category in CommerceTools.", "Of course it did."] },
   /* the websites */
   { who:"all", L:["Is the French page live too?", "All three: US, Canada and French.", "Love it."] },
   { who:"all", L:["Can you send me the link to the new page?", "Sending it on Teams.", "Thanks!"] },
@@ -5444,10 +5447,10 @@ var TEAM_TOPICS = [
   { who:"all", L:["Did you get the Asana notification?", "I get about fifty a day lol", "Fair. It's the one about the launch."] },
   { who:"all", L:["Can you add me as a follower on that Asana task?", "Done.", "Thanks, now I won't lose track."] },
   /* more Plytix */
-  { who:"all", L:["Plytix is so slow this morning.", "Everyone's uploading at the same time.", "I'll try after lunch."] },
-  { who:"all", L:["How do you bulk edit in Plytix again?", "Select them all, then Edit attributes.", "Oh, that's much faster."] },
-  { who:"all", L:["The Plytix export is ready.", "Can you send me the file?", "Sending it now."] },
-  { who:"all", L:["I just uploaded forty images to Plytix.", "Did you name them right?", "Of course. Hero and card."] },
+  { who:PLYTIX_WHO, L:["Plytix is so slow this morning.", "Everyone's uploading at the same time.", "I'll try after lunch."] },
+  { who:PLYTIX_WHO, L:["How do you bulk edit in Plytix again?", "Select them all, then Edit attributes.", "Oh, that's much faster."] },
+  { who:PLYTIX_WHO, L:["The Plytix export is ready.", "Can you send me the file?", "Sending it now."] },
+  { who:PLYTIX_WHO, L:["I just uploaded forty images to Plytix.", "Did you name them right?", "Of course. Hero and card."] },
   /* Outlook */
   { who:"all", L:["My inbox is out of control today.", "Mine too. Over a hundred unread.", "Let's just mark all as read lol"] },
   { who:"all", L:["Did you get my email?", "Checking now. Outlook was being weird.", "It's in your inbox, I promise."] },
@@ -5630,7 +5633,7 @@ function chatter(a, b, t, casualOnly){
   /* what they were on yesterday */
   if (b.yday && !b.remote) add(1.2, "yd" + b.id + dayKey(), ["Did you finish " + lc(b.yday) + " yesterday?", choose(["Yes! Finally.", "Almost lol. Today for sure.", "Don't ask.", "Mostly. Small fixes left."])]);
   if (DAY.eom) add(1.4, "eom" + a.id, choose([["Month end. Send help.", "Reports due again?", "Every. Single. Month."], ["How's month end treating you?", "Ask me on Monday lol", "That bad, huh."]]));
-  if (PLYTIX.lastAt && WT() - PLYTIX.lastAt < 1800) add(2, "pd" + a.id, ["That Plytix outage though.", "I lost twenty minutes lol", "At least it came back."]);
+  if (PLYTIX.lastAt && WT() - PLYTIX.lastAt < 1800 && PLYTIX_TEAM[a.id] && PLYTIX_TEAM[b.id]) add(2, "pd" + a.id, ["That Plytix outage though.", "I lost twenty minutes lol", "At least it came back."]);
   if (TREATS.on && b.hadTreat) add(1.6, "tr" + a.id + b.id, ["Did you try the cookies?", "Two of them. Don't judge.", "No judgement here lol"]);
   var SWX = simWx(WT()), wk = SWX.kind, tc = SWX.temp;
   /* small talk about what is really going on outside (Open-Meteo, Cambridge ON) */
@@ -6484,17 +6487,17 @@ function simLifeWorld(t, dt, dk){
   if (!PLYTIX.next) PLYTIX.next = t + (Q_PLYTIX ? 6 : rand(1500, 5400));
   if (!PLYTIX.on && t > PLYTIX.next && present.length >= 3 && !DAY.closed && !teamCallNow() && DAY.h > 8.5 && DAY.h < 16.5) {
     PLYTIX.on = true; PLYTIX.until = t + rand(60, 120); PLYTIX.next = t + rand(7200, 14400);
-    var who = shuffle(present.filter(function(q){ return !q.walker && !q.act && !q.chatWith; }));
+    var who = shuffle(present.filter(function(q){ return PLYTIX_TEAM[q.id] && !q.walker && !q.act && !q.chatWith; }));
     if (who[0]) { sayLater(who[0], choose(["Is Plytix down for you too?", "Uh, is Plytix loading for anyone?", "Plytix just died on me. Anyone else?"]), t + 2, 3); startAct(who[0], "facepalm", t + 1, 3); }
     if (who[1]) sayLater(who[1], choose(["Yep, down for me too.", "Same here lol", "Not again..."]), t + 5.5, 2.6);
     if (who[2]) { sayLater(who[2], choose(["Mine too. Coffee break?", "Down. Great timing.", "I was SO close to finishing."]), t + 8.5, 2.6); startAct(who[2], "facepalm", t + 8, 2.5); }
     present.forEach(function(q){ q.typeOn = false; q.mouseOn = false; });
   }
   if (PLYTIX.on) {
-    present.forEach(function(q){ if (q.id !== "erica" && q.id !== "allyson") { q.typeOn = false; q.typeNext = t + 2; } });
+    present.forEach(function(q){ if (PLYTIX_TEAM[q.id]) { q.typeOn = false; q.typeNext = t + 2; } });
     if (t > PLYTIX.until) {
       PLYTIX.on = false; PLYTIX.lastAt = t;
-      var bk = present.filter(function(q){ return !q.chatWith; });
+      var bk = present.filter(function(q){ return PLYTIX_TEAM[q.id] && !q.chatWith; });
       if (bk[0]) { sayLater(bk[0], choose(["It's back!!", "Plytix is back, everyone!", "Okay we're back. Phew."]), t + 0.5, 2.6); startAct(bk[0], "fist", t + 0.4, 2); }
       if (bk[1] && R() < 0.7) sayLater(bk[1], choose(["Finally!", "Woohoo!", "Back to it."]), t + 3.2, 2.2);
     }
@@ -6765,7 +6768,7 @@ function simAgent(p, t, dt){
       if (!p.typeOn && !p.act && !p.chatWith && t > (p.typeNext || 0) && !ln && !teamCallNow()) p.typeOn = true;
       if (!p.typeOn && t > (p.typeNext || 0)) p.typeNext = t + rand(1, 4);
       simNap(p, t, dt);
-      p.statusNow = p.chatWith ? "Chatting with " + p.chatWith.name : p.act && p.act.n === "vcall" ? "In the Friday team call" : ln === "desk" ? (p.act && p.act.n === "eat" ? "Lunch at the desk" : "Lunch at the desk, scrolling the phone") : PLYTIX.on ? "Waiting for Plytix to come back" : p.lateToday && DAY.h >= 16.9 ? "Finishing one last thing" : p.walker ? p.walker.text.sit : p.status;
+      p.statusNow = p.chatWith ? "Chatting with " + p.chatWith.name : p.act && p.act.n === "vcall" ? "In the Friday team call" : ln === "desk" ? (p.act && p.act.n === "eat" ? "Lunch at the desk" : "Lunch at the desk, scrolling the phone") : PLYTIX.on && PLYTIX_TEAM[p.id] ? "Waiting for Plytix to come back" : p.lateToday && DAY.h >= 16.9 ? "Finishing one last thing" : p.walker ? p.walker.text.sit : p.status;
       return;
     }
     st = p.state; tr = p.trip;
@@ -7495,8 +7498,12 @@ function converseCore(p, raw){
   var last = p.mem[p.mem.length - 1];
   var name = p.name, P = prof.pron;
   /* the systems we all live in */
+  if (/ plytix /.test(s) && !PLYTIX_TEAM[p.id]) return { text:fresh(p, [
+    "Plytix is Luis, Debbie and Stephanie. Ask any of them, they know it inside out.",
+    "Not my area! For Plytix, go to Luis, Debbie or Stephanie.",
+    "Ha, I don't touch Plytix. Luis, Debbie or Stephanie can help you."]), intent:"topic", reason:"Plytix is Luis, Debbie and Stephanie's" };
   if (/ plytix /.test(s)) return { text:fresh(p, [
-    p.id === "olivia" ? "Plytix is where my web images go. If it's not in the Web Img slots, it won't show on the site." : p.id === "luis" ? "Plytix is where every product starts: titles, specs, images. It syncs to CommerceTools and from there to the three websites." : "Plytix is where all our product info lives. Titles, specs, images, all of it starts there.",
+    p.id === "luis" ? "Plytix is where every product starts: titles, specs, images. It syncs to CommerceTools and from there to the three websites." : "Plytix is where all our product info lives. Titles, specs, images, all of it starts there.",
     "Plytix? We all live in it. Fix it there first, then the websites follow.",
     "Honestly, half my day is Plytix. If a product looks wrong on the site, the answer is usually in Plytix."]), intent:"topic", reason:"it is where everything starts" };
   if (/ (commercetools|commerce tools|commercetool) /.test(s)) return { text:fresh(p, [
