@@ -6634,7 +6634,8 @@ function gameTick(t, dk){
     while (GAME.k < GAME.slots.length && t > GAME.slots[GAME.k].at + 1200) GAME.k++;
     var sl = GAME.slots[GAME.k];
     if (!sl || t < sl.at || DAY.closed) return;
-    if (teamCallNow() || CARRY.cur) return;
+    /* a box waiting on the floor does not stop it (the box waits for them); a box being carried does */
+    if (teamCallNow() || (CARRY.cur && CARRY.cur.ph !== "wait")) return;
     var team = PEOPLE.filter(function(q){ return gameFree(q, t); });
     if (team.length < 3) return;
     GAME.k++;
