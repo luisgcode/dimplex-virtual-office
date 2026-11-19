@@ -794,6 +794,7 @@ var WX_FIRST = wxFetch(); setInterval(wxFetch, 15 * 60 * 1000);
    by the GitHub Action in tools/world-news.mjs into world-news.json. Each story has up to 3 chats: the first
    mention opens at the story's hour, the next ones about 45 and 100 minutes later, each told once */
 var WNEWS = null, WNEWS_USED = {}, WNEWS_AT = [9.1, 9.6, 10.1, 10.6, 11.1, 11.6, 13.2, 13.7, 14.2, 14.7], WNEWS_LATER = [0, 0.75, 1.7];
+var WNEWS_TELLERS = ["carla", "erica", "olivia", "stephanie", "debbie"];
 function wnewsToday(){
   if (!WNEWS || !SIM.day) return null;
   var d = SIM.day, k = d.y + "-" + ("0" + d.mo).slice(-2) + "-" + ("0" + d.d).slice(-2);
@@ -5595,13 +5596,17 @@ function chatter(a, b, t, casualOnly){
   });
   /* the news of the day: each chat of a story opens at its hour, after the one before it, and is told once */
   var WNI = wnewsToday();
-  /* Luis and Allyson never bring the news up: others can tell them, they never start it */
-  if (WNI && !a.guest && !b.guest && a.id !== "luis" && a.id !== "allyson") WNI.forEach(function(it, i){
+  /* who brings the news up, in equal turns: Carla, Erica, Olivia, Stephanie and Debbie. Each chat has its teller
+     (WNEWS_TELLERS); if that one has not told it 40 minutes after it opened, any of the five can. Luis and Allyson
+     never start it, others tell them */
+  var tellerOk = WNEWS_TELLERS.indexOf(a.id) >= 0;
+  if (WNI && !a.guest && !b.guest && tellerOk) WNI.forEach(function(it, i){
     for (var j = 0; j < it.chats.length && j < WNEWS_LATER.length; j++) {
       var wk = i + "_" + j;
       if (WNEWS_USED[wk]) continue;
       var wl = it.chats[j].slice(0, 3);
-      if (t >= (WNEWS_AT[i] + WNEWS_LATER[j]) * 3600 && t < 16.6 * 3600 && (chatter.room || 0) >= wl.length) C.push({ w:3.5, key:"wn" + wk, lines:wl, wn:wk });
+      var open = (WNEWS_AT[i] + WNEWS_LATER[j]) * 3600, mine = WNEWS_TELLERS[(i + j * 2) % WNEWS_TELLERS.length] === a.id;
+      if (t >= open && t < 16.6 * 3600 && (mine || t >= open + 2400) && (chatter.room || 0) >= wl.length) C.push({ w:3.5, key:"wn" + wk, lines:wl, wn:wk });
       break;
     }
   });
