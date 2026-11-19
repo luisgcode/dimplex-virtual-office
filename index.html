@@ -8476,7 +8476,7 @@ function chalRender(){
   Object.keys(ptsSeen).map(Number).sort(function(x, y){ return x - y; }).forEach(function(v){ groups.push([v === 1 ? "1 point" : v + " points", function(m){ return !m.special && m.pts === v; }]); });
   var left = chalDaysLeft(), cd = el("p", "countdown");
   cd.appendChild(el("b", "", left > 1 ? left + " days left" : left === 1 ? "Last day!" : "The tournament is over"));
-  cd.appendChild(document.createTextNode(" · The mission tournament ends on December 31, 2026. Whoever has the most points that day wins."));
+  cd.appendChild(document.createTextNode(" · The mission tournament ends at midnight on December 31, 2026, so photos sent on the 31st still count. Whoever has the most points then wins."));
   B.appendChild(cd);
   B.appendChild(el("p", "note", "Pick any mission you like. Each one has 2 spots: the first 2 approved photos from 2 different people win it."));
   var sc6 = chalScores();
