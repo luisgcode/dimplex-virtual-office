@@ -8969,7 +8969,11 @@ function normalizeRig(sc){
 ["idle", "walk", "agree"].forEach(function(n){ var c = CLIPS[n].clone(); c.tracks = c.tracks.filter(function(tk){ return !/\.position$/.test(tk.name); }); CLIPS_R[n] = c; });
 T.AnimationUtils.makeClipAdditive(CLIPS.agree);
 T.AnimationUtils.makeClipAdditive(CLIPS_R.agree);
-await Promise.all(Object.keys(REAL_MODELS).map(function(k){
+/* phones: the visitors' models (Nolan, Elena, Tessa, Grant, Hana) load after the office is on screen, about a third of
+   the download; until a visitor's model is in, that visitor keeps the simple look, and swaps once they are out */
+var LATER_MODELS = LOWMEM ? PEOPLE.filter(function(g){ return g.guest && g.model && REAL_MODELS[g.model]; }).map(function(g){ return g.model; })
+  .filter(function(k){ return !Object.keys(REAL_MODELS).some(function(o){ var c = REAL_MODELS[o]; return (c.shoesFrom && c.shoesFrom.model === k) || (c.pantsFrom && c.pantsFrom.model === k); }); }) : [];
+function loadReal(k){
   return new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(LOWMEM ? REAL_MODELS[k].url.replace(/^models\//, "models/lite/") : REAL_MODELS[k].url).then(function(g){
     normalizeRig(g.scene);
     /* match the Xbot by skeleton height: head top over the hips line, measured on both rigs */
@@ -8983,8 +8987,9 @@ await Promise.all(Object.keys(REAL_MODELS).map(function(k){
     if (LOWMEM) shrinkTextures(g.scene, 512);
     g.scene.traverse(function(o){ if (o.isMesh && o.material) { o.material.envMapIntensity = 0.6; } });
   }).catch(function(e){ console.warn("model " + k, e); window.__modelErr = (window.__modelErr || "") + k + ": " + (e && e.message) + "; "; /* if the model fails, that person keeps the current look */ });
-}));
-PEOPLE.forEach(function(p){ if (p.model && !REAL[p.model]) p.model = null; });
+}
+await Promise.all(Object.keys(REAL_MODELS).filter(function(k){ return LATER_MODELS.indexOf(k) < 0; }).map(loadReal));
+PEOPLE.forEach(function(p){ if (p.model && !REAL[p.model]) { if (LATER_MODELS.indexOf(p.model) >= 0) p.modelLater = p.model; p.model = null; } });
 /* swap shoes between characters: e.g. flat sneakers instead of heels. Every vertex keeps its offset from the foot bone it
    follows (all rigs share the Xbot bone frames after normalizeRig), scaled by foot length, then binds to the new skeleton */
 Object.keys(REAL_MODELS).forEach(function(k){
@@ -9707,6 +9712,29 @@ try { await Promise.race([Promise.all([WX_FIRST, WNEWS_FIRST]), new Promise(func
 })();
 requestAnimationFrame(frame);
 })();
+/* the visitors' models, one after another, once the office is showing (phones only) */
+function guestLook(g){
+  if (g.state !== "gone") { setTimeout(function(){ guestLook(g); }, 5000); return; }
+  var keep = { seat:g.seat.clone(), side:g.side, sitHeading:g.sitHeading };
+  if (g.root && g.root.parent) g.root.parent.remove(g.root);
+  var pi = g.rig ? pickables.indexOf(g.rig.proxy) : -1; if (pi >= 0) pickables.splice(pi, 1);
+  g.model = g.modelLater; g.modelLater = null;
+  makeRig(g);
+  g.seat = keep.seat; g.side = keep.side; g.sitHeading = keep.sitHeading; g.heading = g.sitHeading;
+  g.root.position.copy(EXIT_SPOT); g.root.visible = false; g.rig.sit = 0;
+}
+if (LATER_MODELS.length) setTimeout(function later(){
+  var k = LATER_MODELS.shift(); if (!k) return;
+  loadReal(k).then(function(){
+    if (REAL[k]) {
+      var cfg = REAL_MODELS[k], ss = cfg.shoesFrom && REAL[cfg.shoesFrom.model], ps = cfg.pantsFrom && REAL[cfg.pantsFrom.model];
+      if (ss) { try { swapShoes(REAL[k].scene, ss.scene, cfg.shoesFrom); } catch (e) { console.warn("shoes", e); } }
+      if (ps) { try { swapPants(REAL[k].scene, ps.scene, cfg.pantsFrom); } catch (e) { console.warn("pants", e); } }
+      PEOPLE.forEach(function(g){ if (g.modelLater === k) guestLook(g); });
+    }
+    setTimeout(later, 400);
+  });
+}, 2500);
 
 </script>
 </body>
