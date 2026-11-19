@@ -6434,7 +6434,7 @@ function carrySlots(dk){
   CARRY.day = dk; CARRY.slots = []; CARRY.k = 0;
   for (var k = 0; k < 10 && CARRY_LIVE; k++) { var r = wrng("carry", dk * 16 + k); CARRY.slots.push((8.75 + k * 0.78 + r() * 0.2) * 3600); }
   /* ?carry=1: one right away, to look at it (this screen only) */
-  if (/[?&]carry=1/.test(location.search || "")) CARRY.slots.unshift(Math.max(8 * 3600, Math.floor(WT()) + 15));
+  if (/[?&]carry=1/.test(location.search || "")) { var tz = torontoAt(WORLD_NOW()); CARRY.slots.unshift(tz.h * 3600 + tz.mi * 60 + tz.s + 25); }
 }
 function carryTick(t, dk){
   carrySlots(dk);
@@ -6486,6 +6486,7 @@ function carryTick(t, dk){
   }
   if (C.ph === "carry" && t > C.ts + C.w.D + 1) CARRY.cur = null;
 }
+window.__carry = function(){ var C = CARRY.cur; return { slots:CARRY.slots.map(function(x){ return fmtH(x / 3600); }), k:CARRY.k, ph:C && C.ph, team:C ? C.team.map(function(q){ return q.id + ":" + q.state; }) : [] }; };
 /* the next world second the carry needs the director */
 function carryDue(T, next){
   if (CARRY.day !== dayKey()) return next;
