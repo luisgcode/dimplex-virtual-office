@@ -120,6 +120,8 @@ h1 em{font-style:normal;color:var(--accent)}
 .chal select,.chal input[type=password],.chal input[type=text]{font:500 14px/1.2 var(--f-body);padding:9px 10px;border-radius:9px;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
 .chal .prev{width:100%;max-height:220px;object-fit:contain;border-radius:10px;background:var(--line)}
 .chal .note{margin:0;font-size:12px;color:var(--muted)}
+.chal .countdown{margin:0 0 6px;padding:8px 12px;border-radius:10px;border:1px solid var(--line);font-size:12px;line-height:1.4}
+.chal .countdown b{font:700 15px/1.2 var(--f-body);color:#c8102e}
 .chal .warn{margin:0;font-size:12px;color:#b4500f;font-weight:600}
 .chal .row{display:flex;gap:8px;flex-wrap:wrap}
 .chal table{width:100%;border-collapse:collapse;font-size:14px}
@@ -8367,8 +8369,15 @@ function chalUpdateLeaders(){
   ALL.forEach(function(q){ if (q.tag) q.tag.classList.toggle("lead", CH.leaders.indexOf(q.id) >= 0); });
 }
 function chalNames(d){ return (d.team || [d.who]).map(function(id){ return BY[id] ? BY[id].name : id; }).join(", "); }
-/* every mission can be won by up to 3 different people; whoever already has points in it can't win it again */
-var CHAL_SLOTS = 3;
+/* the tournament ends on Dec 31, 2026 (office time): days left counting today, 0 once it is over */
+var CHAL_END = Date.UTC(2026, 11, 31);
+function chalDaysLeft(){ var tz = torontoAt(Date.now()); return Math.max(0, Math.round((CHAL_END - Date.UTC(tz.y, tz.mo - 1, tz.d)) / 86400000) + 1); }
+/* lead limit: nobody can be more than 25 points ahead of 6th place; over it, no new photos until 6th place catches up */
+var CHAL_LEAD = 25;
+function chalLeadCap(){ var sc = chalScores(); return sc.length >= 6 ? sc[5].n + CHAL_LEAD : Infinity; }
+function chalOverLimit(id){ var cap = chalLeadCap(), r = chalScores().filter(function(x){ return x.p.id === id; })[0]; return !!r && r.n > cap; }
+/* every mission can be won by up to 2 different people; whoever already has points in it can't win it again */
+var CHAL_SLOTS = 2;
 function chalSlots(m){ return (m && m.slots) || CHAL_SLOTS; }
 function chalWins(mid){ return CH.st.done.filter(function(d){ return d.mid === mid; }); }
 function chalWinners(mid){ var w = []; chalWins(mid).forEach(function(d){ (d.team && d.team.length ? d.team : [d.who]).forEach(function(id){ if (w.indexOf(id) < 0) w.push(id); }); }); return w; }
@@ -8465,7 +8474,13 @@ function chalRender(){
   var ptsSeen = {};
   all.forEach(function(x){ if (!x.m.special) ptsSeen[x.m.pts] = 1; });
   Object.keys(ptsSeen).map(Number).sort(function(x, y){ return x - y; }).forEach(function(v){ groups.push([v === 1 ? "1 point" : v + " points", function(m){ return !m.special && m.pts === v; }]); });
-  B.appendChild(el("p", "note", "Pick any mission you like. Each one has 3 spots: the first 3 approved photos from 3 different people win it."));
+  var left = chalDaysLeft(), cd = el("p", "countdown");
+  cd.appendChild(el("b", "", left > 1 ? left + " days left" : left === 1 ? "Last day!" : "The tournament is over"));
+  cd.appendChild(document.createTextNode(" · The mission tournament ends on December 31, 2026. Whoever has the most points that day wins."));
+  B.appendChild(cd);
+  B.appendChild(el("p", "note", "Pick any mission you like. Each one has 2 spots: the first 2 approved photos from 2 different people win it."));
+  var sc6 = chalScores();
+  if (sc6.length >= 6) B.appendChild(el("p", "note lead-limit", "Lead limit: nobody can be more than " + CHAL_LEAD + " points ahead of 6th place (now " + ptsTxt(sc6[5].n) + "). Over it, you can't send photos until 6th place catches up, so get the others to play."));
   groups.forEach(function(gp){
     var L = all.filter(function(x){ return gp[1](x.m); }).sort(function(a, b){ return (a.m.ord || 0) - (b.m.ord || 0); });
     if (!L.length) return;
@@ -8490,12 +8505,13 @@ function chalRender(){
   var how = el("ol", "how");
   ["Pick any mission from the list, do it and take a photo of it.",
    "Tap Send your photo, choose your name and add the photo.",
-   "The office records the exact time your photo arrives. Every mission has 3 spots: the first 3 approved photos win it, each from a different person.",
+   "The office records the exact time your photo arrives. Every mission has 2 spots: the first 2 approved photos win it, each from a different person.",
    "Once you have points in a mission, your name is blocked for it, so someone else gets the next spot.",
+   "Lead limit: nobody can be more than 25 points ahead of 6th place. If you go over it, your name is blocked until 6th place catches up. Photos already sent can still be approved.",
    "Everyone who appears in the winning photo gets the points, not only the person who sent it.",
    "Photos stay private until they are approved. Then they show up under Achieved as the proof.",
    "You can do as many missions as you like, no need to wait for the check on the last one.",
-   "A mission with a photo waiting still takes more photos: if one is rejected, the next in line can win. Once all 3 spots are taken the mission closes.",
+   "A mission with a photo waiting still takes more photos: if one is rejected, the next in line can win. Once both spots are taken the mission closes.",
    "Keep screens, documents and anyone who did not agree to be in it out of the picture."].forEach(function(t){ how.appendChild(el("li", "", t)); });
   B.appendChild(how);
 }
@@ -8543,7 +8559,8 @@ function chalSendForm(B, mid){
   var o0 = el("option", "", "Choose your name"); o0.value = ""; sel.appendChild(o0);
   var won = chalWinners(mid);
   chalPlayers().filter(function(q){ return !(m.exclude && m.exclude.indexOf(q.id) >= 0); }).forEach(function(q){
-    var has = won.indexOf(q.id) >= 0, o = el("option", "", q.name + (has ? " · already has points here" : "")); o.value = q.id; o.disabled = has; sel.appendChild(o);
+    var has = won.indexOf(q.id) >= 0, over = !has && chalOverLimit(q.id);
+    var o = el("option", "", q.name + (has ? " · already has points here" : over ? " · over the lead limit" : "")); o.value = q.id; o.disabled = has || over; sel.appendChild(o);
   });
   l1.appendChild(sel); f.appendChild(l1);
   var l3 = el("label", "", "Photo"), fi = el("input"); fi.type = "file"; fi.accept = "image/*"; fi.required = true; l3.appendChild(fi); f.appendChild(l3);
@@ -8660,7 +8677,7 @@ CH.live = !!SB; CH.defs = {}; CH.admin = false; CH.seen = null;
 if (CH.live) { document.getElementById("chalDemo").hidden = true; CH.st = null; chalLoad(); }
 else if (/[?&]demo=1/.test(location.search || "") === false) { document.getElementById("chalDemo").textContent = "Offline"; }
 function liveFail(e){ var m = (e && (e.message || e.error_description)) || String(e);
-  return new Error({ wrong_code:"That code is not right.", locked:"Too many wrong codes for this name. Try again in an hour.", mission_closed:"This mission is closed. Check the open ones.", excluded:"You are the one in this mission, so you can't win it.", already_won:"You already have points in this mission. Leave the spot for someone else.", already_sent:"You already sent a photo for this mission. Wait for the review.", not_admin:"This account can't review photos." }[m] || m); }
+  return new Error({ wrong_code:"That code is not right.", locked:"Too many wrong codes for this name. Try again in an hour.", mission_closed:"This mission is closed. Check the open ones.", excluded:"You are the one in this mission, so you can't win it.", already_won:"You already have points in this mission. Leave the spot for someone else.", already_sent:"You already sent a photo for this mission. Wait for the review.", tournament_over:"The mission tournament ended on December 31, 2026. Thanks for playing!", lead_limit:"You're more than 25 points ahead of 6th place. Get the others to play, and you can send photos again once 6th place catches up.", not_admin:"This account can't review photos." }[m] || m); }
 function dataToBlob(d){ var b = atob(d.split(",")[1]), a = new Uint8Array(b.length); for (var i = 0; i < b.length; i++) a[i] = b.charCodeAt(i); return new Blob([a], { type:"image/jpeg" }); }
 function uid(){ return (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + R().toString(36).slice(2)); }
 async function chalRefresh(){
