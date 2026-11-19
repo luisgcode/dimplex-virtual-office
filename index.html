@@ -809,6 +809,14 @@ function wnewsPending(t){
     return false;
   });
 }
+/* does p have a news chat to tell right now (its turn)? Then p feels like talking to someone */
+function wnewsMine(p, t){
+  var W = wnewsToday(); if (!W || t >= 16.6 * 3600 || WNEWS_TELLERS.indexOf(p.id) < 0) return false;
+  return W.some(function(it, i){
+    for (var j = 0; j < it.chats.length && j < WNEWS_LATER.length; j++) if (!WNEWS_USED[i + "_" + j]) return t >= (WNEWS_AT[i] + WNEWS_LATER[j]) * 3600 && WNEWS_TELLERS[(i + j * 2) % WNEWS_TELLERS.length] === p.id;
+    return false;
+  });
+}
 var WNEWS_FIRST = fetch("world-news.json?d=" + Math.floor(Date.now() / 3600000), { cache:"no-store" })
   .then(function(r){ return r.ok ? r.json() : null; })
   .then(function(j){
@@ -5918,8 +5926,9 @@ function decide(p, t){
     if (q.id === "luis" && p.walker) sc *= 0.12; /* the managers talk to Luis on Teams, they almost never walk over */
     if (sc > bs) { bs = sc; best = q; }
   }
-  if (best && !withdrawn) opts.push({ k:"visit", s:bs * 0.45, q:best });
-  if (nbs.length && !withdrawn) { var tq = pickByAff(p, nbs); opts.push({ k:"talk", s:n.social * w.shop * 1.1 * sociable * (0.7 + 0.3 * aff(p, tq)) + rand(0, 0.3), q:tq }); }
+  var newsy = !withdrawn && wnewsMine(p, t) ? 0.7 : 0;
+  if (best && !withdrawn) opts.push({ k:"visit", s:bs * 0.45 + newsy * 0.5, q:best });
+  if (nbs.length && !withdrawn) { var tq = pickByAff(p, nbs); opts.push({ k:"talk", s:n.social * w.shop * 1.1 * sociable * (0.7 + 0.3 * aff(p, tq)) + rand(0, 0.3) + newsy, q:tq }); }
   /* Carla checks on anyone who seems down */
   /* Carla checks on someone who seems down, but rarely and never the same person twice within the hour */
   if (p.id === "carla" && R() < 0.25) PEOPLE.forEach(function(q){
