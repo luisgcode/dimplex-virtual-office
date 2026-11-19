@@ -8445,7 +8445,11 @@ function chalRender(){
     rv.addEventListener("click", function(){ CH.view = { kind:"review" }; chalRender(); }); B.appendChild(rv);
   }
   var all = chalOpen().map(function(o){ return { o:o, m:chalDef(o.id) }; }).filter(function(x){ return x.m; });
-  var groups = [["Special", function(m){ return m.special; }], ["1 point", function(m){ return !m.special && m.pts === 1; }], ["2 points", function(m){ return !m.special && m.pts === 2; }], ["3 points", function(m){ return !m.special && m.pts === 3; }]];
+  /* one group per points value that exists (1, 2, 3, 4...), so a mission is never left out */
+  var groups = [["Special", function(m){ return m.special; }]];
+  var ptsSeen = {};
+  all.forEach(function(x){ if (!x.m.special) ptsSeen[x.m.pts] = 1; });
+  Object.keys(ptsSeen).map(Number).sort(function(x, y){ return x - y; }).forEach(function(v){ groups.push([v === 1 ? "1 point" : v + " points", function(m){ return !m.special && m.pts === v; }]); });
   B.appendChild(el("p", "note", "Pick any mission you like. The first approved photo wins it."));
   groups.forEach(function(gp){
     var L = all.filter(function(x){ return gp[1](x.m); }).sort(function(a, b){ return (a.m.ord || 0) - (b.m.ord || 0); });
