@@ -5005,6 +5005,8 @@ function updateRig(p, t, dt){
     if (p.deskGlass) p.deskGlass.visible = lunchNow(p) === "desk" && p.state === "sit";
     if (p.swatch) p.swatch.visible = false;
   }
+  /* eating at the desk: the fork goes down into the bowl and up to the mouth (arm IK between the two) */
+  if (a && a.n === "eat" && p.lunchBox && lunchNow(p) === "desk" && !p.remote && b.Head) eatArm(p, t, a);
   /* carrying the fireplace box: both hands on it */
   if (p.trip && p.trip.carry && p.state === "walk" && !p.remote) carryArms(p, t);
   /* breathing */
@@ -6612,6 +6614,19 @@ function armIK(A, B, C, target, pole){
   aimW(B, C, _iu);
 }
 var _ctA = new V3(), _ctB = new V3();
+var _eb = new V3(), _em = new V3(), _ep = new V3(), _et = new V3(), _epole = new V3();
+function eatArm(p, t, a){
+  var u = t - a.t0, w = bump(u, 0, a.dur, 0.45), dr = eatDrink(p, u);
+  if (w < 0.05 || dr > 0.01) return;
+  var b = p.rig.b, lift = biteLift(p, u);
+  p.lunchBox.getWorldPosition(_eb); _eb.y += 0.1;
+  b.Head.getWorldPosition(_em);
+  /* in front of the mouth: forward from the head, a little down */
+  _ep.set(0, -0.07, 0.14).applyQuaternion(_rq); _em.add(_ep);
+  _et.copy(_eb).lerp(_em, lift);
+  _epole.set(-0.7, -1, -0.2).applyQuaternion(_rq);
+  armIK(b.RightArm, b.RightForeArm, b.RightHand, _et, _epole);
+}
 function carryArms(p, t){
   var tr = p.trip, c = tr.carry, b = p.rig.b, d = walkD(tr.w, t - tr.ts), h = carryHeadAt(d);
   along(CARRY_PATH, d);
