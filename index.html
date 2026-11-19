@@ -6574,7 +6574,8 @@ function gameSlots(dk){
   var qg = /[?&]game=(\w+)/.exec(location.search || "");
   if (qg) { var tz = torontoAt(WORLD_NOW()); GAME.slots.unshift({ at:tz.h * 3600 + tz.mi * 60 + tz.s + 20, kind:GAME_KINDS.indexOf(qg[1]) >= 0 ? qg[1] : "chat" }); }
 }
-function gameFree(q, t){ return !q.remote && !q.guest && q.state === "sit" && !q.trip && visAt(q, t) && !q.answering && !lunchNow(q) && !homeNow(q) && !(q.act && (q.act.plan || q.act.n === "vcall")); }
+var GAME_TEST = /[?&]game=/.test(location.search || "");
+function gameFree(q, t){ return !q.remote && !q.guest && q.state === "sit" && !q.trip && visAt(q, t) && !q.answering && (GAME_TEST || !lunchNow(q)) && !homeNow(q) && !(q.act && (q.act.plan || q.act.n === "vcall")); }
 /* someone from the ring, picked by the director */
 function gamePick(G2, not){ var L = G2.team.filter(function(q){ return q !== not && q.state === "stay"; }); return L.length ? L[Math.floor(R() * L.length)] : null; }
 var GAME_CHAT = [
