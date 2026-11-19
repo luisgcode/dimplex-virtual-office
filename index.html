@@ -6417,7 +6417,7 @@ var CARRY_G; /* built with the room (no value here: the room is built first) */
 var CARRY_B0 = new V3(0, 0, 1.8), CARRY_V = WALK_V * 0.6, CARRY_Y = 0.8, CARRY_FLOOR = 0.25;
 var CARRY_PATH = makePath([CARRY_B0.clone(), new V3(0, 0, 6.65), new V3(6.8, 0, 7.0)]);
 /* side (+1: on the box's left), how far along the box (+ front) */
-var CARRY_OFF = [[1, 0.33], [-1, 0.33], [1, -0.33], [-1, -0.33]], CARRY_SIDE = 0.45, CARRY_HALF = 0.21;
+var CARRY_OFF = [[1, 0.33], [-1, 0.33], [1, -0.33], [-1, -0.33]], CARRY_SIDE = 0.45, CARRY_HALF = 0.21, CARRY_TWIST = -0.6;
 var _cbA = new V3(), _cbB = new V3();
 /* the box turns smoothly at the corner: it faces along the path between a point behind it and one ahead */
 function carryHeadAt(d){ along(CARRY_PATH, d - 0.55); _cbA.copy(tmpPos); along(CARRY_PATH, d + 0.55); _cbB.copy(tmpPos); return Math.atan2(_cbB.x - _cbA.x, _cbB.z - _cbA.z); }
@@ -6543,16 +6543,19 @@ function carryArms(p, t){
   /* the body leans a touch away from the weight */
   if (b.Spine1) { b.Spine1.rotation.z += 0.05 * c.s * (1 - low); b.Spine1.updateMatrixWorld(true); }
   var near = c.s > 0 ? "Right" : "Left", far = c.s > 0 ? "Left" : "Right";
-  /* the near hand holds the box from underneath, a little in from its side edge; elbow slightly out */
-  _ipole.set(lx * 0.9 - fx * 0.4, -0.3, lz * 0.9 - fz * 0.4);
-  _ctA.set(cx + lx * (CARRY_HALF - 0.05) + fx * c.a, y - 0.27, cz + lz * (CARRY_HALF - 0.05) + fz * c.a);
+  /* the chest turns toward the box (the legs keep walking forward) and both hands go on its side:
+     the near hand a little behind, the far hand reaching across in front */
+  var tw = CARRY_TWIST * c.s * (1 - 0.5 * low);
+  if (b.Spine1) yawBone(b.Spine1, tw * 0.55);
+  if (b.Spine2) yawBone(b.Spine2, tw * 0.45);
+  _ipole.set(lx * 0.9 - fx * 0.3, -0.6, lz * 0.9 - fz * 0.3);
+  _ctA.set(cx + lx * (CARRY_HALF + 0.02) + fx * (c.a - 0.07), y - 0.06, cz + lz * (CARRY_HALF + 0.02) + fz * (c.a - 0.07));
   armIK(b[near + "Arm"], b[near + "ForeArm"], b[near + "Hand"], _ctA, _ipole);
-  /* palm up, under the box */
-  _iu.set(-lx * 0.9, 0.15, -lz * 0.9);
-  aimW(b[near + "Hand"], b[near + "HandMiddle1"], _iu);
-  /* the free arm hangs calm at the side (no swinging while carrying) */
-  aimW(b[far + "Arm"], b[far + "ForeArm"], _iu.set(lx * 0.12 + fx * 0.05, -1, lz * 0.12 + fz * 0.05));
-  aimW(b[far + "ForeArm"], b[far + "Hand"], _iu.set(lx * 0.05 + fx * 0.25, -1, lz * 0.05 + fz * 0.25));
+  _iu.set(-lx, -0.2, -lz); aimW(b[near + "Hand"], b[near + "HandMiddle1"], _iu);
+  _ipole.set(-lx * 0.2 + fx * 0.2, -1, -lz * 0.2 + fz * 0.2);
+  _ctB.set(cx + lx * (CARRY_HALF + 0.02) + fx * (c.a + 0.2), y + 0.02, cz + lz * (CARRY_HALF + 0.02) + fz * (c.a + 0.2));
+  armIK(b[far + "Arm"], b[far + "ForeArm"], b[far + "Hand"], _ctB, _ipole);
+  _iu.set(-lx, -0.2, -lz); aimW(b[far + "Hand"], b[far + "HandMiddle1"], _iu);
 }
 var NEWS = [
   { id:"pizza", until:new Date(2026, 10, 24, 18).getTime(),
