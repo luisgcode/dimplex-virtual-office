@@ -6561,7 +6561,7 @@ function carryArms(p, t){
    each, in a different order every day: a chat in a circle, product trivia, a group stretch and a coffee toast.
    Everyone at the office gets up, they stand in a ring in the aisle, do it for a minute or so, and go back. */
 var GAME = { day:-1, slots:[], k:0, cur:null };
-var GAME_KINDS = ["chat", "trivia", "stretch", "toast"], GAME_C = new V3(0, 0, 2.3);
+var GAME_KINDS = ["chat", "trivia", "stretch", "toast"], GAME_C = new V3(0, 0, 3.5);
 var GAME_LABEL = { chat:"Chatting with the team in the hallway", trivia:"Product trivia in the hallway", stretch:"Group stretch in the hallway", toast:"Coffee toast with the team" };
 window.__game = function(){ var G2 = GAME.cur; return { slots:GAME.slots.map(function(x){ return fmtH(x.at / 3600) + " " + x.kind; }), k:GAME.k, ph:G2 && G2.ph, kind:G2 && G2.kind, team:G2 ? G2.team.map(function(q){ return q.id + ":" + q.state; }) : [] }; };
 function gameSlots(dk){
