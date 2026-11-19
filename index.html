@@ -6540,13 +6540,19 @@ function carryArms(p, t){
   /* bend toward the box while it is low */
   var low = clamp((CARRY_Y - y) / (CARRY_Y - CARRY_FLOOR), 0, 1);
   if (low > 0.01 && b.Spine1) { b.Spine1.rotation.x += 0.45 * low; b.Spine1.updateMatrixWorld(true); }
+  /* the body leans a touch away from the weight */
+  if (b.Spine1) { b.Spine1.rotation.z += 0.05 * c.s * (1 - low); b.Spine1.updateMatrixWorld(true); }
   var near = c.s > 0 ? "Right" : "Left", far = c.s > 0 ? "Left" : "Right";
-  /* elbows point down and out, away from the box */
-  _ipole.set(lx * 0.8 - fx * 0.3, -1, lz * 0.8 - fz * 0.3);
-  _ctA.set(cx + lx * (CARRY_HALF + 0.03) + fx * (c.a - 0.08), y - 0.05, cz + lz * (CARRY_HALF + 0.03) + fz * (c.a - 0.08));
-  _ctB.set(cx + lx * (CARRY_HALF - 0.03) + fx * (c.a + 0.17), y + 0.2, cz + lz * (CARRY_HALF - 0.03) + fz * (c.a + 0.17));
+  /* the near hand holds the box from below its side edge, the arm almost straight down; elbow slightly out */
+  _ipole.set(lx * 0.9 - fx * 0.4, -0.3, lz * 0.9 - fz * 0.4);
+  _ctA.set(cx + lx * (CARRY_HALF + 0.035) + fx * c.a, y - 0.2, cz + lz * (CARRY_HALF + 0.035) + fz * c.a);
   armIK(b[near + "Arm"], b[near + "ForeArm"], b[near + "Hand"], _ctA, _ipole);
-  armIK(b[far + "Arm"], b[far + "ForeArm"], b[far + "Hand"], _ctB, _ipole);
+  /* palm in, under the edge */
+  _iu.set(-lx * 0.7, -0.5, -lz * 0.7);
+  aimW(b[near + "Hand"], b[near + "HandMiddle1"], _iu);
+  /* the free arm hangs calm at the side (no swinging while carrying) */
+  aimW(b[far + "Arm"], b[far + "ForeArm"], _iu.set(lx * 0.12 + fx * 0.05, -1, lz * 0.12 + fz * 0.05));
+  aimW(b[far + "ForeArm"], b[far + "Hand"], _iu.set(lx * 0.05 + fx * 0.25, -1, lz * 0.05 + fz * 0.25));
 }
 var NEWS = [
   { id:"pizza", until:new Date(2026, 10, 24, 18).getTime(),
