@@ -6504,7 +6504,7 @@ function carryDraw(t){
   var d = carryD(t), h = carryHeadAt(d);
   along(CARRY_PATH, d);
   CARRY_G.position.set(tmpPos.x, carryYAt(t), tmpPos.z); CARRY_G.rotation.y = h;
-  CARRY_G.visible = tmpPos.x < 4.9;
+  CARRY_G.visible = tmpPos.x < 4.55; /* gone between the front and the back carriers, so it never floats alone */
 }
 /* the arms: two bone IK, both hands on the box (the near hand on its side, the far hand across on the top edge) */
 var _ia = new V3(), _ib = new V3(), _ic = new V3(), _id = new V3(), _ie = new V3(), _ip = new V3(), _iu = new V3(), _it = new V3(), _ipole = new V3();
