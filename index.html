@@ -4127,6 +4127,12 @@ var ACTS = {
   /* hands resting on the armrests, for rolling the chair around */
   armrest:{ LeftArm:[0.14, -1, 0.12], LeftForeArm:[0.12, -0.12, 1], RightArm:[-0.14, -1, 0.12], RightForeArm:[-0.12, -0.12, 1], Head:[0, 1, 0.08] },
   stretch:{ LeftArm:[0.25, 1, -0.05], LeftForeArm:[0.1, 1, 0], RightArm:[-0.25, 1, -0.05], RightForeArm:[-0.1, 1, 0], Head:[0, 1, -0.25] },
+  /* the group stretch in the hallway: bend to each side, turn the chest with the arms open, march on the spot */
+  sidebend:{ LeftArm:[0.2, 1, 0], LeftForeArm:[0.05, 1, 0], RightArm:[-0.2, 1, 0], RightForeArm:[-0.05, 1, 0], Spine1:[0, 1, 0], Spine2:[0, 1, 0] },
+  twist:{ LeftArm:[1, 0.05, 0.1], LeftForeArm:[1, 0.05, 0.15], RightArm:[-1, 0.05, 0.1], RightForeArm:[-1, 0.05, 0.15] },
+  march:{ LeftUpLeg:[0.08, -1, 0.05], LeftLeg:[0, -1, -0.05], RightUpLeg:[-0.08, -1, 0.05], RightLeg:[0, -1, -0.05], LeftArm:[0.15, -1, 0.1], LeftForeArm:[0.1, -0.2, 1], RightArm:[-0.15, -1, 0.1], RightForeArm:[-0.1, -0.2, 1] },
+  /* raising a coffee cup for the toast */
+  toast:{ RightArm:[-0.3, -0.1, 0.95], RightForeArm:[-0.05, 0.85, 0.5], Head:[0, 1, -0.08] },
   sip:{ RightArm:[-0.3, -0.5, 0.6], RightForeArm:[0.3, 0.9, 0.25], Head:[0, 1, -0.05] },
   phone:{ LeftArm:[0.15, -0.85, 0.4], LeftForeArm:[-0.3, 0.45, 1], RightArm:[-0.15, -0.85, 0.4], RightForeArm:[0.3, 0.45, 1], Head:[0, 1, 0.5] },
   headphones:{ RightArm:[-0.9, 0.25, 0.1], RightForeArm:[0.35, 1, 0.05] },
@@ -4901,6 +4907,21 @@ function updateRig(p, t, dt){
         if (a.n === "fixprinter" && n === "RightForeArm") dd = v3a(SCR, dd[0] + 0.15 * Math.sin(t * 5), dd[1], dd[2]);
         if (a.n === "rubeyes" && (n === "LeftForeArm" || n === "RightForeArm")) dd = v3a(SCR, dd[0] + 0.06 * Math.sin(t * 9), dd[1], dd[2]);
         if (a.n === "wave" && n === "RightForeArm") dd = v3a(SCR, dd[0] + 0.45 * Math.sin(t * 9), dd[1], dd[2]);
+        if (a.n === "sidebend" && (n === "Spine1" || n === "Spine2")) { var sb = 0.42 * Math.sin((t - a.t0) * 1.6); dd = v3a(SCR, sb * (n === "Spine1" ? 1 : 0.7), 1, 0); }
+        if (a.n === "sidebend" && (n === "LeftArm" || n === "RightArm")) { var sb2 = 0.5 * Math.sin((t - a.t0) * 1.6); dd = v3a(SCR, dd[0] + sb2, dd[1], dd[2]); }
+        if (a.n === "march" && (n === "LeftUpLeg" || n === "RightUpLeg" || n === "LeftLeg" || n === "RightLeg" || n === "LeftArm" || n === "RightArm")) {
+          var mph = Math.sin((t - a.t0) * 5.2) * (n.indexOf("Left") === 0 ? 1 : -1), lift = Math.max(0, mph);
+          if (n === "LeftUpLeg" || n === "RightUpLeg") dd = v3a(SCR, dd[0], -1 + 0.7 * lift, 0.05 + 1.0 * lift);
+          else if (n === "LeftLeg" || n === "RightLeg") dd = v3a(SCR, dd[0], -1, -0.05 - 0.15 * lift);
+          else dd = v3a(SCR, dd[0], dd[1], 0.1 - 0.55 * mph);
+        }
+        if (a.n === "toast" && (n === "RightArm" || n === "RightForeArm")) {
+          /* up for the cheers, a little clink forward, then a sip */
+          var ck = bump(t - a.t0, 1.4, 2.0, 0.3), dr = bump(t - a.t0, 8.5, 11, 0.6);
+          dd = v3a(SCR, dd[0], dd[1] + 0.12 * ck, dd[2] + 0.25 * ck);
+          if (n === "RightArm") dd = v3a(SCR, lerp(dd[0], -0.3, dr), lerp(dd[1], -0.5, dr), lerp(dd[2], 0.6, dr));
+          else dd = v3a(SCR, lerp(dd[0], 0.3, dr), lerp(dd[1], 0.9, dr), lerp(dd[2], 0.25, dr));
+        }
         if ((a.n === "talk" || a.n === "answer") && n === "RightForeArm") dd = v3a(SCR, dd[0] + 0.15 * MV.hands * Math.sin(t * 4.3), dd[1] + 0.2 * MV.hands * Math.sin(t * 3.1), dd[2]);
         if (a.n === "turn" && n === "RightForeArm" && p.sayText) dd = v3a(SCR, dd[0] + 0.1 * MV.hands * Math.sin(t * 3.7), dd[1] + 0.25 * Math.min(1.3, MV.hands) + 0.18 * MV.hands * Math.sin(t * 2.9), dd[2]);
         aim(b[n], b[CHILD[n]], dd, w, _rq);
@@ -4910,11 +4931,19 @@ function updateRig(p, t, dt){
         yaw = clamp(yaw, -2.2, 2.2);
         yawBone(b.Spine1, clamp(yaw * 0.25, -0.45, 0.45) * w);
         yawBone(b.Head, clamp(yaw * 0.55, -1.0, 1.0) * w);
+      } else if (a.n === "twist") {
+        var tws = 0.7 * Math.sin((t - a.t0) * 1.5) * w;
+        yawBone(b.Spine1, tws * 0.6); yawBone(b.Spine2, tws * 0.4); yawBone(b.Head, -tws * 0.3);
       } else if (a.n === "leanFire") {
         yawBone(b.Spine1, -0.3 * w); yawBone(b.Head, -0.55 * w);
       }
     }
     if (p.mug) p.mug.visible = a.n === "sip" && w > 0.3;
+    if (a.n === "toast" && !p.toastCup) p.toastCup = makeToastCup();
+    if (p.toastCup) {
+      p.toastCup.visible = a.n === "toast" && w > 0.25 && p.root.visible;
+      if (p.toastCup.visible) { b.RightHand.getWorldPosition(_fa); b.RightHandMiddle1.getWorldPosition(_fb); p.toastCup.position.copy(_fa).lerp(_fb, 0.55); p.toastCup.position.y += 0.02; p.toastCup.rotation.set(0, p.heading, 0); }
+    }
     if (p.cup && a.n === "sip" && !(MISHAP.cur && MISHAP.cur.cup === p.cup)) { p.cup.visible = !p.mug.visible; p.cupHid = !p.cup.visible; }
     if (p.notebook) {
       var nbOn = a.n === "write" && w > 0.04;
@@ -4931,6 +4960,7 @@ function updateRig(p, t, dt){
     if (p.swatch) p.swatch.visible = (a.n === "swatch" || a.n === "checklist") && w > 0.2;
   } else {
     if (p.mug) p.mug.visible = false;
+    if (p.toastCup) p.toastCup.visible = false;
     if (p.cupHid) { p.cupHid = false; p.cup.visible = true; }
     if (p.notebook) p.notebook.visible = false;
     if (p.pen) p.pen.visible = false;
@@ -6497,6 +6527,18 @@ function carryDue(T, next){
   return at === undefined ? Infinity : Math.max(at, next);
 }
 /* drawing: the box at world time t */
+/* a paper coffee cup for the toast: white, a brown sleeve and a lid */
+var TOAST_CUP_G = null;
+function makeToastCup(){
+  if (!TOAST_CUP_G) {
+    TOAST_CUP_G = new T.Group();
+    add(G.cyl, M("#f4f1ea", { roughness:0.7 }), 0.036, 0.1, 0.036, 0, 0, 0, TOAST_CUP_G, false);
+    add(G.cyl, M("#9a6b43", { roughness:0.85 }), 0.038, 0.04, 0.038, 0, -0.005, 0, TOAST_CUP_G, false);
+    add(G.cyl, M("#E31837", { roughness:0.5 }), 0.038, 0.012, 0.038, 0, 0.055, 0, TOAST_CUP_G, false);
+  }
+  var g = TOAST_CUP_G.clone(); g.traverse(function(o){ o.userData.dyn = true; }); g.visible = false; scene.add(g);
+  return g;
+}
 function carryDraw(t){
   if (!CARRY_G) return;
   var C = CARRY.cur;
@@ -6612,15 +6654,21 @@ function gameScript(G2, t){
     S.push([40, null]);
   } else if (k === "stretch") {
     S.push([1, function(t2){ sayLater(host, "Okay, everyone. Stretch break! Arms up.", t2, 3.2); }]);
-    [4, 12, 20].forEach(function(at){ S.push([at, function(t2){ all(function(q){ startAct(q, "stretch", t2, 5); }); }]); });
-    S.push([10, function(t2){ var q = gamePick(G2, host); if (q) sayLater(q, "Oh, my back needed that.", t2, 2.6); }]);
-    S.push([18, function(t2){ sayLater(host, "One more! Big stretch.", t2, 2.6); }]);
-    S.push([27, function(t2){ var q = gamePick(G2, host); if (q) sayLater(q, "We should do this every day.", t2, 2.8); laugh(t2); }]);
-    S.push([32, null]);
+    S.push([3.5, function(t2){ all(function(q){ startAct(q, "stretch", t2, 5); }); }]);
+    S.push([8, function(t2){ var q = gamePick(G2, host); if (q) sayLater(q, "Oh, my back needed that.", t2, 2.6); }]);
+    S.push([9.5, function(t2){ sayLater(host, "Now lean to each side.", t2, 2.6); }]);
+    S.push([10.5, function(t2){ all(function(q){ startAct(q, "sidebend", t2, 7); }); }]);
+    S.push([18, function(t2){ sayLater(host, "Arms open, and turn.", t2, 2.6); }]);
+    S.push([19, function(t2){ all(function(q){ startAct(q, "twist", t2, 7); }); }]);
+    S.push([26.5, function(t2){ sayLater(host, "Last one, march on the spot!", t2, 2.6); }]);
+    S.push([27.5, function(t2){ all(function(q){ startAct(q, "march", t2, 7); }); }]);
+    S.push([31, function(t2){ var q = gamePick(G2, host); if (q) sayLater(q, "Okay, I'm awake now lol", t2, 2.6); laugh(t2); }]);
+    S.push([36, function(t2){ var q = gamePick(G2, host); if (q) sayLater(q, "We should do this every day.", t2, 2.8); }]);
+    S.push([39, null]);
   } else {
     S.push([1, function(t2){ sayLater(host, "Coffee toast! Everyone grab your cup.", t2, 3); }]);
     S.push([5, function(t2){ sayLater(host, choose(GAME_TOAST), t2, 3); }]);
-    S.push([7, function(t2){ all(function(q){ startAct(q, "sip", t2 + R() * 0.4, 3); }); }]);
+    S.push([3, function(t2){ all(function(q){ startAct(q, "toast", t2 + R() * 0.5, 13); }); }]);
     S.push([7.6, function(t2){ var q = gamePick(G2, host); if (q) sayLater(q, "Cheers!", t2, 2); }]);
     S.push([8.4, function(t2){ var q = gamePick(G2, host); if (q) sayLater(q, "Cheers!!", t2, 2); laugh(t2); }]);
     S.push([14, function(t2){ var q = gamePick(G2, host); if (q) sayLater(q, "Best coffee break of the week.", t2, 2.8); }]);
