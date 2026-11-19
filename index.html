@@ -6452,12 +6452,13 @@ function carryTick(t, dk){
   if (C.ph === "wait") {
     if (t < C.call) return;
     if (teamCallNow()) { C.call = t + 60; return; }
-    var pool = shuffle(PEOPLE.filter(function(q){ return idleAtDesk(q); }));
+    /* anyone at the desk and free (whatever small thing they are doing stops) */
+    var pool = shuffle(PEOPLE.filter(function(q){ return !q.remote && !q.guest && q.state === "sit" && !q.trip && visAt(q, t) && !q.chatWith && !q.visitor && !q.answering && !lunchNow(q) && !homeNow(q) && !(q.act && (q.act.plan || q.act.n === "vcall")); }));
     if (pool.length < 4) { if (t - C.appear > 1500) CARRY.cur = null; else C.call = t + 45; return; }
     C.team = pool.slice(0, 4); C.ph = "gather"; C.gatherAt = t;
     C.team.forEach(function(q, k){
       var o = CARRY_OFF[k], sp = carrierAt({ s:o[0], a:o[1] }, 0, new V3());
-      q.carrySlot = k;
+      q.carrySlot = k; q.act = null; q.typeOn = false; q.decideAt = t + 400;
       goSpot(q, t + 1 + k * 1.4, sp, sp.clone().add(new V3(0, 0, 1)), 900, "Helping move a fireplace box", null, null, null);
     });
     sayLater(C.team[0], choose(["Can I get three hands with this box?", "Okay, who's helping me with the box?", "That box isn't going to move itself. Who's in?"]), t + 0.6, 3);
