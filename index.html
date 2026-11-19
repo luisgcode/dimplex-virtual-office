@@ -5595,7 +5595,8 @@ function chatter(a, b, t, casualOnly){
   });
   /* the news of the day: each chat of a story opens at its hour, after the one before it, and is told once */
   var WNI = wnewsToday();
-  if (WNI && !a.guest && !b.guest) WNI.forEach(function(it, i){
+  /* Luis and Allyson never bring the news up: others can tell them, they never start it */
+  if (WNI && !a.guest && !b.guest && a.id !== "luis" && a.id !== "allyson") WNI.forEach(function(it, i){
     for (var j = 0; j < it.chats.length && j < WNEWS_LATER.length; j++) {
       var wk = i + "_" + j;
       if (WNEWS_USED[wk]) continue;
