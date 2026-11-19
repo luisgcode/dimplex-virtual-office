@@ -2195,7 +2195,7 @@ var LUNCH = LUNCH_T();
 var lunchCardTex = null;
 /* what each of them eats at the desk: Stephanie a sandwich, Olivia a wrap, Debbie a salad with a fork */
 function lunchFood(p){
-  var f = new T.Group(), kind = p.id === "stephanie" ? "sandwich" : p.id === "olivia" ? "wrap" : "fork";
+  var f = new T.Group(), kind = "fork"; /* everyone eating at the desk: a bowl next to the keyboard and a fork */
   f.userData.kind = kind;
   var body = new T.Group(); f.add(body); f.userData.body = body;
   if (kind === "sandwich") {
@@ -2282,11 +2282,28 @@ function cupTick(p, t){
     steamTick(p.deskSteamP, t, clamp((p.hotUntil - t) / 120, 0.25, 1));
   }
 }
-var EAT_SWIVEL = 1.15;
+/* a sip of water about every half minute while eating (0 = eating, 1 = glass at the mouth) */
+function eatDrink(p, u){ var per = 31 + ((p.idx || 0) % 3) * 4; return bump(u % per, per - 7, per - 3.2, 0.7); }
+var _bw = new V3(), _bw2 = new V3(), WATER_GLASS = null;
+function handGlass(){
+  if (!WATER_GLASS) {
+    WATER_GLASS = new T.Group();
+    add(G.cyl, new T.MeshStandardMaterial({ color:0xd8eef7, roughness:0.05, transparent:true, opacity:0.45 }), 0.035, 0.1, 0.035, 0, 0, 0, WATER_GLASS, false);
+    add(G.cyl, new T.MeshStandardMaterial({ color:0x7cc4e8, roughness:0.1, transparent:true, opacity:0.6 }), 0.031, 0.065, 0.031, 0, -0.012, 0, WATER_GLASS, false);
+  }
+  var g = WATER_GLASS.clone(); g.traverse(function(o){ o.userData.dyn = true; }); g.visible = false; scene.add(g); return g;
+}
 function foodInHand(p, b, t, a, w){
   var f = p.food, on = a.n === "eat" && w > 0.3 && lunchNow(p) === "desk" && b.RightHand && b.RightHandMiddle1;
-  f.visible = !!on;
-  if (!on) return;
+  var drink = on ? eatDrink(p, t - a.t0) : 0;
+  if (on && !p.handGlass) p.handGlass = handGlass();
+  if (p.handGlass) {
+    p.handGlass.visible = !!on && drink > 0.3 && p.root.visible;
+    if (p.handGlass.visible) { b.RightHand.getWorldPosition(_bw); b.RightHandMiddle1.getWorldPosition(_bw2); p.handGlass.position.copy(_bw).lerp(_bw2, 0.6); p.handGlass.position.y += 0.02; p.handGlass.rotation.set(0, 0, 0); }
+  }
+  if (p.deskGlass) p.deskGlass.visible = lunchNow(p) === "desk" && p.state === "sit" && !(p.handGlass && p.handGlass.visible);
+  f.visible = !!on && drink < 0.3;
+  if (!f.visible) return;
   /* held in the fingers, pointing out of the hand */
   b.RightHand.getWorldPosition(_fh); b.RightHandMiddle1.getWorldPosition(_fm);
   f.position.copy(_fh).lerp(_fm, 0.8); f.scale.setScalar(1.6);
@@ -2301,12 +2318,18 @@ function lunchProps(p, g){
   var L = LUNCH_T()[p.id];
   if (!L) return;
   if (L[2] === "desk") {
-    var box = new T.Group(); box.position.set(0.2, 0.765, -0.42); g.add(box);
-    add(G.box, M("#2f8f6b", { roughness:0.6 }), 0.2, 0.05, 0.14, 0, 0.025, 0, box, false);
-    add(G.box, M("#f3efe6", { roughness:0.8 }), 0.18, 0.012, 0.12, 0, 0.052, 0, box, false);
-    add(G.box, M("#d9a441", { roughness:0.7 }), 0.06, 0.02, 0.05, -0.04, 0.062, 0.01, box, false);
-    add(G.box, M("#5aa04a", { roughness:0.7 }), 0.05, 0.018, 0.04, 0.05, 0.062, -0.02, box, false);
-    add(G.box, M("#b8bcc2", { roughness:0.3, metalness:0.6 }), 0.01, 0.005, 0.14, 0.12, 0.004, 0, box, false);
+    /* a salad bowl right next to the keyboard, and a glass of water beside it */
+    var box = new T.Group(); box.position.set(0.24, 0.765, -0.6); g.add(box);
+    add(G.cyl, M("#f4f1ea", { roughness:0.5 }), 0.15, 0.06, 0.15, 0, 0.03, 0, box, false);
+    add(G.cyl, M("#e6e1d6", { roughness:0.6 }), 0.1, 0.02, 0.1, 0, 0.005, 0, box, false);
+    add(G.cyl, M("#5aa04a", { roughness:0.8 }), 0.13, 0.02, 0.13, 0, 0.058, 0, box, false);
+    add(G.box, M("#d9534f", { roughness:0.7 }), 0.03, 0.018, 0.03, 0.03, 0.07, 0.015, box, false);
+    add(G.box, M("#f2d16b", { roughness:0.7 }), 0.028, 0.016, 0.028, -0.032, 0.07, -0.02, box, false);
+    add(G.box, M("#d9a441", { roughness:0.7 }), 0.026, 0.016, 0.026, -0.008, 0.072, 0.035, box, false);
+    var gl = new T.Group(); gl.position.set(-0.3, 0.815, -0.6); g.add(gl);
+    add(G.cyl, new T.MeshStandardMaterial({ color:0xd8eef7, roughness:0.05, transparent:true, opacity:0.45 }), 0.035, 0.1, 0.035, 0, 0, 0, gl, false);
+    add(G.cyl, new T.MeshStandardMaterial({ color:0x7cc4e8, roughness:0.1, transparent:true, opacity:0.6 }), 0.031, 0.065, 0.031, 0, -0.012, 0, gl, false);
+    gl.traverse(function(o){ o.userData.dyn = true; }); gl.visible = false; p.deskGlass = gl;
     box.traverse(function(o){ o.userData.dyn = true; });
     box.visible = false; p.lunchBox = box;
     p.food = lunchFood(p);
@@ -4905,7 +4928,10 @@ function updateRig(p, t, dt){
         if (!dd) continue;
         if (a.n === "wobble" && (n === "LeftForeArm" || n === "RightForeArm")) dd = v3a(SCR, dd[0] + 0.5 * Math.sin(t * 16 + (n === "LeftForeArm" ? 0 : 1.4)), dd[1], dd[2]);
         if (a.n === "wipe" && n === "LeftForeArm") dd = v3a(SCR, dd[0] + 0.32 * Math.sin(t * 7), dd[1], dd[2]);
-        if (a.n === "eat" && (n === "RightForeArm" || n === "Head")) {
+        if (a.n === "eat" && (n === "RightArm" || n === "RightForeArm") && eatDrink(p, t - a.t0) > 0.001) {
+          var edw = eatDrink(p, t - a.t0), es = n === "RightArm" ? [-0.3, -0.5, 0.6] : [0.3, 0.9, 0.25];
+          dd = v3a(SCR, lerp(dd[0], es[0], edw), lerp(dd[1], es[1], edw), lerp(dd[2], es[2], edw));
+        } else if (a.n === "eat" && (n === "RightForeArm" || n === "Head")) {
           var ec = biteLift(p, t - a.t0);
           if (n === "RightForeArm") dd = v3a(SCR, dd[0] - 0.08 * (1 - ec), dd[1] + 0.35 * ec - 0.3 * (1 - ec), dd[2] - 0.3 * ec);
           else dd = v3a(SCR, dd[0], dd[1], dd[2] - 0.22 * ec + (biteChew(p, t - a.t0) ? 0.03 * Math.sin(t * 10) : 0));
@@ -4975,6 +5001,8 @@ function updateRig(p, t, dt){
     if (p.pen) p.pen.visible = false;
     if (p.phone) p.phone.visible = false;
     if (p.food) p.food.visible = false;
+    if (p.handGlass) p.handGlass.visible = false;
+    if (p.deskGlass) p.deskGlass.visible = lunchNow(p) === "desk" && p.state === "sit";
     if (p.swatch) p.swatch.visible = false;
   }
   /* carrying the fireplace box: both hands on it */
@@ -7339,9 +7367,6 @@ function poseAgent(p, t, dt){
     if (p.act && (p.act.n === "turn" || p.act.n === "answer")) {
       var yaw = p.act.n === "answer" ? camYaw(p) + p.swivel : (p.act.target ? yawTo(p, p.act.target) + p.swivel : 0);
       swivelTarget = (p.act.n === "answer" ? clamp(yaw * 0.5, -1.2, 1.2) : p.act.casual ? clamp(yaw * 0.9, -2.9, 2.9) : clamp(yaw * 0.35, -0.6, 0.6)) * bump(t - p.act.t0, 0, p.act.dur, p.act.casual ? 1.2 : 0.6);
-    } else if (p.act && p.act.n === "eat" && lunchNow(p) === "desk") {
-      /* eating at the desk: the chair turns out toward the aisle, so the lunch shows from the usual view */
-      swivelTarget = EAT_SWIVEL * p.side * bump(t - p.act.t0, 0, p.act.dur, 1.2);
     } else if (p.act && p.act.n === "screen" && p.act.pt) {
       /* looking at a screen together: turn toward a point in the world */
       var sp = p.act.pt, hd2 = Math.atan2(sp.x - p.root.position.x, sp.z - p.root.position.z) - p.sitHeading;
