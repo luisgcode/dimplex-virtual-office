@@ -14,10 +14,11 @@ const FEEDS = [
   "https://deadline.com/feed/",
   "https://www.billboard.com/feed/",
   "https://www.cbc.ca/webfeed/rss/rss-arts",
-  "https://www.odditycentral.com/feed",
-  "https://nypost.com/weird-but-true/feed/",
-  "https://www.cbc.ca/webfeed/rss/rss-offbeat",
+  /* weird and unexpected news (the old odd news feeds went stale, Google News searches stay fresh) */
   "https://www.boredpanda.com/feed/",
+  "https://news.google.com/rss/search?q=%22guinness%20world%20record%22%20when:2d&hl=en-CA&gl=CA&ceid=CA:en",
+  "https://news.google.com/rss/search?q=%22odd%20news%22%20OR%20%22strange%20but%20true%22%20when:2d&hl=en-CA&gl=CA&ceid=CA:en",
+  "https://news.google.com/rss/search?q=%22goes%20viral%22%20when:2d&hl=en-CA&gl=CA&ceid=CA:en",
 ];
 const MAX = 10;
 const SINCE = Date.now() - 48 * 3600 * 1000;   /* today and yesterday */
@@ -37,7 +38,7 @@ async function readFeed(url) {
       const it = m[0], pick = (tag) => { const x = it.match(new RegExp("<" + tag + "[^>]*>([\\s\\S]*?)</" + tag + ">")); return x ? decode(x[1]) : ""; };
       const title = pick("title"), desc = pick("description").slice(0, 300), when = Date.parse(pick("pubDate") || pick("dc:date"));
       if (when && when < SINCE) continue;
-      if (title && !BAD.test(title + " " + desc)) out.push({ title, desc, source: new URL(url).hostname.replace(/^www\./, "") });
+      if (title && !BAD.test(title + " " + desc)) out.push({ title, desc, source: new URL(url).hostname.replace(/^(www|news)\./, "") });
       if (out.length >= 20) break;
     }
     return out;
@@ -52,7 +53,7 @@ console.log(`feeds: ${stories.length} stories after the word filter`);
 if (stories.length < 2) { console.log("not enough stories today, leaving the old file (the office ignores it)"); process.exit(0); }
 
 const SYSTEM = `You write tiny bits of small talk for a cozy virtual office of a Canadian heating and fireplace company (Cambridge, Ontario).
-From the stories given, pick at most ${MAX} that people at work would actually talk about today: what is hot right now in movies, series and streaming, celebrities, music and award shows, plus weird, unexpected and funny news (bizarre records, strange inventions, odd things people did). Aim for about two thirds pop culture and one third weird news. No sports at all. Skip plain animal or science stories unless they are truly jaw dropping. Prefer famous names and things most people have heard of; skip industry business news (deals, box office reports, executives, casting minutiae) unless it is a big fun headline.
+From the stories given, pick at most ${MAX} that people at work would actually talk about today: what is hot right now in movies, series and streaming, celebrities, music and award shows, plus weird, unexpected and funny news (bizarre records, strange inventions, odd things people did). Aim for about two thirds pop culture and one third weird news. Never pick two stories about the same event, show or person: one story each, so the day has 10 different topics. No sports at all. Skip plain animal or science stories unless they are truly jaw dropping. Prefer famous names and things most people have heard of; skip industry business news (deals, box office reports, executives, casting minutiae) unless it is a big fun headline.
 Never pick anything about war, politics, crime, death, illness, disasters, accidents, money trouble, religion, sex, breakups, scandals, feuds, or anything sad or divisive, even if it ends well. If fewer stories qualify, return fewer.
 For each story write 3 separate short chats, each exactly 3 lines, as coworkers talking about it at different moments of the day:
 chat 1 (first time it comes up): person A brings it up ("Did you see...", "Apparently...", "Okay, did you hear..."), B reacts, A adds a fun detail or joke.
