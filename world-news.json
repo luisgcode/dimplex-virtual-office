@@ -2,48 +2,108 @@
   "date": "2026-11-19",
   "items": [
     {
-      "title": "Empire State Building Lit Up with Gold Marks Historic Milestone of NASA’s Voyager 1 This Week",
-      "source": "goodnewsnetwork.org",
-      "lines": [
-        "Did you see Voyager 1 is now one full light day away from Earth?",
-        "Wait, so a signal takes a whole day to get back?",
-        "Yep, 24 hours. And the Empire State Building lit up gold to celebrate."
+      "title": "Ella Langley sweeps Country Music Awards as Taylor Swift returns for 1st performance in 13 years",
+      "source": "cbc.ca",
+      "chats": [
+        [
+          "Did you catch the CMAs last night? Taylor Swift performed!",
+          "No way, her first CMAs performance in how long?",
+          "Thirteen years. And Ella Langley swept with Choosin' Texas."
+        ],
+        [
+          "Ella Langley took home a record six awards, apparently.",
+          "Choosin' Texas is everywhere, so I'm not shocked at all.",
+          "My kid sings it in the car every single morning."
+        ],
+        [
+          "Still can't believe Taylor went back to country for a night.",
+          "I'm watching the clips on my lunch tomorrow, no spoilers.",
+          "Too late, it was great. Just hit play."
+        ]
       ]
     },
     {
-      "title": "Bizarre deep-sea fish with a see-through head captured in stunning 4K",
-      "source": "sciencedaily.com",
-      "lines": [
-        "Apparently there is a fish with a see through head, called the barreleye.",
-        "That sounds made up. Where does it even live?",
-        "Nearly 2,000 feet down, and its eyes rotate forward to chase prey."
+      "title": "Robert Pattinson announced as new James Bond",
+      "source": "cbc.ca",
+      "chats": [
+        [
+          "Okay, did you hear? Robert Pattinson is the new James Bond.",
+          "Seriously? The guy from Twilight and The Batman?",
+          "Batman to Bond. Not a bad career path at all."
+        ],
+        [
+          "So is Pattinson a good pick for Bond or not?",
+          "I think he'll be great. He's got that brooding thing down.",
+          "I needed someone taller, but fine, I'll allow it."
+        ],
+        [
+          "Shaken, not stirred, coffee for me this afternoon.",
+          "Mister Pattinson, we've been expecting you.",
+          "I'm rewatching The Batman tonight to prepare."
+        ]
       ]
     },
     {
-      "title": "Crows can make decisions twice as fast as humans, scientists discover",
-      "source": "sciencedaily.com",
-      "lines": [
-        "I just read that crows make visual decisions twice as fast as humans.",
-        "So the crows outside are judging us at double speed?",
-        "About 235 milliseconds on average. Faster than me picking a coffee."
+      "title": "2027 Grammy nominations: Raye leads with 11, Angine de Poitrine score 4 — including best new artist",
+      "source": "cbc.ca",
+      "chats": [
+        [
+          "Grammy nominations are out. Raye leads with eleven.",
+          "Eleven? That's a huge haul.",
+          "Angine de Poitrine got four, including best new artist."
+        ],
+        [
+          "Who do you think wins best new artist this year?",
+          "Honestly, I need to listen to half these names first.",
+          "Same. Time to update the playlist."
+        ],
+        [
+          "Made a Grammy nominee playlist for the drive home.",
+          "Send it over, my radio presets are getting stale.",
+          "Raye is first on the list, obviously."
+        ]
       ]
     },
     {
-      "title": "This 6-million-year-old whale may have had the most crooked face in mammal history",
-      "source": "sciencedaily.com",
-      "lines": [
-        "There was a whale 6 million years ago with a super crooked face.",
-        "How crooked are we talking?",
-        "Possibly the most lopsided mammal ever. Found in Peru, of all places."
+      "title": "‘Gilmore Girls: A Day In The Life’ Gets New Home On Hulu After Netflix Deal Ends, Release Date Set",
+      "source": "deadline.com",
+      "chats": [
+        [
+          "Apparently the Gilmore Girls revival is moving to Hulu.",
+          "So the whole series is finally in one place?",
+          "Yep, ten years after it first came out on Christmas Day."
+        ],
+        [
+          "Have you ever watched Gilmore Girls start to finish?",
+          "Twice. It's the coziest show ever made.",
+          "Perfect fit for a fireplace company, honestly."
+        ],
+        [
+          "Coffee refill. Very Lorelai of me.",
+          "A full rewatch is my winter plan by the fire.",
+          "Count me in, I'll bring the snacks."
+        ]
       ]
     },
     {
-      "title": "Scientists discover a giant 66-pound rodent that lived 34 million years ago",
-      "source": "sciencedaily.com",
-      "lines": [
-        "Scientists found a rodent in Thailand that weighed around 66 pounds.",
-        "That is not a mouse, that is a roommate.",
-        "And it lived 34 million years ago. Good luck fitting that in a trap."
+      "title": "Nathan Fielder lookalike contest crowns a deadpan winner",
+      "source": "cbc.ca",
+      "chats": [
+        [
+          "Did you see the Nathan Fielder lookalike contest in Toronto?",
+          "Ha, how do you even judge that?",
+          "Business pitches and a staring contest, apparently."
+        ],
+        [
+          "Could you win a staring contest against a Fielder lookalike?",
+          "No chance. I'd crack up in five seconds.",
+          "The deadpan winner earned that title for sure."
+        ],
+        [
+          "Just gave my best deadpan face in that meeting.",
+          "Nobody noticed, so you might be a natural.",
+          "Toronto next year, we're entering you."
+        ]
       ]
     }
   ]
