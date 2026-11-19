@@ -822,7 +822,7 @@ function wnewsDue(t){
 /* is a news chat waiting? (a desk visit then lasts long enough for its 3 lines) */
 function wnewsPending(t){ return wnewsDue(t).length > 0; }
 /* is it p's turn to tell one? Then p feels like talking to someone */
-function wnewsMine(p, t){ return wnewsDue(t).some(function(d){ return d.teller === p.id; }); }
+function wnewsMine(p, t){ return WNEWS_TELLERS.indexOf(p.id) >= 0 && wnewsDue(t).some(function(d){ return d.teller === p.id || t >= d.open + 600; }); }
 var WNEWS_FIRST = fetch("world-news.json?d=" + Math.floor(Date.now() / 3600000), { cache:"no-store" })
   .then(function(r){ return r.ok ? r.json() : null; })
   .then(function(j){
@@ -5609,9 +5609,9 @@ function chatter(a, b, t, casualOnly){
     }
   });
   /* the news of the day: Carla, Erica, Olivia, Stephanie and Debbie bring it up in equal turns (each chat has its
-     teller; 30 minutes after it opened any of the five can). Luis and Allyson never start it, others tell them */
+     teller; 10 minutes after it opened any of the five can). Luis and Allyson never start it, others tell them */
   if (!a.guest && !b.guest && WNEWS_TELLERS.indexOf(a.id) >= 0) wnewsDue(t).forEach(function(d){
-    if ((d.teller === a.id || t >= d.open + 1800) && (chatter.room || 0) >= d.lines.length) C.push({ w:3.5, key:"wn" + d.wk, lines:d.lines, wn:d.wk });
+    if ((d.teller === a.id || t >= d.open + 600) && (chatter.room || 0) >= d.lines.length) C.push({ w:3.5, key:"wn" + d.wk, lines:d.lines, wn:d.wk });
   });
   /* opinions: a small disagreement, then they make peace */
   if (!a.remote && !b.remote && !a.guest && !b.guest) {
@@ -5921,7 +5921,7 @@ function decide(p, t){
     if (q.id === "luis" && p.walker) sc *= 0.12; /* the managers talk to Luis on Teams, they almost never walk over */
     if (sc > bs) { bs = sc; best = q; }
   }
-  var newsy = !withdrawn && wnewsMine(p, t) ? 0.7 : 0;
+  var newsy = !withdrawn && wnewsMine(p, t) ? 1.3 : 0;
   if (best && !withdrawn) opts.push({ k:"visit", s:bs * 0.45 + newsy * 0.5, q:best });
   if (nbs.length && !withdrawn) { var tq = pickByAff(p, nbs); opts.push({ k:"talk", s:n.social * w.shop * 1.1 * sociable * (0.7 + 0.3 * aff(p, tq)) + rand(0, 0.3) + newsy, q:tq }); }
   /* Carla checks on anyone who seems down */
