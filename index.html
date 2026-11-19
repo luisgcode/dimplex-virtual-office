@@ -790,6 +790,24 @@ function wxFetch(){
     }).catch(function(){});
 }
 var WX_FIRST = wxFetch(); setInterval(wxFetch, 15 * 60 * 1000);
+/* curious news from the real world: up to 5 short chats a day (world-news.json, written every morning by the
+   GitHub Action in tools/world-news.mjs). Read once; each one opens at its own hour and is told only once a day */
+var WNEWS = null, WNEWS_USED = {}, WNEWS_AT = [9.25, 10.75, 12.4, 13.9, 15.4];
+function wnewsToday(){
+  if (!WNEWS || !SIM.day) return null;
+  var d = SIM.day, k = d.y + "-" + ("0" + d.mo).slice(-2) + "-" + ("0" + d.d).slice(-2);
+  return WNEWS.date === k ? WNEWS.items : null;
+}
+window.__wnews = function(){ return { file:WNEWS, today:wnewsToday(), told:Object.keys(WNEWS_USED).map(Number) }; };
+var WNEWS_FIRST = fetch("world-news.json?d=" + Math.floor(Date.now() / 3600000), { cache:"no-store" })
+  .then(function(r){ return r.ok ? r.json() : null; })
+  .then(function(j){
+    if (!j || !Array.isArray(j.items) || WNEWS) return;
+    j.items = j.items.filter(function(it){ return it && Array.isArray(it.lines) && it.lines.length >= 2; }).slice(0, 5);
+    WNEWS = j;
+    /* it came after the world was built without it: build it again, same as the weather */
+    if (SIM.loadMs !== undefined && wnewsToday()) { resetWorld(); simTo(WT()); }
+  }).catch(function(){});
 /* new version of the office: every 2 minutes ask the server whether the page changed (ETag / Last-Modified);
    when it did, reload as soon as nobody is looking (tab hidden) or the viewer has not touched anything for 2 minutes,
    so whoever has the office open since the morning gets the latest changes without refreshing by hand */
@@ -5563,6 +5581,13 @@ function chatter(a, b, t, casualOnly){
       C.push({ w:3, key:nk, lines:NL, learn:[b, nw.id, a] });
     }
   });
+  /* curious news of the day from the real world: each one opens at its hour, then it is told once */
+  var WNI = wnewsToday();
+  if (WNI && !a.guest && !b.guest) WNI.forEach(function(it, i){
+    var wl = it.lines.slice(0, 3);
+    if (WNEWS_USED[i] || t < WNEWS_AT[i] * 3600 || (chatter.room || 0) < wl.length) return;
+    C.push({ w:3.5, key:"wn" + i, lines:wl, wn:i });
+  });
   /* opinions: a small disagreement, then they make peace */
   if (!a.remote && !b.remote && !a.guest && !b.guest) {
     var OA = OPINIONS;
@@ -5662,10 +5687,11 @@ function chatter(a, b, t, casualOnly){
   saidKey(pick.key);
   if (pick.learn) { learnNews(pick.learn[0], pick.learn[1]); if (pick.learn[2]) { (KNOWFROM[pick.learn[1]] = KNOWFROM[pick.learn[1]] || {})[pick.learn[0].id] = pick.learn[2].id; } }
   if (pick.vq) pick.vq.told = true;
+  if (pick.wn !== undefined) WNEWS_USED[pick.wn] = 1;
   /* talking it through takes the edge off */
   if (/^fr/.test(pick.key)) a.frus = (a.frus || 0) * 0.5;
   var out = pick.lines.slice();
-  if (out.length > 2 && R() < 0.3) out.pop();
+  if (out.length > 2 && pick.wn === undefined && R() < 0.3) out.pop();
   out.casual = !/^(tm|wk)/.test(pick.key);
   return out;
 }
@@ -5710,8 +5736,10 @@ function drawBubble(p, text){
 function startChat(a, b, t, dur, lines){
   var talky = !a.guest && !b.guest && !chats.some(function(c){ return c.bubbles; }) && (lines ? true : R() < 0.8);
   if (!lines) {
-    lines = chatter(a, b, t);
     var fit = Math.max(2, Math.floor((dur - 0.6) / LINE_GAP));
+    /* news of the day only goes in a chat that shows its bubbles and has room for all of its lines */
+    chatter.room = talky ? fit : 0;
+    lines = chatter(a, b, t); chatter.room = 0;
     if (lines.length > fit) lines = lines.slice(0, fit);
   }
   a.met = a.met || {}; b.met = b.met || {};
@@ -8946,7 +8974,7 @@ function resetWorld(){
     if (!BASE_KEYS) { BASE_KEYS = {}; ALL.forEach(function(p){ var k = {}; Object.keys(p).forEach(function(n){ k[n] = 1; }); BASE_KEYS[p.id] = k; }); }
     ALL.forEach(function(p){ var bk = BASE_KEYS[p.id]; Object.keys(p).forEach(function(n){ if (!bk[n] && !KEEP_KEYS[n]) p[n] = undefined; }); });
     chats = []; SAYS.length = 0; CHAT_RECENT.length = 0; OFFICE_EV.length = 0; POI = [];
-    KNOW = {}; KNOWFROM = {}; RIT_DONE = {}; perceive.wx = undefined; chatter.retry = false;
+    KNOW = {}; KNOWFROM = {}; RIT_DONE = {}; WNEWS_USED = {}; perceive.wx = undefined; chatter.retry = false;
     HUDDLE.next = 0; HUDDLE.on = null; GUESTS.next = 0; GUESTS.cur = null;
     MISHAP.next = 0; MISHAP.cur = null; MISHAP.book.down = false; MISHAP.book.backAt = 0;
     TREATS.on = false; TREATS.day = 0; TREATS.until = 0; TREATS.at = 99;
@@ -9334,7 +9362,7 @@ function frame(){
   mark("labels", m0);
 }
 /* the weather the people react to is read once (up to 2.5 s), then the world catches up to now */
-try { await Promise.race([WX_FIRST, new Promise(function(res){ setTimeout(res, 2500); })]); } catch (e) {}
+try { await Promise.race([Promise.all([WX_FIRST, WNEWS_FIRST]), new Promise(function(res){ setTimeout(res, 2500); })]); } catch (e) {}
 (function(){
   var l0 = performance.now();
   resetWorld();

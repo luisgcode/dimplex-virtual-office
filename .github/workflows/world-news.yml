@@ -1,0 +1,25 @@
+name: World news for the office
+on:
+  schedule:
+    - cron: "30 10 * * 1-5"   # 5:30 am Toronto in winter, 6:30 am in summer, weekdays
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  news:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-save --no-package-lock @anthropic-ai/sdk
+      - run: node tools/world-news.mjs
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      - name: Save the day's news
+        run: |
+          git config user.name "office-news"
+          git config user.email "office-news@users.noreply.github.com"
+          git add world-news.json
+          git diff --cached --quiet || (git commit -m "News of the day" && git push)
