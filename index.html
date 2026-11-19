@@ -3754,8 +3754,8 @@ function simCat(t){
   if (CAT.on) {
     var L = CAT.segs, last = L[L.length - 1], np = null;
     for (var i = 0; i < L.length; i++) if (L[i].ph === "nap" && L[i].t0 <= t && t < L[i].t1) np = L[i];
-    /* Debbie got up or got busy: the nap ends early */
-    if (np && t - np.t0 > 3 && !catAtDesk(D, t)) {
+    /* the nap lasts its 10 minutes on Debbie's desk even if she gets up for a bit; only her going home ends it early */
+    if (np && t - np.t0 > 3 && homeNow(D)) {
       L.length = L.indexOf(np) + 1; np.t1 = t;
       CAT.evs = CAT.evs.filter(function(e){ return e.at <= t; });
       var S = { list:L, at:t }; catPlanOut(S, CAT.prank, D);
