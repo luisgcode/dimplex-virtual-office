@@ -6442,7 +6442,7 @@ function carryTick(t, dk){
   if (!C) {
     while (CARRY.k < CARRY.slots.length && t > CARRY.slots[CARRY.k] + 900) CARRY.k++;
     var at = CARRY.slots[CARRY.k];
-    if (at === undefined || t < at || DAY.closed) return;
+    if (at === undefined || t < at || DAY.closed || GAME.cur) return;
     CARRY.k++;
     C = CARRY.cur = { appear:t, call:t + (/[?&]carry=1/.test(location.search || "") ? 8 : 120), ph:"wait", team:[], lift:0, ts:0, w:null };
     var seen = shuffle(PEOPLE.filter(function(q){ return idleAtDesk(q); }))[0];
@@ -6451,7 +6451,7 @@ function carryTick(t, dk){
   }
   if (C.ph === "wait") {
     if (t < C.call) return;
-    if (teamCallNow()) { C.call = t + 60; return; }
+    if (teamCallNow() || GAME.cur) { C.call = t + 60; return; }
     /* anyone at the desk and free (whatever small thing they are doing stops) */
     var pool = shuffle(PEOPLE.filter(function(q){ return !q.remote && !q.guest && q.state === "sit" && !q.trip && visAt(q, t) && !q.chatWith && !q.visitor && !q.answering && !lunchNow(q) && !homeNow(q) && !(q.act && (q.act.plan || q.act.n === "vcall")); }));
     if (pool.length < 4) { if (t - C.appear > 1500) CARRY.cur = null; else C.call = t + 45; return; }
@@ -6557,6 +6557,127 @@ function carryArms(p, t){
   armIK(b[far + "Arm"], b[far + "ForeArm"], b[far + "Hand"], _ctB, _ipole);
   _iu.set(-lx, -0.2, -lz); aimW(b[far + "Hand"], b[far + "HandMiddle1"], _iu);
 }
+/* ---------- the team gets together in the hallway: 4 times a day between 10:00 and 15:00 (not over lunch), one of
+   each, in a different order every day: a chat in a circle, product trivia, a group stretch and a coffee toast.
+   Everyone at the office gets up, they stand in a ring in the aisle, do it for a minute or so, and go back. */
+var GAME = { day:-1, slots:[], k:0, cur:null };
+var GAME_KINDS = ["chat", "trivia", "stretch", "toast"], GAME_C = new V3(0, 0, 2.3);
+var GAME_LABEL = { chat:"Chatting with the team in the hallway", trivia:"Product trivia in the hallway", stretch:"Group stretch in the hallway", toast:"Coffee toast with the team" };
+window.__game = function(){ var G2 = GAME.cur; return { slots:GAME.slots.map(function(x){ return fmtH(x.at / 3600) + " " + x.kind; }), k:GAME.k, ph:G2 && G2.ph, kind:G2 && G2.kind, team:G2 ? G2.team.map(function(q){ return q.id + ":" + q.state; }) : [] }; };
+function gameSlots(dk){
+  if (GAME.day === dk) return;
+  GAME.day = dk; GAME.slots = []; GAME.k = 0;
+  var r = wrng("game", dk), order = GAME_KINDS.slice();
+  for (var i = order.length - 1; i > 0; i--) { var j = Math.floor(r() * (i + 1)), x = order[i]; order[i] = order[j]; order[j] = x; }
+  [10.2, 11.25, 13.35, 14.4].forEach(function(h, i){ GAME.slots.push({ at:(h + r() * 0.25) * 3600, kind:order[i] }); });
+  /* ?game=1 (or ?game=trivia...): one right away, to look at it (this screen only) */
+  var qg = /[?&]game=(\w+)/.exec(location.search || "");
+  if (qg) { var tz = torontoAt(WORLD_NOW()); GAME.slots.unshift({ at:tz.h * 3600 + tz.mi * 60 + tz.s + 20, kind:GAME_KINDS.indexOf(qg[1]) >= 0 ? qg[1] : "chat" }); }
+}
+function gameFree(q, t){ return !q.remote && !q.guest && q.state === "sit" && !q.trip && visAt(q, t) && !q.answering && !lunchNow(q) && !homeNow(q) && !(q.act && (q.act.plan || q.act.n === "vcall")); }
+/* someone from the ring, picked by the director */
+function gamePick(G2, not){ var L = G2.team.filter(function(q){ return q !== not && q.state === "stay"; }); return L.length ? L[Math.floor(R() * L.length)] : null; }
+var GAME_CHAT = [
+  ["Okay, quick break. How's everyone's week going?", "Busy, but good busy.", "Same. The weeks fly by lately.", "Friday will be here before we know it."],
+  ["Anyone doing anything fun this weekend?", "Family dinner, then the couch.", "I'm finally putting up the tree.", "Already? Love it."],
+  ["Has anyone tried the new place across the street?", "The sandwiches are huge.", "We should do a team lunch there.", "Next week, let's book it."],
+  ["What's everyone watching these days?", "I just started a new series. No sleep.", "Send me the name!", "Same, I need something new."]
+];
+var GAME_TRIVIA = [
+  ["Trivia time! Which of our flames uses real water mist?", "Opti-myst!", "Correct! Point for you."],
+  ["Next one. Which fireplace line has the most realistic logs and flame?", "Revillusion!", "Yes! Easy one."],
+  ["Last question. What do our baseboards do best?", "Keep the whole room warm all winter.", "Perfect answer. Everyone wins!"],
+  ["Bonus! What do we always say to fix first, the site or Plytix?", "Plytix first, always.", "You've been listening!"]
+];
+var GAME_TOAST = ["To a great week, everyone!", "To the best team in the building!", "To all the boxes we moved today!", "To coffee, the real MVP!"];
+/* the script of each activity: [seconds after it starts, what happens] */
+function gameScript(G2, t){
+  var S = [], k = G2.kind, host = G2.host, all = function(fn){ G2.team.forEach(function(q){ if (q.state === "stay") fn(q); }); };
+  var laugh = function(t2){ all(function(q){ if (R() < 0.7) { q.laughUntil = t2 + 1.5; q.smileUntil = t2 + 3; } }); };
+  if (k === "chat") {
+    var L = choose(GAME_CHAT);
+    S.push([1, function(t2){ sayLater(host, L[0], t2, 3.2); }]);
+    for (var i = 1; i < L.length; i++) (function(line, at){ S.push([at, function(t2){ var q = gamePick(G2, host); if (q) sayLater(q, line, t2, 3); }]); })(L[i], 1 + i * 4.5);
+    S.push([20, laugh]); S.push([30, function(t2){ sayLater(host, "Okay, back to it. Good chat, team!", t2, 3); }]);
+    S.push([35, null]);
+  } else if (k === "trivia") {
+    var Q = GAME_TRIVIA.slice(); Q.splice(Math.floor(R() * Q.length), 1);
+    Q.forEach(function(qa, n){
+      var b = 1 + n * 12;
+      S.push([b, function(t2){ sayLater(host, qa[0], t2, 3.6); }]);
+      S.push([b + 4.6, function(t2){ var q = gamePick(G2, host); if (q) { sayLater(q, qa[1], t2, 2.6); startAct(q, "fist", t2 + 0.2, 1.8); } }]);
+      S.push([b + 8, function(t2){ sayLater(host, qa[2], t2, 2.8); laugh(t2); }]);
+    });
+    S.push([40, null]);
+  } else if (k === "stretch") {
+    S.push([1, function(t2){ sayLater(host, "Okay, everyone. Stretch break! Arms up.", t2, 3.2); }]);
+    [4, 12, 20].forEach(function(at){ S.push([at, function(t2){ all(function(q){ startAct(q, "stretch", t2, 5); }); }]); });
+    S.push([10, function(t2){ var q = gamePick(G2, host); if (q) sayLater(q, "Oh, my back needed that.", t2, 2.6); }]);
+    S.push([18, function(t2){ sayLater(host, "One more! Big stretch.", t2, 2.6); }]);
+    S.push([27, function(t2){ var q = gamePick(G2, host); if (q) sayLater(q, "We should do this every day.", t2, 2.8); laugh(t2); }]);
+    S.push([32, null]);
+  } else {
+    S.push([1, function(t2){ sayLater(host, "Coffee toast! Everyone grab your cup.", t2, 3); }]);
+    S.push([5, function(t2){ sayLater(host, choose(GAME_TOAST), t2, 3); }]);
+    S.push([7, function(t2){ all(function(q){ startAct(q, "sip", t2 + R() * 0.4, 3); }); }]);
+    S.push([7.6, function(t2){ var q = gamePick(G2, host); if (q) sayLater(q, "Cheers!", t2, 2); }]);
+    S.push([8.4, function(t2){ var q = gamePick(G2, host); if (q) sayLater(q, "Cheers!!", t2, 2); laugh(t2); }]);
+    S.push([14, function(t2){ var q = gamePick(G2, host); if (q) sayLater(q, "Best coffee break of the week.", t2, 2.8); }]);
+    S.push([22, null]);
+  }
+  G2.script = S.map(function(e){ return { at:t + e[0], fn:e[1] }; });
+}
+function gameTick(t, dk){
+  gameSlots(dk);
+  var G2 = GAME.cur;
+  if (!G2) {
+    while (GAME.k < GAME.slots.length && t > GAME.slots[GAME.k].at + 1200) GAME.k++;
+    var sl = GAME.slots[GAME.k];
+    if (!sl || t < sl.at || DAY.closed) return;
+    if (teamCallNow() || CARRY.cur) return;
+    var team = PEOPLE.filter(function(q){ return gameFree(q, t); });
+    if (team.length < 3) return;
+    GAME.k++;
+    G2 = GAME.cur = { kind:sl.kind, team:team, ph:"gather", t0:t, host:team[Math.floor(R() * team.length)] };
+    var n = team.length;
+    team.forEach(function(q, i){
+      var a = (i + 0.5) / n * Math.PI * 2, sp = new V3(GAME_C.x + 0.55 * Math.sin(a), 0, GAME_C.z + 1.05 * Math.cos(a));
+      q.act = null; q.typeOn = false; q.decideAt = t + 600;
+      goSpot(q, t + 0.5 + R() * 3, sp, GAME_C, 900, GAME_LABEL[sl.kind], null, null, null);
+    });
+    var opener = { chat:["Hallway break, everyone! Come chat.", "Quick team huddle in the hallway!"], trivia:["Trivia break! Everyone in the hallway.", "Who's up for a quick trivia?"], stretch:["Stretch break! Everyone up.", "Time to stretch, team. Hallway!"], toast:["Coffee toast in the hallway, bring your cups!", "Everyone, grab your coffee. Quick toast!"] }[sl.kind];
+    sayLater(G2.host, choose(opener), t + 0.4, 3);
+    return;
+  }
+  if (G2.ph === "gather") {
+    var there = G2.team.filter(function(q){ return q.state === "stay"; }).length;
+    if (there < G2.team.length && t - G2.t0 < 70) return;
+    G2.ph = "on"; if (G2.host.state !== "stay") G2.host = gamePick(G2, null) || G2.host;
+    gameScript(G2, t);
+    return;
+  }
+  if (G2.ph === "on") {
+    while (G2.script.length && G2.script[0].at <= t) {
+      var e = G2.script.shift();
+      if (e.fn) e.fn(t);
+      else {
+        /* the end: everyone heads back, a little apart */
+        G2.team.forEach(function(q, i){
+          if (q.state === "stay" && q.trip && q.trip.kind === "spot") setState(q, "stay", t, 0.4 + i * 0.7);
+          else if (q.trip && q.trip.kind === "spot") q.trip.stay = 0.1;
+        });
+        GAME.cur = null; return;
+      }
+    }
+  }
+}
+function gameDue(T, next){
+  if (GAME.day !== dayKey()) return next;
+  var G2 = GAME.cur;
+  if (G2) return G2.ph === "gather" ? next : G2.script.length ? Math.max(next, G2.script[0].at) : next;
+  var sl = GAME.slots[GAME.k];
+  return !sl ? Infinity : T < sl.at ? sl.at : next;
+}
 var NEWS = [
   { id:"pizza", until:new Date(2026, 10, 24, 18).getTime(),
     drift:["I heard it's pizza AND wings on the 24th!", "Apparently it's pizza, wings and dessert on the 24th.", "Someone said it's a full party on the 24th, pizza, wings, dessert, everything!"], lines:["Did you hear? Pizza on the 24th, from the Halloween win!", "Wait really?? Yay!", "Same week as the Christmas lunch too."] },
@@ -6635,6 +6756,7 @@ function simLifePerson(p, i, t, dt, dk){
 /* director: the office-wide part of everyday life */
 function simLifeWorld(t, dt, dk){
   carryTick(t, dk);
+  gameTick(t, dk);
   var present = presentAt(t);
   LIFE.printers.forEach(function(pr){ if (pr.job && t - pr.job.t0 > 120) pr.job = null; });
   /* Friday team call: someone talks now and then, the purple frame follows whoever speaks */
@@ -9186,6 +9308,7 @@ function resetWorld(){
     PLYTIX.on = false; PLYTIX.next = 0; PLYTIX.until = 0; PLYTIX.lastAt = 0;
     BOXEV.day = 0; BOXEV.on = false; BOXEV.done = false; BOXEV.open = 0;
     CARRY.day = -1; CARRY.slots = []; CARRY.k = 0; CARRY.cur = null;
+    GAME.day = -1; GAME.slots = []; GAME.k = 0; GAME.cur = null;
     TEAMCALL.on = false; TEAMCALL.next = 0; TEAMCALL.speaker = null; TEAMCALL.said = {};
     ALONE.next = 0; ALONE.said = [];
     DOGS.petAt = 0; DOGS.pet = 0; DOGW.walk = null; DOGW.list.forEach(function(d){ d.st = 0; d.stretchAt = 0; });
@@ -9275,7 +9398,7 @@ function simDue(T){
   if (!BOXEV.done && !BOXEV.on && BOXEV.at < 99) { var ba = BOXEV.at * 3600; if (T < ba) x = Math.min(x, ba); else if (h < BOXEV.at + 0.5) x = next; }
   if (DAY.fri && RIT_DONE["water" + dk] === undefined && h < 11.5) x = Math.min(x, h > 10 ? next : 10 * 3600 + 1);
   if (!RIT_DONE["fire" + dk] && h < 10.5 && BY.stephanie && BY.stephanie.state === "sit") { var tw = simWx(T).temp; if (Q_COLD || (tw !== null && tw <= 0)) x = next; }
-  x = Math.min(x, dogsDue(T), carryDue(T, next));
+  x = Math.min(x, dogsDue(T), carryDue(T, next), gameDue(T, next));
   D.life = Math.min(x, run);
   D.cat = catDue(T);
   D.season = seasonDue(T);
