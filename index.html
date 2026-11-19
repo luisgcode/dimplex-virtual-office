@@ -790,22 +790,30 @@ function wxFetch(){
     }).catch(function(){});
 }
 var WX_FIRST = wxFetch(); setInterval(wxFetch, 15 * 60 * 1000);
-/* what is going on in the world (shows, movies, celebrities, music): up to 5 stories a day, written every morning
+/* what is going on in the world (shows, movies, celebrities, music): up to 10 stories a day, written every morning
    by the GitHub Action in tools/world-news.mjs into world-news.json. Each story has up to 3 chats: the first
    mention opens at the story's hour, the next ones about 45 and 100 minutes later, each told once */
-var WNEWS = null, WNEWS_USED = {}, WNEWS_AT = [9.25, 10.5, 11.6, 13.3, 14.4], WNEWS_LATER = [0, 0.75, 1.7];
+var WNEWS = null, WNEWS_USED = {}, WNEWS_AT = [9.1, 9.6, 10.1, 10.6, 11.1, 11.6, 13.2, 13.7, 14.2, 14.7], WNEWS_LATER = [0, 0.75, 1.7];
 function wnewsToday(){
   if (!WNEWS || !SIM.day) return null;
   var d = SIM.day, k = d.y + "-" + ("0" + d.mo).slice(-2) + "-" + ("0" + d.d).slice(-2);
   return WNEWS.date === k ? WNEWS.items : null;
 }
 window.__wnews = function(){ return { file:WNEWS, today:wnewsToday(), told:Object.keys(WNEWS_USED) }; };
+/* is a news chat waiting to be told at world second t? (a desk visit then lasts long enough for its 3 lines) */
+function wnewsPending(t){
+  var W = wnewsToday(); if (!W || t >= 16.6 * 3600) return false;
+  return W.some(function(it, i){
+    for (var j = 0; j < it.chats.length && j < WNEWS_LATER.length; j++) if (!WNEWS_USED[i + "_" + j]) return t >= (WNEWS_AT[i] + WNEWS_LATER[j]) * 3600;
+    return false;
+  });
+}
 var WNEWS_FIRST = fetch("world-news.json?d=" + Math.floor(Date.now() / 3600000), { cache:"no-store" })
   .then(function(r){ return r.ok ? r.json() : null; })
   .then(function(j){
     if (!j || !Array.isArray(j.items) || WNEWS) return;
     j.items = j.items.map(function(it){ if (it && !it.chats && Array.isArray(it.lines)) it.chats = [it.lines]; return it; })
-      .filter(function(it){ return it && Array.isArray(it.chats) && it.chats.length && it.chats[0].length >= 2; }).slice(0, 5);
+      .filter(function(it){ return it && Array.isArray(it.chats) && it.chats.length && it.chats[0].length >= 2; }).slice(0, 10);
     WNEWS = j;
     /* it came after the world was built without it: build it again, same as the weather */
     if (SIM.loadMs !== undefined && wnewsToday()) { resetWorld(); simTo(WT()); }
@@ -5517,15 +5525,15 @@ function chatter(a, b, t, casualOnly){
     if (e.kind === "spill") L = mine ? ["I just knocked my " + drinkOf(a) + " all over the desk.", "Classic. Need paper towels?", "Already on it. Keyboard survived."]
       : theirs ? ["How's the desk after the spill?", "Sticky. Very sticky.", "At least it wasn't the laptop."]
       : ["Did you see " + xn + " spill the " + drinkOf(X) + "?", "Poor " + xn + ". Is the keyboard okay?", "Seems fine. The desk, not so much."];
-    else if (e.kind === "cat") L = ["Did you see " + xn + "'s cat on the call?", "Best coworker on the team, honestly.", "Better attendance than some of us."];
+    else if (e.kind === "cat") L = ["Did you see " + xn + "'s cat on the call?", "So cute! Best part of the call.", "Made my whole morning."];
     else if (e.kind === "chair") L = mine ? ["Please tell me nobody saw my chair move.", "Everybody saw it.", "Great. Just great."]
       : ["" + xn + " almost went over on that chair.", "I saw that! Smooth save though.", "Ten out of ten landing."];
     else if (e.kind === "lunch" && mine) L = ["Back from lunch. I'm so full.", "Where did you go?", "The usual spot. Never disappoints."];
     else if (e.kind === "book") L = ["That shelf dropped a book again.", "Someone should fix that shelf.", "Someone. Not me."];
     else if (e.kind === "guest" && !mine && !theirs) L = ["Was that " + xn + " just now?", "Yep, dropped by to say hi.", "We should give " + xn + " a desk up here."];
-    else if (e.kind === "coffee" && !mine && !theirs) L = [xn + " just made a " + drinkOf(X) + " run.", "Without asking us? Rude.", "Next round is on " + xn + "."];
+    else if (e.kind === "coffee" && !mine && !theirs) L = [xn + " just made a " + drinkOf(X) + " run.", "Smart move. I need one too.", "Next round is on " + xn + "."];
     else if (e.kind === "coffee" && mine) L = ["Fresh " + ad + ". Feeling human again.", "Lucky. I still need mine.", "The pot is still warm, go!"];
-    else if (e.kind === "longmeeting" && !mine) L = ["That meeting " + xn + " was in ran long.", "They always do on " + DAY.wdName + "s.", "Could have been an email."];
+    else if (e.kind === "longmeeting" && !mine) L = ["That meeting " + xn + " was in ran long.", "They always do on " + DAY.wdName + "s.", "Hope there were snacks at least."];
     else if (e.kind === "meeting" && theirs) L = ["How did the meeting go?", "Good, actually. Short, too.", "A short meeting? Write that down."];
     if (L && CHAT_RECENT.indexOf(key) < 0) C.push({ w:go.w, key:key, lines:L, ev:e });
   });
@@ -5701,6 +5709,7 @@ function chatter(a, b, t, casualOnly){
   var out = pick.lines.slice();
   if (out.length > 2 && pick.wn === undefined && R() < 0.3) out.pop();
   out.casual = !/^(tm|wk)/.test(pick.key);
+  if (pick.wn !== undefined) out.news = true;
   return out;
 }
 
@@ -6052,9 +6061,11 @@ function decide(p, t){
   } else if (o.k === "talk") {
     /* close friends drift into casual talk and turn their chairs round */
     var cas = aff(p, o.q) >= 2 && R() < 0.65;
-    var lines = chatter(p, o.q, t, cas);
+    /* the news of the day can come up here when this chat shows its bubbles (its length follows the lines) */
+    chatter.room = !p.guest && !o.q.guest && !chats.some(function(c){ return c.bubbles; }) ? 3 : 0;
+    var lines = chatter(p, o.q, t, cas); chatter.room = 0;
     /* friends sometimes agree on a break later, and keep it */
-    if (cas && !p.appt && !o.q.appt && !p.remote && !o.q.remote && DAY.h > 9 && DAY.h < 15 && !lunchNow(p) && R() < 0.18) {
+    if (cas && !lines.news && !p.appt && !o.q.appt && !p.remote && !o.q.remote && DAY.h > 9 && DAY.h < 15 && !lunchNow(p) && R() < 0.18) {
       var ah = Math.ceil((DAY.h + rand(0.6, 1.4)) * 4) / 4;
       if (ah > 11.75 && ah < 13.6) ah = 13.75;
       lines = [choose(["Break together at " + fmtH(ah) + "? I'm going to need it.", "Coffee at " + fmtH(ah) + "? My treat.", "Walk to the kitchen at " + fmtH(ah) + "?"]),
@@ -6821,6 +6832,7 @@ function simEnd(p, te, T){
         var q = tr.target;
         if (q.state === "sit" && q.visitor === p && !q.answering) {
           var cd = rand(11, 13.5);
+          if (cd < 12.6 && wnewsPending(t) && !p.guest && !q.guest) cd = 12.6;
           setState(p, "visit", t, cd);
           startAct(q, q.remote ? "answer" : "turn", t, cd - 0.3, p);
           startAct(p, p.id === "olivia" && !q.remote ? "swatch" : "talk", t + 0.5, cd - 1.2);

@@ -15,8 +15,12 @@ const FEEDS = [
   "https://www.billboard.com/feed/",
   "https://www.cbc.ca/webfeed/rss/rss-arts",
   "https://www.odditycentral.com/feed",
+  "https://nypost.com/weird-but-true/feed/",
+  "https://www.cbc.ca/webfeed/rss/rss-offbeat",
+  "https://www.boredpanda.com/feed/",
 ];
-const MAX = 5;
+const MAX = 10;
+const SINCE = Date.now() - 48 * 3600 * 1000;   /* today and yesterday */
 /* nothing bad ever reaches the office: these words drop a story before and after Claude */
 const BAD = /\b(war|wars|army|military|missile|bomb|attack|terror|shoot|shooting|gun|killed|kill|killing|dead|death|died|dies|dying|murder|crime|criminal|fugitive|police|arrest|prison|jail|court|trial|lawsuit|abuse|assault|rape|suicide|drug|overdose|divorce|split|breakup|cheat\w*|scandal|feud|slam\w*|rehab|lawsuit|sued|cancer|disease|virus|pandemic|covid|hospital|illness|sick|disaster|earthquake|flood|wildfire|hurricane|tornado|crash|accident|injur\w*|victim|missing|rescue|tragic|tragedy|funeral|grief|politic\w*|election|president|trump|biden|government|minister|congress|senate|parliament|israel|gaza|ukraine|russia|iran|china|religio\w*|church|mosque|gender|sex|sexual|racis\w*|refugee|immigra\w*|protest|riot)\b/i;
 
@@ -31,9 +35,10 @@ async function readFeed(url) {
     const xml = await r.text(), out = [];
     for (const m of xml.matchAll(/<item[\s>][\s\S]*?<\/item>/g)) {
       const it = m[0], pick = (tag) => { const x = it.match(new RegExp("<" + tag + "[^>]*>([\\s\\S]*?)</" + tag + ">")); return x ? decode(x[1]) : ""; };
-      const title = pick("title"), desc = pick("description").slice(0, 300);
+      const title = pick("title"), desc = pick("description").slice(0, 300), when = Date.parse(pick("pubDate") || pick("dc:date"));
+      if (when && when < SINCE) continue;
       if (title && !BAD.test(title + " " + desc)) out.push({ title, desc, source: new URL(url).hostname.replace(/^www\./, "") });
-      if (out.length >= 15) break;
+      if (out.length >= 20) break;
     }
     return out;
   } catch { return []; }
@@ -47,12 +52,13 @@ console.log(`feeds: ${stories.length} stories after the word filter`);
 if (stories.length < 2) { console.log("not enough stories today, leaving the old file (the office ignores it)"); process.exit(0); }
 
 const SYSTEM = `You write tiny bits of small talk for a cozy virtual office of a Canadian heating and fireplace company (Cambridge, Ontario).
-From the stories given, pick at most ${MAX} that people at work would actually talk about today: what is hot right now in movies, series and streaming, celebrities, music and award shows. No sports at all. At most one curious or funny oddity story. Prefer famous names and things most people have heard of; skip industry business news (deals, box office reports, executives, casting minutiae) unless it is a big fun headline.
+From the stories given, pick at most ${MAX} that people at work would actually talk about today: what is hot right now in movies, series and streaming, celebrities, music and award shows, plus weird, unexpected and funny news (bizarre records, strange inventions, odd things people did). Aim for about two thirds pop culture and one third weird news. No sports at all. Skip plain animal or science stories unless they are truly jaw dropping. Prefer famous names and things most people have heard of; skip industry business news (deals, box office reports, executives, casting minutiae) unless it is a big fun headline.
 Never pick anything about war, politics, crime, death, illness, disasters, accidents, money trouble, religion, sex, breakups, scandals, feuds, or anything sad or divisive, even if it ends well. If fewer stories qualify, return fewer.
 For each story write 3 separate short chats, each exactly 3 lines, as coworkers talking about it at different moments of the day:
 chat 1 (first time it comes up): person A brings it up ("Did you see...", "Apparently...", "Okay, did you hear..."), B reacts, A adds a fun detail or joke.
 chat 2 (later, two other coworkers): it comes up again with a new angle, an opinion, a "have you watched it?", a prediction, or a playful disagreement.
 chat 3 (afternoon): a quick callback, still talking about it, a light joke or what they will do (watch it tonight, listen on the drive home).
+Keep it kind: never tease, judge or compare coworkers (no "better than some of us", "unlike you", "lazy"), only friendly talk.
 Rules for every line: plain everyday English like real friends at work, at most 85 characters, no names of the coworkers, no emojis, no hashtags, no dashes of any kind, no quotes inside the line. Facts must come from the story, never invent details. Vary the openers across stories and chats.`;
 
 const list = stories.map((s, i) => `${i + 1}. [${s.source}] ${s.title}${s.desc ? " :: " + s.desc : ""}`).join("\n");
