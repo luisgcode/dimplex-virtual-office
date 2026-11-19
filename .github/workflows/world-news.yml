@@ -3,6 +3,9 @@ on:
   schedule:
     - cron: "30 10 * * 1-5"   # 5:30 am Toronto in winter, 6:30 am in summer, weekdays
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [tools/world-news.mjs]   # a new version of the writer runs once right away
 permissions:
   contents: write
 jobs:

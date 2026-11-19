@@ -790,20 +790,22 @@ function wxFetch(){
     }).catch(function(){});
 }
 var WX_FIRST = wxFetch(); setInterval(wxFetch, 15 * 60 * 1000);
-/* curious news from the real world: up to 5 short chats a day (world-news.json, written every morning by the
-   GitHub Action in tools/world-news.mjs). Read once; each one opens at its own hour and is told only once a day */
-var WNEWS = null, WNEWS_USED = {}, WNEWS_AT = [9.25, 10.75, 12.4, 13.9, 15.4];
+/* what is going on in the world (shows, movies, celebrities, music): up to 5 stories a day, written every morning
+   by the GitHub Action in tools/world-news.mjs into world-news.json. Each story has up to 3 chats: the first
+   mention opens at the story's hour, the next ones about 45 and 100 minutes later, each told once */
+var WNEWS = null, WNEWS_USED = {}, WNEWS_AT = [9.25, 10.5, 11.6, 13.3, 14.4], WNEWS_LATER = [0, 0.75, 1.7];
 function wnewsToday(){
   if (!WNEWS || !SIM.day) return null;
   var d = SIM.day, k = d.y + "-" + ("0" + d.mo).slice(-2) + "-" + ("0" + d.d).slice(-2);
   return WNEWS.date === k ? WNEWS.items : null;
 }
-window.__wnews = function(){ return { file:WNEWS, today:wnewsToday(), told:Object.keys(WNEWS_USED).map(Number) }; };
+window.__wnews = function(){ return { file:WNEWS, today:wnewsToday(), told:Object.keys(WNEWS_USED) }; };
 var WNEWS_FIRST = fetch("world-news.json?d=" + Math.floor(Date.now() / 3600000), { cache:"no-store" })
   .then(function(r){ return r.ok ? r.json() : null; })
   .then(function(j){
     if (!j || !Array.isArray(j.items) || WNEWS) return;
-    j.items = j.items.filter(function(it){ return it && Array.isArray(it.lines) && it.lines.length >= 2; }).slice(0, 5);
+    j.items = j.items.map(function(it){ if (it && !it.chats && Array.isArray(it.lines)) it.chats = [it.lines]; return it; })
+      .filter(function(it){ return it && Array.isArray(it.chats) && it.chats.length && it.chats[0].length >= 2; }).slice(0, 5);
     WNEWS = j;
     /* it came after the world was built without it: build it again, same as the weather */
     if (SIM.loadMs !== undefined && wnewsToday()) { resetWorld(); simTo(WT()); }
@@ -5583,12 +5585,16 @@ function chatter(a, b, t, casualOnly){
       C.push({ w:3, key:nk, lines:NL, learn:[b, nw.id, a] });
     }
   });
-  /* curious news of the day from the real world: each one opens at its hour, then it is told once */
+  /* the news of the day: each chat of a story opens at its hour, after the one before it, and is told once */
   var WNI = wnewsToday();
   if (WNI && !a.guest && !b.guest) WNI.forEach(function(it, i){
-    var wl = it.lines.slice(0, 3);
-    if (WNEWS_USED[i] || t < WNEWS_AT[i] * 3600 || (chatter.room || 0) < wl.length) return;
-    C.push({ w:3.5, key:"wn" + i, lines:wl, wn:i });
+    for (var j = 0; j < it.chats.length && j < WNEWS_LATER.length; j++) {
+      var wk = i + "_" + j;
+      if (WNEWS_USED[wk]) continue;
+      var wl = it.chats[j].slice(0, 3);
+      if (t >= (WNEWS_AT[i] + WNEWS_LATER[j]) * 3600 && t < 16.6 * 3600 && (chatter.room || 0) >= wl.length) C.push({ w:3.5, key:"wn" + wk, lines:wl, wn:wk });
+      break;
+    }
   });
   /* opinions: a small disagreement, then they make peace */
   if (!a.remote && !b.remote && !a.guest && !b.guest) {

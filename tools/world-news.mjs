@@ -1,20 +1,24 @@
 /* Curious news of the day for the office chats.
    Runs every morning (GitHub Action .github/workflows/world-news.yml): reads a few feeds of light, curious news,
-   asks Claude to keep up to 5 harmless stories and write each one as a 3 line chat between two coworkers,
+   asks Claude to keep up to 5 stories people talk about (shows, movies, celebrities, music) and write
+   3 short chats for each one (first mention, a later take, an afternoon callback),
    and writes world-news.json. The office reads that file once and tells each story once, at its own hour.
    Run by hand: ANTHROPIC_API_KEY=... node tools/world-news.mjs  (add --dry to print without writing) */
 import Anthropic from "@anthropic-ai/sdk";
 import { writeFileSync } from "node:fs";
 
+/* what people are talking about: movies, series, celebrities and music, plus a pinch of curious news */
 const FEEDS = [
-  "https://www.goodnewsnetwork.org/feed/",
+  "https://www.eonline.com/syndication/feeds/rssfeeds/topstories.xml",
+  "https://variety.com/feed/",
+  "https://deadline.com/feed/",
+  "https://www.billboard.com/feed/",
+  "https://www.cbc.ca/webfeed/rss/rss-arts",
   "https://www.odditycentral.com/feed",
-  "https://www.sciencedaily.com/rss/strange_offbeat.xml",
-  "https://www.mentalfloss.com/rss.xml",
 ];
 const MAX = 5;
 /* nothing bad ever reaches the office: these words drop a story before and after Claude */
-const BAD = /\b(war|wars|army|military|missile|bomb|attack|terror|shoot|shooting|gun|killed|kill|killing|dead|death|died|dies|dying|murder|crime|criminal|fugitive|police|arrest|prison|jail|court|trial|lawsuit|abuse|assault|rape|suicide|drug|overdose|cancer|disease|virus|pandemic|covid|hospital|illness|sick|disaster|earthquake|flood|wildfire|hurricane|tornado|crash|accident|injur\w*|victim|missing|rescue|tragic|tragedy|funeral|grief|politic\w*|election|president|trump|biden|government|minister|congress|senate|parliament|israel|gaza|ukraine|russia|iran|china|religio\w*|church|mosque|gender|sex|sexual|racis\w*|refugee|immigra\w*|protest|riot)\b/i;
+const BAD = /\b(war|wars|army|military|missile|bomb|attack|terror|shoot|shooting|gun|killed|kill|killing|dead|death|died|dies|dying|murder|crime|criminal|fugitive|police|arrest|prison|jail|court|trial|lawsuit|abuse|assault|rape|suicide|drug|overdose|divorce|split|breakup|cheat\w*|scandal|feud|slam\w*|rehab|lawsuit|sued|cancer|disease|virus|pandemic|covid|hospital|illness|sick|disaster|earthquake|flood|wildfire|hurricane|tornado|crash|accident|injur\w*|victim|missing|rescue|tragic|tragedy|funeral|grief|politic\w*|election|president|trump|biden|government|minister|congress|senate|parliament|israel|gaza|ukraine|russia|iran|china|religio\w*|church|mosque|gender|sex|sexual|racis\w*|refugee|immigra\w*|protest|riot)\b/i;
 
 const decode = (s) => s.replace(/<!\[CDATA\[|\]\]>/g, "").replace(/<[^>]+>/g, " ")
   .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(+n)).replace(/&amp;/g, "&").replace(/&quot;/g, '"')
@@ -38,20 +42,24 @@ async function readFeed(url) {
 const torontoDate = () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Toronto", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
 
 const stories = (await Promise.all(FEEDS.map(readFeed))).flat();
+for (let i = stories.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [stories[i], stories[j]] = [stories[j], stories[i]]; }
 console.log(`feeds: ${stories.length} stories after the word filter`);
 if (stories.length < 2) { console.log("not enough stories today, leaving the old file (the office ignores it)"); process.exit(0); }
 
 const SYSTEM = `You write tiny bits of small talk for a cozy virtual office of a Canadian heating and fireplace company (Cambridge, Ontario).
-From the stories given, pick at most ${MAX} that are light, curious, funny, wholesome or amazing (animals, science oddities, records, inventions, food, space, nature, quirky people).
-Never pick anything about war, politics, crime, death, illness, disasters, accidents, money trouble, religion, sex or anything sad or divisive, even if it ends well. If fewer stories qualify, return fewer. Picking none is fine.
-For each story write exactly 3 short lines of casual chat between two coworkers: line 1 person A brings it up naturally ("Did you see...", "Apparently...", "I just read..."), line 2 person B reacts, line 3 person A closes with a light joke or a fun detail.
-Rules for every line: plain everyday English, at most 85 characters, no names of the coworkers, no emojis, no hashtags, no dashes of any kind, no quotes inside the line. Facts must come from the story; keep numbers and places right. Vary the openers across stories.`;
+From the stories given, pick at most ${MAX} that people at work would actually talk about today: what is hot right now in movies, series and streaming, celebrities, music and award shows. No sports at all. At most one curious or funny oddity story. Prefer famous names and things most people have heard of; skip industry business news (deals, box office reports, executives, casting minutiae) unless it is a big fun headline.
+Never pick anything about war, politics, crime, death, illness, disasters, accidents, money trouble, religion, sex, breakups, scandals, feuds, or anything sad or divisive, even if it ends well. If fewer stories qualify, return fewer.
+For each story write 3 separate short chats, each exactly 3 lines, as coworkers talking about it at different moments of the day:
+chat 1 (first time it comes up): person A brings it up ("Did you see...", "Apparently...", "Okay, did you hear..."), B reacts, A adds a fun detail or joke.
+chat 2 (later, two other coworkers): it comes up again with a new angle, an opinion, a "have you watched it?", a prediction, or a playful disagreement.
+chat 3 (afternoon): a quick callback, still talking about it, a light joke or what they will do (watch it tonight, listen on the drive home).
+Rules for every line: plain everyday English like real friends at work, at most 85 characters, no names of the coworkers, no emojis, no hashtags, no dashes of any kind, no quotes inside the line. Facts must come from the story, never invent details. Vary the openers across stories and chats.`;
 
 const list = stories.map((s, i) => `${i + 1}. [${s.source}] ${s.title}${s.desc ? " :: " + s.desc : ""}`).join("\n");
 const schema = {
   type: "object", additionalProperties: false, required: ["items"],
-  properties: { items: { type: "array", items: { type: "object", additionalProperties: false, required: ["story", "lines"],
-    properties: { story: { type: "integer" }, lines: { type: "array", items: { type: "string" } } } } } },
+  properties: { items: { type: "array", items: { type: "object", additionalProperties: false, required: ["story", "chats"],
+    properties: { story: { type: "integer" }, chats: { type: "array", items: { type: "array", items: { type: "string" } } } } } } },
 };
 
 const client = new Anthropic();
@@ -71,10 +79,12 @@ const picked = JSON.parse(text).items || [];
 const clean = (l) => String(l).replace(/[‒-―−]|\s-\s/g, ", ").replace(/\s+/g, " ").trim();
 const items = [];
 for (const p of picked) {
-  const s = stories[p.story - 1], lines = (p.lines || []).slice(0, 3).map(clean);
-  if (!s || lines.length !== 3 || lines.some((l) => !l || l.length > 110) || BAD.test(lines.join(" "))) continue;
-  if (items.some((x) => x.title === s.title)) continue;
-  items.push({ title: s.title, source: s.source, lines });
+  const s = stories[p.story - 1];
+  if (!s || items.some((x) => x.title === s.title)) continue;
+  const chats = (p.chats || []).map((c) => (c || []).slice(0, 3).map(clean))
+    .filter((L) => L.length === 3 && !L.some((l) => !l || l.length > 110) && !BAD.test(L.join(" "))).slice(0, 3);
+  if (!chats.length) continue;
+  items.push({ title: s.title, source: s.source, chats });
   if (items.length >= MAX) break;
 }
 const out = { date: torontoDate(), items };
