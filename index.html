@@ -790,10 +790,11 @@ function wxFetch(){
     }).catch(function(){});
 }
 var WX_FIRST = wxFetch(); setInterval(wxFetch, 15 * 60 * 1000);
-/* what is going on in the world (shows, movies, celebrities, music): up to 10 stories a day, written every morning
-   by the GitHub Action in tools/world-news.mjs into world-news.json. Each story has up to 3 chats: the first
-   mention opens at the story's hour, the next ones about 45 and 100 minutes later, each told once */
-var WNEWS = null, WNEWS_USED = {}, WNEWS_AT = [9.1, 9.6, 10.1, 10.6, 11.1, 11.6, 13.2, 13.7, 14.2, 14.7], WNEWS_LATER = [0, 0.75, 1.7];
+/* what is going on in the world (shows, movies, celebrities, music, weird news): up to 32 stories a day (one chat
+   each), written every morning by the GitHub Action in tools/world-news.mjs into world-news.json.
+   Four news chats an hour: slot k opens at 9:00 + k * 15 min (32 slots, to 16:45), one story per slot (if a day has
+   fewer stories, their extra chats, when there are any, fill the rest). Each chat is told once, and the five tellers take equal turns */
+var WNEWS = null, WNEWS_USED = {}, WNEWS_SLOT0 = 9 * 3600, WNEWS_GAP = 15 * 60, WNEWS_SLOTS = 32, WNEWS_END = 17 * 3600;
 var WNEWS_TELLERS = ["carla", "erica", "olivia", "stephanie", "debbie"];
 function wnewsToday(){
   if (!WNEWS || !SIM.day) return null;
@@ -801,28 +802,30 @@ function wnewsToday(){
   return WNEWS.date === k ? WNEWS.items : null;
 }
 window.__wnews = function(){ return { file:WNEWS, today:wnewsToday(), told:Object.keys(WNEWS_USED) }; };
-/* is a news chat waiting to be told at world second t? (a desk visit then lasts long enough for its 3 lines) */
-function wnewsPending(t){
-  var W = wnewsToday(); if (!W || t >= 16.6 * 3600) return false;
-  return W.some(function(it, i){
-    for (var j = 0; j < it.chats.length && j < WNEWS_LATER.length; j++) if (!WNEWS_USED[i + "_" + j]) return t >= (WNEWS_AT[i] + WNEWS_LATER[j]) * 3600;
-    return false;
+/* the chats that are open at world second t: each story's next untold chat, once its slot has come */
+function wnewsDue(t){
+  var W = wnewsToday(), out = [];
+  if (!W || t >= WNEWS_END) return out;
+  W.forEach(function(it, i){
+    for (var j = 0; j < it.chats.length; j++) {
+      if (WNEWS_USED[i + "_" + j]) continue;
+      var k = j * W.length + i, open = WNEWS_SLOT0 + k * WNEWS_GAP;
+      if (k < WNEWS_SLOTS && t >= open) out.push({ wk:i + "_" + j, lines:it.chats[j].slice(0, 3), open:open, teller:WNEWS_TELLERS[k % WNEWS_TELLERS.length] });
+      break;
+    }
   });
+  return out;
 }
-/* does p have a news chat to tell right now (its turn)? Then p feels like talking to someone */
-function wnewsMine(p, t){
-  var W = wnewsToday(); if (!W || t >= 16.6 * 3600 || WNEWS_TELLERS.indexOf(p.id) < 0) return false;
-  return W.some(function(it, i){
-    for (var j = 0; j < it.chats.length && j < WNEWS_LATER.length; j++) if (!WNEWS_USED[i + "_" + j]) return t >= (WNEWS_AT[i] + WNEWS_LATER[j]) * 3600 && WNEWS_TELLERS[(i + j * 2) % WNEWS_TELLERS.length] === p.id;
-    return false;
-  });
-}
+/* is a news chat waiting? (a desk visit then lasts long enough for its 3 lines) */
+function wnewsPending(t){ return wnewsDue(t).length > 0; }
+/* is it p's turn to tell one? Then p feels like talking to someone */
+function wnewsMine(p, t){ return wnewsDue(t).some(function(d){ return d.teller === p.id; }); }
 var WNEWS_FIRST = fetch("world-news.json?d=" + Math.floor(Date.now() / 3600000), { cache:"no-store" })
   .then(function(r){ return r.ok ? r.json() : null; })
   .then(function(j){
     if (!j || !Array.isArray(j.items) || WNEWS) return;
     j.items = j.items.map(function(it){ if (it && !it.chats && Array.isArray(it.lines)) it.chats = [it.lines]; return it; })
-      .filter(function(it){ return it && Array.isArray(it.chats) && it.chats.length && it.chats[0].length >= 2; }).slice(0, 10);
+      .filter(function(it){ return it && Array.isArray(it.chats) && it.chats.length && it.chats[0].length >= 2; }).slice(0, 32);
     WNEWS = j;
     /* it came after the world was built without it: build it again, same as the weather */
     if (SIM.loadMs !== undefined && wnewsToday()) { resetWorld(); simTo(WT()); }
@@ -5602,21 +5605,10 @@ function chatter(a, b, t, casualOnly){
       C.push({ w:3, key:nk, lines:NL, learn:[b, nw.id, a] });
     }
   });
-  /* the news of the day: each chat of a story opens at its hour, after the one before it, and is told once */
-  var WNI = wnewsToday();
-  /* who brings the news up, in equal turns: Carla, Erica, Olivia, Stephanie and Debbie. Each chat has its teller
-     (WNEWS_TELLERS); if that one has not told it 40 minutes after it opened, any of the five can. Luis and Allyson
-     never start it, others tell them */
-  var tellerOk = WNEWS_TELLERS.indexOf(a.id) >= 0;
-  if (WNI && !a.guest && !b.guest && tellerOk) WNI.forEach(function(it, i){
-    for (var j = 0; j < it.chats.length && j < WNEWS_LATER.length; j++) {
-      var wk = i + "_" + j;
-      if (WNEWS_USED[wk]) continue;
-      var wl = it.chats[j].slice(0, 3);
-      var open = (WNEWS_AT[i] + WNEWS_LATER[j]) * 3600, mine = WNEWS_TELLERS[(i + j * 2) % WNEWS_TELLERS.length] === a.id;
-      if (t >= open && t < 16.6 * 3600 && (mine || t >= open + 2400) && (chatter.room || 0) >= wl.length) C.push({ w:3.5, key:"wn" + wk, lines:wl, wn:wk });
-      break;
-    }
+  /* the news of the day: Carla, Erica, Olivia, Stephanie and Debbie bring it up in equal turns (each chat has its
+     teller; 30 minutes after it opened any of the five can). Luis and Allyson never start it, others tell them */
+  if (!a.guest && !b.guest && WNEWS_TELLERS.indexOf(a.id) >= 0) wnewsDue(t).forEach(function(d){
+    if ((d.teller === a.id || t >= d.open + 1800) && (chatter.room || 0) >= d.lines.length) C.push({ w:3.5, key:"wn" + d.wk, lines:d.lines, wn:d.wk });
   });
   /* opinions: a small disagreement, then they make peace */
   if (!a.remote && !b.remote && !a.guest && !b.guest) {
