@@ -9711,7 +9711,6 @@ try { await Promise.race([Promise.all([WX_FIRST, WNEWS_FIRST]), new Promise(func
   console.info("[world] caught up " + n + " ticks to " + fmtH(WT() / 3600) + " in " + SIM.loadMs + " ms");
 })();
 requestAnimationFrame(frame);
-})();
 /* the visitors' models, one after another, once the office is showing (phones only) */
 function guestLook(g){
   if (g.state !== "gone") { setTimeout(function(){ guestLook(g); }, 5000); return; }
@@ -9735,6 +9734,7 @@ if (LATER_MODELS.length) setTimeout(function later(){
     setTimeout(later, 400);
   });
 }, 2500);
+})();
 
 </script>
 </body>
