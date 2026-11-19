@@ -6412,7 +6412,7 @@ var BOXEV = { day:0, next:0, on:false };
    later 4 people get up, take a corner each, lift it together and carry it out to the hallway (the meetings way).
    They are back about 3 minutes later. The box has its own path; each carrier walks at a fixed spot next to it, so
    the four turn together. Everything follows the director and the clock, so every screen sees the same carry. */
-var CARRY = { day:-1, slots:[], k:0, cur:null }, CARRY_LIVE = false;
+var CARRY = { day:-1, slots:[], k:0, cur:null }, CARRY_LIVE = true;
 var CARRY_G; /* built with the room (no value here: the room is built first) */
 var CARRY_B0 = new V3(0, 0, 1.8), CARRY_V = WALK_V * 0.6, CARRY_Y = 0.8, CARRY_FLOOR = 0.25;
 var CARRY_PATH = makePath([CARRY_B0.clone(), new V3(0, 0, 6.65), new V3(6.8, 0, 7.0)]);
