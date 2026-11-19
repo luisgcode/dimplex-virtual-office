@@ -122,6 +122,9 @@ h1 em{font-style:normal;color:var(--accent)}
 .chal .note{margin:0;font-size:12px;color:var(--muted)}
 .chal .countdown{margin:0 0 6px;padding:8px 12px;border-radius:10px;border:1px solid var(--line);font-size:12px;line-height:1.4}
 .chal .countdown b{font:700 15px/1.2 var(--f-body);color:#c8102e}
+.chal .lead-limit{margin:0 0 6px;padding:10px 12px;border-radius:10px;border:2px solid #e9b923;background:rgba(233,185,35,.12)}
+.chal .lead-limit b{display:block;font:700 15px/1.2 var(--f-body);margin-bottom:4px}
+.chal .lead-limit p{margin:2px 0 0;font-size:13px;line-height:1.4}
 .chal .warn{margin:0;font-size:12px;color:#b4500f;font-weight:600}
 .chal .row{display:flex;gap:8px;flex-wrap:wrap}
 .chal table{width:100%;border-collapse:collapse;font-size:14px}
@@ -8480,7 +8483,13 @@ function chalRender(){
   B.appendChild(cd);
   B.appendChild(el("p", "note", "Pick any mission you like. Each one has 2 spots: the first 2 approved photos from 2 different people win it."));
   var sc6 = chalScores();
-  if (sc6.length >= 6) B.appendChild(el("p", "note lead-limit", "Lead limit: nobody can be more than " + CHAL_LEAD + " points ahead of 6th place (now " + ptsTxt(sc6[5].n) + "). Over it, you can't send photos until 6th place catches up, so get the others to play."));
+  if (sc6.length >= 6) {
+    var ll = el("div", "lead-limit");
+    ll.appendChild(el("b", "", "Lead limit: " + ptsTxt(sc6[5].n + CHAL_LEAD) + " max"));
+    ll.appendChild(el("p", "", "Nobody can be more than " + CHAL_LEAD + " points ahead of 6th place (6th place has " + ptsTxt(sc6[5].n) + " right now)."));
+    ll.appendChild(el("p", "", "Over the limit? You can't send photos until 6th place goes up. Get the others to play!"));
+    B.appendChild(ll);
+  }
   groups.forEach(function(gp){
     var L = all.filter(function(x){ return gp[1](x.m); }).sort(function(a, b){ return (a.m.ord || 0) - (b.m.ord || 0); });
     if (!L.length) return;
