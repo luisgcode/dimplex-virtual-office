@@ -6640,7 +6640,10 @@ function gameTick(t, dk){
     var team = PEOPLE.filter(function(q){ return gameFree(q, t); });
     if (team.length < 3) return;
     GAME.k++;
-    G2 = GAME.cur = { kind:sl.kind, team:team, ph:"gather", t0:t, host:team[Math.floor(R() * team.length)] };
+    /* Luis and Allyson join in but never lead it */
+    var leads = team.filter(function(q){ return q.id !== "luis" && q.id !== "allyson"; });
+    if (!leads.length) return;
+    G2 = GAME.cur = { kind:sl.kind, team:team, ph:"gather", t0:t, host:leads[Math.floor(R() * leads.length)] };
     var n = team.length;
     team.forEach(function(q, i){
       var a = (i + 0.5) / n * Math.PI * 2, sp = new V3(GAME_C.x + 0.55 * Math.sin(a), 0, GAME_C.z + 1.05 * Math.cos(a));
@@ -6654,7 +6657,8 @@ function gameTick(t, dk){
   if (G2.ph === "gather") {
     var there = G2.team.filter(function(q){ return q.state === "stay"; }).length;
     if (there < G2.team.length && t - G2.t0 < 70) return;
-    G2.ph = "on"; if (G2.host.state !== "stay") G2.host = gamePick(G2, null) || G2.host;
+    G2.ph = "on";
+    if (G2.host.state !== "stay") { var hs = G2.team.filter(function(q){ return q.state === "stay" && q.id !== "luis" && q.id !== "allyson"; }); if (hs.length) G2.host = hs[0]; }
     gameScript(G2, t);
     return;
   }
