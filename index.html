@@ -3718,8 +3718,10 @@ function catFire(e, T){
     if (wit.length) sayLater(choose(wit), choose(["Did Pixel just take down the trophy?! lol", "Hahaha Pixel has no respect", "The trophy!! Is it okay?"]), at + 3.4, 3);
   }
 }
-/* director: when Pixel comes over. The clock decides, so it is the same visit for everyone: each hour has about a
-   2 in 3 chance of one visit, at a minute between :05 and :50, if Debbie is in */
+/* director: when Pixel comes over. The clock decides, so it is the same visit for everyone: one visit every
+   45 minutes (CAT_EVERY), 2 to 5 minutes into each 45 minute slot, if Debbie is at work (not at lunch or on the call) */
+var CAT_EVERY = 45 * 60;
+function catSlotAt(slot){ var sr = wrng("cat45", slot); return { at:slot * CAT_EVERY + 120 + sr() * 180, sr:sr }; }
 function simCat(t){
   var D = BY.debbie;
   if (!D || !D.deskOuter) return;
@@ -3746,12 +3748,12 @@ function simCat(t){
     if (!catAtDesk(D, t)) return;
     sr = wrng("catwant", t);
   } else {
-    if (CAT.lastSlot === hr) return;
-    sr = wrng("cat", hr);
-    var at = hr + (5 + sr() * 45) / 60;
-    if (sr() > 0.65 || DAY.h < at || DAY.h > at + 2 / 60) return;
+    var slot = Math.floor(t / CAT_EVERY);
+    if (CAT.lastSlot === slot) return;
+    var cs = catSlotAt(slot); sr = cs.sr;
+    if (t < cs.at || t > cs.at + 120) return;
     if (!(visAt(D, t) && !lunchNow(D) && !teamCallNow() && !DAY.closed)) return;
-    CAT.lastSlot = hr;
+    CAT.lastSlot = slot;
   }
   var r = sr(), prank = PRANK_FORCE || (r < 0.15 ? "cup" : r < 0.3 ? "trophy" : r < 0.45 ? "tree" : ""), victim = null;
   if (prank === "tree" && (!seasonFx.tree2 || (CATW.tree && t < CATW.tree.fix + 2))) prank = "";
@@ -3771,12 +3773,12 @@ function catDue(t){
     return n;
   }
   if (CAT.want) return CAT.next || t + 1;
-  var hr = Math.floor(t / 3600), dk = dayKey();
-  if (CAT.lastSlot !== hr) {
-    if (CAT.slotKey !== dk * 100 + hr) { var sr = wrng("cat", hr); CAT.slotKey = dk * 100 + hr; CAT.slotAt = (hr + (5 + sr() * 45) / 60) * 3600; CAT.slotOn = sr() <= 0.65; }
-    if (CAT.slotOn && t <= CAT.slotAt + 120) return t < CAT.slotAt ? CAT.slotAt : t + 1;
+  var slot = Math.floor(t / CAT_EVERY), dk = dayKey();
+  if (CAT.lastSlot !== slot) {
+    if (CAT.slotKey !== dk * 1000 + slot) { CAT.slotKey = dk * 1000 + slot; CAT.slotAt = catSlotAt(slot).at; }
+    if (t <= CAT.slotAt + 120) return t < CAT.slotAt ? CAT.slotAt : t + 1;
   }
-  return (hr + 1) * 3600 + 300;
+  return (slot + 1) * CAT_EVERY + 120;
 }
 /* the segment of the visit at world time t (null: no cat) */
 function catSegAt(t){
