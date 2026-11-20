@@ -1826,7 +1826,7 @@ function activityScreen(pool, seed, baseImg, ownerId){
 /* ?screen=dash shows one activity on every screen, for checking */
 var SCREEN_FORCE = (/[?&]screen=(\w+)/.exec(location.search || "") || [])[1];
 function registerScreen(scr, kind, parent){ scr.userData.kind = kind; LIVE_SCREENS.push({ m:scr, kind:kind, desk:parent, base:scr.material.map }); }
-var TEAM_SCREEN = null, RESTART_SCREEN = null;
+var TEAM_SCREEN = null, RESTART_SCREEN = null, BSOD_SCREEN = null;
 /* black screen with the spinning dots: "Restarting", then the updates crawl to 100%, then the sign in screen */
 function restartScreen(){
   var L = liveCanvas(512, 320);
@@ -1886,6 +1886,13 @@ function screensTick(t, dt){
       if (s.m.material.map !== TEAM_SCREEN.tex) { if (!s.prevMap) s.prevMap = s.m.material.map; s.m.material.map = TEAM_SCREEN.tex; s.m.material.needsUpdate = true; }
       continue;
     } else if (s.prevMap) { s.m.material.map = s.prevMap; s.prevMap = null; s.m.material.needsUpdate = true; }
+    /* a crashed computer: every screen of that person shows the blue screen until IT fixes it */
+    if (p && typeof ITFIX !== "undefined" && ITFIX.cur && ITFIX.cur.bsod && ITFIX.cur.v === p) {
+      if (!BSOD_SCREEN) BSOD_SCREEN = activityScreen(["bsod"], 992, null, "_bsod");
+      if (s.m.material.map !== BSOD_SCREEN.tex) { if (!s.bsPrev) s.bsPrev = s.m.material.map; s.m.material.map = BSOD_SCREEN.tex; s.m.material.needsUpdate = true; }
+      if ((frameNo + i) % 7 === 0) BSOD_SCREEN.tick(t, dt * 7);
+      continue;
+    } else if (s.bsPrev) { s.m.material.map = s.bsPrev; s.bsPrev = null; s.m.material.needsUpdate = true; }
     if (p && p.restartUntil && t < p.restartUntil) {
       if (!RESTART_SCREEN) RESTART_SCREEN = restartScreen();
       if (s.m.material.map !== RESTART_SCREEN.tex) { if (!s.rsPrev) s.rsPrev = s.m.material.map; s.m.material.map = RESTART_SCREEN.tex; s.m.material.needsUpdate = true; }
@@ -7279,7 +7286,7 @@ function itfixTick(t, dk){
   if (C.ph === "coming" && S.state === "stay") {
     C.ph = "fixing";
     startAct(V, "turn", t, 16, S);
-    startAct(S, "fixprinter", t + 1, 9);
+    startAct(S, "point", t + 1, 9);
     sayLater(S, choose(["Okay, let's take a look.", "Alright, what did it do?", "Let me see."]), t + 0.6, 2.6);
     sayLater(S, "Have you tried turning it off and on again?", t + 4.2, 3.2);
     sayLater(V, choose(["...No.", "Maybe? No.", "Is that a trick question?"]), t + 7.8, 2.4);
