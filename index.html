@@ -2453,14 +2453,14 @@ function arriveH(p){
   }
   return p.arriveAt;
 }
-/* each person's week: when they usually come in and leave, and the day they work from home */
+/* each person's week: when they usually come in and leave. Nobody works from home unless Luis asks for it (then a WFH_DAYS entry, 20 Nov) */
 var SCHEDULE = {
   luis:{ arrive:[7.5, 7.8], leave:[16, 16.05] },
   stephanie:{ arrive:[7.85, 8.15], leave:[16.5, 16.8] },
   debbie:{ arrive:[7.75, 8.05], leave:[16.25, 16.6] },
   olivia:{ arrive:[8.15, 8.45], leave:[16.75, 16.97] },
-  carla:{ arrive:[8.05, 8.45], leave:[16.6, 16.95], wfh:[3] },
-  erica:{ arrive:[8.2, 8.55], leave:[16.7, 16.97], wfh:[5] },
+  carla:{ arrive:[8.05, 8.45], leave:[16.6, 16.95] },
+  erica:{ arrive:[8.2, 8.55], leave:[16.7, 16.97] },
   allyson:{ arrive:[8.0, 8.35], leave:[16.6, 16.9] }
 };
 var NO_WFH = /[?&]wfh=off/.test(location.search || "");
@@ -2480,7 +2480,7 @@ function dayRand(p, salt){
   var hs = salt; for (var i = 0; i < p.id.length; i++) hs = (hs * 31 + p.id.charCodeAt(i)) % 100000;
   var r = seeded((key * 7919 + hs * 104729) % 2147483646 + 1); r(); r(); return r();
 }
-/* one-off days at home (YYYY-MM-DD: ids), on top of the usual weekly day */
+/* days at home, only when Luis asks (YYYY-MM-DD: ids) */
 var WFH_DAYS = { "2026-11-17":["olivia"] };
 function dateKeyStr(){ var d = DAY.d || worldDate(); return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2); }
 function wfhToday(p){
@@ -6179,6 +6179,7 @@ function decide(p, t){
     if (rb < 0.035 && !p.walker && !PEOPLE.some(function(q){ return q.trip && q.trip.label === WIN_LABEL; })) lifeWindow(p, t);
     else if (rb < 0.07) lifeStretch(p, t);
     else if (rb < 0.085 && !p.walker && !p.plan.call) lifePhoneWalk(p, t);
+    else if (rb < 0.105 && !p.walker && lifeTv(p, t)) {}
     else if (cold && R() < 0.35) startAct(p, "warmhands", t, rand(3, 5));
     else if (R() < tired * 0.35) { var ty2 = R() < 0.6 ? "yawn" : "rubeyes"; startAct(p, ty2, t, ty2 === "yawn" ? 2.6 : 3.2); catchAct(p, ty2, t); }
     else if (DAY.key === "slump" && R() < 0.35) { p.typeOn = false; startAct(p, "phone", t, rand(18, 45)); }
@@ -6531,6 +6532,17 @@ function catchLaugh(p, t){
 }
 function lifeWindow(p, t){ goSpot(p, t, new V3(choose([-0.55, 0.55]), 0, -2.85), new V3(-2.9, 1.9, -1.6), rand(18, 35), WIN_LABEL, "gazeup"); }
 function lifeStretch(p, t){ var tr = goSpot(p, t, new V3(p.side * 0.95, 0, p.seat.z + 0.35), new V3(0, 1, p.seat.z + 0.35), 7, "Stretching my back", "stretch"); }
+/* now and then someone walks over to the photo TV above Carla and watches the mission photos for a bit (at most 2 at a time) */
+var TV_LABEL = "Watching the mission photos";
+function lifeTv(p, t){
+  var taken = PEOPLE.filter(function(q){ return q.trip && q.trip.label === TV_LABEL; }).map(function(q){ return q.trip.tvZ; });
+  var free = [2.15, 3.15].filter(function(z){ return taken.indexOf(z) < 0; });
+  if (!free.length) return false;
+  var z = choose(free), tr = goSpot(p, t, new V3(-0.45, 0, z), new V3(-2.79, 2.0, 2.65), rand(14, 28), TV_LABEL, "gazeup", function(q, ta){
+    if (R() < 0.45) sayLater(q, choose(["Ha, I remember that one.", "Who took this one?", "That's a good one.", "I still need to do that mission.", "Okay, that photo is great.", "How did they get that?"]), ta + 1.5, 2.6);
+  });
+  tr.tvZ = z; return true;
+}
 function lifePhoneWalk(p, t){
   var z = choose([-2.8, -2.3, 5.0]);
   goSpot(p, t, new V3(rand(-0.25, 0.25), 0, z), new V3(rand(-2, 2), 0, z + rand(-2, 2)), rand(35, 75), "Taking a call", "call");
@@ -9567,7 +9579,7 @@ loadingEl.hidden = true;
 window.__voReady = true;
 window.__dropw = DROPW;
 window.__dbg = { renderer:renderer, scene:scene, camera:camera, sun:sun, T:T, seasonFx:seasonFx };
-window.__vo = { people:BY, focus:function(id){ focusOn(BY[id]); }, ask:function(id, q){ ask(BY[id], q); }, converse:function(id, q){ return converse(BY[id], q).text; }, goal:goal, view:view, season:function(){ SEASONW.next = 1; return SEASON; }, mishap:function(k){ MISHAP.cur = null; return startMishap(k, WT()); }, mishaps:MISHAP };
+window.__vo = { people:BY, focus:function(id){ focusOn(BY[id]); }, ask:function(id, q){ ask(BY[id], q); }, converse:function(id, q){ return converse(BY[id], q).text; }, goal:goal, view:view, season:function(){ SEASONW.next = 1; return SEASON; }, mishap:function(k){ MISHAP.cur = null; return startMishap(k, WT()); }, mishaps:MISHAP, tv:function(id){ return lifeTv(BY[id], WT()); } };
 /* ?mishap=cat (or book, spill, chair, restart) makes it happen a few seconds after the page opens, to watch it on demand */
 (function(){
   var f = /[?&]mishap=(cat|book|spill|chair|restart)/.exec(location.search || "");
