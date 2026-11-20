@@ -2148,7 +2148,7 @@ plant(-2.45, 5.8, 0.85); plant(2.45, 5.8, 0.85); plant(-2.45, -3.7, 0.8); plant(
 var PHOTOTV = (function(){
   var c = document.createElement("canvas"); c.width = 1024; c.height = 576;
   var tex = new T.CanvasTexture(c); tex.colorSpace = T.SRGBColorSpace; tex.anisotropy = maxAniso;
-  return { c:c, ctx:c.getContext("2d"), tex:tex, queue:[], cache:{} };
+  return { c:c, ctx:c.getContext("2d"), tex:tex, queue:[], cache:{}, known:{}, started:false };
 })();
 /* Carla: events corner (tabletop roll-up banner, brochure boxes, and the photo TV on the wall) */
 (function(){
@@ -2193,6 +2193,11 @@ function phototvShow(){
     g.fillStyle = "rgba(255,255,255,.6)"; g.font = "500 26px " + FONT; g.fillText("The approved ones show up here", w / 2, h / 2 + 30);
     P.tex.needsUpdate = true; return;
   }
+  /* a photo approved since the last look jumps the line and shows next */
+  var fresh = done.filter(function(d){ return !P.known[d.img]; }).map(function(d){ return d.img; });
+  fresh.forEach(function(u){ P.known[u] = 1; });
+  if (P.started && fresh.length) P.queue = fresh.concat(P.queue.filter(function(u){ return fresh.indexOf(u) < 0; }));
+  P.started = true;
   if (!P.queue.length) P.queue = phototvShuffle(done.map(function(d){ return d.img; }));
   var url = P.queue.shift(), d = done.filter(function(x){ return x.img === url; })[0];
   if (!d) return phototvShow();
@@ -8890,7 +8895,8 @@ if (window.__chal) { window.__chal.live = CH.live; window.__chal.liveSubmit = li
 if (CH.live) {
   liveCheckAdmin().catch(function(){}).then(function(){ return chalSync(false); });
   /* keep the board and the panel fresh: every 20 s while the panel is open, every 2 min otherwise */
-  setInterval(function(){ if (!document.hidden && (!chalEl.hidden || R() < 1 / 6)) chalSync(false); }, 20000);
+  /* every 20 s, panel open or closed: an approval reaches the table, the arrows and the photo TV for everyone right away */
+  setInterval(function(){ if (!document.hidden) chalSync(false); }, 20000);
 }
 /* a mission was won: the panel shows it; the office itself does not react, it is the same for every viewer */
 function chalCelebrate(team, m){}
