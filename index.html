@@ -125,6 +125,7 @@ h1 em{font-style:normal;color:var(--accent)}
 .chal .lead-limit{margin:0 0 6px;padding:10px 12px;border-radius:10px;border:2px solid #e9b923;background:rgba(233,185,35,.12)}
 .chal .lead-limit b{display:block;font:700 15px/1.2 var(--f-body);margin-bottom:4px}
 .chal .lead-limit p{margin:2px 0 0;font-size:13px;line-height:1.4}
+.chal .rule-2026{margin:0 0 6px;padding:8px 12px;border-radius:10px;border:2px solid #c8102e;font:600 13px/1.4 var(--f-body)}
 .chal .warn{margin:0;font-size:12px;color:#b4500f;font-weight:600}
 .chal .row{display:flex;gap:8px;flex-wrap:wrap}
 .chal table{width:100%;border-collapse:collapse;font-size:14px}
@@ -8490,6 +8491,7 @@ function chalRender(){
     ll.appendChild(el("p", "", "Over the limit? You can't send photos until 6th place goes up. Get the others to play!"));
     B.appendChild(ll);
   }
+  B.appendChild(el("p", "rule-2026", "Only photos taken in 2026 count. Older photos will be rejected."));
   groups.forEach(function(gp){
     var L = all.filter(function(x){ return gp[1](x.m); }).sort(function(a, b){ return (a.m.ord || 0) - (b.m.ord || 0); });
     if (!L.length) return;
@@ -8519,6 +8521,7 @@ function chalRender(){
    "Lead limit: nobody can be more than 25 points ahead of 6th place. If you go over it, your name is blocked until 6th place catches up. Photos already sent can still be approved.",
    "Everyone who appears in the winning photo gets the points, not only the person who sent it.",
    "Photos stay private until they are approved. Then they show up under Achieved as the proof.",
+   "Only photos taken in 2026 count. Older photos are rejected.",
    "You can do as many missions as you like, no need to wait for the check on the last one.",
    "A mission with a photo waiting still takes more photos: if one is rejected, the next in line can win. Once both spots are taken the mission closes.",
    "Keep screens, documents and anyone who did not agree to be in it out of the picture."].forEach(function(t){ how.appendChild(el("li", "", t)); });
@@ -8592,6 +8595,7 @@ function chalSendForm(B, mid){
     e.preventDefault();
     if (!sel.value) { info.textContent = "Choose your name first."; sel.focus(); return; }
     if (!shot) { info.textContent = "Pick a photo first."; return; }
+    if (taken && new Date(taken).getFullYear() < 2026) { info.textContent = "This photo was taken before 2026. Only photos taken in 2026 count, take a new one."; return; }
     var done = function(arrived){
       B.textContent = "";
       var ok = el("div", "ms"); ok.appendChild(el("h3", "ms-title", "Sent! Your photo arrived on " + fmtTime(arrived)));
@@ -8686,7 +8690,7 @@ CH.live = !!SB; CH.defs = {}; CH.admin = false; CH.seen = null;
 if (CH.live) { document.getElementById("chalDemo").hidden = true; CH.st = null; chalLoad(); }
 else if (/[?&]demo=1/.test(location.search || "") === false) { document.getElementById("chalDemo").textContent = "Offline"; }
 function liveFail(e){ var m = (e && (e.message || e.error_description)) || String(e);
-  return new Error({ wrong_code:"That code is not right.", locked:"Too many wrong codes for this name. Try again in an hour.", mission_closed:"This mission is closed. Check the open ones.", excluded:"You are the one in this mission, so you can't win it.", already_won:"You already have points in this mission. Leave the spot for someone else.", already_sent:"You already sent a photo for this mission. Wait for the review.", tournament_over:"The mission tournament ended on December 31, 2026. Thanks for playing!", lead_limit:"You're more than 25 points ahead of 6th place. Get the others to play, and you can send photos again once 6th place catches up.", not_admin:"This account can't review photos." }[m] || m); }
+  return new Error({ wrong_code:"That code is not right.", locked:"Too many wrong codes for this name. Try again in an hour.", mission_closed:"This mission is closed. Check the open ones.", excluded:"You are the one in this mission, so you can't win it.", already_won:"You already have points in this mission. Leave the spot for someone else.", already_sent:"You already sent a photo for this mission. Wait for the review.", old_photo:"This photo was taken before 2026. Only photos taken in 2026 count, take a new one.", tournament_over:"The mission tournament ended on December 31, 2026. Thanks for playing!", lead_limit:"You're more than 25 points ahead of 6th place. Get the others to play, and you can send photos again once 6th place catches up.", not_admin:"This account can't review photos." }[m] || m); }
 function dataToBlob(d){ var b = atob(d.split(",")[1]), a = new Uint8Array(b.length); for (var i = 0; i < b.length; i++) a[i] = b.charCodeAt(i); return new Blob([a], { type:"image/jpeg" }); }
 function uid(){ return (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + R().toString(36).slice(2)); }
 async function chalRefresh(){
