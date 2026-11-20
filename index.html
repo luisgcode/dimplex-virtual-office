@@ -560,7 +560,9 @@ var PEOPLE = [
   { id:"grant", model:"grant", name:"Grant", role:"Operations, visiting", guest:true, freq:0.8, side:1, z:0, personality:"Calm, practical, always checking when things ship.", topics:"Shipping, stock and warehouses", shirt:"#6b6f76", pants:"#23272e", skin:"#c99673", hair:"#18120e", style:"short", sleeves:true, glasses:true,
     status:"Visiting the marketing floor", blurb:"If it ships, he knows when." },
   { id:"hana", model:"hana", name:"Hana", role:"Visiting the managers", guest:true, freq:1, hosts:["erica","allyson"], side:1, z:0, personality:"Friendly, precise, and somehow always has snacks.", topics:"Budgets, invoices and approvals", shirt:"#d9d4c7", pants:"#2c3038", skin:"#f0d0b4", hair:"#0f0d0c", style:"straight", sleeves:true, earrings:"small",
-    status:"Visiting the marketing floor", blurb:"Brings snacks and a budget question, in that order." }
+    status:"Visiting the marketing floor", blurb:"Brings snacks and a budget question, in that order." },
+  { id:"itsam", model:"itsam", name:"Sam", role:"IT support, visiting", guest:true, freq:0, hosts:[], side:1, z:0, personality:"Calm and quick. Has fixed every laptop on this floor at least once.", topics:"Laptops, Wi-Fi and passwords", shirt:"#2f6f9e", pants:"#2a2d35", skin:"#d8a57e", hair:"#2a1d14", style:"short", sleeves:true,
+    status:"Fixing a computer", blurb:"Turns it off and on again, and somehow that always works." }
 ];
 var LINES = {
   erica:["Jumping on a call","Back in 5, another meeting","Can we take this offline?","Who moved my 2:00?"],
@@ -573,7 +575,7 @@ var LINES = {
   marissa:["Can you hear me okay?","You are on mute!","Hi everyone!","Let me share my screen"],
   stephanieb:["Love the new banners!","Can we try it with more white space?","Brand colors only, please","Sharing my screen with the new layouts"],
   nolan:["A dealer called about the Ignite again","Do we have stock of the Revillusion?"], elena:["Customers keep asking for the manual","Another call about the Optimyst water"],
-  tessa:["Specs for the new unit are almost final","Launch date might move"], grant:["Truck comes Thursday","Stock is looking good"], hana:["Approved, you're welcome","I brought cookies"]
+  tessa:["Specs for the new unit are almost final","Launch date might move"], grant:["Truck comes Thursday","Stock is looking good"], hana:["Approved, you're welcome","I brought cookies"], itsam:["Have you tried restarting it?","Ticket closed"]
 };
 var REMOTE = [
   { id:"marissa", model:"marissa", name:"Marissa", fullName:"Marissa", role:"Designer, remote", remote:true, sx:-1.95, shirt:"#4f7cc4", pants:"#2a2d35", skin:"#e9b996", hair:"#5a3a26", style:"wavy", sleeves:true, glasses:true,
@@ -1757,6 +1759,14 @@ function activityScreen(pool, seed, baseImg, ownerId){
       var sy = (Math.sin(t * 0.25) * 0.5 + 0.5) * 40;
       g.drawImage(img, 0, sy, 512, 320 - sy, 0, 0, 512, 320 - sy); g.drawImage(img, 0, 0, 512, sy, 0, 320 - sy, 512, sy);
     },
+    /* the computer crashed: a blue screen until IT fixes it */
+    bsod:function(g, t){
+      g.fillStyle = "#1f5fbf"; g.fillRect(0, 0, W, H);
+      g.fillStyle = "#ffffff"; g.textAlign = "left"; g.textBaseline = "alphabetic";
+      g.font = "700 64px " + FONT; g.fillText(":(", 36, 104);
+      g.font = "600 17px " + FONT; g.fillText("Your PC ran into a problem and needs", 36, 150); g.fillText("to restart.", 36, 172);
+      g.font = "14px " + FONT; g.fillText(Math.min(100, Math.floor((t * 7) % 101)) + "% complete", 36, 210);
+    },
     /* Plytix will not load: the spinner, then the error */
     down:function(g, t){
       g.fillStyle = "#f4f5f7"; g.fillRect(0, 0, W, H);
@@ -1807,7 +1817,7 @@ function activityScreen(pool, seed, baseImg, ownerId){
     else if (SCREEN_FORCE === "all") { var dk = Object.keys(DRAW); L.mode = dk[Math.floor(t / 1.5) % dk.length]; }
     /* a broken drawing never takes the office down: fall back to the inbox */
     var inTeam = ownerId === "_team";
-    try { (DRAW[inTeam ? "team" : typeof PLYTIX !== "undefined" && PLYTIX.on && ownerId && PLYTIX_TEAM[ownerId] ? "down" : L.mode] || DRAW.mail)(L.g, t); } catch (e) { console.warn("screen " + L.mode, e); L.mode = "mail"; }
+    try { (DRAW[inTeam ? "team" : typeof PLYTIX !== "undefined" && typeof ITFIX !== "undefined" && ITFIX.cur && ITFIX.cur.bsod && ownerId === ITFIX.cur.v.id ? "bsod" : typeof PLYTIX !== "undefined" && PLYTIX.on && ownerId && PLYTIX_TEAM[ownerId] ? "down" : L.mode] || DRAW.mail)(L.g, t); } catch (e) { console.warn("screen " + L.mode, e); L.mode = "mail"; }
     L.tex.needsUpdate = true;
   };
   L.tick(0, 0);
@@ -4233,6 +4243,7 @@ var REAL_MODELS = {
   nolan:{ url:"models/nolan.glb", height:1.8, tint:{ Suit:"#2b3a52", Shirt:"#e9eef4", Tie:"#8a2432", Pants:"#2b2f36" } },
   elena:{ footDrop:0.065, url:"models/elena.glb", height:1.65, tint:{ Shirt:"#b0476b", Pants:"#262a31", SwappedShoes:"#1a1b1e" }, shoesFrom:{ model:"stephanieb", mesh:"Sneakers", hide:["Heels"] }, footScale:0.92, earrings:"#d4af5a" },
   tessa:{ url:"models/stephanieb.glb", height:1.66, tint:{ Shirt:"#3e8e6a", Pants:"#2a2d35" }, ownHair:true, hairScale:[1.0, 0.88, 1.0], hairY:0.12, hairZ:-0.02 },
+  itsam:{ url:"models/grant.glb", height:1.77, tint:{ Shirt:"#2f6f9e", Pants:"#2a2d35" }, ownHair:true, hairScale:[1.0, 0.9, 1.0], hairY:0.1, hairZ:-0.02 },
   grant:{ url:"models/grant.glb", height:1.79, tint:{ Shirt:"#6b6f76", Pants:"#23272e" }, ownHair:true, hairScale:[1.0, 0.9, 1.0], hairY:0.1, hairZ:-0.02, glasses:true },
   hana:{ url:"models/hana.glb", height:1.62, tint:{ Cloth:"#d9d4c7", SwappedPants:"#2c313b" }, pantsFrom:{ model:"stephanieb", mesh:"Pants", hide:["Socks"] }, ownHair:true, hairScale:[1.0, 0.88, 1.0], hairY:0.12, hairZ:-0.02, earrings:"#d4af5a" },
   stephanieb:{ url:"models/stephanieb.glb", height:1.66, tint:{ Shirt:"#17181b", Pants:"#2b2f36", Sneakers:"#d9d4ca" }, ownHair:true, hairScale:[1.02, 0.88, 1.02], hairY:0.12, hairZ:-0.02, earrings:"#d9dade", hoop:2.1, lips:"#a8101f", lipsAlpha:0.8, hair:"#3d2216", highlight:"#5c3522", curl:1.5, freq:0.45, len:1.25, locks:34, thick:1.45, hatScale:0.95, hatDrop:0.06 }
@@ -5191,7 +5202,7 @@ var PERSONA = {
   allyson:   { focus:0.9, social:0.9, shop:0.6, coffee:1.1, breaky:0.6 },
   nolan:{ focus:0.5, social:1.5, shop:1, coffee:1, breaky:0.5 }, elena:{ focus:0.5, social:1.5, shop:1, coffee:1, breaky:0.5 },
   tessa:{ focus:0.5, social:1.2, shop:1, coffee:1, breaky:0.5 }, grant:{ focus:0.5, social:1.1, shop:1, coffee:1, breaky:0.5 },
-  hana:{ focus:0.5, social:1.2, shop:1, coffee:1, breaky:0.5 }
+  hana:{ focus:0.5, social:1.2, shop:1, coffee:1, breaky:0.5 }, itsam:{ focus:0.5, social:0.8, shop:1, coffee:1, breaky:0.5 }
 };
 /* body language, one per person, following their personality:
    type = typing speed, lean = sits leaning in (+) or upright (-), swivel = rocks the chair while thinking,
@@ -5314,7 +5325,7 @@ var POOLS = {
   stephanie:["leanFire","phone","sip","leanFire","chin"],
   erica:["phone","sip","phone"],
   allyson:["phone","sip","phone","chin"],
-  nolan:["phone"], elena:["phone"], tessa:["phone"], grant:["phone"], hana:["phone"]
+  nolan:["phone"], elena:["phone"], tessa:["phone"], grant:["phone"], hana:["phone"], itsam:["phone"]
 };
 var COFFEE_SPOT = new V3(-6.2, 0, 7.0), EXIT_SPOT = new V3(6.2, 0, 7.0);
 /* the kind of requests Luis gets every day (public product names only) */
@@ -5723,6 +5734,7 @@ function chatter(a, b, t, casualOnly){
       luis:[["A heater page shows the wrong wattage.", "Which one? I'll fix it now.", "The 1500 watt baseboard."],
         ["Can we add the new heat specs to the site?", "Send them over, I'll load them.", "Thanks, that was fast."]] },
     hana:[["Hi! Quick sync?", "Sure, what's up?", "Just two things, I promise."], ["Do you have five minutes?", "For you, yes.", "I'll be quick."]],
+    itsam:[["Everything working okay over here?", "All good today, thanks!", "Great. Call me if it acts up."]],
     grant:[["Hey. The truck comes Thursday.", "Good to know, thanks.", "Thought you'd want to hear it from me."], ["Quick heads up, stock is looking good.", "That's the best news all week.", "Don't jinx it."]]
   };
   if (GV[a.id]) { var gs = GV[a.id], gl = choose(Array.isArray(gs) ? gs : (gs[b.id] || gs[Object.keys(gs)[0]])); saidKey("g" + a.id + Math.floor(R() * 3)); return gl.slice(); }
@@ -7228,6 +7240,64 @@ function planeDraw(t){
   PLANE_G.lookAt(_pb);
   PLANE_G.rotateZ(0.25 * Math.sin((t - f[0]) * 5));
 }
+/* ---------- a computer crashes: once a workday someone's screen goes blue, they call IT, Sam from IT walks over, asks the
+   classic question, the screen comes back and he leaves. ?itfix=1 runs one now (this screen only). */
+var ITFIX = { day:-1, at:0, done:false, cur:null }, ITFIX_LIVE = false, ITFIX_TEST = /[?&]itfix=1/.test(location.search || "");
+window.__itfix = function(){ var C = ITFIX.cur; return { at:fmtH(ITFIX.at / 3600), done:ITFIX.done, ph:C && C.ph, v:C && C.v.id, sam:BY.itsam && BY.itsam.state }; };
+function itfixSlot(dk){
+  if (ITFIX.day === dk) return;
+  ITFIX.day = dk; ITFIX.done = false;
+  var r = wrng("itfix", dk);
+  if (ITFIX_TEST) { var tz = torontoAt(WORLD_NOW()); ITFIX.at = tz.h * 3600 + tz.mi * 60 + tz.s + 15; }
+  else ITFIX.at = ITFIX_LIVE ? (r() < 0.5 ? 9.8 + r() * 1.6 : 13.6 + r() * 1.8) * 3600 : 99 * 3600;
+}
+function itfixTick(t, dk){
+  itfixSlot(dk);
+  var C = ITFIX.cur, S = BY.itsam;
+  if (!S) return;
+  if (!C) {
+    if (ITFIX.done || t < ITFIX.at || t > ITFIX.at + 2400 || DAY.closed) return;
+    if (GUESTS.cur || S.state !== "gone" || teamCallNow() || GAME.cur || DRILL.cur || RACE.cur) return;
+    var free = PEOPLE.filter(function(q){ return !q.remote && !q.guest && q.state === "sit" && !q.trip && visAt(q, t) && !q.chatWith && !q.visitor && !q.answering && (ITFIX_TEST || !lunchNow(q)) && !(rollAt(q, t) > 0) && !(q.act && (q.act.plan || q.act.n === "vcall")); });
+    if (!free.length) return;
+    ITFIX.done = true;
+    var V = free[Math.floor(R() * free.length)];
+    C = ITFIX.cur = { v:V, ph:"broken", t0:t, bsod:true, script:[] };
+    V.typeOn = false; V.decideAt = t + 600; NAPS[V.idx] = 0;
+    GUESTS.cur = S;
+    startAct(V, "facepalm", t + 0.4, 3);
+    sayLater(V, choose(["Noooo. My computer just died.", "Blue screen. Of course. Right now.", "Are you kidding me? It just crashed."]), t + 0.8, 3);
+    C.script.push([t + 4.5, function(t2){ startAct(V, "phone", t2, 6); sayLater(V, choose(["Hi Sam, my screen went blue again...", "Hey, it's me. My computer crashed. Can you come up?", "Hi IT, I've got a blue screen over here."]), t2 + 0.5, 3.4); }]);
+    C.script.push([t + 9, function(t2){
+      var spot = new V3(V.side * 0.95, 0, V.seat.z + 0.3);
+      goSpot(S, t2, spot, new V3(V.seat.x + V.side * 0.5, 1, V.seat.z), 900, "Fixing " + V.name + "'s computer", null, null, null);
+      C.ph = "coming";
+    }]);
+    return;
+  }
+  while (C.script.length && C.script[0][0] <= t) C.script.shift()[1](t);
+  if (C.ph === "coming" && S.state === "stay") {
+    C.ph = "fixing";
+    startAct(V, "turn", t, 16, S);
+    startAct(S, "fixprinter", t + 1, 9);
+    sayLater(S, choose(["Okay, let's take a look.", "Alright, what did it do?", "Let me see."]), t + 0.6, 2.6);
+    sayLater(S, "Have you tried turning it off and on again?", t + 4.2, 3.2);
+    sayLater(V, choose(["...No.", "Maybe? No.", "Is that a trick question?"]), t + 7.8, 2.4);
+    C.script.push([t + 11, function(t2){ C.bsod = false; sayLater(S, choose(["There you go. All fixed.", "Back to normal. You're welcome lol", "Restarted. Good as new."]), t2 + 0.3, 2.8); }]);
+    C.script.push([t + 14.5, function(t2){ sayLater(V, choose(["You're a lifesaver, Sam!", "Thank you so much!", "What would we do without IT?"]), t2, 2.6); }]);
+    C.script.push([t + 18, function(t2){ if (S.state === "stay") setState(S, "stay", t2, 0.2); C.ph = "leaving"; }]);
+    return;
+  }
+  if (C.ph === "leaving" && S.state === "gone") ITFIX.cur = null;
+  if (t > C.t0 + 600) { C.bsod = false; if (S.state === "gone") ITFIX.cur = null; }
+}
+function itfixDue(T, next){
+  if (ITFIX.day !== dayKey()) return next;
+  var C = ITFIX.cur;
+  if (C) return C.script.length ? Math.max(next, Math.min(C.script[0][0], next + 1)) : next;
+  if (ITFIX.done) return Infinity;
+  return T < ITFIX.at ? ITFIX.at : T <= ITFIX.at + 2400 ? next : Infinity;
+}
 var NEWS = [
   { id:"pizza", until:new Date(2026, 10, 24, 18).getTime(),
     drift:["I heard it's pizza AND wings on the 24th!", "Apparently it's pizza, wings and dessert on the 24th.", "Someone said it's a full party on the 24th, pizza, wings, dessert, everything!"], lines:["Did you hear? Pizza on the 24th, from the Halloween win!", "Wait really?? Yay!", "Same week as the Christmas lunch too."] },
@@ -7311,6 +7381,7 @@ function simLifeWorld(t, dt, dk){
   selfieTick(t, dk);
   raceTick(t, dk);
   planeTick(t, dk);
+  itfixTick(t, dk);
   var present = presentAt(t);
   LIFE.printers.forEach(function(pr){ if (pr.job && t - pr.job.t0 > 120) pr.job = null; });
   /* Friday team call: someone talks now and then, the purple frame follows whoever speaks */
@@ -7529,7 +7600,7 @@ function guestTick(t){
   GUESTS.next = t + rand(30, 60);
   if (DAY.h < 8.5 || DAY.h > 16.6 || teamCallNow()) return;
   function okHost(q){ return !q.guest && available(q) && !q.visitor && !lunchNow(q); }
-  var pool = PEOPLE.filter(function(g){ return g.guest && g.state === "gone" && (!gWant || gWant === "now" || g.id === gWant || GUESTS.wantDone) && PEOPLE.some(function(q){ return okHost(q) && (!g.hosts || g.hosts.indexOf(q.id) >= 0); }); });
+  var pool = PEOPLE.filter(function(g){ return g.guest && g.freq > 0 && g.state === "gone" && (!gWant || gWant === "now" || g.id === gWant || GUESTS.wantDone) && PEOPLE.some(function(q){ return okHost(q) && (!g.hosts || g.hosts.indexOf(q.id) >= 0); }); });
   if (!pool.length) return;
   var tot = 0; pool.forEach(function(g){ tot += g.freq; });
   var r = R() * tot, g = pool[0];
@@ -8026,7 +8097,12 @@ var PROFILE = {
     moodW:{ excited:1, great:2.5, good:3, okay:1.5, tired:1, stressed:0.8, off:0.3 },
     likes:"an invoice that matches the PO", dislikes:"receipts from last quarter",
     joke:"I'll approve it. Right after the cookies.",
-    work:["Chasing a receipt","Approving a few invoices","Checking the budget"] }
+    work:["Chasing a receipt","Approving a few invoices","Checking the budget"] },
+  itsam:{ pron:"he", traits:{ patience:0.95, humour:0.7, chattiness:0.5, stressTol:0.95 },
+    moodW:{ excited:0.5, great:2, good:3.5, okay:2, tired:1, stressed:0.4, off:0.2 },
+    likes:"a clean restart", dislikes:"passwords on sticky notes",
+    joke:"Have you tried turning it off and on again?",
+    work:["Updating a laptop","Resetting a password","Checking the Wi-Fi"] }
 };
 function rollMood(p){
   var w = PROFILE[p.id].moodW, tot = 0, k;
@@ -8076,6 +8152,7 @@ var KB = {
   elena:{ qa:[{ q:"What's launching in fireplaces?", k:["fireplace","fireplaces","flame","launch","new","ignite","optimyst","revillusion","specs"], a:"A couple of nice fireplace updates are coming. Specs first, then photos, then Luis puts them on the site." }], fallback:"I'm here to see Stephanie and Luis about fireplaces. Ask me about the lineup." },
   tessa:{ qa:[{ q:"What's new in heat?", k:["heat","heater","heaters","baseboard","baseboards","convectair","cadet","launch","specs"], a:"Heating season is here. Baseboards and fan heaters are moving, and a few specs are getting updated on the site." }], fallback:"I'm here to see Erica and Luis. Ask me about heaters." },
   grant:{ qa:[{ q:"When does it ship?", k:["ship","shipping","delivery","truck","stock","warehouse"], a:"Most orders go out in a couple of days. The big trucks come Thursdays." }], fallback:"I'm just visiting! Ask me about shipping or stock." },
+  itsam:{ qa:[{ q:"Can you fix my laptop?", k:["fix","laptop","computer","wifi","password","screen","broken","blue"], a:"Sure. First question: have you tried turning it off and on again?" }], fallback:"I'm just here to fix a computer." },
   hana:{ qa:[{ q:"Why are you here?", k:["why","here","visit","visiting","meeting"], a:"Just catching up with Erica and Allyson. Quick sync, then I'm out." }], fallback:"I'm just here to see Erica and Allyson." },
   stephanie:{ qa:[
     { q:"What is Optimyst?", k:["optimyst","water vapour","water vapor","vapour","vapor","mist","steam","smoke"], a:"Optimyst uses ultrasonic water vapour lit by LEDs, so the flames and smoke look real and you can put your hand right through them. You just top up the water tank now and then." },
@@ -8321,7 +8398,7 @@ var PRIVATE = [
 ];
 var FUZZY_PRIVATE = ["salary","salaries","paycheck","married","divorced","religion","politics","pregnant","boyfriend","girlfriend","birthday","immigration","citizenship","hospital","medication","lawsuit","harassment","resignation","gossip"];
 var WORK_NUDGE = {
-  nolan:"Ask me about dealers instead.", elena:"Ask me about customers instead.", tessa:"Ask me about launches instead.", grant:"Ask me about shipping instead.", hana:"Ask me about budgets instead.",
+  nolan:"Ask me about dealers instead.", elena:"Ask me about customers instead.", tessa:"Ask me about launches instead.", grant:"Ask me about shipping instead.", hana:"Ask me about budgets instead.", itsam:"Ask me about laptops instead.",
   luis:"Ask me about the website, manuals or finding a dealer.",
   stephanie:"Ask me about fireplaces instead.",
   debbie:"Ask me about baseboards.",
@@ -10060,7 +10137,8 @@ function resetWorld(){
     DRILL.cur = null; DRILL.doneDay = -1;
     SELFIE.day = -1; SELFIE.slots = []; SELFIE.k = 0; SELFIE.cur = null;
     RACE.day = -1; RACE.done = false; RACE.cur = null;
-    PLANE.day = -1; PLANE.slots = []; PLANE.k = 0; PLANE.cur = null; PEOPLE.forEach(function(q){ q.race = null; });
+    PLANE.day = -1; PLANE.slots = []; PLANE.k = 0; PLANE.cur = null;
+    ITFIX.day = -1; ITFIX.done = false; ITFIX.cur = null; PEOPLE.forEach(function(q){ q.race = null; });
     TEAMCALL.on = false; TEAMCALL.next = 0; TEAMCALL.speaker = null; TEAMCALL.said = {};
     ALONE.next = 0; ALONE.said = [];
     DOGS.petAt = 0; DOGS.pet = 0; DOGW.walk = null; DOGW.list.forEach(function(d){ d.st = 0; d.stretchAt = 0; });
@@ -10150,7 +10228,7 @@ function simDue(T){
   if (!BOXEV.done && !BOXEV.on && BOXEV.at < 99) { var ba = BOXEV.at * 3600; if (T < ba) x = Math.min(x, ba); else if (h < BOXEV.at + 0.5) x = next; }
   if (DAY.fri && RIT_DONE["water" + dk] === undefined && h < 11.5) x = Math.min(x, h > 10 ? next : 10 * 3600 + 1);
   if (!RIT_DONE["fire" + dk] && h < 10.5 && BY.stephanie && BY.stephanie.state === "sit") { var tw = simWx(T).temp; if (Q_COLD || (tw !== null && tw <= 0)) x = next; }
-  x = Math.min(x, dogsDue(T), carryDue(T, next), gameDue(T, next), drillDue(T, next), selfieDue(T, next), raceDue(T, next), planeDue(T, next));
+  x = Math.min(x, dogsDue(T), carryDue(T, next), gameDue(T, next), drillDue(T, next), selfieDue(T, next), raceDue(T, next), planeDue(T, next), itfixDue(T, next));
   D.life = Math.min(x, run);
   D.cat = catDue(T);
   D.season = seasonDue(T);
