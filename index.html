@@ -7037,6 +7037,7 @@ function drillDraw(t){
   if (!DRILL_G) return;
   var D = DRILL.cur, on = !!D && t >= D.t0 && t < D.t0 + 60;
   DRILL_G.visible = on;
+  drillAlarm(on, t, D);
   if (on) DRILL_G.userData.lamp.material.emissiveIntensity = (Math.floor((t - D.t0) * 2.5) % 2) ? 0.15 : 2.2;
 }
 /* ---------- a mission selfie: about 3 times a workday two people meet in the aisle, stand side by side facing the
@@ -7555,10 +7556,31 @@ function ambientUnlock(e){
   /* a first click on the Sound button itself is handled by the button */
   if (e && e.target && e.target.closest && e.target.closest("#sound")) return;
   ["pointerdown", "keydown", "touchstart"].forEach(function(ev){ window.removeEventListener(ev, ambientUnlock, true); });
+  ambientCtx();
   if (!AMB.on) return;
   var p = ambientBg().play(); if (p && p.catch) p.catch(function(){});
 }
 ["pointerdown", "keydown", "touchstart"].forEach(function(ev){ window.addEventListener(ev, ambientUnlock, true); });
+function ambientCtx(){
+  if (AMB.actx) return AMB.actx;
+  try { AMB.actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { AMB.actx = null; }
+  return AMB.actx;
+}
+/* the fire alarm: the classic three beeps, then a pause, while the alarm light flashes */
+function drillAlarm(on, t, D){
+  var C = AMB.actx;
+  if (!C) return;
+  if (!on || !AMB.on || document.hidden) { if (AMB.alarm) AMB.alarm.g.gain.setTargetAtTime(0, C.currentTime, 0.02); return; }
+  if (C.state === "suspended") C.resume();
+  if (!AMB.alarm) {
+    var o = C.createOscillator(); o.type = "square"; o.frequency.value = 900;
+    var f = C.createBiquadFilter(); f.type = "lowpass"; f.frequency.value = 2400;
+    var g = C.createGain(); g.gain.value = 0; o.connect(f); f.connect(g); g.connect(C.destination); o.start();
+    AMB.alarm = { o:o, g:g };
+  }
+  var ph = (t - D.t0) % 4, beep = ph < 3 && (ph % 1) < 0.5;
+  AMB.alarm.g.gain.setTargetAtTime(beep ? 0.07 : 0, C.currentTime, 0.01);
+}
 function ambientStart(){
   if (AMB.ctx) return;
   var C = new (window.AudioContext || window.webkitAudioContext)(); AMB.ctx = C;
@@ -7578,7 +7600,7 @@ function ambientStart(){
 }
 function ambientTick(t, dt, present){
   if (AMB.bg) {
-    var want = AMB.on && !document.hidden && present.length ? 0.06 + 0.1 * Math.min(1, present.length / 6) : 0;
+    var want = AMB.on && !document.hidden && present.length ? 0.16 + 0.2 * Math.min(1, present.length / 6) : 0;
     AMB.bgVol += (want - AMB.bgVol) * (1 - Math.exp(-dt * 0.8));
     AMB.bg.volume = clamp(AMB.bgVol, 0, 1);
     if (AMB.on && AMB.bg.paused && want > 0 && AMB.bg.dataset.played) { var pp = AMB.bg.play(); if (pp && pp.catch) pp.catch(function(){}); }
@@ -8764,6 +8786,7 @@ document.getElementById("sound").addEventListener("click", function(){
   var bg = ambientBg();
   if (AMB.on && bg.paused && !bg.dataset.played) AMB.on = true; /* never started yet (no click so far): this click starts it */
   else AMB.on = !AMB.on;
+  ambientCtx();
   if (AMB.on) { var bgp = bg.play(); if (bgp && bgp.catch) bgp.catch(function(){}); }
   else { bg.pause(); AMB.bgVol = 0; bg.volume = 0; }
   soundBtnState();
