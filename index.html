@@ -93,6 +93,20 @@ h1 em{font-style:normal;color:var(--accent)}
 .chal .ch-body>*,.chal .ch-left>*{flex-shrink:0}
 .chal .mlist{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:12px;overflow:hidden}
 .chal .mrow{display:flex;align-items:center;gap:10px;padding:9px 10px;border-top:1px solid var(--line)}
+.chal .mrow[hidden]{display:none}
+.chal .msearch{font:500 14px/1.2 var(--f-body);padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink);width:100%;box-sizing:border-box}
+.chal .msearch:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.chal .mgrp{border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.chal .mgrp.special{border:2px solid #d4a72c}
+.chal .mgrp>summary{display:flex;align-items:center;gap:10px;padding:11px 12px;cursor:pointer;list-style:none;user-select:none}
+.chal .mgrp>summary::-webkit-details-marker{display:none}
+.chal .mgrp>summary::after{content:"";width:7px;height:7px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(45deg);margin:-3px 4px 0 auto;transition:transform .15s;opacity:.7}
+.chal .mgrp[open]>summary::after{transform:rotate(225deg);margin-top:3px}
+.chal .mgrp>summary:hover{background:rgba(127,127,127,.08)}
+.chal .mgrp>summary:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.chal .mgrp>summary b{font:700 14px/1.2 var(--f-body)}
+.chal .mgrp>summary .cnt{font:600 12px/1 var(--f-body);color:var(--muted)}
+.chal .mgrp .mlist{border:0;border-top:1px solid var(--line);border-radius:0}
 .chal .mrow:first-child{border-top:0}
 .chal .mrow.special{background:linear-gradient(90deg,rgba(212,167,44,.16),transparent 70%)}
 .chal .mrow.special .pts{background:#d4a72c;color:#1d1606}
@@ -8447,6 +8461,8 @@ function chalRender(){
   var vkey = CH.view ? JSON.stringify(CH.view) : "list", same = CH.lastView === vkey;
   var keepB = same ? B.scrollTop : 0, keepL = same ? Lf.scrollTop : 0, keepC = same ? cols.scrollTop : 0;
   CH.lastView = vkey;
+  /* the refresh must not steal the search box from someone typing in it */
+  var ae = document.activeElement, keepFocus = ae && ae.id === "chalSearch" && same ? { s:ae.selectionStart, e:ae.selectionEnd } : null;
   Lf.textContent = ""; B.textContent = "";
   requestAnimationFrame(function(){ B.scrollTop = keepB; Lf.scrollTop = keepL; cols.scrollTop = keepC; });
   /* left: the leaderboard, then what has been achieved (each one opens its proof photo) */
@@ -8498,13 +8514,24 @@ function chalRender(){
     B.appendChild(ll);
   }
   B.appendChild(el("p", "rule-2026", "Only photos taken in 2026 count. Older photos will be rejected."));
+  /* search box + one folded group per points value: you see how many there are of each and open the one you want */
+  var srch = el("input", "msearch"); srch.type = "search"; srch.id = "chalSearch"; srch.placeholder = "Search missions (e.g. Tim Hortons, ghost, Debbie)";
+  srch.setAttribute("aria-label", "Search missions"); srch.autocomplete = "off"; srch.value = CH.q || "";
+  srch.addEventListener("input", function(){ CH.q = srch.value; chalFilter(B); });
+  B.appendChild(srch);
+  CH.openG = CH.openG || {};
   groups.forEach(function(gp){
     var L = all.filter(function(x){ return gp[1](x.m); }).sort(function(a, b){ return (a.m.ord || 0) - (b.m.ord || 0); });
     if (!L.length) return;
-    B.appendChild(el("h3", "sec", gp[0] + " \u00b7 " + L.length));
+    var det = el("details", "mgrp" + (gp[0] === "Special" ? " special" : "")), sm = el("summary");
+    det.dataset.g = gp[0]; det.open = !!CH.openG[gp[0]];
+    sm.appendChild(el("b", "", gp[0])); sm.appendChild(el("span", "cnt", L.length + (L.length === 1 ? " mission" : " missions")));
+    det.appendChild(sm);
+    det.addEventListener("toggle", function(){ if (!(CH.q || "").trim()) CH.openG[gp[0]] = det.open; });
     var list = el("div", "mlist");
     L.forEach(function(x){
       var m = x.m, pend = chalPending(m.id), row = el("div", "mrow" + (m.special ? " special" : "") + (pend ? " pending" : ""));
+      row.dataset.q = chalNorm(m.title + " " + (m.desc || ""));
       var tx = el("div", "mt"); tx.appendChild(el("b", "", m.title));
       var sp = chalSpotsTxt(m);
       if (sp) { var ss = el("span", "spots"), dd = el("b", "", sp.dots); dd.setAttribute("aria-hidden", "true"); ss.appendChild(dd); ss.appendChild(document.createTextNode(sp.txt)); tx.appendChild(ss); }
@@ -8515,8 +8542,11 @@ function chalRender(){
       go.addEventListener("click", function(){ CH.view = { kind:"send", id:m.id }; chalRender(); });
       row.appendChild(go); list.appendChild(row);
     });
-    B.appendChild(list);
+    det.appendChild(list); B.appendChild(det);
   });
+  var none = el("p", "empty nomatch", "No mission matches that search."); none.hidden = true; B.appendChild(none);
+  chalFilter(B);
+  if (keepFocus) { srch.focus(); try { srch.setSelectionRange(keepFocus.s, keepFocus.e); } catch (e) {} }
   if (!all.length) B.appendChild(el("p", "empty", "Every mission is done. New ones are coming."));
   B.appendChild(el("h3", "sec", "How it works"));
   var how = el("ol", "how");
@@ -8532,6 +8562,21 @@ function chalRender(){
    "A mission with a photo waiting still takes more photos: if one is rejected, the next in line can win. Once both spots are taken the mission closes.",
    "Keep screens, documents and anyone who did not agree to be in it out of the picture."].forEach(function(t){ how.appendChild(el("li", "", t)); });
   B.appendChild(how);
+}
+function chalNorm(s){ return String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, " "); }
+/* hides the missions that don't match; while searching, groups with matches open by themselves and empty ones disappear */
+function chalFilter(B){
+  var q = chalNorm(CH.q).trim(), words = q ? q.split(" ") : [], hits = 0;
+  B.querySelectorAll("details.mgrp").forEach(function(det){
+    var rows = det.querySelectorAll(".mrow"), n = 0;
+    rows.forEach(function(r){ var ok = words.every(function(w){ return r.dataset.q.indexOf(w) >= 0; }); r.hidden = !ok; if (ok) n++; });
+    hits += n;
+    det.hidden = !n;
+    det.open = q ? n > 0 : !!(CH.openG || {})[det.dataset.g];
+    var c = det.querySelector(".cnt");
+    c.textContent = q ? n + " of " + rows.length : rows.length + (rows.length === 1 ? " mission" : " missions");
+  });
+  var none = B.querySelector(".nomatch"); if (none) none.hidden = !q || hits > 0;
 }
 function chalReview(B){
   var back = el("button", "go ghost", "Back"); back.type = "button"; back.addEventListener("click", function(){ CH.view = null; chalRender(); }); B.appendChild(back);
