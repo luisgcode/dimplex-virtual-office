@@ -1827,6 +1827,7 @@ function activityScreen(pool, seed, baseImg, ownerId){
 var SCREEN_FORCE = (/[?&]screen=(\w+)/.exec(location.search || "") || [])[1];
 function registerScreen(scr, kind, parent){ scr.userData.kind = kind; LIVE_SCREENS.push({ m:scr, kind:kind, desk:parent, base:scr.material.map }); }
 var TEAM_SCREEN = null, RESTART_SCREEN = null, BSOD_SCREEN = null;
+window.__scr = function(id){ return { all:LIVE_SCREENS.length, mine:LIVE_SCREENS.filter(function(s){ return s.owner && s.owner.id === id; }).map(function(s){ return s.kind + ":" + (BSOD_SCREEN && s.m.material.map === BSOD_SCREEN.tex) + ":" + (BSOD_SCREEN ? BSOD_SCREEN.mode : "-"); }) }; };
 /* black screen with the spinning dots: "Restarting", then the updates crawl to 100%, then the sign in screen */
 function restartScreen(){
   var L = liveCanvas(512, 320);
