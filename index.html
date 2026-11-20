@@ -7287,6 +7287,7 @@ function itfixTick(t, dk){
   /* no typing on a blue screen: hands off the keyboard between the reactions */
   if (C.bsod && !C.v.act && C.v.state === "sit") { C.v.typeOn = false; C.v.act = { n:"crash", t0:t, dur:3, target:null }; }
   if (C.ph === "coming" && S.state === "stay") {
+    V = C.v;
     C.ph = "fixing";
     startAct(V, "turn", t, 16, S);
     startAct(S, "point", t + 1, 9);
