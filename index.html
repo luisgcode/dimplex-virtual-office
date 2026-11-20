@@ -8414,7 +8414,11 @@ var CHAL_BANK = [
 var CHAL_SPECIAL = [
   { id:"sherif", title:"A photo with Sherif", pts:8, special:true }
 ];
-var CHAL_ADMIN = /[?&]admin=1/.test(location.search || "");
+/* admin mode: ?admin=1 once is enough, the device remembers it (a phone opens the plain link from a chat or the home screen) */
+var CHAL_ADMIN = (function(){
+  var on = /[?&]admin=1/.test(location.search || ""), off = /[?&]admin=0/.test(location.search || "");
+  try { if (on) localStorage.setItem("vo.admin", "1"); if (off) localStorage.removeItem("vo.admin"); return on || (!off && localStorage.getItem("vo.admin") === "1"); } catch (e) { return on; }
+})();
 var CHAL_KEY = "vo.chal.demo.v3";
 var CH = { st:null, tab:"mission", view:null, board:null, leaders:[] };
 function chalLoad(){
@@ -8575,7 +8579,7 @@ function chalRender(){
   if (CH.view && CH.view.kind === "proof") return chalProof(B, CH.view.i);
   if (CH.view && CH.view.kind === "person") return chalPerson(B, CH.view.id);
   if (CH.view && CH.view.kind === "review") return chalReview(B);
-  if (CHAL_ADMIN) {
+  if (CHAL_ADMIN || CH.admin) {
     var rv = el("button", "go ghost", "Review photos (" + CH.st.subs.length + ")"); rv.type = "button";
     rv.addEventListener("click", function(){ CH.view = { kind:"review" }; chalRender(); }); B.appendChild(rv);
   }
