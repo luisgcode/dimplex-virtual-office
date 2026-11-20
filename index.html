@@ -140,6 +140,10 @@ h1 em{font-style:normal;color:var(--accent)}
 .chal .lead-limit b{display:block;font:700 15px/1.2 var(--f-body);margin-bottom:4px}
 .chal .lead-limit p{margin:2px 0 0;font-size:13px;line-height:1.4}
 .chal .rule-2026{margin:0 0 6px;padding:8px 12px;border-radius:10px;border:2px solid #c8102e;font:600 13px/1.4 var(--f-body)}
+.chal td.rk{white-space:nowrap}
+.chal .mv{display:inline-block;margin-left:5px;font:700 10px/1 var(--f-body);vertical-align:1px}
+.chal .mv.up{color:#1f9d55}
+.chal .mv.down{color:#d64545}
 .chal .rules{border:1px solid var(--line);border-radius:12px;overflow:hidden}
 .chal .rules .r-top{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 10px;padding:10px 12px;border-bottom:1px solid var(--line);background:rgba(127,127,127,.06)}
 .chal .rules .r-top b{font:800 18px/1.1 var(--f-body);color:#c8102e}
@@ -8384,6 +8388,16 @@ function chalScores(){
   CH.st.done.forEach(function(d){ (d.team || [d.who]).forEach(function(id){ sc[id] = (sc[id] || 0) + d.pts; }); });
   return chalPlayers().map(function(q){ return { p:q, n:sc[q.id] || 0 }; }).sort(function(a, b){ return b.n - a.n || a.p.name.localeCompare(b.p.name); });
 }
+/* places moved since yesterday: ranks with everything approved before midnight (Toronto) against ranks now. A tie counts as the lowest place of the tied group, so people still at 0 do not look like they dropped */
+function chalMoves(){
+  var now = Date.now(), tz = torontoAt(now), midnight = now - ((tz.h * 60 + tz.mi) * 60 + tz.s) * 1000;
+  function ranks(list){ var sc = {}; chalPlayers().forEach(function(q){ sc[q.id] = 0; });
+    list.forEach(function(d){ (d.team || [d.who]).forEach(function(id){ sc[id] = (sc[id] || 0) + d.pts; }); });
+    var r = {}; Object.keys(sc).forEach(function(id){ r[id] = Object.keys(sc).filter(function(o){ return sc[o] >= sc[id]; }).length; }); return r; }
+  var before = ranks(CH.st.done.filter(function(d){ return (d.ok || d.at) < midnight; })), nowR = ranks(CH.st.done), mv = {};
+  Object.keys(nowR).forEach(function(id){ mv[id] = before[id] - nowR[id]; });
+  return mv;
+}
 function fmtTime(ms){ var d = new Date(ms); return d.toLocaleDateString("en-US", { month:"short", day:"numeric" }) + ", " + d.toLocaleTimeString("en-US", { hour:"numeric", minute:"2-digit", second:"2-digit" }); }
 function ptsTxt(n){ return n + (n === 1 ? " pt" : " pts"); }
 /* the leaders: everyone tied at the top, once someone has points */
@@ -8475,8 +8489,11 @@ function chalRender(){
   Lf.appendChild(el("h3", "sec", "Leaderboard"));
   var tb = el("table"), hd = el("tr"); ["#", "Name", "Points"].forEach(function(h, i){ var th = el("th", "", h); if (i === 2) th.style.textAlign = "right"; hd.appendChild(th); });
   var th0 = el("thead"); th0.appendChild(hd); tb.appendChild(th0); var bd = el("tbody");
+  var moves = chalMoves();
   chalScores().forEach(function(r, i){
-    var tr = el("tr", r.n > 0 && CH.leaders.indexOf(r.p.id) >= 0 ? "lead crown" : ""); tr.appendChild(el("td", "", String(i + 1))); /* a click on a name lists the missions that person completed, so anyone can see where the points came from */
+    var tr = el("tr", r.n > 0 && CH.leaders.indexOf(r.p.id) >= 0 ? "lead crown" : ""), rk = el("td", "rk", String(i + 1)), mvn = moves[r.p.id] || 0;
+    if (mvn) { var ar = el("span", "mv " + (mvn > 0 ? "up" : "down"), (mvn > 0 ? "▲" : "▼") + Math.abs(mvn)); ar.title = (mvn > 0 ? "Up " : "Down ") + Math.abs(mvn) + (Math.abs(mvn) === 1 ? " place" : " places") + " since yesterday"; ar.setAttribute("aria-label", ar.title); rk.appendChild(ar); }
+    tr.appendChild(rk); /* a click on a name lists the missions that person completed, so anyone can see where the points came from */
     var nt = el("td"), nb = el("button", "pn", r.p.name); nb.type = "button"; nb.setAttribute("aria-label", "Missions completed by " + r.p.name);
     nb.addEventListener("click", (function(pid){ return function(){ CH.view = { kind:"person", id:pid }; chalRender(); }; })(r.p.id));
     nt.appendChild(nb); tr.appendChild(nt); tr.appendChild(el("td", "n", String(r.n))); bd.appendChild(tr);
@@ -8756,7 +8773,7 @@ async function chalRefresh(){
   ]);
   r.forEach(function(x){ if (x.error) throw liveFail(x.error); });
   var defs = {}; r[0].data.forEach(function(m){ defs[m.id] = m; }); CH.defs = defs;
-  var done = r[2].data.map(function(a){ return { mid:a.mission_id, who:a.sender, team:a.team, pts:a.pts, at:Date.parse(a.received_at), taken:a.taken_at ? Date.parse(a.taken_at) : null, img:SB.storage.from("proof").getPublicUrl(a.photo_path).data.publicUrl }; });
+  var done = r[2].data.map(function(a){ return { mid:a.mission_id, who:a.sender, team:a.team, pts:a.pts, at:Date.parse(a.received_at), ok:a.approved_at ? Date.parse(a.approved_at) : Date.parse(a.received_at), taken:a.taken_at ? Date.parse(a.taken_at) : null, img:SB.storage.from("proof").getPublicUrl(a.photo_path).data.publicUrl }; });
   /* a mission stays open until all its spots are taken */
   var winCount = {}; done.forEach(function(d){ winCount[d.mid] = (winCount[d.mid] || 0) + 1; });
   var open = r[1].data.filter(function(o){ return defs[o.mission_id] && (winCount[o.mission_id] || 0) < chalSlots(defs[o.mission_id]); })
