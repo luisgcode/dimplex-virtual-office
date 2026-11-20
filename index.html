@@ -5097,6 +5097,8 @@ function updateRig(p, t, dt){
     if (p.deskGlass) p.deskGlass.visible = lunchNow(p) === "desk" && p.state === "sit";
     if (p.swatch) p.swatch.visible = false;
   }
+  /* mission selfie: the phone hand goes to a point up and in front of the face, the peace hand next to the face */
+  if (a && (a.n === "selfie" || a.n === "peace") && !p.remote && b.Head) poseHandIK(p, t, a);
   /* eating at the desk: the fork goes down into the bowl and up to the mouth (arm IK between the two) */
   if (a && a.n === "eat" && p.lunchBox && lunchNow(p) === "desk" && !p.remote && b.Head) eatArm(p, t, a);
   /* carrying the fireplace box: both hands on it */
@@ -6730,6 +6732,21 @@ function armIK(A, B, C, target, pole){
 }
 var _ctA = new V3(), _ctB = new V3();
 var _eb = new V3(), _em = new V3(), _ep = new V3(), _et = new V3(), _epole = new V3();
+var _sh = new V3(), _sc = new V3(), _sp = new V3();
+function poseHandIK(p, t, a){
+  var w = bump(t - a.t0, 0, a.dur, 0.6); if (w < 0.02) return;
+  var b = p.rig.b;
+  b.Head.getWorldPosition(_sh);
+  /* in the character's own frame: x left, y up, z forward */
+  if (a.n === "selfie") _sp.set(-0.16, 0.14, 0.48); else _sp.set(-0.15, 0.0, 0.1);
+  _sp.applyQuaternion(_rq); _sh.add(_sp);
+  b.RightHand.getWorldPosition(_sc); _sc.lerp(_sh, w);
+  _epole.set(-0.8, -0.6, -0.3).applyQuaternion(_rq);
+  armIK(b.RightArm, b.RightForeArm, b.RightHand, _sc, _epole);
+  /* the phone screen faces the face; the peace hand points up */
+  if (a.n === "selfie") { _sp.set(0.1, -0.05, -1).applyQuaternion(_rq); aimW(b.RightHand, b.RightHandMiddle1, _sp.set(0, 1, 0)); }
+  else aimW(b.RightHand, b.RightHandMiddle1, _sp.set(0, 1, 0.1));
+}
 function eatArm(p, t, a){
   var u = t - a.t0, w = bump(u, 0, a.dur, 0.45), dr = eatDrink(p, t);
   if (w < 0.05 || dr > 0.01) return;
