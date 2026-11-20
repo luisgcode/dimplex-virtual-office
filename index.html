@@ -9088,7 +9088,7 @@ function realHair(p, model, head, top){
 }
 /* hair bends like real hair: the top follows the head, the ends follow the upper back, with a smooth blend between
    them. Rigid on the head, long hair cut through the shoulders while walking and flickered in and out of the back. */
-var HAIR_SKIN = /[?&]hairskin=1/.test(location.search || ""); /* test switch while it is checked up close */
+var HAIR_SKIN = !/[?&]hairskin=0/.test(location.search || ""); /* ?hairskin=0 shows the old rigid hair, to compare */
 function skinHair(g, model, head){
   var sp = model.getObjectByName("mixamorigSpine2");
   if (!sp || !HAIR_SKIN) return;
