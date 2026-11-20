@@ -8564,7 +8564,7 @@ function chalRender(){
    "Only photos taken in 2026 count. Older photos are rejected.",
    "You can do as many missions as you like, no need to wait for the check on the last one.",
    "A mission with a photo waiting still takes more photos: if one is rejected, the next in line can win. Once both spots are taken the mission closes.",
-   "Keep screens, documents and anyone who did not agree to be in it out of the picture."].forEach(function(t){ how.appendChild(el("li", "", t)); });
+   "Keep screens and documents out of the picture."].forEach(function(t){ how.appendChild(el("li", "", t)); });
   B.appendChild(how);
 }
 function chalNorm(s){ return String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, " "); }
