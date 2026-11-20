@@ -5788,6 +5788,17 @@ function chatter(a, b, t, casualOnly){
   if (!a.guest && !b.guest && WNEWS_TELLERS.indexOf(a.id) >= 0) wnewsDue(t).forEach(function(d){
     if ((d.teller === a.id || t >= d.open + 600) && (chatter.room || 0) >= d.lines.length) C.push({ w:3.5, key:"wn" + d.wk, lines:d.lines, wn:d.wk });
   });
+  /* the missions table: whoever is first brags a little, the ones close behind promise a comeback, whoever climbed
+     yesterday celebrates. Friendly only, never teasing anyone (Luis and Allyson don't start these) */
+  if (RANK && !a.guest && !b.guest && a.id !== "luis" && a.id !== "allyson" && RANK.place[a.id]) {
+    var rka = RANK.place[a.id], rkb = RANK.place[b.id], rlead = RANK.order[0], rln = BY[rlead.id] ? BY[rlead.id].name : "";
+    var ordTxt = function(n){ return n + (n % 10 === 1 && n !== 11 ? "st" : n % 10 === 2 && n !== 12 ? "nd" : n % 10 === 3 && n !== 13 ? "rd" : "th"); };
+    if (rka === 1 && RANK.pts[a.id] > 0) add(1.6, "rk1" + a.id, [choose(["Still first on the missions board, just saying.", "Number one on the missions, in case anyone was wondering lol", "First place on the missions again this morning."]), choose(["Not for long!", "Enjoy it while it lasts lol", "Okay, okay, we know."]), choose(["We'll see lol", "Come and get it.", "Bring your best photos."])]);
+    if (rka >= 2 && rka <= 5 && RANK.pts[a.id] > 0) { var rgap = rlead.n - RANK.pts[a.id]; if (rgap > 0 && rgap <= 12 && rln) add(1.4, "rk2" + a.id, ["Only " + rgap + (rgap === 1 ? " point" : " points") + " behind " + rln + " on the missions.", choose(["You can catch up this week.", "That's nothing, go get it.", "One good photo and you're there."]), choose(["That's the plan.", "Watch me lol", "Already working on it."])]); }
+    if (RANK.up[a.id]) add(1.8, "rkup" + a.id, ["Did you see I moved up to " + ordTxt(rka) + " on the missions board?", choose(["Nice! What did you do?", "Look at you climbing!", "Congrats! Which ones did you do?"]), choose(["A few quick photos lol", "Secret strategy.", "I've been busy lol"])]);
+    if (rkb === 1 && rka !== 1 && RANK.pts[b.id] > 0) add(1.3, "rkb1" + b.id, ["How are you always first on the missions?", choose(["Practice lol", "I just say yes to every photo.", "Early bird gets the points."]), "Teach me your ways."]);
+    if (RANK.pts[a.id] === 0 && !a.remote) add(1.0, "rk0" + a.id, ["I really need to start doing some missions.", "Start with an easy one, like your mug on your desk.", "Good idea. Today for sure."]);
+  }
   /* opinions: a small disagreement, then they make peace */
   if (!a.remote && !b.remote && !a.guest && !b.guest) {
     var OA = OPINIONS;
@@ -8916,6 +8927,32 @@ function chalReject(sid){ if (CH.live) return liveReject(sid); CH.st.subs = CH.s
    only the admin can open; approved ones move to a public bucket as the proof. ?demo=1 keeps the browser-only demo. */
 var SUPA_URL = "https://xcseskfixzzxyzkwyozj.supabase.co", SUPA_KEY = "sb_publishable_uGJ7x3GQvG23tHm0NywLWQ_NVvku_Ch";
 var SB = (!/[?&]demo=1/.test(location.search || "") && window.supabase) ? window.supabase.createClient(SUPA_URL, SUPA_KEY) : null;
+/* the missions table as it stood at the start of today (and the day before), for the office small talk. Only approvals
+   from before today's midnight count, so every screen gets the same standings all day, whenever it opened */
+var RANK = null;
+function rankDayKey(ms){ var z = torontoAt(ms); return z.y * 10000 + z.mo * 100 + z.d; }
+function rankBuild(rows){
+  var today = rankDayKey(WORLD_NOW()), ids = ALL.filter(function(q){ return !q.guest; }).map(function(q){ return q.id; });
+  function table(before){
+    var sc = {}; ids.forEach(function(id){ sc[id] = 0; });
+    rows.forEach(function(a){ if (a.approved_at && rankDayKey(Date.parse(a.approved_at)) < before) (a.team && a.team.length ? a.team : [a.sender]).forEach(function(id){ if (id in sc) sc[id] += a.pts; }); });
+    var order = ids.map(function(id){ return { id:id, n:sc[id] }; }).sort(function(x, y){ return y.n - x.n || x.id.localeCompare(y.id); });
+    var place = {}; order.forEach(function(o, i){ place[o.id] = i + 1; });
+    return { order:order, place:place, pts:sc };
+  }
+  /* yesterday's date key: step back a day from today's Toronto noon */
+  var t0 = table(today), yk = rankDayKey(WORLD_NOW() - 86400000), t1 = table(yk), up = {};
+  ids.forEach(function(id){ if (t0.pts[id] > 0 && t1.place[id] > t0.place[id]) up[id] = true; });
+  return { day:today, order:t0.order, place:t0.place, pts:t0.pts, up:up };
+}
+window.__rank = function(){ return { rank:RANK, said:CHAT_RECENT.filter(function(k){ return /^rk/.test(k); }) }; };
+var RANK_FIRST = (SB ? SB.from("achieved").select("team,sender,pts,approved_at") : Promise.resolve({ data:null }))
+  .then(function(r){
+    if (!r || !r.data || RANK) return;
+    RANK = rankBuild(r.data);
+    /* came after the world was built without it: build it again, same as the weather and the news */
+    if (SIM.loadMs !== undefined) { resetWorld(); simTo(WT()); }
+  }).catch(function(){});
 CH.live = !!SB; CH.defs = {}; CH.admin = false; CH.seen = null;
 if (CH.live) { document.getElementById("chalDemo").hidden = true; CH.st = null; chalLoad(); }
 else if (/[?&]demo=1/.test(location.search || "") === false) { document.getElementById("chalDemo").textContent = "Offline"; }
@@ -10131,7 +10168,7 @@ function frame(){
   mark("labels", m0);
 }
 /* the weather the people react to is read once (up to 2.5 s), then the world catches up to now */
-try { await Promise.race([Promise.all([WX_FIRST, WNEWS_FIRST]), new Promise(function(res){ setTimeout(res, 2500); })]); } catch (e) {}
+try { await Promise.race([Promise.all([WX_FIRST, WNEWS_FIRST, RANK_FIRST]), new Promise(function(res){ setTimeout(res, 2500); })]); } catch (e) {}
 (function(){
   var l0 = performance.now();
   resetWorld();
