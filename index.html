@@ -7159,7 +7159,7 @@ function raceDue(T, next){
 /* ---------- paper airplane: twice a workday someone throws a paper airplane across the aisle, it lands on the other
    desk, that person looks up, picks it up and throws it back. The flight is a pure function of the clock. ?plane=1 runs
    one now (this screen only). */
-var PLANE = { day:-1, slots:[], k:0, cur:null }, PLANE_LIVE = false, PLANE_TEST = /[?&]plane=1/.test(location.search || ""), PLANE_G;
+var PLANE = { day:-1, slots:[], k:0, cur:null }, PLANE_LIVE = true, PLANE_TEST = /[?&]plane=1/.test(location.search || ""), PLANE_G;
 window.__plane = function(){ var C = PLANE.cur; return { slots:PLANE.slots.map(function(x){ return fmtH(x / 3600); }), k:PLANE.k, cur:C ? C.a.id + ">" + C.b.id : null }; };
 function planeSlots(dk){
   if (PLANE.day === dk) return;
