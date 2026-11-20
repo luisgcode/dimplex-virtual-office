@@ -4261,7 +4261,7 @@ var ACTS = {
   point:{ RightArm:[-0.1, 0.5, 1], RightForeArm:[-0.05, 0.6, 1], Head:[0, 1, -0.2] },
   wave:{ RightArm:[-0.9, 0.4, 0.2], RightForeArm:[-0.1, 1, 0.1] },
   /* a mission selfie: the phone held up and out in front, the other one leans in with a peace sign */
-  selfie:{ RightArm:[-0.35, 0.3, 0.88], RightForeArm:[-0.12, 0.35, 0.93], RightHand:[-0.05, 0.2, 1], Head:[0.12, 1, 0.12] },
+  selfie:{ RightArm:[-0.55, 0.62, 0.55], RightForeArm:[-0.2, 0.62, 0.76], RightHand:[0.05, 0.75, 0.66], Head:[0.1, 1, 0.05] },
   peace:{ RightArm:[-0.3, -0.35, 0.6], RightForeArm:[-0.05, 1, 0.15], Head:[-0.14, 1, 0.12] },
   talk:{ RightArm:[-0.2, -0.8, 0.45], RightForeArm:[0.1, 0.25, 1] },
   /* writing in a notebook on the desk (the forearm is fitted to the desk, the hand scribbles) */
@@ -6988,7 +6988,7 @@ function selfieTick(t, dk){
     SELFIE.k++;
     var A = free[0], B = free.filter(function(q){ return q !== A; }).sort(function(x, y){ return Math.abs(x.z - A.z) - Math.abs(y.z - A.z); })[0];
     /* side by side in the aisle, facing the room's open corner (toward the usual camera) */
-    var cz = clamp((A.z + B.z) / 2, -0.6, 4.2), fx = Math.SQRT1_2, fz = Math.SQRT1_2, sx = 0.2 * Math.SQRT1_2, sz = -0.2 * Math.SQRT1_2;
+    var cz = clamp((A.z + B.z) / 2, -0.6, 4.2), fx = Math.SQRT1_2, fz = Math.SQRT1_2, sx = 0.31 * Math.SQRT1_2, sz = -0.31 * Math.SQRT1_2;
     var spA = new V3(-sx, 0, cz - sz), spB = new V3(sx, 0, cz + sz);
     C = SELFIE.cur = { ph:"gather", t0:t, team:[A, B] };
     [[A, spA], [B, spB]].forEach(function(x, i){
