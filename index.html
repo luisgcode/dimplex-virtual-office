@@ -4260,6 +4260,9 @@ var ACTS = {
   swatch:{ RightArm:[-0.15, 0.15, 1], RightForeArm:[-0.05, 0.45, 1] },
   point:{ RightArm:[-0.1, 0.5, 1], RightForeArm:[-0.05, 0.6, 1], Head:[0, 1, -0.2] },
   wave:{ RightArm:[-0.9, 0.4, 0.2], RightForeArm:[-0.1, 1, 0.1] },
+  /* a mission selfie: the phone held up and out in front, the other one leans in with a peace sign */
+  selfie:{ RightArm:[-0.35, 0.3, 0.88], RightForeArm:[-0.12, 0.35, 0.93], RightHand:[-0.05, 0.2, 1], Head:[0.12, 1, 0.12] },
+  peace:{ RightArm:[-0.3, -0.35, 0.6], RightForeArm:[-0.05, 1, 0.15], Head:[-0.14, 1, 0.12] },
   talk:{ RightArm:[-0.2, -0.8, 0.45], RightForeArm:[0.1, 0.25, 1] },
   /* writing in a notebook on the desk (the forearm is fitted to the desk, the hand scribbles) */
   write:{ RightArm:[-0.12, -0.62, 0.72], LeftArm:[0.2, -0.65, 0.7], Spine1:[0, 1, 0.2], Spine2:[0, 1, 0.14], Head:[0, 1, 0.55] },
@@ -5079,7 +5082,7 @@ function updateRig(p, t, dt){
         if (p.pen.visible) { b.RightHand.getWorldPosition(_fa); b.RightHandMiddle1.getWorldPosition(_fb); p.pen.position.copy(_fa).lerp(_fb, 0.6); p.pen.position.y -= 0.035; p.pen.rotation.set(0.5, p.root.rotation.y + p.swivel, 0.35); }
       }
     }
-    if (p.phone) p.phone.visible = a.n === "phone" && w > 0.3;
+    if (p.phone) p.phone.visible = (a.n === "phone" || a.n === "selfie") && w > 0.3;
     if (p.food) foodInHand(p, b, t, a, w);
     if (p.swatch) p.swatch.visible = (a.n === "swatch" || a.n === "checklist") && w > 0.2;
   } else {
@@ -6961,6 +6964,68 @@ function drillDraw(t){
   DRILL_G.visible = on;
   if (on) DRILL_G.userData.lamp.material.emissiveIntensity = (Math.floor((t - D.t0) * 2.5) % 2) ? 0.15 : 2.2;
 }
+/* ---------- a mission selfie: about 3 times a workday two people meet in the aisle, stand side by side facing the
+   room, one holds the phone up, the other leans in with a peace sign, they check the photo and go back. ?selfie=1 runs
+   one now (this screen only). */
+var SELFIE = { day:-1, slots:[], k:0, cur:null }, SELFIE_LIVE = false, SELFIE_TEST = /[?&]selfie=1/.test(location.search || "");
+window.__selfie = function(){ var C = SELFIE.cur; return { slots:SELFIE.slots.map(function(x){ return fmtH(x / 3600); }), k:SELFIE.k, ph:C && C.ph, team:C ? C.team.map(function(q){ return q.id + ":" + q.state; }) : [] }; };
+function selfieSlots(dk){
+  if (SELFIE.day === dk) return;
+  SELFIE.day = dk; SELFIE.slots = []; SELFIE.k = 0;
+  var r = wrng("selfie", dk);
+  if (SELFIE_LIVE) [9.9, 11.3, 14.6].forEach(function(h){ SELFIE.slots.push((h + r() * 0.6) * 3600); });
+  if (SELFIE_TEST) { var tz = torontoAt(WORLD_NOW()); SELFIE.slots.unshift(tz.h * 3600 + tz.mi * 60 + tz.s + 20); }
+}
+function selfieTick(t, dk){
+  selfieSlots(dk);
+  var C = SELFIE.cur;
+  if (!C) {
+    while (SELFIE.k < SELFIE.slots.length && t > SELFIE.slots[SELFIE.k] + 1500) SELFIE.k++;
+    var at = SELFIE.slots[SELFIE.k];
+    if (at === undefined || t < at || DAY.closed || teamCallNow() || GAME.cur || DRILL.cur || (CARRY.cur && CARRY.cur.ph !== "wait")) return;
+    var free = shuffle(PEOPLE.filter(function(q){ return !q.remote && !q.guest && q.state === "sit" && !q.trip && visAt(q, t) && !q.chatWith && !q.visitor && !q.answering && (SELFIE_TEST || !lunchNow(q)) && !(q.act && (q.act.plan || q.act.n === "vcall")); }));
+    if (free.length < 2) return;
+    SELFIE.k++;
+    var A = free[0], B = free.filter(function(q){ return q !== A; }).sort(function(x, y){ return Math.abs(x.z - A.z) - Math.abs(y.z - A.z); })[0];
+    /* side by side in the aisle, facing the room's open corner (toward the usual camera) */
+    var cz = clamp((A.z + B.z) / 2, -0.6, 4.2), fx = Math.SQRT1_2, fz = Math.SQRT1_2, sx = 0.2 * Math.SQRT1_2, sz = -0.2 * Math.SQRT1_2;
+    var spA = new V3(-sx, 0, cz - sz), spB = new V3(sx, 0, cz + sz);
+    C = SELFIE.cur = { ph:"gather", t0:t, team:[A, B] };
+    [[A, spA], [B, spB]].forEach(function(x, i){
+      var q = x[0], sp = x[1];
+      q.act = null; q.typeOn = false; q.decideAt = t + 300;
+      goSpot(q, t + 0.5 + i * 1.2, sp, sp.clone().add(new V3(fx, 0, fz)), 300, "Taking a mission selfie", null, null, null);
+    });
+    sayLater(A, choose(["Quick, I need a picture for a mission!", "Mission selfie time, come here!", "Help me with a mission photo?"]), t + 0.4, 3);
+    sayLater(B, choose(["Say no more!", "Let's do it.", "Only if I look good lol"]), t + 3.4, 2.6);
+    return;
+  }
+  if (C.ph === "gather") {
+    var there = C.team.every(function(q){ return q.state === "stay"; });
+    if (!there && t - C.t0 < 90) return;
+    if (!there) { C.team.forEach(function(q){ if (q.trip && q.trip.kind === "spot") { if (q.state === "stay") setState(q, "stay", t, 0.3); else q.trip.stay = 0.1; } }); SELFIE.cur = null; return; }
+    C.ph = "pose"; C.t1 = t;
+    startAct(C.team[0], "selfie", t + 0.6, 6.5);
+    startAct(C.team[1], "peace", t + 1.0, 6);
+    sayLater(C.team[0], choose(["Say Dimplex!", "Okay, smile!", "Three, two, one!"]), t + 1.6, 2.4);
+    C.team.forEach(function(q){ q.smileUntil = t + 9; });
+    return;
+  }
+  if (C.ph === "pose" && t >= C.t1 + 8) {
+    C.ph = "done";
+    sayLater(C.team[1], choose(["Let me see it!", "Send it to me!", "Okay, that one's a keeper."]), t, 2.6);
+    sayLater(C.team[0], choose(["Sent for review!", "Perfect, uploading it now.", "Points incoming lol"]), t + 3, 2.6);
+    C.team.forEach(function(q, i){ if (q.state === "stay") setState(q, "stay", t, 5 + i * 1.2); });
+    SELFIE.cur = null;
+  }
+}
+function selfieDue(T, next){
+  if (SELFIE.day !== dayKey()) return next;
+  var C = SELFIE.cur;
+  if (C) return C.ph === "pose" ? Math.max(next, C.t1 + 8.001) : next;
+  var at = SELFIE.slots[SELFIE.k];
+  return at === undefined ? Infinity : T < at ? at : next;
+}
 var NEWS = [
   { id:"pizza", until:new Date(2026, 10, 24, 18).getTime(),
     drift:["I heard it's pizza AND wings on the 24th!", "Apparently it's pizza, wings and dessert on the 24th.", "Someone said it's a full party on the 24th, pizza, wings, dessert, everything!"], lines:["Did you hear? Pizza on the 24th, from the Halloween win!", "Wait really?? Yay!", "Same week as the Christmas lunch too."] },
@@ -7041,6 +7106,7 @@ function simLifeWorld(t, dt, dk){
   carryTick(t, dk);
   gameTick(t, dk);
   drillTick(t);
+  selfieTick(t, dk);
   var present = presentAt(t);
   LIFE.printers.forEach(function(pr){ if (pr.job && t - pr.job.t0 > 120) pr.job = null; });
   /* Friday team call: someone talks now and then, the purple frame follows whoever speaks */
@@ -9786,6 +9852,7 @@ function resetWorld(){
     CARRY.day = -1; CARRY.slots = []; CARRY.k = 0; CARRY.cur = null;
     GAME.day = -1; GAME.slots = []; GAME.k = 0; GAME.cur = null;
     DRILL.cur = null; DRILL.doneDay = -1;
+    SELFIE.day = -1; SELFIE.slots = []; SELFIE.k = 0; SELFIE.cur = null;
     TEAMCALL.on = false; TEAMCALL.next = 0; TEAMCALL.speaker = null; TEAMCALL.said = {};
     ALONE.next = 0; ALONE.said = [];
     DOGS.petAt = 0; DOGS.pet = 0; DOGW.walk = null; DOGW.list.forEach(function(d){ d.st = 0; d.stretchAt = 0; });
@@ -9875,7 +9942,7 @@ function simDue(T){
   if (!BOXEV.done && !BOXEV.on && BOXEV.at < 99) { var ba = BOXEV.at * 3600; if (T < ba) x = Math.min(x, ba); else if (h < BOXEV.at + 0.5) x = next; }
   if (DAY.fri && RIT_DONE["water" + dk] === undefined && h < 11.5) x = Math.min(x, h > 10 ? next : 10 * 3600 + 1);
   if (!RIT_DONE["fire" + dk] && h < 10.5 && BY.stephanie && BY.stephanie.state === "sit") { var tw = simWx(T).temp; if (Q_COLD || (tw !== null && tw <= 0)) x = next; }
-  x = Math.min(x, dogsDue(T), carryDue(T, next), gameDue(T, next), drillDue(T, next));
+  x = Math.min(x, dogsDue(T), carryDue(T, next), gameDue(T, next), drillDue(T, next), selfieDue(T, next));
   D.life = Math.min(x, run);
   D.cat = catDue(T);
   D.season = seasonDue(T);
