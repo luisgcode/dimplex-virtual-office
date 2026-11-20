@@ -7090,11 +7090,13 @@ function raceOff(p, t, out){
   var R = p.race; out.set(0, 0, 0);
   if (!R || t < R.t0 || t > R.t4) return out;
   var seat = p.seat, start = R.start, fin = R.fin;
-  if (t < R.t1) _rc.lerpVectors(seat, start, raceEase((t - R.t0) / (R.t1 - R.t0)));
+  /* out and back go along the aisle and turn in at the desk's row, never across the desks */
+  if (!R.out) { var turn = new V3(start.x, 0, seat.z); R.out = makePath([seat.clone(), turn, start.clone()]); R.back = makePath([fin.clone(), turn.clone(), seat.clone()]); }
+  if (t < R.t1) { along(R.out, R.out.L * raceEase((t - R.t0) / (R.t1 - R.t0))); _rc.copy(tmpPos); }
   else if (t < R.t2) _rc.copy(start);
   else if (t < R.t2 + R.dur) { var u = (t - R.t2) / R.dur; _rc.lerpVectors(start, fin, u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2); }
   else if (t < R.t3) _rc.copy(fin);
-  else _rc.lerpVectors(fin, seat, raceEase((t - R.t3) / (R.t4 - R.t3)));
+  else { along(R.back, R.back.L * raceEase((t - R.t3) / (R.t4 - R.t3))); _rc.copy(tmpPos); }
   return out.subVectors(_rc, seat);
 }
 /* the chair turns to face down the aisle while racing, and back to the desk at the end */
@@ -7123,6 +7125,8 @@ function raceTick(t, dk){
       q.typeOn = false; q.decideAt = q.race.t4 + 5; NAPS[q.idx] = 0;
     });
     C.end = Math.max(A.race.t4, B.race.t4);
+    /* nobody else gets up while the chairs are in the aisle */
+    PEOPLE.forEach(function(q){ if (q !== A && q !== B && q.state === "sit" && !q.remote && !q.guest) { q.decideAt = Math.max(q.decideAt || 0, C.end + 2); NAPS[q.idx] = 0; } });
     var win = aWins ? A : B, lose = aWins ? B : A;
     sayLater(A, choose(["Chair race! " + B.name + ", you in?", "It's 3 o'clock. Chair race, " + B.name + "?", "Okay " + B.name + ", rematch time. Chairs!"]), t + 0.3, 3);
     sayLater(B, choose(["You're on!", "Oh, it's on.", "Prepare to lose lol"]), t + 3.2, 2.4);
