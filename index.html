@@ -5499,6 +5499,7 @@ function rollAt(p, t){
 function rollStart(p, to, t){ NAPS[p.idx] = 0; p.rollR0 = rollAt(p, t); p.rollTo = to; p.rollOnAt = t; p.rollOffAt = null; }
 function rollStop(p, t){ if (p.rollTo && (p.rollOffAt === null || p.rollOffAt === undefined)) { p.rollOffAt = t; NAPS[p.idx] = 0; } }
 /* where someone is at world time t (pure: the director's state plus the clock) */
+var _raceO = new V3(), _raceD = new V3();
 var OUT_KINDS = { meeting:1, coffee:1, lunch:1, home:1, carry:1, drill:1 }, _visV = new V3();
 function posAt(p, t, out){
   out = out || new V3();
@@ -5510,6 +5511,7 @@ function posAt(p, t, out){
   out.copy(p.seat);
   var r = rollAt(p, t);
   if (r > 0) { out.x += (p.rollTo.x - p.seat.x) * r; out.z += (p.rollTo.z - p.seat.z) * r; }
+  if (p.race) { raceOff(p, t, _raceO); out.x += _raceO.x; out.z += _raceO.z; }
   if (st === "sit") { var sw = standW(p, t); if (sw > 0.001) { out.x += Math.sin(p.sitHeading) * 0.1 * sw; out.z += Math.cos(p.sitHeading) * 0.1 * sw; } }
   return out;
 }
@@ -6528,11 +6530,14 @@ var _rollW = new V3(), _rollS = new V3();
 function rollUpdate(p, t){
   if (!p.chairG || !p.chairBase) return;
   p.roll = rollAt(p, t);
+  var racing = p.race && t >= p.race.t0 && t <= p.race.t4;
+  if (racing) p.roll = 1;
   if (!p.roll && !p.rollWas) return;
   p.rollWas = p.roll > 0;
   p.rollOff = p.rollOff || new V3();
-  if (p.rollTo && p.roll) p.rollOff.set(p.rollTo.x - p.seat.x, 0, p.rollTo.z - p.seat.z).multiplyScalar(p.roll);
+  if (p.rollTo && p.roll && !racing) p.rollOff.set(p.rollTo.x - p.seat.x, 0, p.rollTo.z - p.seat.z).multiplyScalar(p.roll);
   else p.rollOff.set(0, 0, 0);
+  if (racing) p.rollOff.add(raceOff(p, t, _raceD));
   _rollW.copy(p.deskGroup.localToWorld(_rollS.copy(p.chairBase))).add(p.rollOff);
   p.chairG.position.copy(p.deskGroup.worldToLocal(_rollW));
 }
@@ -7021,7 +7026,7 @@ function selfieTick(t, dk){
   if (!C) {
     while (SELFIE.k < SELFIE.slots.length && t > SELFIE.slots[SELFIE.k] + 1500) SELFIE.k++;
     var at = SELFIE.slots[SELFIE.k];
-    if (at === undefined || t < at || DAY.closed || teamCallNow() || GAME.cur || DRILL.cur || (CARRY.cur && CARRY.cur.ph !== "wait")) return;
+    if (at === undefined || t < at || DAY.closed || teamCallNow() || GAME.cur || DRILL.cur || RACE.cur || (CARRY.cur && CARRY.cur.ph !== "wait")) return;
     var free = shuffle(PEOPLE.filter(function(q){ return !q.remote && !q.guest && q.state === "sit" && !q.trip && visAt(q, t) && !q.chatWith && !q.visitor && !q.answering && (SELFIE_TEST || !lunchNow(q)) && !(q.act && (q.act.plan || q.act.n === "vcall")); }));
     var askers = free.filter(function(q){ return q.id !== "luis" && q.id !== "allyson"; });
     if (free.length < 2 || !askers.length) return;
@@ -7065,6 +7070,76 @@ function selfieDue(T, next){
   if (C) return C.ph === "pose" ? Math.max(next, C.t1 + 8.001) : next;
   var at = SELFIE.slots[SELFIE.k];
   return at === undefined ? Infinity : T < at ? at : next;
+}
+/* ---------- chair race: every workday at 3 pm two people roll their chairs out to a start line in the aisle, someone
+   calls it, they race to the far end, the winner celebrates and they roll back. They stay seated the whole time (hands on
+   the armrests), the chair turns to face the race. ?race=1 runs one now (this screen only). */
+var RACE = { day:-1, at:0, done:false, cur:null }, RACE_LIVE = false, RACE_TEST = /[?&]race=1/.test(location.search || "");
+var RACE_Z0 = -0.75, RACE_Z1 = 4.35, RACE_LANE = 0.36;
+window.__race = function(){ var C = RACE.cur; return { at:fmtH(RACE.at / 3600), done:RACE.done, ph:C && C.ph, team:C ? C.team.map(function(q){ return q.id; }) : [] }; };
+function raceSlot(dk){
+  if (RACE.day === dk) return;
+  RACE.day = dk; RACE.done = false;
+  if (RACE_TEST) { var tz = torontoAt(WORLD_NOW()); RACE.at = tz.h * 3600 + tz.mi * 60 + tz.s + 20; }
+  else RACE.at = RACE_LIVE ? 15 * 3600 : 99 * 3600;
+}
+function raceEase(x){ x = clamp(x, 0, 1); return x * x * (3 - 2 * x); }
+/* where a racer is at world time t, as an offset from the seat (pure: the plan and the clock) */
+var _rc = new V3();
+function raceOff(p, t, out){
+  var R = p.race; out.set(0, 0, 0);
+  if (!R || t < R.t0 || t > R.t4) return out;
+  var seat = p.seat, start = R.start, fin = R.fin;
+  if (t < R.t1) _rc.lerpVectors(seat, start, raceEase((t - R.t0) / (R.t1 - R.t0)));
+  else if (t < R.t2) _rc.copy(start);
+  else if (t < R.t2 + R.dur) { var u = (t - R.t2) / R.dur; _rc.lerpVectors(start, fin, u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2); }
+  else if (t < R.t3) _rc.copy(fin);
+  else _rc.lerpVectors(fin, seat, raceEase((t - R.t3) / (R.t4 - R.t3)));
+  return out.subVectors(_rc, seat);
+}
+/* the chair turns to face down the aisle while racing, and back to the desk at the end */
+function raceSwivel(p, t){
+  var R = p.race; if (!R || t < R.t0 || t > R.t4) return null;
+  var face = -p.side * Math.PI / 2, k = Math.min(raceEase((t - R.t0) / 1.5), 1 - raceEase((t - (R.t4 - 1.5)) / 1.5));
+  return face * k;
+}
+function raceTick(t, dk){
+  raceSlot(dk);
+  var C = RACE.cur;
+  if (!C) {
+    if (RACE.done || t < RACE.at || t > RACE.at + 1800 || DAY.closed) return;
+    if (teamCallNow() || GAME.cur || DRILL.cur || SELFIE.cur || (CARRY.cur && CARRY.cur.ph !== "wait")) return;
+    var free = shuffle(PEOPLE.filter(function(q){ return !q.remote && !q.guest && q.state === "sit" && !q.trip && visAt(q, t) && !q.chatWith && !q.visitor && !q.answering && !(rollAt(q, t) > 0) && !(q.act && (q.act.plan || q.act.n === "vcall")); }));
+    var askers = free.filter(function(q){ return q.id !== "luis" && q.id !== "allyson"; });
+    if (free.length < 2 || !askers.length) return;
+    RACE.done = true;
+    var A = askers[0], B = free.filter(function(q){ return q !== A; })[0];
+    var r = wrng("race", dk), aWins = r() < 0.5, T0 = t + 4;
+    C = RACE.cur = { team:[A, B], t0:T0, ph:"on", end:0 };
+    [A, B].forEach(function(q, i){
+      var lane = (i ? 1 : -1) * RACE_LANE, dur = (aWins === (i === 0)) ? 5.6 : 6.4;
+      q.race = { t0:T0 + i * 0.6, t1:T0 + 4.5, t2:T0 + 9, dur:dur, t3:T0 + 9 + 6.4 + 4, t4:T0 + 9 + 6.4 + 4 + 6, start:new V3(lane, 0, RACE_Z0), fin:new V3(lane, 0, RACE_Z1) };
+      q.act = { n:"race", t0:t, dur:q.race.t4 - t + 0.5, target:null, plan:true };
+      q.typeOn = false; q.decideAt = q.race.t4 + 5; NAPS[q.idx] = 0;
+    });
+    C.end = Math.max(A.race.t4, B.race.t4);
+    var win = aWins ? A : B, lose = aWins ? B : A;
+    sayLater(A, choose(["Chair race! " + B.name + ", you in?", "It's 3 o'clock. Chair race, " + B.name + "?", "Okay " + B.name + ", rematch time. Chairs!"]), t + 0.3, 3);
+    sayLater(B, choose(["You're on!", "Oh, it's on.", "Prepare to lose lol"]), t + 3.2, 2.4);
+    var ref = PEOPLE.filter(function(q){ return q !== A && q !== B && !q.remote && !q.guest && q.state === "sit" && visAt(q, t); })[0] || A;
+    sayLater(ref, "Ready, set... GO!", T0 + 7, 2.4);
+    sayLater(win, choose(["Winner!", "Undefeated!", "Too easy lol"]), T0 + 9 + 6.4 + 0.5, 2.6);
+    sayLater(lose, choose(["Rematch tomorrow!", "My chair has a bad wheel lol", "I let you win."]), T0 + 9 + 6.4 + 3, 2.6);
+    return;
+  }
+  if (t > C.end) { C.team.forEach(function(q){ q.race = null; }); RACE.cur = null; }
+}
+function raceDue(T, next){
+  if (RACE.day !== dayKey()) return next;
+  var C = RACE.cur;
+  if (C) return Math.max(next, C.end + 0.001);
+  if (RACE.done) return Infinity;
+  return T < RACE.at ? RACE.at : T <= RACE.at + 1800 ? next : Infinity;
 }
 var NEWS = [
   { id:"pizza", until:new Date(2026, 10, 24, 18).getTime(),
@@ -7147,6 +7222,7 @@ function simLifeWorld(t, dt, dk){
   gameTick(t, dk);
   drillTick(t);
   selfieTick(t, dk);
+  raceTick(t, dk);
   var present = presentAt(t);
   LIFE.printers.forEach(function(pr){ if (pr.job && t - pr.job.t0 > 120) pr.job = null; });
   /* Friday team call: someone talks now and then, the purple frame follows whoever speaks */
@@ -7682,6 +7758,7 @@ function poseAgent(p, t, dt){
     if (!p.act && !typing && !mousing && !p.chatWith) swivelTarget += mv(p).swivel * Math.sin(t * 0.7 + (p.mSeed || 0));
     /* the chair stays at whatever angle it was left after a chat */
     if (!p.act && !p.chatWith) swivelTarget += (p.restSwivel || 0) * (typing || mousing ? 0.4 : 1);
+    var rsw = raceSwivel(p, t); if (rsw !== null) swivelTarget = rsw;
     p.swivel = lerp(p.swivel || 0, swivelTarget, 1 - Math.exp(-dt * 5));
     if (p.chairG) p.chairG.rotation.y = p.swivel;
   } else {
@@ -9893,6 +9970,7 @@ function resetWorld(){
     GAME.day = -1; GAME.slots = []; GAME.k = 0; GAME.cur = null;
     DRILL.cur = null; DRILL.doneDay = -1;
     SELFIE.day = -1; SELFIE.slots = []; SELFIE.k = 0; SELFIE.cur = null;
+    RACE.day = -1; RACE.done = false; RACE.cur = null; PEOPLE.forEach(function(q){ q.race = null; });
     TEAMCALL.on = false; TEAMCALL.next = 0; TEAMCALL.speaker = null; TEAMCALL.said = {};
     ALONE.next = 0; ALONE.said = [];
     DOGS.petAt = 0; DOGS.pet = 0; DOGW.walk = null; DOGW.list.forEach(function(d){ d.st = 0; d.stretchAt = 0; });
@@ -9982,7 +10060,7 @@ function simDue(T){
   if (!BOXEV.done && !BOXEV.on && BOXEV.at < 99) { var ba = BOXEV.at * 3600; if (T < ba) x = Math.min(x, ba); else if (h < BOXEV.at + 0.5) x = next; }
   if (DAY.fri && RIT_DONE["water" + dk] === undefined && h < 11.5) x = Math.min(x, h > 10 ? next : 10 * 3600 + 1);
   if (!RIT_DONE["fire" + dk] && h < 10.5 && BY.stephanie && BY.stephanie.state === "sit") { var tw = simWx(T).temp; if (Q_COLD || (tw !== null && tw <= 0)) x = next; }
-  x = Math.min(x, dogsDue(T), carryDue(T, next), gameDue(T, next), drillDue(T, next), selfieDue(T, next));
+  x = Math.min(x, dogsDue(T), carryDue(T, next), gameDue(T, next), drillDue(T, next), selfieDue(T, next), raceDue(T, next));
   D.life = Math.min(x, run);
   D.cat = catDue(T);
   D.season = seasonDue(T);
