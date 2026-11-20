@@ -8472,9 +8472,10 @@ function chalNames(d){ return (d.team || [d.who]).map(function(id){ return BY[id
 /* the tournament ends on Dec 31, 2026 (office time): days left counting today, 0 once it is over */
 var CHAL_END = Date.UTC(2026, 11, 31);
 function chalDaysLeft(){ var tz = torontoAt(Date.now()); return Math.max(0, Math.round((CHAL_END - Date.UTC(tz.y, tz.mo - 1, tz.d)) / 86400000) + 1); }
-/* lead limit: nobody can be more than 25 points ahead of 6th place; over it, no new photos until 6th place catches up */
+/* lead limit: nobody can be more than 25 points ahead of 5th place; over it, no new photos until 5th place catches up (public.lead_cap() in the database) */
 var CHAL_LEAD = 25;
-function chalLeadCap(){ var sc = chalScores(); return sc.length >= 6 ? sc[5].n + CHAL_LEAD : Infinity; }
+var CHAL_LEAD_PLACE = 5;
+function chalLeadCap(){ var sc = chalScores(); return sc.length >= CHAL_LEAD_PLACE ? sc[CHAL_LEAD_PLACE - 1].n + CHAL_LEAD : Infinity; }
 function chalOverLimit(id){ var cap = chalLeadCap(), r = chalScores().filter(function(x){ return x.p.id === id; })[0]; return !!r && r.n > cap; }
 /* every mission can be won by up to 2 different people; whoever already has points in it can't win it again */
 var CHAL_SLOTS = 2;
@@ -8594,7 +8595,7 @@ function chalRender(){
   function rule(h, t){ var li = el("li"); li.appendChild(el("b", "", h)); li.appendChild(document.createTextNode(" " + t)); ru.appendChild(li); }
   rule("2 spots per mission.", "The first 2 approved photos from 2 different people win it.");
   var sc6 = chalScores();
-  if (sc6.length >= 6) rule("Lead limit: " + ptsTxt(sc6[5].n + CHAL_LEAD) + " max.", "Nobody can be more than " + CHAL_LEAD + " points ahead of 6th place (" + ptsTxt(sc6[5].n) + " now). Over it, your name is blocked until 6th place goes up.");
+  if (sc6.length >= CHAL_LEAD_PLACE) rule("Lead limit: " + ptsTxt(sc6[CHAL_LEAD_PLACE - 1].n + CHAL_LEAD) + " max.", "Nobody can be more than " + CHAL_LEAD + " points ahead of 5th place (" + ptsTxt(sc6[CHAL_LEAD_PLACE - 1].n) + " now). Over it, your name is blocked until 5th place goes up.");
   rule("2026 photos only.", "Older photos are rejected.");
   rc.appendChild(ru); B.appendChild(rc);
   /* search box + one folded group per points value: you see how many there are of each and open the one you want */
@@ -8637,7 +8638,7 @@ function chalRender(){
    "Tap Send your photo, choose your name and add the photo.",
    "The office records the exact time your photo arrives. Every mission has 2 spots: the first 2 approved photos win it, each from a different person.",
    "Once you have points in a mission, your name is blocked for it, so someone else gets the next spot.",
-   "Lead limit: nobody can be more than 25 points ahead of 6th place. If you go over it, your name is blocked until 6th place catches up. Photos already sent can still be approved.",
+   "Lead limit: nobody can be more than 25 points ahead of 5th place. If you go over it, your name is blocked until 5th place catches up. Photos already sent can still be approved.",
    "Everyone who appears in the winning photo gets the points, not only the person who sent it.",
    "Photos stay private until they are approved. Then they show up under Achieved as the proof.",
    "Only photos taken in 2026 count. Older photos are rejected.",
