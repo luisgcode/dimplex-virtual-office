@@ -5067,6 +5067,7 @@ function updateRig(p, t, dt){
     }
     if (p.mug) p.mug.visible = a.n === "sip" && w > 0.3;
     if (a.n === "toast" && !p.toastCup) p.toastCup = makeToastCup();
+    if (p.selfiePhone && a.n !== "selfie") p.selfiePhone.visible = false;
     if (p.toastCup) {
       p.toastCup.visible = a.n === "toast" && w > 0.25 && p.root.visible;
       if (p.toastCup.visible) { b.RightHand.getWorldPosition(_fa); b.RightHandMiddle1.getWorldPosition(_fb); p.toastCup.position.copy(_fa).lerp(_fb, 0.55); p.toastCup.position.y += 0.02; p.toastCup.rotation.set(0, p.heading, 0); }
@@ -5082,12 +5083,13 @@ function updateRig(p, t, dt){
         if (p.pen.visible) { b.RightHand.getWorldPosition(_fa); b.RightHandMiddle1.getWorldPosition(_fb); p.pen.position.copy(_fa).lerp(_fb, 0.6); p.pen.position.y -= 0.035; p.pen.rotation.set(0.5, p.root.rotation.y + p.swivel, 0.35); }
       }
     }
-    if (p.phone) p.phone.visible = (a.n === "phone" || a.n === "selfie") && w > 0.3;
+    if (p.phone) p.phone.visible = a.n === "phone" && w > 0.3;
     if (p.food) foodInHand(p, b, t, a, w);
     if (p.swatch) p.swatch.visible = (a.n === "swatch" || a.n === "checklist") && w > 0.2;
   } else {
     if (p.mug) p.mug.visible = false;
     if (p.toastCup) p.toastCup.visible = false;
+    if (p.selfiePhone) p.selfiePhone.visible = false;
     if (p.cupHid) { p.cupHid = false; p.cup.visible = true; }
     if (p.notebook) p.notebook.visible = false;
     if (p.pen) p.pen.visible = false;
@@ -6732,7 +6734,18 @@ function armIK(A, B, C, target, pole){
 }
 var _ctA = new V3(), _ctB = new V3();
 var _eb = new V3(), _em = new V3(), _ep = new V3(), _et = new V3(), _epole = new V3();
-var _sh = new V3(), _sc = new V3(), _sp = new V3();
+var _sh = new V3(), _sc = new V3(), _sp = new V3(), _sf = new V3(), SELFIE_PHONE_G = null;
+/* a real size phone for the selfie: dark back with a red Dimplex case edge and a camera bump, held up by the hand */
+function selfiePhone(){
+  if (!SELFIE_PHONE_G) {
+    SELFIE_PHONE_G = new T.Group();
+    add(G.box, M("#c8102e", { roughness:0.5 }), 0.078, 0.152, 0.012, 0, 0, 0, SELFIE_PHONE_G, false);
+    add(G.box, M("#17191d", { roughness:0.35, metalness:0.3 }), 0.07, 0.144, 0.004, 0, 0, -0.006, SELFIE_PHONE_G, false);
+    add(G.box, new T.MeshBasicMaterial({ color:0x9fd3ff, toneMapped:false }), 0.066, 0.138, 0.002, 0, 0, 0.0065, SELFIE_PHONE_G, false);
+    add(G.cyl, M("#0d0e10", { roughness:0.2 }), 0.012, 0.004, 0.012, -0.02, 0.05, -0.009, SELFIE_PHONE_G, false).rotation.x = Math.PI / 2;
+  }
+  var g = SELFIE_PHONE_G.clone(); g.traverse(function(o){ o.userData.dyn = true; }); g.visible = false; scene.add(g); return g;
+}
 function poseHandIK(p, t, a){
   var w = bump(t - a.t0, 0, a.dur, 0.6); if (w < 0.02) return;
   var b = p.rig.b;
@@ -6744,8 +6757,17 @@ function poseHandIK(p, t, a){
   _epole.set(-0.8, -0.6, -0.3).applyQuaternion(_rq);
   armIK(b.RightArm, b.RightForeArm, b.RightHand, _sc, _epole);
   /* the phone screen faces the face; the peace hand points up */
-  if (a.n === "selfie") { _sp.set(0.1, -0.05, -1).applyQuaternion(_rq); aimW(b.RightHand, b.RightHandMiddle1, _sp.set(0, 1, 0)); }
+  if (a.n === "selfie") aimW(b.RightHand, b.RightHandMiddle1, _sp.set(0, 1, 0));
   else aimW(b.RightHand, b.RightHandMiddle1, _sp.set(0, 1, 0.1));
+  if (a.n === "selfie") {
+    if (!p.selfiePhone) p.selfiePhone = selfiePhone();
+    var ph = p.selfiePhone; ph.visible = w > 0.3 && p.root.visible;
+    if (ph.visible) {
+      b.RightHand.getWorldPosition(_sc); b.RightHandMiddle1.getWorldPosition(_sf); ph.position.copy(_sc).lerp(_sf, 0.8);
+      /* the screen (+z) faces the face */
+      b.Head.getWorldPosition(_sh); _sh.y += 0.08; ph.lookAt(_sh);
+    }
+  }
 }
 function eatArm(p, t, a){
   var u = t - a.t0, w = bump(u, 0, a.dur, 0.45), dr = eatDrink(p, t);
