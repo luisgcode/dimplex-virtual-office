@@ -4096,11 +4096,11 @@ function renderCat(t, dt){
   add(G.box, M("#d9c39a", { roughness:0.6 }), 0.1, 0.006, 1.11, 0, 0.252, 0, cbx, false);
   [-1, 1].forEach(function(sd){ var lb = new T.Mesh(G.plane, cbSide); lb.scale.set(1.0, 0.46, 1); lb.position.set(sd * 0.212, 0, 0); lb.rotation.y = sd * Math.PI / 2; cbx.add(lb); });
   cbx.traverse(function(o){ o.userData.dyn = true; }); cbx.visible = false; CARRY_G = cbx;
-  /* the fire alarm light on the wall by the hallway, only shown during a drill */
-  var alg = new T.Group(); alg.position.set(2.85, 2.25, 6.3); scene.add(alg);
+  /* the fire alarm light on the tall left wall, near the hallway end, only shown during a drill */
+  var alg = new T.Group(); alg.position.set(-2.86, 2.3, 5.0); scene.add(alg);
   add(G.box, M("#d9d6cf", { roughness:0.6 }), 0.04, 0.16, 0.16, 0, 0, 0, alg, false);
   var lampM = new T.MeshStandardMaterial({ color:0xff2a2a, emissive:0xff0000, emissiveIntensity:2, roughness:0.3 });
-  var lamp = new T.Mesh(G.cyl, lampM); lamp.scale.set(0.06, 0.05, 0.06); lamp.rotation.z = Math.PI / 2; lamp.position.set(-0.04, 0.02, 0); alg.add(lamp);
+  var lamp = new T.Mesh(G.cyl, lampM); lamp.scale.set(0.06, 0.05, 0.06); lamp.rotation.z = Math.PI / 2; lamp.position.set(0.045, 0.02, 0); alg.add(lamp);
   alg.userData.lamp = lamp; alg.traverse(function(o){ o.userData.dyn = true; }); alg.visible = false; DRILL_G = alg;
   /* a watering can */
   var can = new T.Group(); scene.add(can);
