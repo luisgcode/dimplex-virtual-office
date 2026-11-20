@@ -6888,7 +6888,7 @@ function gameDue(T, next){
 /* ---------- fire drill, 5 times a month: the alarm light flashes, someone calls it, everyone at the office walks out
    in a line through the hallway (the meetings way), waits outside about 5 minutes and comes back after the all clear.
    The days and times come from the month (keyed), so every screen sees the same drill. ?drill=1 runs one now. */
-var DRILL = { mkey:-1, plan:{}, cur:null }, DRILL_LIVE = false;
+var DRILL = { mkey:-1, plan:{}, cur:null }, DRILL_LIVE = true;
 var DRILL_G; /* built with the room */
 var DRILL_TEST = /[?&]drill=1/.test(location.search || "");
 function drillPlan(){
@@ -6905,6 +6905,7 @@ function drillPlan(){
   days.slice(0, 5).forEach(function(dd){ var am = r() < 0.5; DRILL.plan[dd] = (am ? 9.6 + r() * 1.8 : 13.7 + r() * 1.5) * 3600; });
   return DRILL.plan;
 }
+window.__drill = function(){ var pl = drillPlan(); return Object.keys(pl).map(function(d){ return d + " " + fmtH(pl[d] / 3600); }); };
 function drillAtToday(){
   if (DRILL_TEST) { if (DRILL.testAt === undefined) { var tz = torontoAt(WORLD_NOW()); DRILL.testAt = tz.h * 3600 + tz.mi * 60 + tz.s + 20; } return DRILL.testAt; }
   if (!DRILL_LIVE) return undefined;
