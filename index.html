@@ -4102,6 +4102,15 @@ function renderCat(t, dt){
   var lampM = new T.MeshStandardMaterial({ color:0xff2a2a, emissive:0xff0000, emissiveIntensity:2, roughness:0.3 });
   var lamp = new T.Mesh(G.cyl, lampM); lamp.scale.set(0.085, 0.06, 0.085); lamp.rotation.z = Math.PI / 2; lamp.position.set(0.045, 0.02, 0); alg.add(lamp);
   alg.userData.lamp = lamp; alg.traverse(function(o){ o.userData.dyn = true; }); alg.visible = false; DRILL_G = alg;
+  /* a folded paper airplane (nose along +z) */
+  var pgeo = new T.BufferGeometry(), pv = new Float32Array([
+    0, 0, 0.13,  -0.075, 0.012, -0.09,  0, 0, -0.09,
+    0, 0, 0.13,  0, 0, -0.09,  0.075, 0.012, -0.09,
+    0, 0, 0.13,  0, -0.028, -0.09,  0, 0, -0.09]);
+  pgeo.setAttribute("position", new T.BufferAttribute(pv, 3)); pgeo.computeVertexNormals();
+  var pln = new T.Mesh(pgeo, new T.MeshStandardMaterial({ color:0xfbfaf6, roughness:0.85, side:T.DoubleSide }));
+  pln.castShadow = true; pln.scale.setScalar(1.4);
+  var plg = new T.Group(); plg.add(pln); scene.add(plg); plg.traverse(function(o){ o.userData.dyn = true; }); plg.visible = false; PLANE_G = plg;
   /* a watering can */
   var can = new T.Group(); scene.add(can);
   var cm = M("#2a9d8f", { roughness:0.5 });
@@ -4261,6 +4270,7 @@ var ACTS = {
   point:{ RightArm:[-0.1, 0.5, 1], RightForeArm:[-0.05, 0.6, 1], Head:[0, 1, -0.2] },
   wave:{ RightArm:[-0.9, 0.4, 0.2], RightForeArm:[-0.1, 1, 0.1] },
   /* a mission selfie: the phone held up and out in front, the other one leans in with a peace sign */
+  throw:{ RightArm:[-0.3, 0.75, 0.2], RightForeArm:[-0.1, 0.9, 0.3], Head:[0, 1, 0.15] },
   selfie:{ RightArm:[-0.55, 0.62, 0.55], RightForeArm:[-0.2, 0.62, 0.76], RightHand:[0.05, 0.75, 0.66], Head:[0.1, 1, 0.05] },
   peace:{ RightArm:[-0.3, -0.35, 0.6], RightForeArm:[-0.05, 1, 0.15], Head:[-0.14, 1, 0.12] },
   talk:{ RightArm:[-0.2, -0.8, 0.45], RightForeArm:[0.1, 0.25, 1] },
@@ -5034,6 +5044,7 @@ function updateRig(p, t, dt){
         if (a.n === "fixprinter" && n === "RightForeArm") dd = v3a(SCR, dd[0] + 0.15 * Math.sin(t * 5), dd[1], dd[2]);
         if (a.n === "rubeyes" && (n === "LeftForeArm" || n === "RightForeArm")) dd = v3a(SCR, dd[0] + 0.06 * Math.sin(t * 9), dd[1], dd[2]);
         if (a.n === "wave" && n === "RightForeArm") dd = v3a(SCR, dd[0] + 0.45 * Math.sin(t * 9), dd[1], dd[2]);
+        if (a.n === "throw" && (n === "RightArm" || n === "RightForeArm")) { var thu = clamp((t - a.t0 - 0.35) / 0.35, 0, 1); dd = n === "RightArm" ? v3a(SCR, -0.3, lerp(0.75, 0.35, thu), lerp(-0.25, 0.95, thu)) : v3a(SCR, -0.1, lerp(0.9, 0.25, thu), lerp(-0.2, 1, thu)); }
         if (a.n === "sidebend" && (n === "Spine1" || n === "Spine2")) { var sb = 0.42 * Math.sin((t - a.t0) * 1.6); dd = v3a(SCR, sb * (n === "Spine1" ? 1 : 0.7), 1, 0); }
         if (a.n === "sidebend" && (n === "LeftArm" || n === "RightArm")) { var sb2 = 0.5 * Math.sin((t - a.t0) * 1.6); dd = v3a(SCR, dd[0] + sb2, dd[1], dd[2]); }
         if (a.n === "march" && (n === "LeftUpLeg" || n === "RightUpLeg" || n === "LeftLeg" || n === "RightLeg" || n === "LeftArm" || n === "RightArm")) {
@@ -7145,6 +7156,78 @@ function raceDue(T, next){
   if (RACE.done) return Infinity;
   return T < RACE.at ? RACE.at : T <= RACE.at + 1800 ? next : Infinity;
 }
+/* ---------- paper airplane: twice a workday someone throws a paper airplane across the aisle, it lands on the other
+   desk, that person looks up, picks it up and throws it back. The flight is a pure function of the clock. ?plane=1 runs
+   one now (this screen only). */
+var PLANE = { day:-1, slots:[], k:0, cur:null }, PLANE_LIVE = false, PLANE_TEST = /[?&]plane=1/.test(location.search || ""), PLANE_G;
+window.__plane = function(){ var C = PLANE.cur; return { slots:PLANE.slots.map(function(x){ return fmtH(x / 3600); }), k:PLANE.k, cur:C ? C.a.id + ">" + C.b.id : null }; };
+function planeSlots(dk){
+  if (PLANE.day === dk) return;
+  PLANE.day = dk; PLANE.slots = []; PLANE.k = 0;
+  var r = wrng("plane", dk);
+  if (PLANE_LIVE) [10.4, 14.1].forEach(function(h){ PLANE.slots.push((h + r() * 0.8) * 3600); });
+  if (PLANE_TEST) { var tz = torontoAt(WORLD_NOW()); PLANE.slots.unshift(tz.h * 3600 + tz.mi * 60 + tz.s + 15); }
+}
+/* the spot on a desk where the plane lands: in front of the person, on the desk top */
+function planeDeskPt(q){ return new V3(q.seat.x + q.side * 0.42, 0.79, q.seat.z + 0.12); }
+function planeHandPt(q){ return new V3(q.seat.x + q.side * 0.12, 1.22, q.seat.z); }
+function planeTick(t, dk){
+  planeSlots(dk);
+  var C = PLANE.cur;
+  if (!C) {
+    while (PLANE.k < PLANE.slots.length && t > PLANE.slots[PLANE.k] + 1500) PLANE.k++;
+    var at = PLANE.slots[PLANE.k];
+    if (at === undefined || t < at || DAY.closed || teamCallNow() || GAME.cur || DRILL.cur || RACE.cur) return;
+    var free = PEOPLE.filter(function(q){ return !q.remote && !q.guest && q.state === "sit" && !q.trip && visAt(q, t) && !q.chatWith && !q.visitor && !q.answering && !(rollAt(q, t) > 0) && !(q.act && (q.act.plan || q.act.n === "vcall")); });
+    /* a pair across the aisle, close in the row */
+    var best = null, bd = 9;
+    free.forEach(function(a){ if (a.id === "luis" || a.id === "allyson") return; free.forEach(function(b){ if (b.side === -a.side) { var d = Math.abs(a.z - b.z); if (d < bd) { bd = d; best = [a, b]; } } }); });
+    if (!best || bd > 2.6) return;
+    PLANE.k++;
+    var A = best[0], B = best[1], T0 = t + 1;
+    C = PLANE.cur = { a:A, b:B, t0:T0, f1:[T0 + 0.55, T0 + 2.75], f2:[T0 + 8.05, T0 + 10.25], end:T0 + 30 };
+    C.p0 = planeHandPt(A); C.p1 = planeDeskPt(B); C.p2 = planeHandPt(B); C.p3 = planeDeskPt(A);
+    [A, B].forEach(function(q){ q.typeOn = false; q.decideAt = Math.max(q.decideAt || 0, T0 + 13); NAPS[q.idx] = 0; });
+    /* one act at a time per person, so they are started when their moment comes */
+    C.script = [[T0, function(){ startAct(A, "throw", T0, 1.3); }], [T0 + 2.9, function(){ startAct(B, "turn", T0 + 2.9, 3.2, A); }],
+      [T0 + 7.4, function(){ startAct(B, "throw", T0 + 7.5, 1.3); }], [T0 + 10.4, function(){ startAct(A, "turn", T0 + 10.4, 2.6, B); }]];
+    sayLater(B, choose(["Hey! Incoming!", "Did you just... a paper airplane?", "Air mail, really? lol"]), T0 + 3.1, 2.6);
+    sayLater(B, choose(["Return to sender!", "Catch!", "Two can play this game."]), T0 + 7.2, 2.4);
+    sayLater(A, choose(["Ha! Nice throw.", "Okay, okay, you win.", "Perfect landing lol"]), T0 + 10.8, 2.6);
+    return;
+  }
+  while (C.script.length && C.script[0][0] <= t) C.script.shift()[1]();
+  if (t > C.end) PLANE.cur = null;
+}
+function planeDue(T, next){
+  if (PLANE.day !== dayKey()) return next;
+  var C = PLANE.cur;
+  if (C) return Math.max(next, C.script.length ? C.script[0][0] : C.end + 0.001);
+  var at = PLANE.slots[PLANE.k];
+  return at === undefined ? Infinity : T < at ? at : next;
+}
+/* drawing: in the air on an arc, or resting on a desk */
+var _pa = new V3(), _pb = new V3();
+function planeFlight(a, b, f, t, out){
+  var u = clamp((t - f[0]) / (f[1] - f[0]), 0, 1);
+  out.lerpVectors(a, b, u); out.y += Math.sin(Math.PI * u) * 0.75 - u * u * 0.02;
+  return u;
+}
+function planeDraw(t){
+  if (!PLANE_G) return;
+  var C = PLANE.cur;
+  if (!C || t < C.f1[0] || t > C.end) { PLANE_G.visible = false; return; }
+  PLANE_G.visible = true;
+  var a, b, f;
+  if (t < C.f1[1]) { a = C.p0; b = C.p1; f = C.f1; }
+  else if (t < C.f2[0]) { PLANE_G.position.copy(C.p1); PLANE_G.rotation.set(0, Math.atan2(C.p1.x - C.p0.x, C.p1.z - C.p0.z), 0); return; }
+  else if (t < C.f2[1]) { a = C.p2; b = C.p3; f = C.f2; }
+  else { PLANE_G.position.copy(C.p3); PLANE_G.rotation.set(0, Math.atan2(C.p3.x - C.p2.x, C.p3.z - C.p2.z), 0); return; }
+  planeFlight(a, b, f, t, _pa); planeFlight(a, b, f, t + 0.03, _pb);
+  PLANE_G.position.copy(_pa);
+  PLANE_G.lookAt(_pb);
+  PLANE_G.rotateZ(0.25 * Math.sin((t - f[0]) * 5));
+}
 var NEWS = [
   { id:"pizza", until:new Date(2026, 10, 24, 18).getTime(),
     drift:["I heard it's pizza AND wings on the 24th!", "Apparently it's pizza, wings and dessert on the 24th.", "Someone said it's a full party on the 24th, pizza, wings, dessert, everything!"], lines:["Did you hear? Pizza on the 24th, from the Halloween win!", "Wait really?? Yay!", "Same week as the Christmas lunch too."] },
@@ -7227,6 +7310,7 @@ function simLifeWorld(t, dt, dk){
   drillTick(t);
   selfieTick(t, dk);
   raceTick(t, dk);
+  planeTick(t, dk);
   var present = presentAt(t);
   LIFE.printers.forEach(function(pr){ if (pr.job && t - pr.job.t0 > 120) pr.job = null; });
   /* Friday team call: someone talks now and then, the purple frame follows whoever speaks */
@@ -7317,6 +7401,7 @@ function presentAt(t){
 function renderLife(t, dt){
   carryDraw(t);
   drillDraw(t);
+  planeDraw(t);
   var dk = dayKey(), present = PEOPLE.filter(function(q){ return !q.guest && !q.remote && q.state === "sit" && q.root.visible; });
   /* the sun moves across the sky with the real hour */
   var sh = clamp((DAY.h - 7) / 11, 0, 1);
@@ -9974,7 +10059,8 @@ function resetWorld(){
     GAME.day = -1; GAME.slots = []; GAME.k = 0; GAME.cur = null;
     DRILL.cur = null; DRILL.doneDay = -1;
     SELFIE.day = -1; SELFIE.slots = []; SELFIE.k = 0; SELFIE.cur = null;
-    RACE.day = -1; RACE.done = false; RACE.cur = null; PEOPLE.forEach(function(q){ q.race = null; });
+    RACE.day = -1; RACE.done = false; RACE.cur = null;
+    PLANE.day = -1; PLANE.slots = []; PLANE.k = 0; PLANE.cur = null; PEOPLE.forEach(function(q){ q.race = null; });
     TEAMCALL.on = false; TEAMCALL.next = 0; TEAMCALL.speaker = null; TEAMCALL.said = {};
     ALONE.next = 0; ALONE.said = [];
     DOGS.petAt = 0; DOGS.pet = 0; DOGW.walk = null; DOGW.list.forEach(function(d){ d.st = 0; d.stretchAt = 0; });
@@ -10064,7 +10150,7 @@ function simDue(T){
   if (!BOXEV.done && !BOXEV.on && BOXEV.at < 99) { var ba = BOXEV.at * 3600; if (T < ba) x = Math.min(x, ba); else if (h < BOXEV.at + 0.5) x = next; }
   if (DAY.fri && RIT_DONE["water" + dk] === undefined && h < 11.5) x = Math.min(x, h > 10 ? next : 10 * 3600 + 1);
   if (!RIT_DONE["fire" + dk] && h < 10.5 && BY.stephanie && BY.stephanie.state === "sit") { var tw = simWx(T).temp; if (Q_COLD || (tw !== null && tw <= 0)) x = next; }
-  x = Math.min(x, dogsDue(T), carryDue(T, next), gameDue(T, next), drillDue(T, next), selfieDue(T, next), raceDue(T, next));
+  x = Math.min(x, dogsDue(T), carryDue(T, next), gameDue(T, next), drillDue(T, next), selfieDue(T, next), raceDue(T, next), planeDue(T, next));
   D.life = Math.min(x, run);
   D.cat = catDue(T);
   D.season = seasonDue(T);
