@@ -97,7 +97,7 @@ h1 em{font-style:normal;color:var(--accent)}
 .chal .msearch{font:500 14px/1.2 var(--f-body);padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink);width:100%;box-sizing:border-box}
 .chal .msearch:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .chal .mgrp{border:1px solid var(--line);border-radius:12px;overflow:hidden}
-.chal .mgrp.special{border:2px solid #d4a72c}
+.chal .mgrp.special>summary b{color:#d4a72c}
 .chal .mgrp>summary{display:flex;align-items:center;gap:10px;padding:11px 12px;cursor:pointer;list-style:none;user-select:none}
 .chal .mgrp>summary::-webkit-details-marker{display:none}
 .chal .mgrp>summary::after{content:"";width:7px;height:7px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(45deg);margin:-3px 4px 0 auto;transition:transform .15s;opacity:.7}
@@ -140,6 +140,12 @@ h1 em{font-style:normal;color:var(--accent)}
 .chal .lead-limit b{display:block;font:700 15px/1.2 var(--f-body);margin-bottom:4px}
 .chal .lead-limit p{margin:2px 0 0;font-size:13px;line-height:1.4}
 .chal .rule-2026{margin:0 0 6px;padding:8px 12px;border-radius:10px;border:2px solid #c8102e;font:600 13px/1.4 var(--f-body)}
+.chal .rules{border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.chal .rules .r-top{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 10px;padding:10px 12px;border-bottom:1px solid var(--line);background:rgba(127,127,127,.06)}
+.chal .rules .r-top b{font:800 18px/1.1 var(--f-body);color:#c8102e}
+.chal .rules .r-top span{font-size:12px;color:var(--muted)}
+.chal .rules ul{margin:0;padding:8px 12px 10px 28px;display:flex;flex-direction:column;gap:5px;font-size:13px;line-height:1.4}
+.chal .rules li b{font-weight:700}
 .chal .warn{margin:0;font-size:12px;color:#b4500f;font-weight:600}
 .chal .row{display:flex;gap:8px;flex-wrap:wrap}
 .chal table{width:100%;border-collapse:collapse;font-size:14px}
@@ -8500,20 +8506,18 @@ function chalRender(){
   var ptsSeen = {};
   all.forEach(function(x){ if (!x.m.special) ptsSeen[x.m.pts] = 1; });
   Object.keys(ptsSeen).map(Number).sort(function(x, y){ return x - y; }).forEach(function(v){ groups.push([v === 1 ? "1 point" : v + " points", function(m){ return !m.special && m.pts === v; }]); });
-  var left = chalDaysLeft(), cd = el("p", "countdown");
-  cd.appendChild(el("b", "", left > 1 ? left + " days left" : left === 1 ? "Last day!" : "The tournament is over"));
-  cd.appendChild(document.createTextNode(" · The mission tournament ends at midnight on December 31, 2026, so photos sent on the 31st still count. Whoever has the most points then wins."));
-  B.appendChild(cd);
-  B.appendChild(el("p", "note", "Pick any mission you like. Each one has 2 spots: the first 2 approved photos from 2 different people win it."));
+  /* one rules card: the countdown on top, then the 3 rules, all in the same style so nothing competes */
+  var left = chalDaysLeft(), rc = el("div", "rules"), rt = el("div", "r-top");
+  rt.appendChild(el("b", "", left > 1 ? left + " days left" : left === 1 ? "Last day!" : "The tournament is over"));
+  rt.appendChild(el("span", "", "Ends at midnight on Dec 31, 2026. Most points wins."));
+  rc.appendChild(rt);
+  var ru = el("ul");
+  function rule(h, t){ var li = el("li"); li.appendChild(el("b", "", h)); li.appendChild(document.createTextNode(" " + t)); ru.appendChild(li); }
+  rule("2 spots per mission.", "The first 2 approved photos from 2 different people win it.");
   var sc6 = chalScores();
-  if (sc6.length >= 6) {
-    var ll = el("div", "lead-limit");
-    ll.appendChild(el("b", "", "Lead limit: " + ptsTxt(sc6[5].n + CHAL_LEAD) + " max"));
-    ll.appendChild(el("p", "", "Nobody can be more than " + CHAL_LEAD + " points ahead of 6th place (6th place has " + ptsTxt(sc6[5].n) + " right now)."));
-    ll.appendChild(el("p", "", "Over the limit? You can't send photos until 6th place goes up. Get the others to play!"));
-    B.appendChild(ll);
-  }
-  B.appendChild(el("p", "rule-2026", "Only photos taken in 2026 count. Older photos will be rejected."));
+  if (sc6.length >= 6) rule("Lead limit: " + ptsTxt(sc6[5].n + CHAL_LEAD) + " max.", "Nobody can be more than " + CHAL_LEAD + " points ahead of 6th place (" + ptsTxt(sc6[5].n) + " now). Over it, your name is blocked until 6th place goes up.");
+  rule("2026 photos only.", "Older photos are rejected.");
+  rc.appendChild(ru); B.appendChild(rc);
   /* search box + one folded group per points value: you see how many there are of each and open the one you want */
   var srch = el("input", "msearch"); srch.type = "search"; srch.id = "chalSearch"; srch.placeholder = "Search missions (e.g. Tim Hortons, ghost, Debbie)";
   srch.setAttribute("aria-label", "Search missions"); srch.autocomplete = "off"; srch.value = CH.q || "";
