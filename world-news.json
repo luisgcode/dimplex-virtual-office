@@ -1,135 +1,69 @@
 {
-  "date": "2026-11-19",
+  "date": "2026-11-20",
   "items": [
+    {
+      "title": "‘GTA 6’: First Half-Hour Reveals Major Plot Twist Rockstar Has Managed to Keep Secret for Years",
+      "source": "variety.com",
+      "chats": [
+        [
+          "Did you see GTA 6 finally came out at midnight Thursday?",
+          "I heard! Everyone online is already talking about it.",
+          "Apparently there is a huge plot twist in the first half hour."
+        ]
+      ]
+    },
     {
       "title": "Ella Langley sweeps Country Music Awards as Taylor Swift returns for 1st performance in 13 years",
       "source": "cbc.ca",
       "chats": [
         [
-          "Did you catch the CMA Awards last night?",
-          "I heard Ella Langley basically swept the whole thing.",
-          "Yep, Choosin' Texas dominated, and Taylor Swift performed for the first time in 13 years."
+          "Okay, did you catch the CMA Awards this week?",
+          "I saw Ella Langley pretty much swept the whole night.",
+          "And Taylor Swift performed at the CMAs for the first time in 13 years!"
         ]
       ]
     },
     {
-      "title": "‘GTA 6’ Launch Breaks Internet Usage Records; Livestreams Hit Nearly 8 Million Views on Twitch, YouTube and More in First Hours of Release",
+      "title": "‘Home Alone’ Reboot in the Works at Disney from Macaulay Culkin, Seth Rogen and Evan Goldberg",
       "source": "variety.com",
       "chats": [
         [
-          "Apparently GTA 6 launch broke internet usage records.",
-          "Wow, I knew it was big but not that big.",
-          "Livestreams hit nearly 8 million views in the first few hours."
+          "Apparently a new Home Alone is in the works at Disney.",
+          "No way, with Macaulay Culkin back too?",
+          "Yep, and Seth Rogen and Evan Goldberg are shaping the script."
         ]
       ]
     },
     {
-      "title": "‘Gilmore Girls: A Day In The Life’ Gets New Home On Hulu After Netflix Deal Ends, Release Date Set",
-      "source": "deadline.com",
-      "chats": [
-        [
-          "Okay, did you hear Gilmore Girls A Year in the Life is moving to Hulu?",
-          "Oh nice, so the whole collection is in one place again?",
-          "Yep, exactly ten years after it launched on Christmas Day."
-        ]
-      ]
-    },
-    {
-      "title": "Christoper Nolan: ‘The Odyssey’ Has ‘A Lot of Deleted Scenes No One Will Ever See’ Because ‘I Don’t Believe in Director’s Cuts’",
-      "source": "variety.com",
-      "chats": [
-        [
-          "Did you see what Christopher Nolan said about The Odyssey?",
-          "No, what's up with it?",
-          "He has lots of deleted scenes but says nobody will ever see them."
-        ]
-      ]
-    },
-    {
-      "title": "‘The Day Of The Jackal’ Season 2 Teaser: Eddie Redmayne Leaps Back Into Action In Peacock/Sky Series",
-      "source": "deadline.com",
-      "chats": [
-        [
-          "The Day of the Jackal season 2 teaser is out.",
-          "Eddie Redmayne is back? I loved the first season.",
-          "The teaser has him leaping off a mountain into the unknown."
-        ]
-      ]
-    },
-    {
-      "title": "'Ginny & Georgia' gets Season 4 photos, January premiere date - upi",
-      "source": "google.com",
-      "chats": [
-        [
-          "Ginny and Georgia season 4 has a January premiere date.",
-          "Finally, I need to know what happens next.",
-          "They even dropped some first photos from the new season."
-        ]
-      ]
-    },
-    {
-      "title": "Glen Powell Joined By Nashville’s Biggest Stars in Raucous Trailer For Country Comedy ‘The Comeback King’: Watch",
+      "title": "Selena Gomez Recalls How Martin Short Accidentally Cut Her Wedding Cake Early: ‘He Looked Like a Little Dog’",
       "source": "billboard.com",
       "chats": [
         [
-          "Have you seen the trailer for The Comeback King with Glen Powell?",
-          "No, is that the country comedy?",
-          "Yes, with cameos from Reba, Jelly Roll and Miranda Lambert."
+          "Did you hear Martin Short cut Selena Gomez's wedding cake early?",
+          "That is so him. How did that even happen?",
+          "She said he looked like a little dog doing it. I'm laughing."
         ]
       ]
     },
     {
-      "title": "P!nk Adds 2028 Dates to Sphere Residency Due to Huge Demand: ‘This Is Crazy’",
+      "title": "U2’s ‘Carnaval De Luz’ Becomes Its 12th U.K. No. 1 Album, Moving Band Up All-Time Leaderboard",
       "source": "billboard.com",
       "chats": [
         [
-          "Apparently Pink added 2028 dates to her Sphere residency.",
-          "2028? That's planning way ahead.",
-          "She said three million people were queued up for tickets."
+          "U2 just got another number one album in the U.K.",
+          "Wow, how many is that now?",
+          "Their 12th, and the first of new material in 17 years."
         ]
       ]
     },
     {
-      "title": "Nathan Fielder lookalike contest crowns a deadpan winner",
-      "source": "cbc.ca",
+      "title": "Billie Eilish to Headline BST Hyde Park for First Time: ‘She Inspires Fans, Challenges Our Industry to Be Better’",
+      "source": "billboard.com",
       "chats": [
         [
-          "Did you hear there was a Nathan Fielder lookalike contest in Toronto?",
-          "That sounds hilarious, what did they have to do?",
-          "Business pitches and a staring contest, and a deadpan winner took it."
-        ]
-      ]
-    },
-    {
-      "title": "The Hilarious Reason Channing Tatum Is “Useless” to Daughter Everly",
-      "source": "eonline.com",
-      "chats": [
-        [
-          "Channing Tatum says he's useless to his daughter Everly.",
-          "Really? Why would he say that?",
-          "Apparently he can't step up as her dance teacher. Kind of funny for him."
-        ]
-      ]
-    },
-    {
-      "title": "Meet the 2027 Grammy best new artist nominees",
-      "source": "cbc.ca",
-      "chats": [
-        [
-          "The 2027 Grammy best new artist nominees just dropped.",
-          "Good, I need some fresh music for my playlist.",
-          "Perfect timing to finally know who everyone's talking about."
-        ]
-      ]
-    },
-    {
-      "title": "How A “Mysterious” Message Kickstarted Aardman’s Gamechanging Pact With Pokémon",
-      "source": "deadline.com",
-      "chats": [
-        [
-          "Aardman is teaming up with Pokemon for a show.",
-          "The Wallace and Gromit people? That's a fun combo.",
-          "It's called Pokemon Tales and lands on Disney+ next year."
+          "Apparently Billie Eilish is headlining BST Hyde Park.",
+          "That will be such a huge show.",
+          "And it's her first time headlining it there."
         ]
       ]
     },
@@ -139,96 +73,118 @@
       "chats": [
         [
           "Wait, Feist's My Moon My Man is going viral again?",
-          "Oh I loved that song, so catchy.",
-          "Funny how old songs keep finding a whole new crowd."
+          "I love that song, it never gets old.",
+          "Time to add it back to the office playlist."
         ]
       ]
     },
     {
-      "title": "Josh Radnor & Beth Behrs To Join Broadway’s ‘Schmigadoon!’",
+      "title": "Brandy Believes a ‘Moesha’ Reboot ‘Can Really Be Something in Today’s Time’",
+      "source": "billboard.com",
+      "chats": [
+        [
+          "Brandy thinks a Moesha reboot could really work today.",
+          "I would totally watch that.",
+          "She brought it up on The Jennifer Hudson Show."
+        ]
+      ]
+    },
+    {
+      "title": "Why Chris Pratt’s Kids Don’t Know What He Does for a Living",
+      "source": "eonline.com",
+      "chats": [
+        [
+          "Did you know Chris Pratt's kids don't know what he does for work?",
+          "Ha, that's kind of adorable.",
+          "He just doesn't want to bring work home with him."
+        ]
+      ]
+    },
+    {
+      "title": "Why Dolly Parton’s Niece Danielle Wore Singer’s Dress to CMA Awards",
+      "source": "eonline.com",
+      "chats": [
+        [
+          "Dolly Parton's niece Danielle wore one of Dolly's dresses to the CMAs.",
+          "That's such a sweet tribute.",
+          "A little piece of Dolly right on the red carpet."
+        ]
+      ]
+    },
+    {
+      "title": "All The Songs In Netflix’s ‘Steps’: Olivia Rodrigo To Amanda Seyfried",
       "source": "deadline.com",
       "chats": [
         [
-          "Josh Radnor and Beth Behrs are joining Schmigadoon on Broadway.",
-          "Ted from How I Met Your Mother? Fun choice.",
-          "They play the couple stuck in a magical musical town."
+          "Have you heard about Steps on Netflix?",
+          "The Cinderella story from the stepsisters' side? Yes!",
+          "And Amanda Seyfried voices Cinderella and actually sings."
         ]
       ]
     },
     {
-      "title": "Dakota Johnson Is 50 Shades Sleeker With \"Off Black\" Hair Makeover",
+      "title": "‘Outer Banks’ Alum Madelyn Cline in Final Talks to Join New ‘Serendipity’ Movie (EXCLUSIVE)",
+      "source": "variety.com",
+      "chats": [
+        [
+          "Apparently there's a new Serendipity movie coming.",
+          "A reboot of the old rom com?",
+          "Not exactly, it's a modern update with new characters."
+        ]
+      ]
+    },
+    {
+      "title": "Lili Reinhart in Talks to Join ‘Polly Pocket’ Movie After Lily Collins Exit",
+      "source": "variety.com",
+      "chats": [
+        [
+          "Lili Reinhart might star in a Polly Pocket movie.",
+          "Oh, I had those tiny toys as a kid!",
+          "Clea DuVall is set to direct it, too."
+        ]
+      ]
+    },
+    {
+      "title": "Traitors: New Blood Crowns Winner After Tearful Final Moments",
       "source": "eonline.com",
       "chats": [
         [
-          "Dakota Johnson went with off black hair.",
-          "Bold change from her dirty blonde.",
-          "I bet it looks super sleek though."
+          "Did you watch the Traitors New Blood finale?",
+          "Yes, those final moments were so tearful.",
+          "I need a show this tense every week."
         ]
       ]
     },
     {
-      "title": "Ryan Seacrest Shares His New Fitness Journey After Turning 51",
-      "source": "eonline.com",
-      "chats": [
-        [
-          "Ryan Seacrest started a new fitness journey after turning 51.",
-          "Good for him, the guy never slows down.",
-          "He's stretching his routine, literally and figuratively."
-        ]
-      ]
-    },
-    {
-      "title": "151 dancing humanoid robots set a Guinness World Record in Shenzhen - Xinhua",
+      "title": "Artist paints Statue of Liberty in 43.5 seconds for world record - Egyptian Gazette",
       "source": "google.com",
       "chats": [
         [
-          "Apparently 151 humanoid robots danced together for a world record.",
-          "That's both amazing and a little creepy.",
-          "It happened in Shenzhen, all perfectly in sync."
+          "A guy painted the Statue of Liberty in 43.5 seconds!",
+          "That's faster than I can find a pen.",
+          "And it was for Guinness World Records Day."
         ]
       ]
     },
     {
-      "title": "'Rocky' Fans Break Guinness World Record With 570 Costumed Balboa Lookalikes in Philadelphia - 92.5 XTU",
+      "title": "Daredevil zip lines nearly 570 feet while on fire - upi",
       "source": "google.com",
       "chats": [
         [
-          "Did you hear 570 Rocky lookalikes broke a record in Philly?",
-          "That must have been a sea of grey sweatsuits.",
-          "Imagine all of them running up those famous steps."
+          "Okay, a daredevil zip lined nearly 570 feet while on fire.",
+          "That sounds absolutely wild.",
+          "Glad our fires stay safely inside fireplaces."
         ]
       ]
     },
     {
-      "title": "23-year-old red panda Futa becomes world's oldest living in captivity, breaks Guinness World Record - Moneycontrol.com",
+      "title": "151 humanoid robots dance in sync to break Guinness World Record - Interesting Engineering",
       "source": "google.com",
       "chats": [
         [
-          "A 23 year old red panda named Futa got a world record.",
-          "For what, being adorable?",
-          "Oldest red panda living in captivity. He's a celebrity in Japan."
-        ]
-      ]
-    },
-    {
-      "title": "Airline: Brown substance covering bags was peanut butter, not poop - upi",
-      "source": "google.com",
-      "chats": [
-        [
-          "An airline said the brown stuff on bags was peanut butter.",
-          "Wait, what did people think it was?",
-          "Let's just say they had to clarify it was not poop."
-        ]
-      ]
-    },
-    {
-      "title": "Pokémon Fan’s $117K Pikachu Collection Breaks Guinness World Record - Parade Magazine",
-      "source": "google.com",
-      "chats": [
-        [
-          "A Pokemon fan's Pikachu collection broke a world record.",
-          "How big are we talking?",
-          "It's worth about 117 thousand dollars."
+          "151 humanoid robots danced in sync for a world record.",
+          "That is both cool and a little creepy.",
+          "More in sync than any dance I've ever tried."
         ]
       ]
     },
@@ -237,31 +193,9 @@
       "source": "google.com",
       "chats": [
         [
-          "A grandma has 83 Mickey Mouse tattoos.",
-          "Eighty three? That's commitment.",
-          "One is on her face, and she has a whole room of his toys."
-        ]
-      ]
-    },
-    {
-      "title": "Indian skater breaks Guinness World Record by limbo skating 50 meters in just 6.86 seconds! - MARCA",
-      "source": "google.com",
-      "chats": [
-        [
-          "An Indian skater limbo skated 50 metres under poles for a record.",
-          "Under them? I can barely bend down.",
-          "She did it in just 6.86 seconds."
-        ]
-      ]
-    },
-    {
-      "title": "Man paints Lady Liberty in 43.5 seconds for Guinness World Records Day - upi",
-      "source": "google.com",
-      "chats": [
-        [
-          "A guy painted Lady Liberty in 43.5 seconds.",
-          "That's faster than I pick a paint colour.",
-          "It was for Guinness World Records Day."
+          "A grandmother has 83 Mickey Mouse tattoos, one on her face!",
+          "Now that is true dedication.",
+          "She has a whole room of his toys and a world record too."
         ]
       ]
     },
@@ -270,53 +204,64 @@
       "source": "google.com",
       "chats": [
         [
-          "The world's smallest film camera just got a world record.",
-          "How small can a film camera even be?",
-          "Small enough for Guinness, apparently. Love it."
+          "Someone made the world's smallest working film camera.",
+          "Tiny cameras that actually take photos? Amazing.",
+          "It earned a Guinness World Record."
         ]
       ]
     },
     {
-      "title": "Sheep on the lam eluding capture in Connecticut - upi",
+      "title": "Loose horse wrangled after visiting Virginia McDonald's - upi",
       "source": "google.com",
       "chats": [
         [
-          "There's a sheep on the lam in Connecticut.",
-          "A runaway sheep? Good for it.",
-          "It keeps eluding capture, total escape artist."
+          "A loose horse visited a McDonald's in Virginia.",
+          "Ha, did it order anything?",
+          "Sadly it got wrangled before the fries."
         ]
       ]
     },
     {
-      "title": "'Unicorn' deer caught on trail camera in Estonia - upi",
+      "title": "'Pepper pileup' closes two lanes of busy Florida road - upi",
       "source": "google.com",
       "chats": [
         [
-          "A unicorn deer was caught on a trail camera in Estonia.",
-          "A real unicorn deer? No way.",
-          "Yep, a trail camera got it, so there's proof."
+          "Did you hear about the pepper pileup in Florida?",
+          "A pepper pileup? Is that real?",
+          "It closed two lanes of a busy road. Spicy commute."
         ]
       ]
     },
     {
-      "title": "Stray dog joins coyote pack in Arizona - upi",
+      "title": "Philadelphia sets Guinness World Record as 570 fans dress up as Rocky Balboa - World Boxing Council",
       "source": "google.com",
       "chats": [
         [
-          "A stray dog joined a coyote pack in Arizona.",
-          "Wow, that's a career change.",
-          "Guess he found his crew out in the desert."
+          "570 fans dressed as Rocky Balboa in Philadelphia.",
+          "That's a lot of grey sweatsuits.",
+          "And it set a Guinness World Record."
         ]
       ]
     },
     {
-      "title": "WATCH - Yorkshire man breaks backflip world record with staggering 2,470 flips - The York Press",
+      "title": "Singaporean YouTuber’s GTA VI ‘contract’ with wife goes viral online, draws Jimmy Kimmel mention - The Straits Times",
       "source": "google.com",
       "chats": [
         [
-          "A Yorkshire man broke the backflip record.",
-          "How many backflips are we talking?",
-          "A staggering 2,470. I get dizzy just thinking about it."
+          "A YouTuber made a GTA VI contract with his wife.",
+          "That's hilarious, what a smart idea.",
+          "It went viral and even got a Jimmy Kimmel mention."
+        ]
+      ]
+    },
+    {
+      "title": "Best friends travel through Staten Island in toy cars on journey to break Guinness World Record - SILive.com",
+      "source": "google.com",
+      "chats": [
+        [
+          "Two best friends drove toy cars across Staten Island.",
+          "For fun or for a reason?",
+          "Trying to break a Guinness World Record!"
         ]
       ]
     }
