@@ -6974,7 +6974,7 @@ function gameDue(T, next){
   var sl = GAME.slots[GAME.k];
   return !sl ? Infinity : T < sl.at ? sl.at : next;
 }
-/* ---------- fire drill, 5 times a month: the alarm light flashes, someone calls it, everyone at the office walks out
+/* ---------- fire drill, every other workday: the alarm light flashes, someone calls it, everyone at the office walks out
    in a line through the hallway (the meetings way), waits outside about 5 minutes and comes back after the all clear.
    The days and times come from the month (keyed), so every screen sees the same drill. ?drill=1 runs one now. */
 var DRILL = { mkey:-1, plan:{}, cur:null }, DRILL_LIVE = true;
@@ -6989,9 +6989,9 @@ function drillPlan(){
     var wd = new Date(d.y, d.mo - 1, i).getDay(), key = d.y + "-" + ("0" + d.mo).slice(-2) + "-" + ("0" + i).slice(-2);
     if (wd > 0 && wd < 6 && !HOLIDAYS[key]) days.push(i);
   }
-  var r = wrng("drill", mk);
-  for (i = days.length - 1; i > 0; i--) { var j = Math.floor(r() * (i + 1)), x = days[i]; days[i] = days[j]; days[j] = x; }
-  days.slice(0, 5).forEach(function(dd){ var am = r() < 0.5; DRILL.plan[dd] = (am ? 9.6 + r() * 1.8 : 13.7 + r() * 1.5) * 3600; });
+  /* every other workday, once, at a random time of the workday (9:00 to 4:30) */
+  var r = wrng("drill", mk), off = r() < 0.5 ? 0 : 1;
+  days.forEach(function(dd, k){ var at = (9 + r() * 7.5) * 3600; if (k % 2 === off) DRILL.plan[dd] = at; });
   return DRILL.plan;
 }
 window.__drill = function(){ var pl = drillPlan(); return Object.keys(pl).map(function(d){ return d + " " + fmtH(pl[d] / 3600); }); };
