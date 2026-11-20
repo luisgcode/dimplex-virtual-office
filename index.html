@@ -9084,6 +9084,35 @@ function realHair(p, model, head, top){
   mergeByMaterial(g);
   model.updateMatrixWorld(true);
   head.attach(g);
+  skinHair(g, model, head);
+}
+/* hair bends like real hair: the top follows the head, the ends follow the upper back, with a smooth blend between
+   them. Rigid on the head, long hair cut through the shoulders while walking and flickered in and out of the back. */
+var HAIR_SKIN = /[?&]hairskin=1/.test(location.search || ""); /* test switch while it is checked up close */
+function skinHair(g, model, head){
+  var sp = model.getObjectByName("mixamorigSpine2");
+  if (!sp || !HAIR_SKIN) return;
+  model.updateMatrixWorld(true);
+  var toModel = new T.Matrix4().copy(model.matrixWorld).invert();
+  var yH = model.worldToLocal(head.getWorldPosition(new V3())).y, yS = model.worldToLocal(sp.getWorldPosition(new V3())).y;
+  if (!(yH > yS)) return;
+  var skel = new T.Skeleton([head, sp]);
+  g.children.slice().forEach(function(m){
+    if (!m.isMesh || m.isSkinnedMesh) return;
+    var geo = m.geometry.clone().applyMatrix4(new T.Matrix4().multiplyMatrices(toModel, m.matrixWorld));
+    var pos = geo.attributes.position, n = pos.count, si = new Uint16Array(n * 4), sw = new Float32Array(n * 4);
+    for (var i = 0; i < n; i++) {
+      var t = clamp((yH - pos.getY(i)) / (yH - yS), 0, 1), ws = 0.85 * t * t * (3 - 2 * t);
+      si[i * 4] = 0; si[i * 4 + 1] = 1; sw[i * 4] = 1 - ws; sw[i * 4 + 1] = ws;
+    }
+    geo.setAttribute("skinIndex", new T.Uint16BufferAttribute(si, 4));
+    geo.setAttribute("skinWeight", new T.Float32BufferAttribute(sw, 4));
+    var sm = new T.SkinnedMesh(geo, m.material);
+    sm.frustumCulled = false; sm.castShadow = m.castShadow; sm.receiveShadow = m.receiveShadow; sm.userData = m.userData;
+    model.add(sm); sm.updateMatrixWorld(true);
+    sm.bind(skel, sm.matrixWorld.clone());
+    m.parent.remove(m);
+  });
 }
 /* many small static meshes under one group become one mesh per material: far fewer draw calls */
 function mergeByMaterial(g){
