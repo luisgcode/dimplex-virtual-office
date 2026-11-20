@@ -4214,7 +4214,7 @@ var REAL_MODELS = {
   debbie:{ footDrop:0.065, url:"models/debbie.glb", height:1.63, tint:{ Suit:"#2a2b30", Shirt:"#3a3b40", Pants:"#17181b", SwappedShoes:"#141518" }, shoesFrom:{ model:"stephanieb", mesh:"Sneakers", hide:["Heels"] }, footScale:0.84, ownHair:true, hairScale:[1.0, 0.88, 1.0], hairY:0.12, hairZ:-0.02, earrings:"#d4af5a" },
   olivia:{ footDrop:0.065, url:"models/olivia.glb", height:1.66, tint:{ Shirt:"#c9ad84", Pants:"#4a4f58", SwappedShoes:"#ecebe6" }, shoesFrom:{ model:"stephanieb", mesh:"Sneakers", hide:["Shoe"] }, ownHair:true, hairScale:[1.0, 0.88, 1.0], hairY:0.12, hairZ:-0.02, earrings:"#d4af5a" },
   /* Marissa uses Hana's character (a clearly female face; the old Ch38 model read as a man), in her own colours, hair and glasses */
-  marissa:{ url:"models/hana.glb", height:1.65, tint:{ Cloth:"#4f7cc4", SwappedPants:"#2a2d35" }, pantsFrom:{ model:"stephanieb", mesh:"Pants", hide:["Socks"] }, ownHair:true, hairScale:[1.0, 0.88, 1.0], hairY:0.12, hairZ:-0.02, glasses:true },
+  marissa:{ url:"models/hana.glb", height:1.65, tint:{ Cloth:"#4f7cc4", SwappedPants:"#2a2d35" }, pantsFrom:{ model:"stephanieb", mesh:"Pants", hide:["Socks"] }, ownHair:true, hairScale:[1.0, 0.88, 1.0], hairY:0.12, hairZ:-0.02, glasses:true, glassesOff:[0, 1.8, -0.3] },
   nolan:{ url:"models/nolan.glb", height:1.8, tint:{ Suit:"#2b3a52", Shirt:"#e9eef4", Tie:"#8a2432", Pants:"#2b2f36" } },
   elena:{ footDrop:0.065, url:"models/elena.glb", height:1.65, tint:{ Shirt:"#b0476b", Pants:"#262a31", SwappedShoes:"#1a1b1e" }, shoesFrom:{ model:"stephanieb", mesh:"Sneakers", hide:["Heels"] }, footScale:0.92, earrings:"#d4af5a" },
   tessa:{ url:"models/stephanieb.glb", height:1.66, tint:{ Shirt:"#3e8e6a", Pants:"#2a2d35" }, ownHair:true, hairScale:[1.0, 0.88, 1.0], hairY:0.12, hairZ:-0.02 },
@@ -4892,7 +4892,7 @@ function makeRig(p, sc){
   else {
     if (REAL_MODELS[p.model].ownHair) realHair(p, model, b.Head, b.HeadTop_End);
     else realExtras(p, model, b.Head);
-    if (REAL_MODELS[p.model].glasses) realGlasses(model, b.Head, b.HeadTop_End, REAL_MODELS[p.model].sunglasses);
+    if (REAL_MODELS[p.model].glasses) realGlasses(model, b.Head, b.HeadTop_End, REAL_MODELS[p.model].sunglasses, REAL_MODELS[p.model].glassesOff);
     if (REAL_MODELS[p.model].earrings) realEarrings(p, model, b.Head);
   }
   buildProps(p, model, b.RightHand);
@@ -9254,6 +9254,9 @@ function realGlasses(model, head, top){
   g.scale.setScalar(0.86); g.position.y -= L * 0.02;
   mergeByMaterial(g);
   head.attach(g);
+  /* per face nudge, in the head's own units (glassesOff in REAL_MODELS: [x, y, z]) */
+  var off = arguments[4];
+  if (off) { g.position.x += off[0]; g.position.y += off[1]; g.position.z += off[2]; }
 }
 function normalizeRig(sc){
   /* the export can give each garment its own copy of the skeleton (mixamorigHead_4...): point every mesh at the main one */
