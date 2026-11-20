@@ -7074,7 +7074,7 @@ function selfieDue(T, next){
 /* ---------- chair race: every workday at 3 pm two people roll their chairs out to a start line in the aisle, someone
    calls it, they race to the far end, the winner celebrates and they roll back. They stay seated the whole time (hands on
    the armrests), the chair turns to face the race. ?race=1 runs one now (this screen only). */
-var RACE = { day:-1, at:0, done:false, cur:null }, RACE_LIVE = false, RACE_TEST = /[?&]race=1/.test(location.search || "");
+var RACE = { day:-1, at:0, done:false, cur:null }, RACE_LIVE = true, RACE_TEST = /[?&]race=1/.test(location.search || "");
 var RACE_Z0 = -0.75, RACE_Z1 = 4.35, RACE_LANE = 0.36;
 window.__race = function(){ var C = RACE.cur; return { at:fmtH(RACE.at / 3600), done:RACE.done, ph:C && C.ph, team:C ? C.team.map(function(q){ return q.id; }) : [] }; };
 function raceSlot(dk){
