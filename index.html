@@ -7006,7 +7006,7 @@ function drillDraw(t){
 /* ---------- a mission selfie: about 3 times a workday two people meet in the aisle, stand side by side facing the
    room, one holds the phone up, the other leans in with a peace sign, they check the photo and go back. ?selfie=1 runs
    one now (this screen only). */
-var SELFIE = { day:-1, slots:[], k:0, cur:null }, SELFIE_LIVE = false, SELFIE_TEST = /[?&]selfie=1/.test(location.search || "");
+var SELFIE = { day:-1, slots:[], k:0, cur:null }, SELFIE_LIVE = true, SELFIE_TEST = /[?&]selfie=1/.test(location.search || "");
 window.__selfie = function(){ var C = SELFIE.cur; return { slots:SELFIE.slots.map(function(x){ return fmtH(x / 3600); }), k:SELFIE.k, ph:C && C.ph, team:C ? C.team.map(function(q){ return q.id + ":" + q.state; }) : [] }; };
 function selfieSlots(dk){
   if (SELFIE.day === dk) return;
@@ -7023,9 +7023,10 @@ function selfieTick(t, dk){
     var at = SELFIE.slots[SELFIE.k];
     if (at === undefined || t < at || DAY.closed || teamCallNow() || GAME.cur || DRILL.cur || (CARRY.cur && CARRY.cur.ph !== "wait")) return;
     var free = shuffle(PEOPLE.filter(function(q){ return !q.remote && !q.guest && q.state === "sit" && !q.trip && visAt(q, t) && !q.chatWith && !q.visitor && !q.answering && (SELFIE_TEST || !lunchNow(q)) && !(q.act && (q.act.plan || q.act.n === "vcall")); }));
-    if (free.length < 2) return;
+    var askers = free.filter(function(q){ return q.id !== "luis" && q.id !== "allyson"; });
+    if (free.length < 2 || !askers.length) return;
     SELFIE.k++;
-    var A = free[0], B = free.filter(function(q){ return q !== A; }).sort(function(x, y){ return Math.abs(x.z - A.z) - Math.abs(y.z - A.z); })[0];
+    var A = askers[0], B = free.filter(function(q){ return q !== A; }).sort(function(x, y){ return Math.abs(x.z - A.z) - Math.abs(y.z - A.z); })[0];
     /* side by side in the aisle, facing the room's open corner (toward the usual camera) */
     var cz = clamp((A.z + B.z) / 2, -0.6, 4.2), fx = Math.SQRT1_2, fz = Math.SQRT1_2, sx = 0.31 * Math.SQRT1_2, sz = -0.31 * Math.SQRT1_2;
     var spA = new V3(-sx, 0, cz - sz), spB = new V3(sx, 0, cz + sz);
