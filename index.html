@@ -6676,7 +6676,7 @@ function carryTick(t, dk){
     if (t < C.call) return;
     if (teamCallNow() || GAME.cur) { C.call = t + 60; return; }
     /* anyone at the desk and free (whatever small thing they are doing stops) */
-    var pool = shuffle(PEOPLE.filter(function(q){ return !q.remote && !q.guest && q.state === "sit" && !q.trip && visAt(q, t) && !q.chatWith && !q.visitor && !q.answering && !lunchNow(q) && !homeNow(q) && !(q.act && (q.act.plan || q.act.n === "vcall")); }));
+    var pool = shuffle(PEOPLE.filter(function(q){ return !q.remote && !q.guest && q.state === "sit" && !q.trip && !(q.busyUntil > t) && visAt(q, t) && !q.chatWith && !q.visitor && !q.answering && !lunchNow(q) && !homeNow(q) && !(q.act && (q.act.plan || q.act.n === "vcall")); }));
     if (pool.length < 4) { if (t - C.appear > 1500) CARRY.cur = null; else C.call = t + 45; return; }
     C.team = pool.slice(0, 4); C.ph = "gather"; C.gatherAt = t;
     C.team.forEach(function(q, k){
@@ -6858,7 +6858,7 @@ function gameSlots(dk){
   if (qg) { var tz = torontoAt(WORLD_NOW()); GAME.slots.unshift({ at:tz.h * 3600 + tz.mi * 60 + tz.s + 20, kind:GAME_KINDS.indexOf(qg[1]) >= 0 ? qg[1] : "chat" }); }
 }
 var GAME_TEST = /[?&]game=/.test(location.search || "");
-function gameFree(q, t){ return !q.remote && !q.guest && q.state === "sit" && !q.trip && visAt(q, t) && !q.answering && (GAME_TEST || !lunchNow(q)) && !homeNow(q) && !(q.act && (q.act.plan || q.act.n === "vcall")); }
+function gameFree(q, t){ return !q.remote && !q.guest && q.state === "sit" && !q.trip && !(q.busyUntil > t) && visAt(q, t) && !q.answering && (GAME_TEST || !lunchNow(q)) && !homeNow(q) && !(q.act && (q.act.plan || q.act.n === "vcall")); }
 /* someone from the ring, picked by the director */
 function gamePick(G2, not){ var L = G2.team.filter(function(q){ return q !== not && q.state === "stay"; }); return L.length ? L[Math.floor(R() * L.length)] : null; }
 var GAME_CHAT = [
@@ -7004,8 +7004,8 @@ function drillTick(t){
   if (!D) {
     var at = drillAtToday();
     if (at === undefined || DRILL.doneDay === dayKey() || t < at || t > at + 1800 || DAY.closed) return;
-    if (teamCallNow() || GAME.cur || (CARRY.cur && CARRY.cur.ph !== "wait")) return;
-    var team = PEOPLE.filter(function(q){ return !q.remote && !q.guest && q.state === "sit" && !q.trip && visAt(q, t) && !(q.act && q.act.n === "vcall"); });
+    if (teamCallNow() || GAME.cur || (typeof ITFIX !== "undefined" && ITFIX.cur) || (CARRY.cur && CARRY.cur.ph !== "wait")) return;
+    var team = PEOPLE.filter(function(q){ return !q.remote && !q.guest && q.state === "sit" && !q.trip && !(q.busyUntil > t) && visAt(q, t) && !(q.act && q.act.n === "vcall"); });
     if (team.length < 2) return;
     DRILL.doneDay = dayKey();
     /* the ones nearest the hallway go first, so they leave in a line */
@@ -7057,7 +7057,7 @@ function selfieTick(t, dk){
     while (SELFIE.k < SELFIE.slots.length && t > SELFIE.slots[SELFIE.k] + 1500) SELFIE.k++;
     var at = SELFIE.slots[SELFIE.k];
     if (at === undefined || t < at || DAY.closed || teamCallNow() || GAME.cur || DRILL.cur || RACE.cur || (CARRY.cur && CARRY.cur.ph !== "wait")) return;
-    var free = shuffle(PEOPLE.filter(function(q){ return !q.remote && !q.guest && q.state === "sit" && !q.trip && visAt(q, t) && !q.chatWith && !q.visitor && !q.answering && (SELFIE_TEST || !lunchNow(q)) && !(q.act && (q.act.plan || q.act.n === "vcall")); }));
+    var free = shuffle(PEOPLE.filter(function(q){ return !q.remote && !q.guest && q.state === "sit" && !q.trip && !(q.busyUntil > t) && visAt(q, t) && !q.chatWith && !q.visitor && !q.answering && (SELFIE_TEST || !lunchNow(q)) && !(q.act && (q.act.plan || q.act.n === "vcall")); }));
     var askers = free.filter(function(q){ return q.id !== "luis" && q.id !== "allyson"; });
     if (free.length < 2 || !askers.length) return;
     SELFIE.k++;
@@ -7141,7 +7141,7 @@ function raceTick(t, dk){
   if (!C) {
     if (RACE.done || t < RACE.at || t > RACE.at + 1800 || DAY.closed) return;
     if (teamCallNow() || GAME.cur || DRILL.cur || SELFIE.cur || (CARRY.cur && CARRY.cur.ph !== "wait")) return;
-    var free = shuffle(PEOPLE.filter(function(q){ return !q.remote && !q.guest && q.state === "sit" && !q.trip && visAt(q, t) && !q.chatWith && !q.visitor && !q.answering && !(rollAt(q, t) > 0) && !(q.act && (q.act.plan || q.act.n === "vcall")); }));
+    var free = shuffle(PEOPLE.filter(function(q){ return !q.remote && !q.guest && q.state === "sit" && !q.trip && !(q.busyUntil > t) && visAt(q, t) && !q.chatWith && !q.visitor && !q.answering && !(rollAt(q, t) > 0) && !(q.act && (q.act.plan || q.act.n === "vcall")); }));
     var askers = free.filter(function(q){ return q.id !== "luis" && q.id !== "allyson"; });
     if (free.length < 2 || !askers.length) return;
     RACE.done = true;
@@ -7197,7 +7197,7 @@ function planeTick(t, dk){
     while (PLANE.k < PLANE.slots.length && t > PLANE.slots[PLANE.k] + 1500) PLANE.k++;
     var at = PLANE.slots[PLANE.k];
     if (at === undefined || t < at || DAY.closed || teamCallNow() || GAME.cur || DRILL.cur || RACE.cur) return;
-    var free = PEOPLE.filter(function(q){ return !q.remote && !q.guest && q.state === "sit" && !q.trip && visAt(q, t) && !q.chatWith && !q.visitor && !q.answering && !(rollAt(q, t) > 0) && !(q.act && (q.act.plan || q.act.n === "vcall")); });
+    var free = PEOPLE.filter(function(q){ return !q.remote && !q.guest && q.state === "sit" && !q.trip && !(q.busyUntil > t) && visAt(q, t) && !q.chatWith && !q.visitor && !q.answering && !(rollAt(q, t) > 0) && !(q.act && (q.act.plan || q.act.n === "vcall")); });
     /* a pair across the aisle, close in the row */
     var best = null, bd = 9;
     free.forEach(function(a){ if (a.id === "luis" || a.id === "allyson") return; free.forEach(function(b){ if (b.side === -a.side) { var d = Math.abs(a.z - b.z); if (d < bd) { bd = d; best = [a, b]; } } }); });
@@ -7265,12 +7265,12 @@ function itfixTick(t, dk){
   if (!C) {
     if (ITFIX.done || t < ITFIX.at || t > ITFIX.at + 2400 || DAY.closed) return;
     if (GUESTS.cur || S.state !== "gone" || teamCallNow() || GAME.cur || DRILL.cur || RACE.cur) return;
-    var free = PEOPLE.filter(function(q){ return !q.remote && !q.guest && q.state === "sit" && !q.trip && visAt(q, t) && !q.chatWith && !q.visitor && !q.answering && (ITFIX_TEST || !lunchNow(q)) && !(rollAt(q, t) > 0) && !(q.act && (q.act.plan || q.act.n === "vcall")); });
+    var free = PEOPLE.filter(function(q){ return !q.remote && !q.guest && q.state === "sit" && !q.trip && !(q.busyUntil > t) && visAt(q, t) && !q.chatWith && !q.visitor && !q.answering && (ITFIX_TEST || !lunchNow(q)) && !(rollAt(q, t) > 0) && !(q.act && (q.act.plan || q.act.n === "vcall")); });
     if (!free.length) return;
     ITFIX.done = true;
     var V = free[Math.floor(R() * free.length)];
     C = ITFIX.cur = { v:V, ph:"broken", t0:t, bsod:true, script:[] };
-    V.typeOn = false; V.decideAt = t + 600; NAPS[V.idx] = 0;
+    V.typeOn = false; V.decideAt = t + 600; NAPS[V.idx] = 0; V.busyUntil = t + 900; /* no other event takes them away while the screen is blue */
     GUESTS.cur = S;
     startAct(V, "facepalm", t + 0.4, 3);
     sayLater(V, choose(["Noooo. My computer just died.", "Blue screen. Of course. Right now.", "Are you kidding me? It just crashed."]), t + 0.8, 3);
@@ -7292,7 +7292,7 @@ function itfixTick(t, dk){
     sayLater(V, choose(["...No.", "Maybe? No.", "Is that a trick question?"]), t + 7.8, 2.4);
     C.script.push([t + 11, function(t2){ C.bsod = false; sayLater(S, choose(["There you go. All fixed.", "Back to normal. You're welcome lol", "Restarted. Good as new."]), t2 + 0.3, 2.8); }]);
     C.script.push([t + 14.5, function(t2){ sayLater(V, choose(["You're a lifesaver, Sam!", "Thank you so much!", "What would we do without IT?"]), t2, 2.6); }]);
-    C.script.push([t + 18, function(t2){ if (S.state === "stay") setState(S, "stay", t2, 0.2); C.ph = "leaving"; }]);
+    C.script.push([t + 18, function(t2){ if (S.state === "stay") setState(S, "stay", t2, 0.2); C.ph = "leaving"; V.busyUntil = 0; V.decideAt = t2 + 20; }]);
     return;
   }
   if (C.ph === "leaving" && S.state === "gone") ITFIX.cur = null;
