@@ -7250,7 +7250,7 @@ function planeDraw(t){
 }
 /* ---------- a computer crashes: once a workday someone's screen goes blue, they call IT, Sam from IT walks over, asks the
    classic question, the screen comes back and he leaves. ?itfix=1 runs one now (this screen only). */
-var ITFIX = { day:-1, at:0, done:false, cur:null }, ITFIX_LIVE = false, ITFIX_TEST = /[?&]itfix=1/.test(location.search || "");
+var ITFIX = { day:-1, at:0, done:false, cur:null }, ITFIX_LIVE = true, ITFIX_TEST = /[?&]itfix=1/.test(location.search || "");
 window.__itfix = function(){ var C = ITFIX.cur; return { at:fmtH(ITFIX.at / 3600), done:ITFIX.done, ph:C && C.ph, v:C && C.v.id, sam:BY.itsam && BY.itsam.state }; };
 function itfixSlot(dk){
   if (ITFIX.day === dk) return;
@@ -7284,6 +7284,8 @@ function itfixTick(t, dk){
     return;
   }
   while (C.script.length && C.script[0][0] <= t) C.script.shift()[1](t);
+  /* no typing on a blue screen: hands off the keyboard between the reactions */
+  if (C.bsod && !C.v.act && C.v.state === "sit") { C.v.typeOn = false; C.v.act = { n:"crash", t0:t, dur:3, target:null }; }
   if (C.ph === "coming" && S.state === "stay") {
     C.ph = "fixing";
     startAct(V, "turn", t, 16, S);
