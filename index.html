@@ -96,6 +96,10 @@ h1 em{font-style:normal;color:var(--accent)}
 .chal .mrow[hidden]{display:none}
 .chal .msearch{font:500 14px/1.2 var(--f-body);padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink);width:100%;box-sizing:border-box}
 .chal .msearch:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.chal .mtags{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px}
+.chal .mtags button{font:600 12px/1 var(--f-body);padding:7px 11px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
+.chal .mtags button[aria-pressed="true"]{background:#c8102e;border-color:#c8102e;color:#fff}
+.chal .mtags button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .chal .mgrp{border:1px solid var(--line);border-radius:12px;overflow:hidden}
 .chal .mgrp.special>summary b{color:#d4a72c}
 .chal .mgrp>summary{display:flex;align-items:center;gap:10px;padding:11px 12px;cursor:pointer;list-style:none;user-select:none}
@@ -8602,6 +8606,15 @@ function chalRender(){
   var srch = el("input", "msearch"); srch.type = "search"; srch.id = "chalSearch"; srch.placeholder = "Search missions (e.g. Tim Hortons, ghost, Debbie)";
   srch.setAttribute("aria-label", "Search missions"); srch.autocomplete = "off"; srch.value = CH.q || "";
   srch.addEventListener("input", function(){ CH.q = srch.value; chalFilter(B); });
+  /* tags: In the office, A picture with, At home, Out of office (missions.tags in the database) */
+  var tagBar = el("div", "mtags"); tagBar.setAttribute("role", "group"); tagBar.setAttribute("aria-label", "Filter missions by where you can do them");
+  CHAL_TAGS.forEach(function(tg){
+    var n = tg[0] ? all.filter(function(x){ return (x.m.tags || []).indexOf(tg[0]) >= 0; }).length : all.length;
+    var b = el("button", "", tg[1] + " · " + n); b.type = "button"; b.setAttribute("aria-pressed", String((CH.tag || "") === tg[0]));
+    b.addEventListener("click", function(){ CH.tag = tg[0]; tagBar.querySelectorAll("button").forEach(function(x){ x.setAttribute("aria-pressed", String(x === b)); }); chalFilter(B); });
+    tagBar.appendChild(b);
+  });
+  B.appendChild(tagBar);
   B.appendChild(srch);
   CH.openG = CH.openG || {};
   groups.forEach(function(gp){
@@ -8611,11 +8624,12 @@ function chalRender(){
     det.dataset.g = gp[0]; det.open = !!CH.openG[gp[0]];
     sm.appendChild(el("b", "", gp[0])); sm.appendChild(el("span", "cnt", L.length + (L.length === 1 ? " mission" : " missions")));
     det.appendChild(sm);
-    det.addEventListener("toggle", function(){ if (!(CH.q || "").trim()) CH.openG[gp[0]] = det.open; });
+    det.addEventListener("toggle", function(){ if (!(CH.q || "").trim() && !CH.tag) CH.openG[gp[0]] = det.open; });
     var list = el("div", "mlist");
     L.forEach(function(x){
       var m = x.m, pend = chalPending(m.id), row = el("div", "mrow" + (m.special ? " special" : "") + (pend ? " pending" : ""));
       row.dataset.q = chalNorm(m.title + " " + (m.desc || ""));
+      row.dataset.tags = " " + (m.tags || []).join(" ") + " ";
       var tx = el("div", "mt"); tx.appendChild(el("b", "", m.title));
       var sp = chalSpotsTxt(m);
       if (sp) { var ss = el("span", "spots"), dd = el("b", "", sp.dots); dd.setAttribute("aria-hidden", "true"); ss.appendChild(dd); ss.appendChild(document.createTextNode(sp.txt)); tx.appendChild(ss); }
@@ -8646,20 +8660,21 @@ function chalRender(){
    "Keep screens and documents out of the picture."].forEach(function(t){ how.appendChild(el("li", "", t)); });
   B.appendChild(how);
 }
+var CHAL_TAGS = [["", "All"], ["office", "In the office"], ["picture", "A picture with"], ["home", "At home"], ["out", "Out of office"]];
 function chalNorm(s){ return String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, " "); }
 /* hides the missions that don't match; while searching, groups with matches open by themselves and empty ones disappear */
 function chalFilter(B){
-  var q = chalNorm(CH.q).trim(), words = q ? q.split(" ") : [], hits = 0;
+  var q = chalNorm(CH.q).trim(), words = q ? q.split(" ") : [], hits = 0, tg = CH.tag || "", on = !!(q || tg);
   B.querySelectorAll("details.mgrp").forEach(function(det){
     var rows = det.querySelectorAll(".mrow"), n = 0;
-    rows.forEach(function(r){ var ok = words.every(function(w){ return r.dataset.q.indexOf(w) >= 0; }); r.hidden = !ok; if (ok) n++; });
+    rows.forEach(function(r){ var ok = words.every(function(w){ return r.dataset.q.indexOf(w) >= 0; }) && (!tg || (r.dataset.tags || "").indexOf(" " + tg + " ") >= 0); r.hidden = !ok; if (ok) n++; });
     hits += n;
     det.hidden = !n;
-    det.open = q ? n > 0 : !!(CH.openG || {})[det.dataset.g];
+    det.open = on ? n > 0 : !!(CH.openG || {})[det.dataset.g];
     var c = det.querySelector(".cnt");
-    c.textContent = q ? n + " of " + rows.length : rows.length + (rows.length === 1 ? " mission" : " missions");
+    c.textContent = on ? n + " of " + rows.length : rows.length + (rows.length === 1 ? " mission" : " missions");
   });
-  var none = B.querySelector(".nomatch"); if (none) none.hidden = !q || hits > 0;
+  var none = B.querySelector(".nomatch"); if (none) { none.hidden = !on || hits > 0; none.textContent = q ? "No mission matches that search." : "No open mission with that tag right now."; }
 }
 function chalReview(B){
   var back = el("button", "go ghost", "Back"); back.type = "button"; back.addEventListener("click", function(){ CH.view = null; chalRender(); }); B.appendChild(back);
@@ -8829,7 +8844,7 @@ function dataToBlob(d){ var b = atob(d.split(",")[1]), a = new Uint8Array(b.leng
 function uid(){ return (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + R().toString(36).slice(2)); }
 async function chalRefresh(){
   var r = await Promise.all([
-    SB.from("missions").select("id,title,pts,special,ord,exclude,slots"),
+    SB.from("missions").select("id,title,pts,special,ord,exclude,slots,tags"),
     SB.from("opened").select("mission_id,opened_at"),
     SB.from("achieved").select("*").order("approved_at"),
     SB.rpc("pending_missions")
