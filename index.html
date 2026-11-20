@@ -1817,7 +1817,7 @@ function activityScreen(pool, seed, baseImg, ownerId){
     else if (SCREEN_FORCE === "all") { var dk = Object.keys(DRAW); L.mode = dk[Math.floor(t / 1.5) % dk.length]; }
     /* a broken drawing never takes the office down: fall back to the inbox */
     var inTeam = ownerId === "_team";
-    try { (DRAW[inTeam ? "team" : typeof PLYTIX !== "undefined" && typeof ITFIX !== "undefined" && ITFIX.cur && ITFIX.cur.bsod && ownerId === ITFIX.cur.v.id ? "bsod" : typeof PLYTIX !== "undefined" && PLYTIX.on && ownerId && PLYTIX_TEAM[ownerId] ? "down" : L.mode] || DRAW.mail)(L.g, t); } catch (e) { console.warn("screen " + L.mode, e); L.mode = "mail"; }
+    try { (DRAW[inTeam ? "team" : ownerId === "_bsod" ? "bsod" : typeof PLYTIX !== "undefined" && typeof ITFIX !== "undefined" && ITFIX.cur && ITFIX.cur.bsod && ownerId === ITFIX.cur.v.id ? "bsod" : typeof PLYTIX !== "undefined" && PLYTIX.on && ownerId && PLYTIX_TEAM[ownerId] ? "down" : L.mode] || DRAW.mail)(L.g, t); } catch (e) { console.warn("screen " + L.mode, e); L.mode = "mail"; }
     L.tex.needsUpdate = true;
   };
   L.tick(0, 0);
