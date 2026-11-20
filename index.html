@@ -8436,13 +8436,19 @@ var chalEl = document.getElementById("chal");
 function chalShow(on, tab){
   if (!CH.st) chalLoad();
   chalEl.hidden = !on;
-  if (on) { CH.view = null; chalRender(); document.getElementById("chalClose").focus(); if (CH.live) chalSync(true); }
+  if (on) { CH.view = null; CH.lastView = null; chalRender(); document.getElementById("chalClose").focus(); if (CH.live) chalSync(true); }
 }
 document.getElementById("chalClose").addEventListener("click", function(){ chalShow(false); });
 window.addEventListener("keydown", function(e){ if (e.key === "Escape" && !chalEl.hidden) { if (CH.view) { CH.view = null; chalRender(); } else chalShow(false); } });
 function chalRender(){
   var Lf = document.getElementById("chalLeft"), B = document.getElementById("chalBody");
-  Lf.textContent = ""; B.textContent = ""; B.scrollTop = 0;
+  /* the refresh every 20 s redraws the same view: keep where the person was reading. A new view starts at the top */
+  var cols = B.closest(".ch-cols") || B.parentNode;
+  var vkey = CH.view ? JSON.stringify(CH.view) : "list", same = CH.lastView === vkey;
+  var keepB = same ? B.scrollTop : 0, keepL = same ? Lf.scrollTop : 0, keepC = same ? cols.scrollTop : 0;
+  CH.lastView = vkey;
+  Lf.textContent = ""; B.textContent = "";
+  requestAnimationFrame(function(){ B.scrollTop = keepB; Lf.scrollTop = keepL; cols.scrollTop = keepC; });
   /* left: the leaderboard, then what has been achieved (each one opens its proof photo) */
   Lf.appendChild(el("h3", "sec", "Leaderboard"));
   var tb = el("table"), hd = el("tr"); ["#", "Name", "Points"].forEach(function(h, i){ var th = el("th", "", h); if (i === 2) th.style.textAlign = "right"; hd.appendChild(th); });
