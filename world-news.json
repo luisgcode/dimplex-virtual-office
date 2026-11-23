@@ -1,267 +1,300 @@
 {
-  "date": "2026-11-20",
+  "date": "2026-11-23",
   "items": [
     {
-      "title": "‘GTA 6’: First Half-Hour Reveals Major Plot Twist Rockstar Has Managed to Keep Secret for Years",
+      "title": "‘SNL’ Sets Timothée Chalamet and Robert De Niro as Final Hosts of 2026",
       "source": "variety.com",
       "chats": [
         [
-          "Did you see GTA 6 finally came out at midnight Thursday?",
-          "I heard! Everyone online is already talking about it.",
-          "Apparently there is a huge plot twist in the first half hour."
+          "Did you see who is hosting the last SNL episodes of the year?",
+          "Robert De Niro and Timothée Chalamet, right? That's a strong finish.",
+          "Chalamet gets the Christmas episode, his fourth time hosting!"
         ]
       ]
     },
     {
-      "title": "Ella Langley sweeps Country Music Awards as Taylor Swift returns for 1st performance in 13 years",
+      "title": "‘Ted Lasso’ Renewed for Season 5 at Apple TV, With Jason Sudeikis Returning",
+      "source": "variety.com",
+      "chats": [
+        [
+          "Apparently Ted Lasso got renewed for a fifth season.",
+          "Oh good, I was hoping they'd keep it going.",
+          "And Jason Sudeikis is coming back too. Believe, right?"
+        ]
+      ]
+    },
+    {
+      "title": "Miley Cyrus weds Maxx Morando in California, People magazine reports",
       "source": "cbc.ca",
       "chats": [
         [
-          "Okay, did you catch the CMA Awards this week?",
-          "I saw Ella Langley pretty much swept the whole night.",
-          "And Taylor Swift performed at the CMAs for the first time in 13 years!"
+          "Okay, did you hear Miley Cyrus got married?",
+          "No way! To the drummer she's been with for a while?",
+          "Yep, Maxx Morando, in California on Saturday."
         ]
       ]
     },
     {
-      "title": "‘Home Alone’ Reboot in the Works at Disney from Macaulay Culkin, Seth Rogen and Evan Goldberg",
-      "source": "variety.com",
-      "chats": [
-        [
-          "Apparently a new Home Alone is in the works at Disney.",
-          "No way, with Macaulay Culkin back too?",
-          "Yep, and Seth Rogen and Evan Goldberg are shaping the script."
-        ]
-      ]
-    },
-    {
-      "title": "Selena Gomez Recalls How Martin Short Accidentally Cut Her Wedding Cake Early: ‘He Looked Like a Little Dog’",
-      "source": "billboard.com",
-      "chats": [
-        [
-          "Did you hear Martin Short cut Selena Gomez's wedding cake early?",
-          "That is so him. How did that even happen?",
-          "She said he looked like a little dog doing it. I'm laughing."
-        ]
-      ]
-    },
-    {
-      "title": "U2’s ‘Carnaval De Luz’ Becomes Its 12th U.K. No. 1 Album, Moving Band Up All-Time Leaderboard",
-      "source": "billboard.com",
-      "chats": [
-        [
-          "U2 just got another number one album in the U.K.",
-          "Wow, how many is that now?",
-          "Their 12th, and the first of new material in 17 years."
-        ]
-      ]
-    },
-    {
-      "title": "Billie Eilish to Headline BST Hyde Park for First Time: ‘She Inspires Fans, Challenges Our Industry to Be Better’",
-      "source": "billboard.com",
-      "chats": [
-        [
-          "Apparently Billie Eilish is headlining BST Hyde Park.",
-          "That will be such a huge show.",
-          "And it's her first time headlining it there."
-        ]
-      ]
-    },
-    {
-      "title": "Wait, Feist’s ‘My Moon My Man’ Is Going Viral Again? - Billboard",
+      "title": "Justin Timberlake tells his story in trailer for Apple TV docuseries - upi",
       "source": "google.com",
       "chats": [
         [
-          "Wait, Feist's My Moon My Man is going viral again?",
-          "I love that song, it never gets old.",
-          "Time to add it back to the office playlist."
+          "Have you seen the trailer for the Justin Timberlake docuseries?",
+          "Not yet. Is he telling his own story in it?",
+          "He is, and it's coming to Apple TV."
         ]
       ]
     },
     {
-      "title": "Brandy Believes a ‘Moesha’ Reboot ‘Can Really Be Something in Today’s Time’",
+      "title": "'Avengers: Doomsday' final trailer spotlights Steve Rogers, his son - upi",
+      "source": "google.com",
+      "chats": [
+        [
+          "The final Avengers Doomsday trailer is out.",
+          "Is Steve Rogers in it? Please say yes.",
+          "He is, and apparently it spotlights his son too."
+        ]
+      ]
+    },
+    {
+      "title": "Karol G’s ‘BbY WOW’ Leads Billboard Global Charts, ‘Christmas’ Carols Climb",
       "source": "billboard.com",
       "chats": [
         [
-          "Brandy thinks a Moesha reboot could really work today.",
-          "I would totally watch that.",
-          "She brought it up on The Jennifer Hudson Show."
+          "Guess which songs are climbing the global charts again.",
+          "Let me guess, Last Christmas and Mariah Carey?",
+          "Yep, though Karol G is still on top with BbY WOW."
         ]
       ]
     },
     {
-      "title": "Why Chris Pratt’s Kids Don’t Know What He Does for a Living",
+      "title": "You Can See Everything crosses $100M US worldwide at the box office",
+      "source": "cbc.ca",
+      "chats": [
+        [
+          "Nathan Fielder's documentary passed 100 million worldwide.",
+          "A documentary? That's wild, good for him.",
+          "Turns out international audiences love it too."
+        ]
+      ]
+    },
+    {
+      "title": "Quentin Tarantino and Wife Daniella Pick Welcome Baby No. 3",
       "source": "eonline.com",
       "chats": [
         [
-          "Did you know Chris Pratt's kids don't know what he does for work?",
-          "Ha, that's kind of adorable.",
-          "He just doesn't want to bring work home with him."
+          "Apparently Quentin Tarantino just welcomed baby number three.",
+          "Aw, that's lovely news for them.",
+          "Now that's a sequel nobody saw coming."
         ]
       ]
     },
     {
-      "title": "Why Dolly Parton’s Niece Danielle Wore Singer’s Dress to CMA Awards",
+      "title": "Sandra Bullock Shares Rare Photos of Kids During Disneyland Trip",
       "source": "eonline.com",
       "chats": [
         [
-          "Dolly Parton's niece Danielle wore one of Dolly's dresses to the CMAs.",
-          "That's such a sweet tribute.",
-          "A little piece of Dolly right on the red carpet."
+          "Sandra Bullock shared rare photos from a Disneyland trip.",
+          "That's sweet, she keeps her kids pretty private.",
+          "Making family memories at Disneyland sounds perfect."
         ]
       ]
     },
     {
-      "title": "All The Songs In Netflix’s ‘Steps’: Olivia Rodrigo To Amanda Seyfried",
+      "title": "Macy Gray to Release Next Album Inside a Microdrama, Partnering With Vertical Platform ReelShort (EXCLUSIVE)",
+      "source": "variety.com",
+      "chats": [
+        [
+          "Macy Gray is releasing her album inside a microdrama.",
+          "Like a vertical phone series? That's new.",
+          "She stars in it too, and the songs play through it."
+        ]
+      ]
+    },
+    {
+      "title": "Super Bowl 2027 and Jay-Z Halftime Show to Screen in Imax Theaters",
+      "source": "variety.com",
+      "chats": [
+        [
+          "The Super Bowl halftime show will play in Imax theatres.",
+          "With Jay Z? That would be fun on a huge screen.",
+          "First time ever they're doing it in Imax."
+        ]
+      ]
+    },
+    {
+      "title": "Rita Wilson Reveals Surprising Truth About Her Massive Back Tattoo",
+      "source": "eonline.com",
+      "chats": [
+        [
+          "Rita Wilson talked about her big back tattoo.",
+          "Rita Wilson has a back tattoo? I had no idea.",
+          "Apparently there's a surprising story behind it."
+        ]
+      ]
+    },
+    {
+      "title": "Oscars: 38 Animated Movies, 104 International Films and 190 Documentaries Make the Eligibility Lists, Setting New Records",
+      "source": "variety.com",
+      "chats": [
+        [
+          "The Oscars just set records for eligible films.",
+          "Really? In which categories?",
+          "Animated has 38 films, the most ever for that category."
+        ]
+      ]
+    },
+    {
+      "title": "‘Clashing Through The Snow’ Stars Christopher Briney & Michelle Randolph Talk Comedy’s “Important” Presence In Script And How They Built Their Characters",
       "source": "deadline.com",
       "chats": [
         [
-          "Have you heard about Steps on Netflix?",
-          "The Cinderella story from the stepsisters' side? Yes!",
-          "And Amanda Seyfried voices Cinderella and actually sings."
+          "Have you heard of Clashing Through the Snow on Prime?",
+          "A new Christmas rom com? I'm in.",
+          "Rival editors on a road trip to New York. Classic."
         ]
       ]
     },
     {
-      "title": "‘Outer Banks’ Alum Madelyn Cline in Final Talks to Join New ‘Serendipity’ Movie (EXCLUSIVE)",
+      "title": "Dakota Johnson to Star and Produce Relationship Dramedy ‘Tell Me Everything’ for Lionsgate",
       "source": "variety.com",
       "chats": [
         [
-          "Apparently there's a new Serendipity movie coming.",
-          "A reboot of the old rom com?",
-          "Not exactly, it's a modern update with new characters."
+          "Dakota Johnson is starring in a new dramedy.",
+          "Oh nice, what's it called?",
+          "Tell Me Everything, and she's producing it too."
         ]
       ]
     },
     {
-      "title": "Lili Reinhart in Talks to Join ‘Polly Pocket’ Movie After Lily Collins Exit",
-      "source": "variety.com",
-      "chats": [
-        [
-          "Lili Reinhart might star in a Polly Pocket movie.",
-          "Oh, I had those tiny toys as a kid!",
-          "Clea DuVall is set to direct it, too."
-        ]
-      ]
-    },
-    {
-      "title": "Traitors: New Blood Crowns Winner After Tearful Final Moments",
-      "source": "eonline.com",
-      "chats": [
-        [
-          "Did you watch the Traitors New Blood finale?",
-          "Yes, those final moments were so tearful.",
-          "I need a show this tense every week."
-        ]
-      ]
-    },
-    {
-      "title": "Artist paints Statue of Liberty in 43.5 seconds for world record - Egyptian Gazette",
+      "title": "Man attempts world record holding 16-inch pizza while running Route 66 marathon - News On 6",
       "source": "google.com",
       "chats": [
         [
-          "A guy painted the Statue of Liberty in 43.5 seconds!",
-          "That's faster than I can find a pen.",
-          "And it was for Guinness World Records Day."
+          "A guy ran the Route 66 marathon holding a pizza.",
+          "Holding it the whole way? Why?",
+          "A world record attempt, a full 16 inch pizza."
         ]
       ]
     },
     {
-      "title": "Daredevil zip lines nearly 570 feet while on fire - upi",
+      "title": "Collector gets Guinness World Record for opening trading cards on wing of plane - Yahoo",
       "source": "google.com",
       "chats": [
         [
-          "Okay, a daredevil zip lined nearly 570 feet while on fire.",
-          "That sounds absolutely wild.",
-          "Glad our fires stay safely inside fireplaces."
+          "Someone opened trading cards on the wing of a plane.",
+          "On the wing? Like, in the air?",
+          "Yep, 600 feet up, and it got a Guinness record."
         ]
       ]
     },
     {
-      "title": "151 humanoid robots dance in sync to break Guinness World Record - Interesting Engineering",
+      "title": "Idaho man skates 19 miles while juggling to break world record - upi",
       "source": "google.com",
       "chats": [
         [
-          "151 humanoid robots danced in sync for a world record.",
-          "That is both cool and a little creepy.",
-          "More in sync than any dance I've ever tried."
+          "An Idaho man skated 19 miles while juggling.",
+          "Skating and juggling at once? I'd drop everything.",
+          "He broke a world record doing it, too."
         ]
       ]
     },
     {
-      "title": "A grandmother has 83 Mickey Mouse tattoos, including one on her face, and a room full of his toys: she now holds a Guinness World Record - El Cronista",
+      "title": "Maharashtra’s Shrishti Sharma limbo skates 50 metres in 6.86 seconds. Sets Guinness World Record - ThePrint",
       "source": "google.com",
       "chats": [
         [
-          "A grandmother has 83 Mickey Mouse tattoos, one on her face!",
-          "Now that is true dedication.",
-          "She has a whole room of his toys and a world record too."
+          "A skater in India limbo skated 50 metres in 6.86 seconds.",
+          "Under poles? That sounds impossible.",
+          "She set a Guinness World Record doing it."
         ]
       ]
     },
     {
-      "title": "Strewth! World’s smallest film camera captures Guinness World Record - Amateur Photographer",
+      "title": "Gathering of ‘Rocky’ fans in Philadelphia breaks world record - The North State Journal",
       "source": "google.com",
       "chats": [
         [
-          "Someone made the world's smallest working film camera.",
-          "Tiny cameras that actually take photos? Amazing.",
-          "It earned a Guinness World Record."
+          "A gathering of Rocky fans in Philly broke a world record.",
+          "Did they all run up the museum steps?",
+          "Ha, I'd hope so. Philly does love Rocky."
         ]
       ]
     },
     {
-      "title": "Loose horse wrangled after visiting Virginia McDonald's - upi",
+      "title": "799 bulldogs gather in Mexico City in bid to break Guinness World Record - TVP World",
       "source": "google.com",
       "chats": [
         [
-          "A loose horse visited a McDonald's in Virginia.",
-          "Ha, did it order anything?",
-          "Sadly it got wrangled before the fries."
+          "Apparently 799 bulldogs gathered in Mexico City.",
+          "That sounds like the best day ever.",
+          "It was a bid to break a Guinness World Record."
         ]
       ]
     },
     {
-      "title": "'Pepper pileup' closes two lanes of busy Florida road - upi",
+      "title": "US Family Sets Guinness World Record With Five Generations Sharing Same Birthday - ColombiaOne.com",
       "source": "google.com",
       "chats": [
         [
-          "Did you hear about the pepper pileup in Florida?",
-          "A pepper pileup? Is that real?",
-          "It closed two lanes of a busy road. Spicy commute."
+          "A family has five generations sharing one birthday.",
+          "Five? What are the odds of that?",
+          "Enough to earn a Guinness World Record."
         ]
       ]
     },
     {
-      "title": "Philadelphia sets Guinness World Record as 570 fans dress up as Rocky Balboa - World Boxing Council",
+      "title": "Christmas market’s AI advertising fail goes viral - AOL.com",
       "source": "google.com",
       "chats": [
         [
-          "570 fans dressed as Rocky Balboa in Philadelphia.",
-          "That's a lot of grey sweatsuits.",
-          "And it set a Guinness World Record."
+          "A Christmas market's AI ad fail went viral.",
+          "Oh no, what went wrong?",
+          "Not sure, but the internet clearly had fun with it."
         ]
       ]
     },
     {
-      "title": "Singaporean YouTuber’s GTA VI ‘contract’ with wife goes viral online, draws Jimmy Kimmel mention - The Straits Times",
+      "title": "You have to see this! Small Idaho dog goes viral after owner shares video of it carrying big potato in mouth - East Idaho News",
       "source": "google.com",
       "chats": [
         [
-          "A YouTuber made a GTA VI contract with his wife.",
-          "That's hilarious, what a smart idea.",
-          "It went viral and even got a Jimmy Kimmel mention."
+          "A tiny Idaho dog went viral carrying a big potato.",
+          "That is the most Idaho thing I've ever heard.",
+          "The potato looked almost as big as the dog."
         ]
       ]
     },
     {
-      "title": "Best friends travel through Staten Island in toy cars on journey to break Guinness World Record - SILive.com",
+      "title": "Speed painter breaks Guinness World Record in NYC - CBS News",
       "source": "google.com",
       "chats": [
         [
-          "Two best friends drove toy cars across Staten Island.",
-          "For fun or for a reason?",
-          "Trying to break a Guinness World Record!"
+          "A speed painter broke a Guinness record in New York.",
+          "I can barely paint a wall in a day.",
+          "Some people are just fast with a brush."
+        ]
+      ]
+    },
+    {
+      "title": "Andrés Giménez statue goes viral for looking nothing like Blue Jays shortstop - Toronto Sun",
+      "source": "google.com",
+      "chats": [
+        [
+          "A statue of a Blue Jays shortstop went viral.",
+          "Because it looks great?",
+          "Nope, because it looks nothing like Andrés Giménez."
+        ]
+      ]
+    },
+    {
+      "title": "Maltese Strongman Tony Farrugia Becomes Triple Guinness World Record Holder - Lovin Malta",
+      "source": "google.com",
+      "chats": [
+        [
+          "A strongman from Malta now holds three Guinness records.",
+          "Three? That's some serious muscle.",
+          "Tony Farrugia is his name, a triple record holder."
         ]
       ]
     }
