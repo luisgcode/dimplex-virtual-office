@@ -113,5 +113,8 @@ Note: "Domino's" has an apostrophe; per the 19 nov note, keep apostrophes out of
 | 2 | The office parking lot covered with snow | office/out |
 | 2 | A photo with Allyson at the holiday lunch (exclude allyson) | lunch/office/picture |
 | 2 | A photo with Erica at the holiday lunch (exclude erica) | lunch/office/picture |
+| 5 | A group photo of 5 people or more at the holiday lunch. The group decides who stands in the middle: that person gets 5 points, every other player in the photo gets 2 | lunch/office/picture |
+
+HOW TO APPROVE hlunchgroupcenter (slots 4 so 2 groups fit, 2 rows each): Luis approves in the Review panel ticking ONLY the person in the middle (5 pts). Then I insert a second achieved row by SQL for the same photo with pts 2 and team = the other players in the photo (copy photo_path, received_at, taken_at from the first row). Do it with Luis, never alone.
 
 Creation closed by Luis on 24 nov 2026: no more new missions.
