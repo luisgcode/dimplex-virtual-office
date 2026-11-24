@@ -101,3 +101,4 @@ Note: "Domino's" has an apostrophe; per the 19 nov note, keep apostrophes out of
 | 3 | A selfie with 4 or more coworkers at your holiday lunch table | office/picture |
 | 4 | A selfie at the holiday lunch with someone from another department | office/picture |
 | 4 | A photo at the holiday lunch with a manager from another department | office/picture |
+| 4 | A picture with a Cambridge Hotel staff member at the holiday lunch (with their OK) | lunch/office/picture |
