@@ -111,5 +111,7 @@ Note: "Domino's" has an apostrophe; per the 19 nov note, keep apostrophes out of
 | 3 | A hand-drawn portrait of someone from the Marketing team, on a full sheet of paper, signed by the person you drew as their OK | office/home |
 | 1 | The sky today, photographed from inside the office through a window | office |
 | 2 | The office parking lot covered with snow | office/out |
+| 2 | A photo with Allyson at the holiday lunch (exclude allyson) | lunch/office/picture |
+| 2 | A photo with Erica at the holiday lunch (exclude erica) | lunch/office/picture |
 
 Creation closed by Luis on 24 nov 2026: no more new missions.
