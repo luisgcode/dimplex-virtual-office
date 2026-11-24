@@ -1,212 +1,36 @@
 {
-  "date": "2026-11-23",
+  "date": "2026-11-24",
   "items": [
     {
-      "title": "‘SNL’ Sets Timothée Chalamet and Robert De Niro as Final Hosts of 2026",
-      "source": "variety.com",
-      "chats": [
-        [
-          "Did you see who is hosting the last SNL episodes of the year?",
-          "Robert De Niro and Timothée Chalamet, right? That's a strong finish.",
-          "Chalamet gets the Christmas episode, his fourth time hosting!"
-        ]
-      ]
-    },
-    {
-      "title": "‘Ted Lasso’ Renewed for Season 5 at Apple TV, With Jason Sudeikis Returning",
-      "source": "variety.com",
-      "chats": [
-        [
-          "Apparently Ted Lasso got renewed for a fifth season.",
-          "Oh good, I was hoping they'd keep it going.",
-          "And Jason Sudeikis is coming back too. Believe, right?"
-        ]
-      ]
-    },
-    {
-      "title": "Miley Cyrus weds Maxx Morando in California, People magazine reports",
-      "source": "cbc.ca",
-      "chats": [
-        [
-          "Okay, did you hear Miley Cyrus got married?",
-          "No way! To the drummer she's been with for a while?",
-          "Yep, Maxx Morando, in California on Saturday."
-        ]
-      ]
-    },
-    {
-      "title": "Justin Timberlake tells his story in trailer for Apple TV docuseries - upi",
+      "title": "799 bulldogs gather in Mexico City in bid to break Guinness World Record - TVP World",
       "source": "google.com",
       "chats": [
         [
-          "Have you seen the trailer for the Justin Timberlake docuseries?",
-          "Not yet. Is he telling his own story in it?",
-          "He is, and it's coming to Apple TV."
+          "Did you see 799 bulldogs gathered in Mexico City for a world record?",
+          "That sounds like the most adorable traffic jam ever.",
+          "Imagine the snoring if they all took a nap at once."
         ]
       ]
     },
     {
-      "title": "'Avengers: Doomsday' final trailer spotlights Steve Rogers, his son - upi",
+      "title": "Amanda Seyfried Goes Viral for ABBA Cover Performance - Yahoo",
       "source": "google.com",
       "chats": [
         [
-          "The final Avengers Doomsday trailer is out.",
-          "Is Steve Rogers in it? Please say yes.",
-          "He is, and apparently it spotlights his son too."
+          "Apparently Amanda Seyfried went viral for an ABBA cover.",
+          "Makes sense, she was basically born for Mamma Mia.",
+          "Now that song is going to be stuck in my head all afternoon."
         ]
       ]
     },
     {
-      "title": "Karol G’s ‘BbY WOW’ Leads Billboard Global Charts, ‘Christmas’ Carols Climb",
-      "source": "billboard.com",
-      "chats": [
-        [
-          "Guess which songs are climbing the global charts again.",
-          "Let me guess, Last Christmas and Mariah Carey?",
-          "Yep, though Karol G is still on top with BbY WOW."
-        ]
-      ]
-    },
-    {
-      "title": "You Can See Everything crosses $100M US worldwide at the box office",
-      "source": "cbc.ca",
-      "chats": [
-        [
-          "Nathan Fielder's documentary passed 100 million worldwide.",
-          "A documentary? That's wild, good for him.",
-          "Turns out international audiences love it too."
-        ]
-      ]
-    },
-    {
-      "title": "Quentin Tarantino and Wife Daniella Pick Welcome Baby No. 3",
-      "source": "eonline.com",
-      "chats": [
-        [
-          "Apparently Quentin Tarantino just welcomed baby number three.",
-          "Aw, that's lovely news for them.",
-          "Now that's a sequel nobody saw coming."
-        ]
-      ]
-    },
-    {
-      "title": "Sandra Bullock Shares Rare Photos of Kids During Disneyland Trip",
-      "source": "eonline.com",
-      "chats": [
-        [
-          "Sandra Bullock shared rare photos from a Disneyland trip.",
-          "That's sweet, she keeps her kids pretty private.",
-          "Making family memories at Disneyland sounds perfect."
-        ]
-      ]
-    },
-    {
-      "title": "Macy Gray to Release Next Album Inside a Microdrama, Partnering With Vertical Platform ReelShort (EXCLUSIVE)",
+      "title": "Kevin Kline Reunites With Meryl Streep in ‘The Corrections’ Series at Netflix",
       "source": "variety.com",
       "chats": [
         [
-          "Macy Gray is releasing her album inside a microdrama.",
-          "Like a vertical phone series? That's new.",
-          "She stars in it too, and the songs play through it."
-        ]
-      ]
-    },
-    {
-      "title": "Super Bowl 2027 and Jay-Z Halftime Show to Screen in Imax Theaters",
-      "source": "variety.com",
-      "chats": [
-        [
-          "The Super Bowl halftime show will play in Imax theatres.",
-          "With Jay Z? That would be fun on a huge screen.",
-          "First time ever they're doing it in Imax."
-        ]
-      ]
-    },
-    {
-      "title": "Rita Wilson Reveals Surprising Truth About Her Massive Back Tattoo",
-      "source": "eonline.com",
-      "chats": [
-        [
-          "Rita Wilson talked about her big back tattoo.",
-          "Rita Wilson has a back tattoo? I had no idea.",
-          "Apparently there's a surprising story behind it."
-        ]
-      ]
-    },
-    {
-      "title": "Oscars: 38 Animated Movies, 104 International Films and 190 Documentaries Make the Eligibility Lists, Setting New Records",
-      "source": "variety.com",
-      "chats": [
-        [
-          "The Oscars just set records for eligible films.",
-          "Really? In which categories?",
-          "Animated has 38 films, the most ever for that category."
-        ]
-      ]
-    },
-    {
-      "title": "‘Clashing Through The Snow’ Stars Christopher Briney & Michelle Randolph Talk Comedy’s “Important” Presence In Script And How They Built Their Characters",
-      "source": "deadline.com",
-      "chats": [
-        [
-          "Have you heard of Clashing Through the Snow on Prime?",
-          "A new Christmas rom com? I'm in.",
-          "Rival editors on a road trip to New York. Classic."
-        ]
-      ]
-    },
-    {
-      "title": "Dakota Johnson to Star and Produce Relationship Dramedy ‘Tell Me Everything’ for Lionsgate",
-      "source": "variety.com",
-      "chats": [
-        [
-          "Dakota Johnson is starring in a new dramedy.",
-          "Oh nice, what's it called?",
-          "Tell Me Everything, and she's producing it too."
-        ]
-      ]
-    },
-    {
-      "title": "Man attempts world record holding 16-inch pizza while running Route 66 marathon - News On 6",
-      "source": "google.com",
-      "chats": [
-        [
-          "A guy ran the Route 66 marathon holding a pizza.",
-          "Holding it the whole way? Why?",
-          "A world record attempt, a full 16 inch pizza."
-        ]
-      ]
-    },
-    {
-      "title": "Collector gets Guinness World Record for opening trading cards on wing of plane - Yahoo",
-      "source": "google.com",
-      "chats": [
-        [
-          "Someone opened trading cards on the wing of a plane.",
-          "On the wing? Like, in the air?",
-          "Yep, 600 feet up, and it got a Guinness record."
-        ]
-      ]
-    },
-    {
-      "title": "Idaho man skates 19 miles while juggling to break world record - upi",
-      "source": "google.com",
-      "chats": [
-        [
-          "An Idaho man skated 19 miles while juggling.",
-          "Skating and juggling at once? I'd drop everything.",
-          "He broke a world record doing it, too."
-        ]
-      ]
-    },
-    {
-      "title": "Maharashtra’s Shrishti Sharma limbo skates 50 metres in 6.86 seconds. Sets Guinness World Record - ThePrint",
-      "source": "google.com",
-      "chats": [
-        [
-          "A skater in India limbo skated 50 metres in 6.86 seconds.",
-          "Under poles? That sounds impossible.",
-          "She set a Guinness World Record doing it."
+          "Okay, did you hear Kevin Kline is joining Meryl Streep in The Corrections?",
+          "Those two together again? I am so in.",
+          "It's a Netflix limited series, so perfect for a cozy weekend."
         ]
       ]
     },
@@ -215,86 +39,207 @@
       "source": "google.com",
       "chats": [
         [
-          "A gathering of Rocky fans in Philly broke a world record.",
-          "Did they all run up the museum steps?",
-          "Ha, I'd hope so. Philly does love Rocky."
+          "Apparently a gathering of Rocky fans in Philly broke a world record.",
+          "I bet the famous steps got a real workout.",
+          "Hopefully someone brought a speaker playing the theme song."
         ]
       ]
     },
     {
-      "title": "799 bulldogs gather in Mexico City in bid to break Guinness World Record - TVP World",
+      "title": "Now that’s fast food: Texas runner sets pizza half-marathon record - Canadian Running Magazine",
       "source": "google.com",
       "chats": [
         [
-          "Apparently 799 bulldogs gathered in Mexico City.",
-          "That sounds like the best day ever.",
-          "It was a bid to break a Guinness World Record."
+          "Did you hear a Texas runner set a pizza half marathon record?",
+          "Running with pizza sounds like my kind of race.",
+          "Now that's what they call fast food, right?"
         ]
       ]
     },
     {
-      "title": "US Family Sets Guinness World Record With Five Generations Sharing Same Birthday - ColombiaOne.com",
+      "title": "Woman's Funny Ode to Aluminum Foil Goes Viral, and Even Reynolds Is Impressed - Yahoo",
       "source": "google.com",
       "chats": [
         [
-          "A family has five generations sharing one birthday.",
-          "Five? What are the odds of that?",
-          "Enough to earn a Guinness World Record."
+          "Apparently a woman's funny ode to aluminum foil went viral.",
+          "Honestly foil deserves more love in the kitchen.",
+          "Even Reynolds said they were impressed by it."
         ]
       ]
     },
     {
-      "title": "Christmas market’s AI advertising fail goes viral - AOL.com",
-      "source": "google.com",
+      "title": "See Kristen Stewart’s Out of This World Transformation into Sally Ride",
+      "source": "eonline.com",
       "chats": [
         [
-          "A Christmas market's AI ad fail went viral.",
-          "Oh no, what went wrong?",
-          "Not sure, but the internet clearly had fun with it."
+          "Did you see Kristen Stewart transformed into Sally Ride?",
+          "Wow, that is a big role to take on.",
+          "Her look is literally out of this world."
         ]
       ]
     },
     {
-      "title": "You have to see this! Small Idaho dog goes viral after owner shares video of it carrying big potato in mouth - East Idaho News",
-      "source": "google.com",
+      "title": "Ella Langley’s ‘Choosin’ Texas’ Ties Hot Country Songs Record With 50 Weeks at No. 1",
+      "source": "billboard.com",
       "chats": [
         [
-          "A tiny Idaho dog went viral carrying a big potato.",
-          "That is the most Idaho thing I've ever heard.",
-          "The potato looked almost as big as the dog."
+          "Ella Langley's Choosin Texas hit 50 weeks at No. 1 on country charts.",
+          "Fifty weeks? That's almost a whole year!",
+          "It tied the record held by Meant To Be."
         ]
       ]
     },
     {
-      "title": "Speed painter breaks Guinness World Record in NYC - CBS News",
-      "source": "google.com",
+      "title": "U2 announces 2027 shows in Toronto, Vancouver as part of world tour",
+      "source": "cbc.ca",
       "chats": [
         [
-          "A speed painter broke a Guinness record in New York.",
-          "I can barely paint a wall in a day.",
-          "Some people are just fast with a brush."
+          "Okay, did you hear U2 is coming to Toronto in 2027?",
+          "Nice, that's an easy trip from here.",
+          "It's for their new album, Carnaval de Luz."
         ]
       ]
     },
     {
-      "title": "Andrés Giménez statue goes viral for looking nothing like Blue Jays shortstop - Toronto Sun",
+      "title": "Collector gets Guinness World Record for opening trading cards on wing of plane - Yahoo",
       "source": "google.com",
       "chats": [
         [
-          "A statue of a Blue Jays shortstop went viral.",
-          "Because it looks great?",
-          "Nope, because it looks nothing like Andrés Giménez."
+          "Apparently a collector opened trading cards on the wing of a plane.",
+          "That is wild. I'd be too scared to look at the cards.",
+          "And he got a Guinness World Record for it."
         ]
       ]
     },
     {
-      "title": "Maltese Strongman Tony Farrugia Becomes Triple Guinness World Record Holder - Lovin Malta",
+      "title": "Hong Kong Pokemon Fan Sets World Record with 2,882 Pikachu Items—But Her First Collectible Wasn't Pikachu - 玩具人 TOY PEOPLE",
       "source": "google.com",
       "chats": [
         [
-          "A strongman from Malta now holds three Guinness records.",
-          "Three? That's some serious muscle.",
-          "Tony Farrugia is his name, a triple record holder."
+          "Did you see a Hong Kong fan has 2,882 Pikachu items?",
+          "That's a serious amount of yellow.",
+          "Funny part is her first collectible wasn't even Pikachu."
+        ]
+      ]
+    },
+    {
+      "title": "‘To Me, My X-Men’: James Marsden Says It Was ‘Important’ for Cyclops to Be a Leader in ‘Avengers: Doomsday’ After Taking a ‘Back Seat to Wolverine’",
+      "source": "variety.com",
+      "chats": [
+        [
+          "James Marsden's Cyclops is all over the new Avengers Doomsday trailer.",
+          "Love that he finally gets to lead the X-Men.",
+          "He said Cyclops used to take a back seat to Wolverine."
+        ]
+      ]
+    },
+    {
+      "title": "‘The Lord Of The Rings: The Rings Of Power’ Renewed For Season 4 At Amazon",
+      "source": "deadline.com",
+      "chats": [
+        [
+          "Apparently Rings of Power got renewed for a fourth season.",
+          "More Middle Earth sounds good to me.",
+          "Filming starts in the spring in the UK."
+        ]
+      ]
+    },
+    {
+      "title": "Ariana Grande to release 'Eternal Sunshine' tour doc, concert special - upi",
+      "source": "google.com",
+      "chats": [
+        [
+          "Ariana Grande is releasing an Eternal Sunshine tour doc.",
+          "Oh, that's going on my watch list.",
+          "There's a concert special coming too."
+        ]
+      ]
+    },
+    {
+      "title": "Carly Rae Jepsen sees streaming surge after GTA VI needledrop",
+      "source": "cbc.ca",
+      "chats": [
+        [
+          "Did you hear Carly Rae Jepsen streams jumped after a GTA VI song spot?",
+          "Ha, Call Me Maybe in a video game would be amazing.",
+          "April Wine is in the game too, a nice Canadian touch."
+        ]
+      ]
+    },
+    {
+      "title": "Two men scale Ecuador mountain for record-breaking chess game - upi",
+      "source": "google.com",
+      "chats": [
+        [
+          "Two men climbed a mountain in Ecuador for a record chess game.",
+          "That's some serious dedication to chess.",
+          "Gives a whole new meaning to a high level match."
+        ]
+      ]
+    },
+    {
+      "title": "England town erects bronze statue of beloved local cat - upi",
+      "source": "google.com",
+      "chats": [
+        [
+          "Apparently a town in England put up a bronze statue of a local cat.",
+          "That cat must have been a real celebrity.",
+          "I'd love a statue of the office plant someday."
+        ]
+      ]
+    },
+    {
+      "title": "Original 'Baywatch' stars compete on 'Weakest Link' season finale - upi",
+      "source": "google.com",
+      "chats": [
+        [
+          "The original Baywatch stars are on the Weakest Link finale.",
+          "Okay, that's some fun nostalgia TV.",
+          "I'd watch just to hear the theme song again."
+        ]
+      ]
+    },
+    {
+      "title": "‘Aquamarine’ Gets Disney Series Greenlight; Emma Roberts & Jake McDorman To Reprise Film Roles & Exec Produce",
+      "source": "deadline.com",
+      "chats": [
+        [
+          "Did you hear Aquamarine is getting a Disney series?",
+          "No way, I loved that movie.",
+          "Emma Roberts and Jake McDorman are coming back too."
+        ]
+      ]
+    },
+    {
+      "title": "Collector opens trading cards 600ft in air to set world record - Discover SWNS",
+      "source": "google.com",
+      "chats": [
+        [
+          "Fun one: an Idaho man skated 19 miles while juggling.",
+          "I can barely walk and hold a coffee.",
+          "He did it to break a world record, and it worked."
+        ]
+      ]
+    },
+    {
+      "title": "100 Years of Music at Macy’s Thanksgiving Day Parade, For ‘An Audience Aged 1 to 100’",
+      "source": "billboard.com",
+      "chats": [
+        [
+          "The Macy's parade is celebrating 100 years of music.",
+          "A hundred parades, that's amazing.",
+          "They call it a playlist for an audience aged 1 to 100."
+        ]
+      ]
+    },
+    {
+      "title": "Fate of Ted Lasso Revealed",
+      "source": "eonline.com",
+      "chats": [
+        [
+          "Apparently the fate of Ted Lasso got revealed this week.",
+          "No spoilers please, I'm still catching up.",
+          "Deal, but grab some biscuits before you watch."
         ]
       ]
     }
