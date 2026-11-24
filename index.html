@@ -9213,6 +9213,7 @@ function chalRender(){
   var sc6 = chalScores();
   if (sc6.length >= CHAL_LEAD_PLACE) rule("Lead limit: " + ptsTxt(sc6[CHAL_LEAD_PLACE - 1].n + CHAL_LEAD) + " max.", "Nobody can be more than " + CHAL_LEAD + " points ahead of 5th place (" + ptsTxt(sc6[CHAL_LEAD_PLACE - 1].n) + " now). Over it, your name is blocked until 5th place goes up.");
   rule("2026 photos only.", "Older photos are rejected.");
+  rule("All missions are in.", "The last missions were added. No more new ones, it's game time :)");
   rc.appendChild(ru); B.appendChild(rc);
   /* search box + one folded group per points value: you see how many there are of each and open the one you want */
   var srch = el("input", "msearch"); srch.type = "search"; srch.id = "chalSearch"; srch.placeholder = "Search missions (e.g. Tim Hortons, ghost, Debbie)";
