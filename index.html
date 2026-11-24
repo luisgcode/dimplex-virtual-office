@@ -60,7 +60,7 @@ h1 em{font-style:normal;color:var(--accent)}
 .chip:hover{border-color:var(--muted)}
 .chip .d{width:10px;height:10px;border-radius:50%;background:var(--c);box-shadow:inset 0 0 0 1px rgba(0,0,0,.15)}
 #sound.muted{opacity:.6}#sound.muted svg path:not(:first-child){display:none}
-.petcard{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:30;width:min(260px,calc(100% - 32px));
+.petcard{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:32;width:min(260px,calc(100% - 32px));
   background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:16px;box-shadow:0 18px 50px rgba(15,20,25,.28);
   padding:14px 16px 16px;display:flex;flex-direction:column;align-items:center;text-align:center}
 .petcard .pc-x{position:absolute;top:8px;right:8px;width:30px;height:30px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:600 18px/1 var(--f-body);cursor:pointer}
@@ -149,6 +149,13 @@ h1 em{font-style:normal;color:var(--accent)}
 .chal .mv.up{color:#1f9d55}
 .chal .mv.down{color:#d64545}
 .chal .rules{border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.chal .goatprize{display:flex;align-items:center;gap:12px;width:100%;margin:0 0 10px;padding:10px 12px;border:1px solid #d9a634;border-radius:12px;background:rgba(217,166,52,.1);color:inherit;font:inherit;text-align:left;cursor:pointer}
+.chal .goatprize:hover{background:rgba(217,166,52,.18)}
+.chal .goatprize:focus-visible{outline:2px solid #d9a634;outline-offset:2px}
+.chal .goatprize img{width:44px;height:84px;object-fit:contain;flex:none;border-radius:6px;background:#fff}
+.chal .goatprize div{display:flex;flex-direction:column;gap:3px}
+.chal .goatprize b{font:800 15px/1.2 var(--f-body)}
+.chal .goatprize span{font-size:12px;line-height:1.35;color:var(--muted)}
 .chal .rules .r-top{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 10px;padding:10px 12px;border-bottom:1px solid var(--line);background:rgba(127,127,127,.06)}
 .chal .rules .r-top b{font:800 18px/1.1 var(--f-body);color:#c8102e}
 .chal .rules .r-top span{font-size:12px;color:var(--muted)}
@@ -2060,6 +2067,89 @@ var emptyDesk = { side:1, z:4.5 };
 desk(emptyDesk);
 emptyDesk.chairG.rotation.y = 0.45;
 emptyDesk.chairG.position.set(0.15, 0, 0.22);
+/* ---------- the GOAT Trophy: the real prize of the missions tournament (gold goat, crown, aviators, chain, on a
+   plaque base). It sits on the desk of whoever is first on the missions table this morning; click it for the photo */
+var GOAT = { g:null, hit:null, on:null };
+(function(){
+  var gold = new T.MeshStandardMaterial({ color:0xd9a634, metalness:0.9, roughness:0.3 });
+  var goldDk = new T.MeshStandardMaterial({ color:0xa9781c, metalness:0.85, roughness:0.4 });
+  var black = new T.MeshStandardMaterial({ color:0x0c0c0e, metalness:0.3, roughness:0.08 });
+  var g = new T.Group(), m;
+  function mesh(geo, mat, x, y, z, sx, sy, sz){ var o = new T.Mesh(geo, mat); o.position.set(x, y, z); o.scale.set(sx || 1, sy || 1, sz || 1); o.castShadow = true; g.add(o); return o; }
+  function limb(a, b, r, mat){ var d = new V3().subVectors(b, a), o = new T.Mesh(new T.CylinderGeometry(r, r, d.length(), 10), mat); o.position.copy(a).addScaledVector(d, 0.5); o.quaternion.setFromUnitVectors(new V3(0, 1, 0), d.normalize()); o.castShadow = true; g.add(o); return o; }
+  var sph = new T.SphereGeometry(1, 20, 14);
+  /* base with the plaque */
+  mesh(new T.BoxGeometry(0.42, 0.19, 0.3), gold, 0, 0.095, 0);
+  var cv = document.createElement("canvas"); cv.width = 512; cv.height = 160; var c = cv.getContext("2d");
+  c.fillStyle = "#c99a2e"; c.fillRect(0, 0, 512, 160); c.strokeStyle = "#8a6414"; c.lineWidth = 6; c.strokeRect(8, 8, 496, 144);
+  c.fillStyle = "#6e4f0f"; c.textAlign = "center"; c.font = "800 62px Arial, sans-serif"; c.fillText("THE G.O.A.T.", 256, 80); c.font = "700 34px Arial, sans-serif"; c.fillText("GREATEST OF ALL TIME", 256, 128);
+  var tex = new T.CanvasTexture(cv); tex.colorSpace = T.SRGBColorSpace; tex.anisotropy = 4;
+  m = new T.Mesh(new T.PlaneGeometry(0.37, 0.115), new T.MeshStandardMaterial({ map:tex, metalness:0.6, roughness:0.45 })); m.position.set(0, 0.09, 0.1505); g.add(m);
+  /* legs, hooves, body */
+  [-1, 1].forEach(function(s){
+    mesh(new T.CylinderGeometry(0.05, 0.055, 0.035, 12), goldDk, s * 0.065, 0.207, 0.01);
+    limb(new V3(s * 0.065, 0.22, 0.01), new V3(s * 0.07, 0.36, 0), 0.042, gold);
+  });
+  mesh(sph, gold, 0, 0.45, 0, 0.15, 0.165, 0.125);
+  /* hands on the hips */
+  [-1, 1].forEach(function(s){
+    var sh = new V3(s * 0.12, 0.555, 0), el = new V3(s * 0.215, 0.455, -0.01), hp = new V3(s * 0.135, 0.4, 0.02);
+    limb(sh, el, 0.034, gold); limb(el, hp, 0.03, gold); mesh(sph, goldDk, hp.x, hp.y, hp.z, 0.035, 0.03, 0.035);
+  });
+  /* neck, head, snout, smile, beard */
+  mesh(new T.CylinderGeometry(0.07, 0.085, 0.09, 12), gold, 0, 0.6, 0);
+  mesh(sph, gold, 0, 0.745, 0, 0.165, 0.16, 0.15);
+  mesh(sph, gold, 0, 0.685, 0.1, 0.095, 0.075, 0.08);
+  m = new T.Mesh(new T.TorusGeometry(0.045, 0.007, 6, 16, Math.PI * 0.8), goldDk); m.position.set(0, 0.68, 0.172); m.rotation.set(-0.3, 0, Math.PI * 1.1); g.add(m);
+  m = mesh(new T.ConeGeometry(0.03, 0.1, 10), goldDk, 0.035, 0.6, 0.12); m.rotation.set(Math.PI + 0.2, 0, -0.15);
+  /* ears out to the sides, one horn at the back */
+  [-1, 1].forEach(function(s){ m = mesh(sph, gold, s * 0.22, 0.765, -0.02, 0.12, 0.045, 0.07); m.rotation.z = s * -0.3; });
+  m = mesh(new T.ConeGeometry(0.035, 0.13, 10), goldDk, 0.07, 0.9, -0.07); m.rotation.set(-0.6, 0, -0.2);
+  /* the chain and the GOAT tag */
+  m = new T.Mesh(new T.TorusGeometry(0.105, 0.014, 6, 28), goldDk); m.position.set(0, 0.555, 0.035); m.rotation.x = -1.15; m.castShadow = true; g.add(m);
+  mesh(new T.BoxGeometry(0.085, 0.05, 0.015), goldDk, 0.025, 0.49, 0.13);
+  /* aviators */
+  [-1, 1].forEach(function(s){ m = mesh(new T.CylinderGeometry(0.06, 0.06, 0.018, 18), black, s * 0.072, 0.765, 0.135, 1.1, 1, 0.85); m.rotation.set(Math.PI / 2, s * 0.32, 0); });
+  mesh(new T.BoxGeometry(0.05, 0.012, 0.012), black, 0, 0.79, 0.16);
+  /* the crown, tilted on the head */
+  var cr = new T.Group(); cr.position.set(-0.07, 0.905, 0); cr.rotation.z = 0.32; g.add(cr);
+  m = new T.Mesh(new T.CylinderGeometry(0.105, 0.09, 0.06, 20, 1, true), new T.MeshStandardMaterial({ color:0xd9a634, metalness:0.9, roughness:0.3, side:T.DoubleSide })); m.castShadow = true; cr.add(m);
+  for (var i = 0; i < 6; i++) {
+    var a = i / 6 * Math.PI * 2, px = Math.sin(a) * 0.1, pz = Math.cos(a) * 0.1;
+    var pt = new T.Mesh(new T.ConeGeometry(0.022, 0.07, 8), gold); pt.position.set(px, 0.065, pz); cr.add(pt);
+    var bl = new T.Mesh(sph, gold); bl.scale.setScalar(0.017); bl.position.set(px, 0.105, pz); cr.add(bl);
+  }
+  /* the real one is 5 in tall; here a bit bigger so it reads on the desk */
+  g.scale.setScalar(0.27);
+  /* about 40 parts become one draw call per material */
+  mergeByMaterial(g);
+  g.traverse(function(o){ o.userData.dyn = true; if (o.isMesh) o.castShadow = true; });
+  var hit = new T.Mesh(new T.BoxGeometry(0.5, 1.05, 0.4), new T.MeshBasicMaterial({ visible:false })); hit.position.y = 0.5; g.add(hit);
+  g.visible = false; GOAT.g = g; GOAT.hit = hit;
+})();
+/* whoever is first on the missions table this morning (a remote leader: it waits on the empty desk by the entrance) */
+function goatLeader(){
+  /* the live missions table (the same one as the panel), so it moves as soon as someone takes first place */
+  if (typeof CH !== "undefined" && CH.st && CH.st.done && CH.st.done.length) { var sc = chalScores(); return sc[0] && sc[0].n > 0 ? { id:sc[0].p.id, n:sc[0].n } : null; }
+  if (typeof RANK === "undefined" || !RANK || !RANK.order.length || !(RANK.order[0].n > 0)) return null;
+  return RANK.order[0];
+}
+function goatPlace(){
+  /* the leader is checked twice a second, not every frame */
+  var now = performance.now();
+  if (GOAT.chk && now - GOAT.chk < 500) return;
+  GOAT.chk = now;
+  var L = goatLeader(), p = L && BY[L.id], dg = p && p.deskGroup ? p.deskGroup : L ? emptyDesk.deskGroup : null;
+  if (dg === GOAT.on) return;
+  GOAT.on = dg;
+  if (!dg) { GOAT.g.visible = false; return; }
+  dg.add(GOAT.g);
+  /* the front corner closest to the usual camera (next to the cup), where it reads best */
+  var sd = p && p.deskGroup ? p.side : 1;
+  if (dg === emptyDesk.deskGroup) GOAT.g.position.set(0, 0.7625, -0.75); else GOAT.g.position.set(sd * 0.76, 0.7625, -0.47);
+  GOAT.g.rotation.y = sd * 0.45;
+  GOAT.g.visible = true;
+}
 
 /* desk props */
 var dg = BY.luis.deskGroup;
@@ -7181,6 +7271,7 @@ function raceDue(T, next){
    desk, that person looks up, picks it up and throws it back. The flight is a pure function of the clock. ?plane=1 runs
    one now (this screen only). */
 var PLANE = { day:-1, slots:[], k:0, cur:null }, PLANE_LIVE = true, PLANE_TEST = /[?&]plane=1/.test(location.search || ""), PLANE_G;
+window.__goat = function(){ var L = goatLeader(); return { leader:L && L.id, pts:L && L.n, visible:!!(GOAT.g && GOAT.g.visible), open:goatCard }; };
 window.__plane = function(){ var C = PLANE.cur; return { slots:PLANE.slots.map(function(x){ return fmtH(x / 3600); }), k:PLANE.k, cur:C ? C.a.id + ">" + C.b.id : null }; };
 function planeSlots(dk){
   if (PLANE.day === dk) return;
@@ -7484,6 +7575,7 @@ function presentAt(t){
 function renderLife(t, dt){
   carryDraw(t);
   drillDraw(t);
+  goatPlace();
   planeDraw(t);
   var dk = dayKey(), present = PEOPLE.filter(function(q){ return !q.guest && !q.remote && q.state === "sit" && q.root.visible; });
   /* the sun moves across the sky with the real hour */
@@ -8855,6 +8947,12 @@ var PETS = {
   finn:{ no:"0002", img:"img/finn.jpg", name:"Finn", role:"Erica's dog", rows:[["Breed", "German Shorthaired Pointer"], ["Department", "Office security"], ["Desk", "Next to Erica's, the big bed"], ["Known for", "Keeping an eye on Pixel"], ["Access", "Wherever Erica goes"]] },
   nina:{ no:"0003", img:"img/nina.jpg", name:"Nina", role:"Erica's dog", rows:[["Breed", "German Shorthaired Pointer"], ["Department", "Welcome committee"], ["Desk", "Next to Erica's, the small bed"], ["Known for", "Sleeping through every meeting"], ["Access", "Wherever Erica goes"]] }
 };
+function goatCard(){
+  var L = goatLeader(), who = L ? (BY[L.id] ? BY[L.id].name : L.id) + ", " + L.n + " points" : "Nobody yet";
+  PETS.goat = { tag:"The prize", no:"", img:"img/goat-trophy.jpg", name:"The GOAT Trophy", role:"1st place in the missions tournament takes it home", wide:true, tall:true,
+    rows:[["First place now", who], ["When", "After the tournament ends on December 31, 2026"]] };
+  petCard(true, "goat");
+}
 function petCard(on, id){
   if (on) {
     var P = PETS[id || "pixel"];
@@ -9029,6 +9127,12 @@ function chalRender(){
   requestAnimationFrame(function(){ B.scrollTop = keepB; Lf.scrollTop = keepL; cols.scrollTop = keepC; });
   /* left: the leaderboard, then what has been achieved (each one opens its proof photo) */
   Lf.appendChild(el("h3", "sec", "Leaderboard"));
+  /* the prize: the real GOAT Trophy, click for the big photo */
+  var gp = el("button", "goatprize"); gp.type = "button";
+  var gim = el("img"); gim.src = "img/goat-trophy.jpg"; gim.alt = "The GOAT Trophy, a gold goat with a crown and sunglasses"; gp.appendChild(gim);
+  var gtx = el("div"); gtx.appendChild(el("b", "", "1st place wins the GOAT Trophy")); gtx.appendChild(el("span", "", "The real one, handed over in person after the tournament ends on Dec 31.")); gp.appendChild(gtx);
+  gp.addEventListener("click", function(){ goatCard(); });
+  Lf.appendChild(gp);
   var tb = el("table"), hd = el("tr"); ["#", "Name", "Points"].forEach(function(h, i){ var th = el("th", "", h); if (i === 2) th.style.textAlign = "right"; hd.appendChild(th); });
   var th0 = el("thead"); th0.appendChild(hd); tb.appendChild(th0); var bd = el("tbody");
   var moves = chalMoves();
@@ -9480,6 +9584,8 @@ function pick(e){
   ray.setFromCamera(ndc, camera);
   /* the Challenges board on the wall */
   if (CH.board && ray.intersectObject(CH.board.hit, false).length) { chalShow(true, "mission"); return; }
+  /* the GOAT Trophy on the leader's desk */
+  if (GOAT.g && GOAT.g.visible && ray.intersectObject(GOAT.hit, false).length) { goatCard(); return; }
   /* the photo wall */
   var phHit = ray.intersectObjects(PHOTO_HITS, false);
   if (phHit.length) { petCard(true, phHit[0].object.userData.photo); return; }
