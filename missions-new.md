@@ -92,3 +92,12 @@ Note: "Domino's" has an apostrophe; per the 19 nov note, keep apostrophes out of
 | 3 | A picture of the office parking lot with fewer than 10 cars in it (a different photo from the other parking lot missions) | office/out |
 | 4 | A picture of the office parking lot with fewer than 7 cars in it (a different photo from the other parking lot missions) | office/out |
 | 5 | A picture of the office parking lot with fewer than 5 cars in it (a different photo from the other parking lot missions) | office/out |
+
+## Holiday lunch, Thu Nov 26 at The Venue (LIVE 24 nov, ord 231 to 235)
+| Pts | Mission | Tags |
+|---|---|---|
+| 2 | A selfie at The Venue entrance on holiday lunch day (Nov 26) | office/out |
+| 2 | The holiday lunch dessert table, with you picking the best one | office |
+| 3 | A selfie with 4 or more coworkers at your holiday lunch table | office/picture |
+| 4 | A selfie at the holiday lunch with someone from another department | office/picture |
+| 4 | A photo at the holiday lunch with a manager from another department | office/picture |
