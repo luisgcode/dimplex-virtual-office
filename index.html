@@ -9590,7 +9590,7 @@ function chalBoardDraw(){
   CH.board = { c:c, g:c.getContext("2d"), tex:tex, hit:hitM };
   chalBoardDraw();
 })();
-/* ---------- the race board: next to the "?" board, a bar chart picture; a click replays the missions table over time ---------- */
+/* ---------- the race board: left of the "?" board, a bar chart picture; a click replays the missions table over time ---------- */
 var MRACE = { skip:{ allyson:1, marissa:1 }, col:["#3d6fb0","#d0802c","#b83c4c","#2a9d8f","#4f9a3c","#c2558f","#8a6d3b","#7a4d9e","#4f7cc4"], snaps:[], i:0, timer:null, playing:false, els:{}, ids:[] };
 (function(){
   var c = document.createElement("canvas"); c.width = 360; c.height = 240;
@@ -9600,11 +9600,11 @@ var MRACE = { skip:{ allyson:1, marissa:1 }, col:["#3d6fb0","#d0802c","#b83c4c",
   [[0.92, "#c8102e"], [0.74, "#3d6fb0"], [0.58, "#2a9d8f"], [0.38, "#d0802c"]].forEach(function(b, k){ g.fillStyle = b[1]; g.fillRect(50, 34 + k * 46, 270 * b[0], 30); });
   g.fillStyle = "#9aa1a9"; g.fillRect(44, 24, 4, 194);
   var tex = new T.CanvasTexture(c); tex.colorSpace = T.SRGBColorSpace; tex.anisotropy = maxAniso;
-  var gr = new T.Group(); gr.position.set(1.14, 1.55, -3.995); scene.add(gr);
+  var gr = new T.Group(); gr.position.set(0.5, 1.55, -3.995); scene.add(gr);
   var frame = add(G.box, M("#2b3038", { roughness:0.5 }), 0.27, 0.2, 0.02, 0, 0, 0, gr, false); frame.userData.dyn = true;
   var face = new T.Mesh(G.plane, new T.MeshBasicMaterial({ map:tex, toneMapped:false })); face.scale.set(0.24, 0.17, 1); face.position.z = 0.012; face.userData.dyn = true; gr.add(face);
   /* narrower than the "?" hit box so the two never overlap */
-  var hitM = new T.Mesh(G.plane, new T.MeshBasicMaterial({ visible:false })); hitM.scale.set(0.26, 0.42, 1); hitM.position.set(0.02, 0, 0.02); gr.add(hitM);
+  var hitM = new T.Mesh(G.plane, new T.MeshBasicMaterial({ visible:false })); hitM.scale.set(0.26, 0.42, 1); hitM.position.set(-0.02, 0, 0.02); gr.add(hitM);
   MRACE.hit = hitM;
 })();
 var mraceEl = document.getElementById("race"), mraceBoard = document.getElementById("raceBoard"), mraceSlider = document.getElementById("raceSlider"), mraceSpeed = document.getElementById("raceSpeed"), mracePlay = document.getElementById("racePlay");
