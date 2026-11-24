@@ -104,4 +104,8 @@ Note: "Domino's" has an apostrophe; per the 19 nov note, keep apostrophes out of
 | 4 | A picture with a Cambridge Hotel staff member at the holiday lunch (with their OK) | lunch/office/picture |
 | 1 | Your footprints in fresh snow in the parking lot | office/out |
 
+| 2 | A selfie with a filter that makes you look old | office/home |
+| 2 | A selfie with a baby face filter | office/home |
+| 2 | A selfie with a filter that makes you look as ugly as possible | office/home |
+
 Creation closed by Luis on 24 nov 2026: no more new missions.
