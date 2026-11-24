@@ -114,7 +114,7 @@ Note: "Domino's" has an apostrophe; per the 19 nov note, keep apostrophes out of
 | 2 | A photo with Allyson at the holiday lunch (exclude allyson) | lunch/office/picture |
 | 2 | A photo with Erica at the holiday lunch (exclude erica) | lunch/office/picture |
 | 5 | A group photo of exactly 5 people at the holiday lunch. The group decides who stands in the middle: that person gets 5 points, every other player in the photo gets 2 | lunch/office/picture |
-| 5 | Easy points: a sheet of paper signed by 5 people from the Marketing team, not counting you (good luck convincing them) | office |
+| 5 | Easy points: a sheet of paper with the names and signatures of 5 people from the Marketing team, not counting you | office |
 
 HOW TO APPROVE hlunchgroupcenter (slots 4 so 2 groups fit, 2 rows each): Luis approves in the Review panel ticking ONLY the person in the middle (5 pts). Then I insert a second achieved row by SQL for the same photo with pts 2 and team = the other players in the photo (copy photo_path, received_at, taken_at from the first row). Do it with Luis, never alone.
 
