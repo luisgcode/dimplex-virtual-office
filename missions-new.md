@@ -81,7 +81,7 @@ Note: "Domino's" has an apostrophe; per the 19 nov note, keep apostrophes out of
 | 4 | A picture of you at The Home Depot | out |
 | 4 | A picture of you at Shoppers Drug Mart | out |
 | 1 | Your mug by a window with snow outside | office/home |
-| 1 | A face drawn on a banana or an orange, on your desk | office |
+| 1 | A face drawn on any fruit, on your desk | office |
 | 2 | A sticky note drawing of a coworker, stuck on their desk | office |
 | 3 | A picture of something you brought to the office to share with the team | office |
 | 1 | Your Christmas socks under your desk | office |
@@ -96,7 +96,7 @@ Note: "Domino's" has an apostrophe; per the 19 nov note, keep apostrophes out of
 ## Holiday lunch, Thu Nov 26 at The Venue (LIVE 24 nov, ord 231 to 235)
 | Pts | Mission | Tags |
 |---|---|---|
-| 2 | A selfie at The Venue entrance on holiday lunch day (Nov 26) | office/out |
+| 2 | A selfie at The Venue entrance on holiday lunch day (Nov 26) | lunch/office |
 | 2 | The holiday lunch dessert table, with you picking the best one | office |
 | 3 | A selfie with 4 or more coworkers at your holiday lunch table | office/picture |
 | 4 | A selfie at the holiday lunch with someone from another department | office/picture |

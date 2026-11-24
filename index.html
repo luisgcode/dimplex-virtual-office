@@ -9222,6 +9222,8 @@ function chalRender(){
   var tagBar = el("div", "mtags"); tagBar.setAttribute("role", "group"); tagBar.setAttribute("aria-label", "Filter missions by where you can do them");
   CHAL_TAGS.forEach(function(tg){
     var n = tg[0] ? all.filter(function(x){ return (x.m.tags || []).indexOf(tg[0]) >= 0; }).length : all.length;
+    /* an event tag (Holiday Lunch) only shows while it has open missions */
+    if (tg[0] && !n) return;
     var b = el("button", "", tg[1] + " · " + n); b.type = "button"; b.setAttribute("aria-pressed", String((CH.tag || "") === tg[0]));
     b.addEventListener("click", function(){ CH.tag = tg[0]; tagBar.querySelectorAll("button").forEach(function(x){ x.setAttribute("aria-pressed", String(x === b)); }); chalFilter(B); });
     tagBar.appendChild(b);
@@ -9272,7 +9274,7 @@ function chalRender(){
    "Keep screens and documents out of the picture."].forEach(function(t){ how.appendChild(el("li", "", t)); });
   B.appendChild(how);
 }
-var CHAL_TAGS = [["", "All"], ["office", "In the office"], ["picture", "A picture with"], ["home", "At home"], ["out", "Out of office"]];
+var CHAL_TAGS = [["", "All"], ["lunch", "Holiday Lunch"], ["office", "In the office"], ["picture", "A picture with"], ["home", "At home"], ["out", "Out of office"]];
 function chalNorm(s){ return String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, " "); }
 /* hides the missions that don't match; while searching, groups with matches open by themselves and empty ones disappear */
 function chalFilter(B){
