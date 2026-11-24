@@ -108,5 +108,6 @@ Note: "Domino's" has an apostrophe; per the 19 nov note, keep apostrophes out of
 | 2 | A selfie with a baby face filter | office/home |
 | 2 | A selfie with a filter that makes you look as ugly as possible | office/home |
 | 2 | A picture of you holding a handwritten note with a message you want the team to remember | office/home |
+| 3 | A hand-drawn portrait of someone from the Marketing team, on a full sheet of paper | office/home |
 
 Creation closed by Luis on 24 nov 2026: no more new missions.
