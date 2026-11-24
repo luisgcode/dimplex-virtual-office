@@ -9591,7 +9591,7 @@ function chalBoardDraw(){
   chalBoardDraw();
 })();
 /* ---------- the race board: next to the "?" board, a bar chart picture; a click replays the missions table over time ---------- */
-var RACE = { skip:{ allyson:1, marissa:1 }, col:["#3d6fb0","#d0802c","#b83c4c","#2a9d8f","#4f9a3c","#c2558f","#8a6d3b","#7a4d9e","#4f7cc4"], snaps:[], i:0, timer:null, playing:false, els:{}, ids:[] };
+var MRACE = { skip:{ allyson:1, marissa:1 }, col:["#3d6fb0","#d0802c","#b83c4c","#2a9d8f","#4f9a3c","#c2558f","#8a6d3b","#7a4d9e","#4f7cc4"], snaps:[], i:0, timer:null, playing:false, els:{}, ids:[] };
 (function(){
   var c = document.createElement("canvas"); c.width = 360; c.height = 240;
   var g = c.getContext("2d");
@@ -9605,35 +9605,35 @@ var RACE = { skip:{ allyson:1, marissa:1 }, col:["#3d6fb0","#d0802c","#b83c4c","
   var face = new T.Mesh(G.plane, new T.MeshBasicMaterial({ map:tex, toneMapped:false })); face.scale.set(0.24, 0.17, 1); face.position.z = 0.012; face.userData.dyn = true; gr.add(face);
   /* narrower than the "?" hit box so the two never overlap */
   var hitM = new T.Mesh(G.plane, new T.MeshBasicMaterial({ visible:false })); hitM.scale.set(0.26, 0.42, 1); hitM.position.set(0.02, 0, 0.02); gr.add(hitM);
-  RACE.hit = hitM;
+  MRACE.hit = hitM;
 })();
-var raceEl = document.getElementById("race"), raceBoard = document.getElementById("raceBoard"), raceSlider = document.getElementById("raceSlider"), raceSpeed = document.getElementById("raceSpeed"), racePlay = document.getElementById("racePlay");
-var RACE_ROW = 44;
-function raceBuild(rows){
-  RACE.ids = chalPlayers().filter(function(q){ return !RACE.skip[q.id]; }).map(function(q){ return q.id; });
-  raceBoard.textContent = ""; RACE.els = {};
-  raceBoard.style.height = RACE.ids.length * RACE_ROW + "px";
-  RACE.ids.forEach(function(id, k){
+var mraceEl = document.getElementById("race"), mraceBoard = document.getElementById("raceBoard"), mraceSlider = document.getElementById("raceSlider"), mraceSpeed = document.getElementById("raceSpeed"), mracePlay = document.getElementById("racePlay");
+var MRACE_ROW = 44;
+function mraceBuild(rows){
+  MRACE.ids = chalPlayers().filter(function(q){ return !MRACE.skip[q.id]; }).map(function(q){ return q.id; });
+  mraceBoard.textContent = ""; MRACE.els = {};
+  mraceBoard.style.height = MRACE.ids.length * MRACE_ROW + "px";
+  MRACE.ids.forEach(function(id, k){
     var r = el("div", "rc-row"); r.appendChild(el("span", "rc-rk")); r.appendChild(el("span", "rc-nm", BY[id] ? BY[id].name : id));
-    var tr = el("div", "rc-tr"), bar = el("div", "rc-bar"); bar.style.background = RACE.col[k % RACE.col.length];
+    var tr = el("div", "rc-tr"), bar = el("div", "rc-bar"); bar.style.background = MRACE.col[k % MRACE.col.length];
     tr.appendChild(bar); tr.appendChild(el("span", "rc-pts")); tr.appendChild(el("span", "rc-fl")); r.appendChild(tr);
-    raceBoard.appendChild(r); RACE.els[id] = r;
+    mraceBoard.appendChild(r); MRACE.els[id] = r;
   });
-  var sc = {}; RACE.ids.forEach(function(id){ sc[id] = 0; });
-  RACE.snaps = [{ sc:Object.assign({}, sc), at:null, gain:{} }];
+  var sc = {}; MRACE.ids.forEach(function(id){ sc[id] = 0; });
+  MRACE.snaps = [{ sc:Object.assign({}, sc), at:null, gain:{} }];
   rows.filter(function(a){ return a.approved_at; }).sort(function(a, b){ return Date.parse(a.approved_at) - Date.parse(b.approved_at); }).forEach(function(a){
     var gain = {};
     (a.team && a.team.length ? a.team : [a.sender]).forEach(function(id){ if (id in sc) { sc[id] += a.pts; gain[id] = a.pts; } });
-    RACE.snaps.push({ sc:Object.assign({}, sc), at:a.approved_at, gain:gain });
+    MRACE.snaps.push({ sc:Object.assign({}, sc), at:a.approved_at, gain:gain });
   });
-  raceSlider.max = RACE.snaps.length - 1;
+  mraceSlider.max = MRACE.snaps.length - 1;
 }
-function raceDraw(k){
-  var s = RACE.snaps[k]; if (!s) return;
-  var max = Math.max.apply(null, [1].concat(RACE.ids.map(function(id){ return s.sc[id]; })));
-  RACE.ids.slice().sort(function(a, b){ return s.sc[b] - s.sc[a] || a.localeCompare(b); }).forEach(function(id, pos){
-    var r = RACE.els[id], w = s.sc[id] / max * 80;
-    r.style.transform = "translateY(" + pos * RACE_ROW + "px)";
+function mraceDraw(k){
+  var s = MRACE.snaps[k]; if (!s) return;
+  var max = Math.max.apply(null, [1].concat(MRACE.ids.map(function(id){ return s.sc[id]; })));
+  MRACE.ids.slice().sort(function(a, b){ return s.sc[b] - s.sc[a] || a.localeCompare(b); }).forEach(function(id, pos){
+    var r = MRACE.els[id], w = s.sc[id] / max * 80;
+    r.style.transform = "translateY(" + pos * MRACE_ROW + "px)";
     r.querySelector(".rc-rk").textContent = pos + 1;
     r.querySelector(".rc-bar").style.width = w + "%";
     var pt = r.querySelector(".rc-pts"); pt.style.left = w + "%"; pt.textContent = s.sc[id];
@@ -9641,29 +9641,29 @@ function raceDraw(k){
     if (s.gain[id]) { f.textContent = "+" + s.gain[id]; f.style.opacity = 1; setTimeout(function(){ f.style.opacity = 0; }, 500); }
   });
   document.getElementById("raceClock").textContent = s.at ? new Date(s.at).toLocaleString("en-US", { timeZone:"America/Toronto", month:"short", day:"numeric", hour:"numeric", minute:"2-digit" }) : "Start";
-  document.getElementById("raceStep").textContent = s.at ? "Approval " + k + " of " + (RACE.snaps.length - 1) : "";
-  raceSlider.value = k;
+  document.getElementById("raceStep").textContent = s.at ? "Approval " + k + " of " + (MRACE.snaps.length - 1) : "";
+  mraceSlider.value = k;
 }
-function raceStop(){ clearTimeout(RACE.timer); RACE.playing = false; racePlay.textContent = "Play"; }
-function raceTick(){ if (RACE.i < RACE.snaps.length - 1) { RACE.i++; raceDraw(RACE.i); RACE.timer = setTimeout(raceTick, +raceSpeed.value); } else raceStop(); }
-function raceStart(){ clearTimeout(RACE.timer); RACE.playing = true; racePlay.textContent = "Pause"; RACE.timer = setTimeout(raceTick, +raceSpeed.value); }
-function raceShow(on){
-  raceEl.hidden = !on;
-  if (!on) { raceStop(); return; }
+function mraceStop(){ clearTimeout(MRACE.timer); MRACE.playing = false; mracePlay.textContent = "Play"; }
+function mraceTick(){ if (MRACE.i < MRACE.snaps.length - 1) { MRACE.i++; mraceDraw(MRACE.i); MRACE.timer = setTimeout(mraceTick, +mraceSpeed.value); } else mraceStop(); }
+function mraceStart(){ clearTimeout(MRACE.timer); MRACE.playing = true; mracePlay.textContent = "Pause"; MRACE.timer = setTimeout(mraceTick, +mraceSpeed.value); }
+function mraceShow(on){
+  mraceEl.hidden = !on;
+  if (!on) { mraceStop(); return; }
   if (chalEl && !chalEl.hidden) chalShow(false);
   document.getElementById("raceClose").focus();
   document.getElementById("raceClock").textContent = "Loading…";
   /* always fresh: the latest approvals from the database, the same for everyone */
   (SB ? SB.from("achieved").select("team,sender,pts,approved_at") : Promise.resolve({ data:(CH.st && CH.st.done || []).map(function(d){ return { team:d.team, sender:d.who, pts:d.pts, approved_at:new Date(d.ok || d.at).toISOString() }; }) }))
-    .then(function(r){ if (raceEl.hidden) return; raceBuild((r && r.data) || []); RACE.i = 0; raceDraw(0); RACE.timer = setTimeout(raceStart, 600); })
+    .then(function(r){ if (mraceEl.hidden) return; mraceBuild((r && r.data) || []); MRACE.i = 0; mraceDraw(0); MRACE.timer = setTimeout(mraceStart, 600); })
     .catch(function(){ document.getElementById("raceClock").textContent = "Could not load the missions."; });
 }
-racePlay.addEventListener("click", function(){ if (RACE.playing) raceStop(); else { if (RACE.i >= RACE.snaps.length - 1) { RACE.i = 0; raceDraw(0); } raceStart(); } });
-document.getElementById("raceRestart").addEventListener("click", function(){ RACE.i = 0; raceDraw(0); raceStart(); });
-raceSlider.addEventListener("input", function(){ raceStop(); RACE.i = +raceSlider.value; raceDraw(RACE.i); });
-document.getElementById("raceClose").addEventListener("click", function(){ raceShow(false); });
-window.addEventListener("keydown", function(e){ if (e.key === "Escape" && !raceEl.hidden) raceShow(false); });
-window.__race = { open:function(){ raceShow(true); }, st:function(){ return RACE; } };
+mracePlay.addEventListener("click", function(){ if (MRACE.playing) mraceStop(); else { if (MRACE.i >= MRACE.snaps.length - 1) { MRACE.i = 0; mraceDraw(0); } mraceStart(); } });
+document.getElementById("raceRestart").addEventListener("click", function(){ MRACE.i = 0; mraceDraw(0); mraceStart(); });
+mraceSlider.addEventListener("input", function(){ mraceStop(); MRACE.i = +mraceSlider.value; mraceDraw(MRACE.i); });
+document.getElementById("raceClose").addEventListener("click", function(){ mraceShow(false); });
+window.addEventListener("keydown", function(e){ if (e.key === "Escape" && !mraceEl.hidden) mraceShow(false); });
+window.__mrace = { open:function(){ mraceShow(true); }, st:function(){ return MRACE; } };
 /* ---------- the photo wall: the far end of the left wall, a collage of team photos; a click opens each one as a badge ----------
    To add a photo: put it in img/, add a line here (y and z = centre on the wall, w = frame width in metres, px = image size). */
 var WALL_PHOTOS = [
@@ -9690,7 +9690,7 @@ function pick(e){
   ndc.set(((e.clientX - rect.left) / rect.width) * 2 - 1, -((e.clientY - rect.top) / rect.height) * 2 + 1);
   ray.setFromCamera(ndc, camera);
   /* the Challenges board on the wall */
-  if (RACE.hit && ray.intersectObject(RACE.hit, false).length) { raceShow(true); return; }
+  if (MRACE.hit && ray.intersectObject(MRACE.hit, false).length) { mraceShow(true); return; }
   if (CH.board && ray.intersectObject(CH.board.hit, false).length) { chalShow(true, "mission"); return; }
   /* the GOAT Trophy on the leader's desk */
   if (GOAT.g && GOAT.g.visible && ray.intersectObject(GOAT.hit, false).length) { goatCard(); return; }
