@@ -4,7 +4,7 @@ Batches reviewed one by one. Only approved ones go here. Load into the `missions
 
 | Pts | Mission | Tags |
 |---|---|---|
-| 1 | A selfie in the parking lot with the Dimplex building behind you | office/out |
+| 1 | A picture of you in the parking lot with the Dimplex building behind you | office/out |
 | 2 | A selfie in the Development Room | office |
 | 2 | A selfie in the Fireside Room | office |
 | 2 | A selfie in The Forum | office |
@@ -71,3 +71,24 @@ Total: 61 missions, 205 points per spot (410 with both spots). Points reviewed 2
 Liked but left out: "You in a karate pose fighting the printer" (very good, but hard as a selfie).
 
 Note: "Domino's" has an apostrophe; per the 19 nov note, keep apostrophes out of titles inserted by SQL (use Dominos or escape carefully).
+
+## Final batch (LIVE in Supabase 24 nov, ord 214 to 230)
+| Pts | Mission | Tags |
+|---|---|---|
+| 2 | A tower of at least 10 sticky note pads, with you next to it | office |
+| 2 | An office plant with paper eyes you drew yourself | office |
+| 4 | A picture of you at a sushi restaurant | out |
+| 4 | A picture of you at The Home Depot | out |
+| 4 | A picture of you at Shoppers Drug Mart | out |
+| 1 | Your mug by a window with snow outside | office/home |
+| 1 | A face drawn on a banana or an orange, on your desk | office |
+| 2 | A sticky note drawing of a coworker, stuck on their desk | office |
+| 3 | A picture of something you brought to the office to share with the team | office |
+| 1 | Your Christmas socks under your desk | office |
+| 3 | You and a coworker doing a secret handshake, caught mid-move | office/picture |
+| 2 | A picture of you outside the office with the building number 1367 behind you | office/out |
+| 1 | Something red and something green in your lunch | office/home |
+| 2 | A selfie outside the building entrance | office/out |
+| 3 | A picture of the office parking lot with fewer than 10 cars in it (a different photo from the other parking lot missions) | office/out |
+| 4 | A picture of the office parking lot with fewer than 7 cars in it (a different photo from the other parking lot missions) | office/out |
+| 5 | A picture of the office parking lot with fewer than 5 cars in it (a different photo from the other parking lot missions) | office/out |
