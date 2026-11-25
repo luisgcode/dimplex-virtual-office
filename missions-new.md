@@ -115,6 +115,10 @@ Note: "Domino's" has an apostrophe; per the 19 nov note, keep apostrophes out of
 | 2 | A photo with Erica at the holiday lunch (exclude erica) | lunch/office/picture |
 | 5 | A group photo of exactly 5 people at the holiday lunch. The group decides who stands in the middle: that person gets 5 points, every other player in the photo gets 2 | lunch/office/picture |
 | 5 | A sheet of paper with the names and signatures of 5 people from the Marketing team, not counting you | office |
+| 1 | Giveaway: a paper with the name of the player you choose. They get 1 point, you lose 2 | office/home |
+| 2 | Big giveaway: a paper with the name of the player you choose. They get 2 points, you lose 3 | office/home |
+
+HOW TO APPROVE giveaway1 / giveaway2 (slots 4, 2 rows per giveaway): Luis approves ticking ONLY the receiver (the name on the paper). Then I insert a second achieved row by SQL for the same photo with team = [the sender], pts -2 (giveaway1) or -3 (giveaway2). Do it with Luis.
 
 HOW TO APPROVE hlunchgroupcenter (slots 4 so 2 groups fit, 2 rows each): Luis approves in the Review panel ticking ONLY the person in the middle (5 pts). Then I insert a second achieved row by SQL for the same photo with pts 2 and team = the other players in the photo (copy photo_path, received_at, taken_at from the first row). Do it with Luis, never alone.
 
