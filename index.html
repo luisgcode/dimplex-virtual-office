@@ -78,6 +78,52 @@ h1 em{font-style:normal;color:var(--accent)}
 .petcard dd{margin:0}
 .chal{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:31;width:min(900px,calc(100% - 32px));max-height:min(640px,calc(100% - 32px));
   display:flex;flex-direction:column;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:16px;box-shadow:0 18px 50px rgba(15,20,25,.28);font-family:var(--f-body)}
+.cards .cd-body{padding:0 16px 18px;overflow:auto}
+.cards .cd-sub{margin:0 0 12px;font-size:13px;color:var(--muted)}
+.cards select,.cards .cd-btn{font:600 14px/1 var(--f-body);padding:9px 12px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:8px}
+.cards .cd-btn{cursor:pointer;margin-left:8px}
+.cards .cd-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:14px auto 0;max-width:520px}
+.cards .cd-card{aspect-ratio:2/3;border:0;padding:0;background:none;cursor:pointer;perspective:700px}
+.cards .cd-card:disabled{cursor:default}
+.cards .cd-in{position:relative;display:block;width:100%;height:100%;transform-style:preserve-3d;transition:transform .6s cubic-bezier(.4,0,.2,1)}
+.cards .cd-card.flip .cd-in{transform:rotateY(180deg)}
+.cards .cd-face{position:absolute;inset:0;border-radius:10px;display:flex;align-items:center;justify-content:center;-webkit-backface-visibility:hidden;backface-visibility:hidden;font:800 22px/1 var(--f-body)}
+.cards .cd-back{background:repeating-linear-gradient(45deg,#c8102e 0 8px,#a50d26 8px 16px);border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.25);color:#fff}
+.cards .cd-front{transform:rotateY(180deg);border:3px solid #ccc;background:#fff;font-size:28px}
+.cards .cd-front.win{color:#1f9d55;border-color:#1f9d55}
+.cards .cd-front.lose{color:#d64545;border-color:#d64545}
+.cards .cd-card.other{opacity:.4}
+.cards .cd-card.mine .cd-face{box-shadow:0 0 0 4px #d4a72c}
+.cards .cd-res{margin:16px 0 0;font:800 20px/1.2 var(--f-body);min-height:24px}
+.cards .cd-log{margin:14px 0 0;padding:0;list-style:none;font-size:12px;color:var(--muted)}
+.cards .gm-stage{margin-top:14px}
+.cards .gm-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:center;margin-top:10px}
+.cards .gm-coin{width:110px;height:110px;margin:16px auto 0;border-radius:50%;background:radial-gradient(circle at 35% 30%,#ffe9a3,#d4a72c 60%,#9c7417);display:flex;align-items:center;justify-content:center;font:800 18px/1 var(--f-body);color:#3b2a05}
+.cards .gm-coin.spin{animation:gmspin .9s linear}
+@keyframes gmspin{to{transform:rotateY(1440deg)}}
+.cards .gm-box{width:min(120px,28vw);height:110px;border-radius:12px;border:3px solid #fff;background:linear-gradient(135deg,#c8102e,#7a0a1c);color:#fff;font:800 20px/1 var(--f-body);cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.25)}
+.cards .gm-box.win{background:#fff;color:#1f9d55;border-color:#1f9d55}
+.cards .gm-box.lose{background:#fff;color:#d64545;border-color:#d64545}
+.cards .gm-box.zero{background:#fff;color:#5b6672;border-color:#5b6672}
+.cards .gm-box.other{opacity:.45}
+.cards .gm-box:disabled{cursor:default}
+.cards .gm-door{display:block;margin:10px auto 0;width:130px;height:160px;font-size:40px;background:linear-gradient(135deg,#1f6f43,#0f3d24)}
+.cards .gm-wheel-wrap{position:relative;width:220px;height:220px;margin:6px auto 12px}
+.cards .gm-wheel{position:absolute;inset:0;border-radius:50%;border:4px solid #fff;background:conic-gradient(#1f9d55 0 45deg,#d64545 45deg 90deg,#2a9d8f 90deg 135deg,#b83c4c 135deg 180deg,#3d6fb0 180deg 225deg,#d64545 225deg 270deg,#d4a72c 270deg 315deg,#b83c4c 315deg 360deg);transition:transform 3s cubic-bezier(.15,.8,.25,1)}
+.cards .gm-sl{position:absolute;left:50%;top:50%;width:70px;margin:-10px 0 0 -35px;text-align:center;font:800 12px/20px var(--f-body);color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.5)}
+.cards .gm-pointer{position:absolute;left:50%;top:-10px;margin-left:-10px;z-index:2;border:10px solid transparent;border-top:18px solid #fff}
+.cards .gm-num{width:48px;height:48px;border-radius:10px;border:2px solid var(--line);background:var(--surface);color:var(--ink);font:800 16px/1 var(--f-body);cursor:pointer}
+.cards .gm-num.win{background:#1f9d55;color:#fff;border-color:#1f9d55}
+.cards .gm-num.lose{background:#d64545;color:#fff;border-color:#d64545}
+.cards .gm-done{display:block;margin:6px 0 0}
+.cards select{max-width:100%}
+@media (max-width:600px){
+  .cards .cd-grid{gap:6px}
+  .cards .cd-face{font-size:16px;border-radius:7px}
+  .cards .cd-front{font-size:18px}
+  .cards .cd-btn{margin:8px 0 0}
+  .cards .gm-num{width:44px;height:44px}
+}
 .race .rc-body{padding:0 16px 16px;overflow:auto}
 .race .rc-sub{margin:0 0 4px;font-size:13px;color:var(--muted)}
 .race .rc-clock{font:700 30px/1.2 var(--f-body);color:var(--muted);opacity:.55;text-align:right;font-variant-numeric:tabular-nums;min-height:36px}
@@ -117,6 +163,10 @@ h1 em{font-style:normal;color:var(--accent)}
 .chal .mtags button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .chal .mgrp{border:1px solid var(--line);border-radius:12px;overflow:hidden}
 .chal .mgrp.special>summary b{color:#d4a72c}
+.chal .mgrp.luck>summary b{color:#2a9d8f}
+.chal .luck-note{margin:6px 10px 8px;padding:8px 10px;border-radius:8px;border:1px dashed #2a9d8f;font-size:12px;line-height:1.4;color:var(--muted)}
+.chal .mrow.special.luckrow{background:linear-gradient(90deg,rgba(42,157,143,.16),transparent 70%)}
+.chal .mrow.special.luckrow .pts{background:#2a9d8f;color:#fff}
 .chal .mgrp>summary{display:flex;align-items:center;gap:10px;padding:11px 12px;cursor:pointer;list-style:none;user-select:none}
 .chal .mgrp>summary::-webkit-details-marker{display:none}
 .chal .mgrp>summary::after{content:"";width:7px;height:7px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(45deg);margin:-3px 4px 0 auto;transition:transform .15s;opacity:.7}
@@ -415,6 +465,13 @@ body > header{display:none !important}
       <aside class="ch-left" id="chalLeft" aria-label="Leaderboard and achieved missions"></aside>
       <div class="ch-body" id="chalBody"></div>
     </div>
+  </div>
+  <div class="chal cards" id="cards" role="dialog" aria-labelledby="cardsTitle" hidden>
+    <div class="ch-head">
+      <h2 id="cardsTitle">Pick a card</h2>
+      <button class="pc-x" id="cardsClose" type="button" aria-label="Close">&times;</button>
+    </div>
+    <div class="cd-body" id="cardsBody"></div>
   </div>
   <div class="chal race" id="race" role="dialog" aria-labelledby="raceTitle" hidden>
     <div class="ch-head">
@@ -2356,7 +2413,7 @@ function phototvShow(){
     g.drawImage(im, (w - im.naturalWidth * cover) / 2, (h - im.naturalHeight * cover) / 2, im.naturalWidth * cover, im.naturalHeight * cover);
     g.restore();
     g.drawImage(im, (w - im.naturalWidth * fit) / 2, (h - im.naturalHeight * fit) / 2, im.naturalWidth * fit, im.naturalHeight * fit);
-    var m = chalDef(d.mid), cap = m ? m.title : "", who = chalNames(d) + " · " + ptsTxt(d.pts);
+    var m = chalDef(d.mid), cap = m ? chalCap(d) : "", who = chalNames(d) + " · " + ptsTxt(d.pts);
     var gr = g.createLinearGradient(0, h - 120, 0, h); gr.addColorStop(0, "rgba(0,0,0,0)"); gr.addColorStop(1, "rgba(0,0,0,.85)");
     g.fillStyle = gr; g.fillRect(0, h - 120, w, 120);
     g.textAlign = "left"; g.textBaseline = "alphabetic"; g.fillStyle = "#ffffff"; g.font = "700 28px " + FONT;
@@ -9022,8 +9079,21 @@ var CHAL_BANK = [
   { id:"james", title:"A photo with James", pts:3 }
 ];
 var CHAL_SPECIAL = [
-  { id:"sherif", title:"A photo with Sherif", pts:8, special:true }
+  { id:"sherif", title:"A photo with Sherif", pts:8, special:true },
+  /* GAMES (demo only for now): no photo, the result is drawn when you play. One try per person, 4 players max, then the game closes */
+  { id:"cards1", title:"Card game, Bronze (warm-up): pick 1 of 10 face-down cards. 4 cards give you +3 points, 6 cards take away 2 points. Only 4 people can play, once each.", pts:3, special:true, game:"cards", wins:4, win:3, lose:-2, max:4 },
+  { id:"cards2", title:"Card game, Silver (getting warmer): pick 1 of 10 face-down cards. 3 cards give you +4 points, 7 cards take away 3 points. Only 4 people can play, once each.", pts:4, special:true, game:"cards", wins:3, win:4, lose:-3, max:4 },
+  { id:"cards3", title:"Card game, Gold (careful): pick 1 of 10 face-down cards. 2 cards give you +8 points, 8 cards take away 4 points. Only 4 people can play, once each.", pts:8, special:true, game:"cards", wins:2, win:8, lose:-4, max:4 },
+  { id:"cards4", title:"Card game, Platinum (brave ones only): pick 1 of 10 face-down cards. 1 card gives you +9 points, 9 cards take away 5 points. Only 4 people can play, once each.", pts:9, special:true, game:"cards", wins:1, win:9, lose:-5, max:4 },
+  { id:"cards5", title:"Card game, Diamond (only for the GOAT): pick 1 of 10 face-down cards. 1 card gives you +10 points, 9 cards take away 6 points. Only 4 people can play, once each.", pts:10, special:true, game:"cards", wins:1, win:10, lose:-6, max:4 },
+  { id:"coin", title:"Coin flip (no excuses): choose heads or tails. Guess right and you get +4 points, guess wrong and you lose 4 points. Only 4 people can play, once each.", pts:4, special:true, game:"coin", max:4 },
+  { id:"boxes", title:"Mystery boxes (what is in the box?): pick 1 of 3 closed boxes. One gives you +8 points, one gives you nothing, one takes away 4 points. Only 4 people can play, once each.", pts:8, special:true, game:"boxes", max:4 },
+  { id:"wheel", title:"Wheel of fortune (spin to win): spin the wheel once. You either steal 1, 2, 3 or 5 points from whoever is 1st (if that is you, from whoever is 2nd), or you lose 1 or 2 points. Only 5 spins in total, once each.", pts:5, special:true, game:"wheel", max:5 },
+  { id:"heist", title:"The heist (sneaky): choose a player to rob. 4 times out of 10 it works and you take 3 points from them. 6 times out of 10 you get caught and lose 2 points. Only 4 people can play, once each.", pts:3, special:true, game:"heist", max:4 },
+  { id:"lucky", title:"Lucky number (pure luck): choose a number from 1 to 10. If it is the lucky number you get +10 points, if not you lose 3 points. Only 4 people can play, once each.", pts:10, special:true, game:"lucky", max:4 },
+  { id:"advent", title:"Advent calendar (early birds): there is one door every day. The first person to open it gets 1, 2 or 3 points. Nobody loses points in this one.", pts:3, special:true, game:"advent", max:999 }
 ];
+var GAME_IDS = ["cards1", "cards2", "cards3", "cards4", "cards5", "coin", "boxes", "wheel", "heist", "lucky", "advent"];
 var CHAL_ADMIN = /[?&]admin=1/.test(location.search || "");
 var CHAL_KEY = "vo.chal.demo.v3";
 var CH = { st:null, tab:"mission", view:null, board:null, leaders:[] };
@@ -9032,10 +9102,16 @@ function chalLoad(){
   var st = null;
   try { st = JSON.parse(localStorage.getItem(CHAL_KEY) || "null"); } catch (e) {}
   if (!st) st = { opens:CHAL_BANK.map(function(m){ return { id:m.id, at:Date.now() }; }), specials:CHAL_SPECIAL.map(function(m){ return { id:m.id, at:Date.now() }; }), done:[], subs:[], next:1 };
+  /* demo data saved before the card game existed: add it */
+  st.specials = st.specials.filter(function(o){ return o.id !== "cards"; });
+  st.done = st.done.filter(function(d){ return d.mid !== "cards"; });
+  GAME_IDS.forEach(function(g){ if (!st.specials.some(function(o){ return o.id === g; }) && !(st.closedGames || []).some(function(c){ return c === g; })) st.specials.push({ id:g, at:Date.now() }); });
   CH.st = st;
 }
 function chalSave(){ chalUpdateLeaders(); if (CH.live) return; try { localStorage.setItem(CHAL_KEY, JSON.stringify(CH.st)); } catch (e) { alertNote("This browser could not save the demo data (storage full or blocked)."); } }
 function alertNote(msg){ var b = document.getElementById("chalBody"); if (b) { var p = document.createElement("p"); p.className = "warn"; p.textContent = msg; b.prepend(p); } }
+/* the heading of an achieved card: the mission, or for a game the story of the play (who robbed who) */
+function chalCap(d){ var m = chalDef(d.mid); if (d.note && d.note.charAt(0) === "#") return gNote(d); return d.note || (m ? m.title : d.mid); }
 function chalDef(id){ if (CH.live) return CH.defs[id]; return CHAL_BANK.concat(CHAL_SPECIAL).filter(function(m){ return m.id === id; })[0]; }
 /* everyone on the team plays, the remote people too */
 function chalPlayers(){ return ALL.filter(function(q){ return !q.guest; }); }
@@ -9095,6 +9171,8 @@ function chalWinners(mid){ var w = []; chalWins(mid).forEach(function(d){ (d.tea
 function chalSpotsTxt(m){
   var wins = chalWins(m.id).sort(function(a, b){ return a.at - b.at; }), n = wins.length, tot = chalSlots(m);
   if (!n) return null;
+  /* the card game has no spots: everyone gets one try */
+  if (m.game) return m.game === "advent" ? null : { dots:"●".repeat(n) + "○".repeat(Math.max(0, m.max - n)), txt:n + "/" + m.max + " played" + (m.max - n === 1 ? " · last spot" : "") };
   var who = wins.map(function(d){ return chalNames(d); });
   var txt = n === 1 ? who[0] + " got the first one" : who.slice(0, -1).join(", ") + " and " + who[n - 1] + " got it";
   return { dots:"●".repeat(n) + "○".repeat(Math.max(0, tot - n)), txt:n + "/" + tot + " · " + txt + (tot - n === 1 ? " · last spot" : " · " + (tot - n) + " spots left") };
@@ -9183,7 +9261,7 @@ function chalRender(){
   CH.st.done.slice().reverse().forEach(function(d, ri){
     var i = CH.st.done.length - 1 - ri, m = chalDef(d.mid), bt = el("button", "dn"); bt.type = "button";
     var im = el("img"); im.src = d.img; im.alt = "Proof photo for " + (m ? m.title : d.mid); bt.appendChild(im);
-    var tx = el("div"); tx.appendChild(el("b", "", m ? m.title : d.mid)); tx.appendChild(el("span", "", chalNames(d) + " · " + ptsTxt(d.pts) + " · " + fmtTime(d.at))); bt.appendChild(tx);
+    var tx = el("div"); tx.appendChild(el("b", "", chalCap(d))); tx.appendChild(el("span", "", chalNames(d) + " · " + ptsTxt(d.pts) + " · " + fmtTime(d.at))); bt.appendChild(tx);
     bt.addEventListener("click", function(){ CH.view = { kind:"proof", i:i }; chalRender(); });
     Lf.appendChild(bt);
   });
@@ -9198,7 +9276,8 @@ function chalRender(){
   }
   var all = chalOpen().map(function(o){ return { o:o, m:chalDef(o.id) }; }).filter(function(x){ return x.m; });
   /* one group per points value that exists (1, 2, 3, 4...), so a mission is never left out */
-  var groups = [["Special", function(m){ return m.special; }]];
+  /* the games get their own group, first, so they are easy to find */
+  var groups = [["Feeling lucky? 😎 (optional, only if you dare)", function(m){ return !!m.game; }], ["Special", function(m){ return m.special && !m.game; }]];
   var ptsSeen = {};
   all.forEach(function(x){ if (!x.m.special) ptsSeen[x.m.pts] = 1; });
   Object.keys(ptsSeen).map(Number).sort(function(x, y){ return x - y; }).forEach(function(v){ groups.push([v === 1 ? "1 point" : v + " points", function(m){ return !m.special && m.pts === v; }]); });
@@ -9235,14 +9314,16 @@ function chalRender(){
   groups.forEach(function(gp){
     var L = all.filter(function(x){ return gp[1](x.m); }).sort(function(a, b){ return (a.m.ord || 0) - (b.m.ord || 0); });
     if (!L.length) return;
-    var det = el("details", "mgrp" + (gp[0] === "Special" ? " special" : "")), sm = el("summary");
+    var det = el("details", "mgrp" + (gp[0] === "Special" ? " special" : gp[0] === "Feeling lucky? 😎 (optional, only if you dare)" ? " luck" : "")), sm = el("summary");
     det.dataset.g = gp[0]; det.open = !!CH.openG[gp[0]];
     sm.appendChild(el("b", "", gp[0])); sm.appendChild(el("span", "cnt", L.length + (L.length === 1 ? " mission" : " missions")));
     det.appendChild(sm);
     det.addEventListener("toggle", function(){ if (!(CH.q || "").trim() && !CH.tag) CH.openG[gp[0]] = det.open; });
     var list = el("div", "mlist");
+    /* the games are a side bet, not part of the tournament you have to do */
+    if (gp[0].indexOf("Feeling lucky?") === 0) list.appendChild(el("p", "luck-note", "No pressure: skip these and you lose nothing. Play only if you are OK with losing points."));
     L.forEach(function(x){
-      var m = x.m, pend = chalPending(m.id), row = el("div", "mrow" + (m.special ? " special" : "") + (pend ? " pending" : ""));
+      var m = x.m, pend = chalPending(m.id), row = el("div", "mrow" + (m.special ? " special" : "") + (m.game ? " luckrow" : "") + (pend ? " pending" : ""));
       row.dataset.q = chalNorm(m.title + " " + (m.desc || ""));
       row.dataset.tags = " " + (m.tags || []).join(" ") + " ";
       var tx = el("div", "mt"); tx.appendChild(el("b", "", m.title));
@@ -9251,8 +9332,8 @@ function chalRender(){
       if (pend) tx.appendChild(el("span", "", "Photo waiting for review. You can still send yours."));
       row.appendChild(tx);
       row.appendChild(el("span", "pts", ptsTxt(m.pts)));
-      var go = el("button", "go sm", "Send photo"); go.type = "button"; go.setAttribute("aria-label", "Send a photo for: " + m.title);
-      go.addEventListener("click", function(){ CH.view = { kind:"send", id:m.id }; chalRender(); });
+      var go = el("button", "go sm", m.game ? "Play" : "Send photo"); go.type = "button"; go.setAttribute("aria-label", (m.game ? "Play: " : "Send a photo for: ") + m.title);
+      go.addEventListener("click", function(){ if (m.game) { gameShow(true, m.id); return; } CH.view = { kind:"send", id:m.id }; chalRender(); });
       row.appendChild(go); list.appendChild(row);
     });
     det.appendChild(list); B.appendChild(det);
@@ -9406,7 +9487,7 @@ function chalPerson(B, id){
   mine.reverse().forEach(function(i){
     var d = CH.st.done[i], m = chalDef(d.mid), bt = el("button", "dn"); bt.type = "button";
     var im = el("img"); im.src = d.img; im.alt = "Proof photo for " + (m ? m.title : d.mid); bt.appendChild(im);
-    var tx = el("div"); tx.appendChild(el("b", "", m ? m.title : d.mid));
+    var tx = el("div"); tx.appendChild(el("b", "", chalCap(d)));
     tx.appendChild(el("span", "", ptsTxt(d.pts) + " · with " + chalNames(d) + " · " + fmtTime(d.at))); bt.appendChild(tx);
     bt.addEventListener("click", function(){ CH.view = { kind:"proof", i:i, from:{ kind:"person", id:id } }; chalRender(); });
     list.appendChild(bt);
@@ -9417,7 +9498,7 @@ function chalProof(B, i){
   var d = CH.st.done[i], m = chalDef(d.mid), w = el("div", "proof");
   var back = el("button", "go ghost", "Back"); back.type = "button"; back.addEventListener("click", function(){ CH.view = (CH.view && CH.view.from) || null; chalRender(); });
   w.appendChild(back);
-  w.appendChild(el("h3", "ms-title", m ? m.title : d.mid));
+  w.appendChild(el("h3", "ms-title", chalCap(d)));
   var im = el("img"); im.src = d.img; im.alt = "Proof photo: " + (m ? m.title : d.mid) + ", " + chalNames(d); w.appendChild(im);
   w.appendChild(el("p", "ms-title", chalNames(d) + " · " + d.pts + (d.pts === 1 ? " point" : " points")));
   w.appendChild(el("p", "ms-meta", "Received " + fmtTime(d.at) + (d.taken ? " · taken " + fmtTime(d.taken) : "")));
@@ -9480,22 +9561,24 @@ CH.live = !!SB; CH.defs = {}; CH.admin = false; CH.seen = null;
 if (CH.live) { document.getElementById("chalDemo").hidden = true; CH.st = null; chalLoad(); }
 else if (/[?&]demo=1/.test(location.search || "") === false) { document.getElementById("chalDemo").textContent = "Offline"; }
 function liveFail(e){ var m = (e && (e.message || e.error_description)) || String(e);
-  return new Error({ wrong_code:"That code is not right.", locked:"Too many wrong codes for this name. Try again in an hour.", mission_closed:"This mission is closed. Check the open ones.", excluded:"You are the one in this mission, so you can't win it.", already_won:"You already have points in this mission. Leave the spot for someone else.", already_sent:"You already sent a photo for this mission. Wait for the review.", old_photo:"This photo was taken before 2026. Only photos taken in 2026 count, take a new one.", tournament_over:"The mission tournament ended on December 31, 2026. Thanks for playing!", lead_limit:"You're more than 25 points ahead of 5th place. Get the others to play, and you can send photos again once 5th place catches up.", not_admin:"This account can't review photos." }[m] || m); }
+  return new Error({ wrong_code:"That code is not right.", locked:"Too many wrong codes for this name. Try again in an hour.", mission_closed:"This mission is closed. Check the open ones.", excluded:"You are the one in this mission, so you can't win it.", already_won:"You already have points in this mission. Leave the spot for someone else.", already_sent:"You already sent a photo for this mission. Wait for the review.", old_photo:"This photo was taken before 2026. Only photos taken in 2026 count, take a new one.", tournament_over:"The mission tournament ended on December 31, 2026. Thanks for playing!", already_played:"You already played this game. One try each.", door_taken:"Today's door is already open. Come back tomorrow.", not_a_game:"This is not a game.", bad_choice:"That choice is not valid. Nothing was saved.", bad_target:"Pick another player to rob.", lead_limit:"You're more than 25 points ahead of 5th place. Get the others to play, and you can send photos again once 5th place catches up.", not_admin:"This account can't review photos." }[m] || m); }
 function dataToBlob(d){ var b = atob(d.split(",")[1]), a = new Uint8Array(b.length); for (var i = 0; i < b.length; i++) a[i] = b.charCodeAt(i); return new Blob([a], { type:"image/jpeg" }); }
 function uid(){ return (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + R().toString(36).slice(2)); }
 async function chalRefresh(){
   var r = await Promise.all([
-    SB.from("missions").select("id,title,pts,special,ord,exclude,slots,tags"),
+    SB.from("missions").select("id,title,pts,special,ord,exclude,slots,tags,game,cfg"),
     SB.from("opened").select("mission_id,opened_at"),
     SB.from("achieved").select("*").order("approved_at"),
     SB.rpc("pending_missions")
   ]);
   r.forEach(function(x){ if (x.error) throw liveFail(x.error); });
-  var defs = {}; r[0].data.forEach(function(m){ defs[m.id] = m; }); CH.defs = defs;
-  var done = r[2].data.map(function(a){ return { mid:a.mission_id, who:a.sender, team:a.team, pts:a.pts, at:Date.parse(a.received_at), ok:a.approved_at ? Date.parse(a.approved_at) : Date.parse(a.received_at), taken:a.taken_at ? Date.parse(a.taken_at) : null, img:SB.storage.from("proof").getPublicUrl(a.photo_path).data.publicUrl }; });
+  /* a game keeps its rules in cfg (wins, win, lose, max): copy them onto the mission */
+  var defs = {}; r[0].data.forEach(function(m){ if (m.game && m.cfg) Object.keys(m.cfg).forEach(function(k){ m[k] = m.cfg[k]; }); defs[m.id] = m; }); CH.defs = defs;
+  var done = r[2].data.map(function(a){ return { mid:a.mission_id, who:a.sender, team:a.team, pts:a.pts, at:Date.parse(a.received_at), ok:a.approved_at ? Date.parse(a.approved_at) : Date.parse(a.received_at), taken:a.taken_at ? Date.parse(a.taken_at) : null, img:String(a.photo_path).indexOf("game:") === 0 ? gProof(a.photo_path.slice(5), a.pts >= 0) : SB.storage.from("proof").getPublicUrl(a.photo_path).data.publicUrl, note:a.note || null, victim:!!a.victim, day:a.game_day || null }; });
   /* a mission stays open until all its spots are taken */
   var winCount = {}; done.forEach(function(d){ winCount[d.mid] = (winCount[d.mid] || 0) + 1; });
-  var open = r[1].data.filter(function(o){ return defs[o.mission_id] && (winCount[o.mission_id] || 0) < chalSlots(defs[o.mission_id]); })
+  /* games close on their own count (robbery rows of the victims do not count) */
+  var open = r[1].data.filter(function(o){ var dm = defs[o.mission_id]; if (!dm) return false; if (dm.game) return dm.game === "advent" || done.filter(function(d){ return d.mid === dm.id && !d.victim; }).length < (dm.max || 4); return (winCount[o.mission_id] || 0) < chalSlots(dm); })
     .map(function(o){ return { id:o.mission_id, at:Date.parse(o.opened_at) }; })
     .sort(function(a, b){ return defs[a.id].ord - defs[b.id].ord; });
   var subs = [];
@@ -9667,6 +9750,188 @@ mraceSlider.addEventListener("input", function(){ mraceStop(); MRACE.i = +mraceS
 document.getElementById("raceClose").addEventListener("click", function(){ mraceShow(false); });
 window.addEventListener("keydown", function(e){ if (e.key === "Escape" && !mraceEl.hidden) mraceShow(false); });
 window.__mrace = { open:function(){ mraceShow(true); }, st:function(){ return MRACE; } };
+/* ---------- GAMES ("Feeling lucky?"): cards x5 levels, coin flip, mystery boxes, wheel, heist, lucky number, advent ----------
+   No photo and no approval. LIVE: the database function play_game() draws the result, saves the points (and the
+   victim's row for a robbery), closes the game when it is full, and blocks repeats, the lead limit and bad input.
+   DEMO (?demo=1): the same rules run in this browser. Every play is an achieved row with + or - points and a short
+   code in "note" (#stole:debbie, #lucky:3:9...) that chalCap() turns into a sentence. Photo missions don't change. */
+var cardsEl = document.getElementById("cards"), cardsBody = document.getElementById("cardsBody"), GAME = { id:null };
+var WHEEL = [1, -1, 2, -2, 3, -1, 5, -2];
+/* fair random 0..n-1 for the demo: crypto random, rejecting the top values that would make some results more likely */
+function gRand(n){ var a = new Uint32Array(1), lim = Math.floor(4294967296 / n) * n; do { crypto.getRandomValues(a); } while (a[0] >= lim); return a[0] % n; }
+function gShuffle(arr){ for (var j = arr.length - 1; j > 0; j--) { var k = gRand(j + 1), t = arr[j]; arr[j] = arr[k]; arr[k] = t; } return arr; }
+function gPlays(id){ return ((CH.st && CH.st.done) || []).filter(function(d){ return d.mid === id && !d.victim; }); }
+function gDayKey(){ var z = torontoAt(Date.now()); return z.y * 10000 + z.mo * 100 + z.d; }
+function gSign(n){ return (n > 0 ? "+" : "") + n; }
+function gProof(label, good){
+  var c = good ? "#1f9d55" : "#d64545";
+  return "data:image/svg+xml;utf8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="300" height="420" viewBox="0 0 300 420"><rect x="6" y="6" width="288" height="408" rx="24" fill="#fff" stroke="' + c + '" stroke-width="10"/><text x="150" y="240" font-family="Arial" font-weight="800" font-size="' + (label.length > 4 ? 56 : 110) + '" fill="' + c + '" text-anchor="middle">' + label + '</text></svg>');
+}
+/* a game is closed once all its spots were played (the advent calendar never closes, one door a day) */
+function gClosed(m){ return !!m && !!m.game && m.game !== "advent" && gPlays(m.id).length >= (m.max || 4); }
+/* the sentence for a game play, from the code the database (or the demo) saved */
+function gNote(d){
+  var m = chalDef(d.mid), gn = m ? m.title.split(":")[0] : d.mid, who = BY[d.who] ? BY[d.who].name : d.who;
+  var c = String(d.note || "").slice(1).split(":"), nm = function(id){ return BY[id] ? BY[id].name : id; }, abs = Math.abs(d.pts);
+  var side = function(x){ return +x === 0 ? "heads" : "tails"; };
+  switch (c[0]) {
+    case "stole": return gn + ": " + who + " stole " + abs + " from " + nm(c[1]);
+    case "robbedby": return gn + ": " + who + " was robbed by " + nm(c[1]);
+    case "caught": return gn + ": " + who + " got caught trying to rob " + nm(c[1]);
+    case "coin": return gn + ": " + who + " called " + side(c[1]) + ", it was " + side(c[2]);
+    case "lucky": return gn + ": " + who + " picked " + c[1] + ", the lucky number was " + c[2];
+    case "door": return gn + ": " + who + " opened today's door";
+    case "nobody": return gn + ": nobody to steal from";
+    default: return gn + ": " + who + (d.pts > 0 ? " won " + d.pts : d.pts < 0 ? " lost " + abs : " got nothing");
+  }
+}
+/* DEMO: the same draw and checks as play_game() in the database */
+function gDrawDemo(m, id, choice, target){
+  var today = gDayKey();
+  if (m.game === "advent" ? gPlays(m.id).some(function(d){ return d.day === today; }) : gPlays(m.id).some(function(d){ return d.who === id; })) throw new Error(m.game === "advent" ? "door_taken" : "already_played");
+  if (gClosed(m)) throw new Error("mission_closed");
+  if (chalOverLimit(id)) throw new Error("lead_limit");
+  var r = { pts:0, reveal:null, victim:null, victim_pts:0, note:null, vnote:null }, k, v;
+  if (m.game === "cards") { var deck = []; for (var i = 0; i < 10; i++) deck.push(i < m.wins); gShuffle(deck); r.reveal = deck; r.pts = deck[choice] ? m.win : m.lose; r.note = "#cards"; }
+  else if (m.game === "coin") { k = gRand(2); r.reveal = k; r.pts = k === choice ? 4 : -4; r.note = "#coin:" + choice + ":" + k; }
+  else if (m.game === "boxes") { var vals = gShuffle([8, 0, -4]); r.reveal = vals; r.pts = vals[choice]; r.note = "#boxes"; }
+  else if (m.game === "wheel") {
+    k = gRand(WHEEL.length); v = WHEEL[k]; r.reveal = k;
+    if (v > 0) { var lead = chalScores().filter(function(x){ return x.p.id !== id; })[0]; if (!lead) { r.note = "#nobody"; } else { r.pts = v; r.victim = lead.p.id; r.victim_pts = -v; r.note = "#stole:" + r.victim; r.vnote = "#robbedby:" + id; } }
+    else { r.pts = v; r.note = "#lost"; }
+  }
+  else if (m.game === "heist") { if (!BY[target] || target === id) throw new Error("bad_target"); if (gRand(10) < 4) { r.pts = 3; r.victim = target; r.victim_pts = -3; r.note = "#stole:" + target; r.vnote = "#robbedby:" + id; } else { r.pts = -2; r.note = "#caught:" + target; } r.reveal = r.pts > 0; }
+  else if (m.game === "lucky") { k = gRand(10) + 1; r.reveal = k; r.pts = k === choice ? 10 : -3; r.note = "#lucky:" + choice + ":" + k; }
+  else if (m.game === "advent") { r.pts = gRand(3) + 1; r.note = "#door"; }
+  var now = Date.now(), lbl = gSign(r.pts);
+  CH.st.done.push({ mid:m.id, who:id, team:[id], pts:r.pts, at:now, ok:now, taken:null, img:gProof(lbl, r.pts >= 0), note:r.note, day:today });
+  if (r.victim) CH.st.done.push({ mid:m.id, who:r.victim, team:[r.victim], pts:r.victim_pts, at:now, ok:now, taken:null, img:gProof(String(r.victim_pts), false), note:r.vnote, victim:true, day:today });
+  if (gClosed(m)) { CH.st.specials = CH.st.specials.filter(function(o){ return o.id !== m.id; }); CH.st.closedGames = (CH.st.closedGames || []).concat([m.id]); }
+  chalSave();
+  return Promise.resolve(r);
+}
+/* one play: the database in live, the browser in the demo. Then the whole panel refreshes from the saved data */
+function gDraw(m, id, choice, target){
+  if (!CH.live) return gDrawDemo(m, id, choice, target).then(function(r){ if (chalEl && !chalEl.hidden) chalRender(); return r; });
+  return SB.rpc("play_game", { p_game:m.id, p_player:id, p_choice:choice == null ? null : choice, p_target:target || null }).then(function(res){
+    if (res.error) throw liveFail(res.error);
+    var r = res.data || {}; chalSync(true).catch(function(){}); return r;
+  });
+}
+function gameRender(){
+  var m = chalDef(GAME.id); cardsBody.textContent = "";
+  if (!m) { cardsBody.appendChild(el("p", "cd-res", "This game is not available.")); return; }
+  document.getElementById("cardsTitle").textContent = m.title.split(":")[0];
+  cardsBody.appendChild(el("p", "cd-sub", m.title));
+  var plays = gPlays(m.id), played = {}; plays.forEach(function(d){ played[d.who] = d; });
+  var today = gDayKey(), adventTaken = m.game === "advent" && plays.some(function(d){ return d.day === today; });
+  var who = el("select"); who.setAttribute("aria-label", "Your name"); who.appendChild(el("option", "", "Choose your name"));
+  chalPlayers().forEach(function(q){
+    var why = m.game !== "advent" && played[q.id] ? "already played" : chalOverLimit(q.id) ? "over the lead limit" : "";
+    var o = el("option", "", q.name + (why ? " · " + why : "")); o.value = q.id; o.disabled = !!why; who.appendChild(o);
+  });
+  var go = el("button", "cd-btn", "Start"); go.type = "button";
+  var row = el("div"); row.appendChild(who); row.appendChild(go); cardsBody.appendChild(row);
+  var stage = el("div", "gm-stage"), res = el("p", "cd-res"); res.setAttribute("aria-live", "polite");
+  cardsBody.appendChild(stage); cardsBody.appendChild(res);
+  var done = el("button", "cd-btn gm-done", "Done, see the leaderboard"); done.type = "button"; done.hidden = true;
+  done.addEventListener("click", function(){ gameShow(false); chalShow(true, "mission"); var lb = document.getElementById("chalLeft"); if (lb) lb.scrollTop = 0; });
+  cardsBody.appendChild(done);
+  var log = el("ul", "cd-log");
+  CH.st.done.filter(function(d){ return d.mid === m.id; }).slice().reverse().forEach(function(d){ log.appendChild(el("li", "", gNote(d) + " (" + gSign(d.pts) + ") · " + fmtTime(d.at))); });
+  cardsBody.appendChild(log);
+  if (gClosed(m)) { who.disabled = true; go.disabled = true; res.textContent = "This game is closed: all " + m.max + " spots were played."; return; }
+  if (adventTaken) { who.disabled = true; go.disabled = true; res.textContent = "Today's door is already open. Come back tomorrow."; return; }
+  var busy = false;
+  /* asks for the result; on error shows it and lets the person close; on success runs show(r) */
+  function play(id, choice, target, show){
+    if (busy) return; busy = true; res.textContent = "...";
+    gDraw(m, id, choice, target).then(function(r){ show(r); done.hidden = false; }).catch(function(e){ res.textContent = (e && e.message) || "Something went wrong. Nothing was saved."; done.hidden = false; });
+  }
+  function say(N, r, extra){ res.textContent = (extra ? extra + " " : "") + (r.pts > 0 ? N + " wins " + r.pts + (r.pts === 1 ? " point!" : " points!") : r.pts < 0 ? N + " loses " + Math.abs(r.pts) + (r.pts === -1 ? " point." : " points.") : N + " keeps the same points."); }
+  go.addEventListener("click", function(){
+    var id = who.value; if (!BY[id] || who.selectedOptions[0].disabled) { res.textContent = "Choose your name first."; return; }
+    who.disabled = true; go.disabled = true; var N = BY[id].name;
+    if (m.game === "cards") {
+      res.textContent = "Pick one card."; var grid = el("div", "cd-grid"), btns = []; stage.appendChild(grid);
+      for (var i = 0; i < 10; i++) (function(i){
+        var b = el("button", "cd-card"); b.type = "button"; b.setAttribute("aria-label", "Card " + (i + 1));
+        var inner = el("span", "cd-in"), front = el("span", "cd-face cd-front"); inner.appendChild(el("span", "cd-face cd-back", String(i + 1))); inner.appendChild(front);
+        b.appendChild(inner); grid.appendChild(b); btns.push({ b:b, f:front });
+        b.addEventListener("click", function(){
+          if (busy) return; btns.forEach(function(x){ x.b.disabled = true; });
+          play(id, i, null, function(r){
+            (r.reveal || []).forEach(function(win, j){ btns[j].f.textContent = gSign(win ? m.win : m.lose); btns[j].f.classList.add(win ? "win" : "lose"); });
+            b.classList.add("mine", "flip"); say(N, r);
+            setTimeout(function(){ btns.forEach(function(x){ if (x.b !== b) x.b.classList.add("flip", "other"); }); }, 900);
+          });
+        });
+      })(i);
+    } else if (m.game === "coin") {
+      res.textContent = "Heads or tails?"; var bar = el("div", "gm-row"), coin = el("div", "gm-coin", "?"); stage.appendChild(bar);
+      ["Heads", "Tails"].forEach(function(side, ci){
+        var b = el("button", "cd-btn", side); b.type = "button"; bar.appendChild(b);
+        b.addEventListener("click", function(){
+          if (busy) return; bar.querySelectorAll("button").forEach(function(x){ x.disabled = true; }); stage.appendChild(coin); coin.classList.add("spin");
+          play(id, ci, null, function(r){ setTimeout(function(){ var f = +r.reveal === 0 ? "Heads" : "Tails"; coin.textContent = f; coin.classList.remove("spin"); say(N, r, "It's " + f.toLowerCase() + "."); }, 900); });
+        });
+      });
+    } else if (m.game === "boxes") {
+      res.textContent = "Pick a box."; var bar2 = el("div", "gm-row"), bx = []; stage.appendChild(bar2);
+      for (var bi = 0; bi < 3; bi++) (function(bi){
+        var b = el("button", "gm-box", "Box " + (bi + 1)); b.type = "button"; bar2.appendChild(b); bx.push(b);
+        b.addEventListener("click", function(){
+          if (busy) return; bx.forEach(function(x){ x.disabled = true; });
+          play(id, bi, null, function(r){ (r.reveal || []).forEach(function(v, j){ bx[j].textContent = gSign(v); bx[j].classList.add(v > 0 ? "win" : v < 0 ? "lose" : "zero"); if (j !== bi) bx[j].classList.add("other"); }); say(N, r, r.pts === 0 ? "Empty box." : ""); });
+        });
+      })(bi);
+    } else if (m.game === "wheel") {
+      var NS = WHEEL.length, DEG = 360 / NS, wrap = el("div", "gm-wheel-wrap"), wheel = el("div", "gm-wheel");
+      WHEEL.forEach(function(v, i){ var lb = el("span", "gm-sl", v > 0 ? "Steal " + v : "Lose " + Math.abs(v)); lb.style.transform = "rotate(" + (i * DEG + DEG / 2) + "deg) translateY(-74px) rotate(" + -(i * DEG + DEG / 2) + "deg)"; wheel.appendChild(lb); });
+      wrap.appendChild(el("span", "gm-pointer")); wrap.appendChild(wheel); stage.appendChild(wrap);
+      var spin = el("button", "cd-btn", "Spin"); spin.type = "button"; spin.style.display = "block"; spin.style.margin = "0 auto"; stage.appendChild(spin); res.textContent = "Spin the wheel.";
+      spin.addEventListener("click", function(){
+        if (busy) return; spin.disabled = true;
+        play(id, null, null, function(r){
+          /* the pointer is at the top: turn the wheel so the drawn slice's middle ends up there */
+          wheel.style.transform = "rotate(" + (1440 - (+r.reveal * DEG + DEG / 2)) + "deg)"; res.textContent = "Spinning...";
+          setTimeout(function(){ if (r.victim) res.textContent = N + " steals " + r.pts + (r.pts === 1 ? " point" : " points") + " from " + (BY[r.victim] ? BY[r.victim].name : r.victim) + "!"; else say(N, r); }, 3200);
+        });
+      });
+    } else if (m.game === "heist") {
+      res.textContent = "Who do you rob?"; var tgt = el("select"); tgt.setAttribute("aria-label", "Player to rob"); tgt.appendChild(el("option", "", "Pick a player"));
+      chalPlayers().forEach(function(q){ if (q.id === id) return; var o = el("option", "", q.name); o.value = q.id; tgt.appendChild(o); });
+      var rob = el("button", "cd-btn", "Rob them"); rob.type = "button"; var bar3 = el("div", "gm-row"); bar3.appendChild(tgt); bar3.appendChild(rob); stage.appendChild(bar3);
+      rob.addEventListener("click", function(){
+        var v = tgt.value; if (!BY[v]) { res.textContent = "Pick a player first."; return; }
+        if (busy) return; tgt.disabled = true; rob.disabled = true;
+        play(id, null, v, function(r){ res.textContent = "Breaking in..."; setTimeout(function(){ res.textContent = r.pts > 0 ? N + " stole 3 points from " + BY[v].name + "!" : N + " got caught trying to rob " + BY[v].name + " and loses 2 points."; }, 1200); });
+      });
+    } else if (m.game === "lucky") {
+      res.textContent = "Guess a number."; var bar4 = el("div", "gm-row"), nb = []; stage.appendChild(bar4);
+      for (var n = 1; n <= 10; n++) (function(n){
+        var b = el("button", "gm-num", String(n)); b.type = "button"; bar4.appendChild(b); nb.push(b);
+        b.addEventListener("click", function(){
+          if (busy) return; nb.forEach(function(x){ x.disabled = true; });
+          play(id, n, null, function(r){ var lucky = +r.reveal; nb.forEach(function(x){ if (+x.textContent === lucky) x.classList.add("win"); if (x === b && lucky !== n) x.classList.add("lose"); }); say(N, r, "The lucky number was " + lucky + "."); });
+        });
+      })(n);
+    } else if (m.game === "advent") {
+      var door = el("button", "gm-box gm-door", String(torontoAt(Date.now()).d)); door.type = "button"; stage.appendChild(door); res.textContent = "Open today's door.";
+      door.addEventListener("click", function(){
+        if (busy) return; door.disabled = true;
+        play(id, null, null, function(r){ door.textContent = gSign(r.pts); door.classList.add("win"); res.textContent = N + " opened today's door and wins " + r.pts + (r.pts === 1 ? " point!" : " points!"); });
+      });
+    }
+  });
+}
+function gameShow(on, id){ cardsEl.hidden = !on; if (on) { GAME.id = id || GAME.id; cardsEl.style.zIndex = 33; gameRender(); document.getElementById("cardsClose").focus(); } }
+document.getElementById("cardsClose").addEventListener("click", function(){ gameShow(false); });
+window.addEventListener("keydown", function(e){ if (e.key === "Escape" && !cardsEl.hidden) gameShow(false); });
+window.__games = { open:function(id){ gameShow(true, id); }, close:function(){ gameShow(false); }, plays:gPlays, rand:gRand, note:gNote,
+  /* demo tests only */
+  addDone:function(row){ if (CH.live) return; CH.st.done.push(row); chalSave(); }, st:function(){ return CH.st; }, scores:function(){ return chalScores(); } };
+
 /* ---------- the photo wall: the far end of the left wall, a collage of team photos; a click opens each one as a badge ----------
    To add a photo: put it in img/, add a line here (y and z = centre on the wall, w = frame width in metres, px = image size). */
 var WALL_PHOTOS = [
