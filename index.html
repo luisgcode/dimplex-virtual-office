@@ -683,6 +683,18 @@ var REMOTE = [
   { id:"marissa", model:"marissa", name:"Marissa", fullName:"Marissa", role:"Designer, remote", remote:true, sx:-1.95, shirt:"#4f7cc4", pants:"#2a2d35", skin:"#e9b996", hair:"#5a3a26", style:"wavy", sleeves:true, glasses:true,
     status:"Online, working remotely", personality:"Works remotely and is always one message away.", topics:"Team updates and shared files" }
 ];
+/* this week only (Luis, 24 Nov): Marissa works from the office too, at a desk in the back left corner, with the same
+   rules as everyone. From Saturday Nov 28 she is back on her wall TV on her own. ?marissa=in forces it for a check. */
+var MARISSA_IN = worldDateKey() <= 20261127 || /[?&]marissa=in/.test(location.search || "");
+if (MARISSA_IN) {
+  var MQ = REMOTE.shift();
+  delete MQ.remote; delete MQ.sx;
+  MQ.side = -1; MQ.z = -2.9; MQ.role = "Designer"; MQ.screen = "swatch";
+  MQ.status = "Working on team updates"; MQ.personality = "Designer on the team. Organised, friendly and always on top of the shared files.";
+  MQ.topics = "Team updates, shared files and design work"; MQ.blurb = "Keeps the shared folders tidy and the team in the loop. This week, from the desk in the corner.";
+  PEOPLE.push(MQ);
+  LINES.marissa = ["Who has the latest version of the file?", "I just updated the shared folder", "Nice to be in the office this week!", "Coffee, anyone?"];
+}
 var ALL = PEOPLE.concat(REMOTE);
 var BY = {}; ALL.forEach(function(p, i){ BY[p.id] = p; p.idx = i; });
 
@@ -1467,6 +1479,7 @@ var ACT_POOLS = {
   carla:["sheet", "mail", "call", "web", "floor", "calendar", "kanban", "map", "ship"],
   luis:["web", "mail", "code", "cms", "dash", "ticket", "search", "code", "cms"],
   stephanieb:["design", "palette", "mail", "web", "photo", "slides", "design", "chat", "design"],
+  marissa:["mail", "chat", "design", "doc", "web", "sheet", "design", "mail", "palette"],
   _:["mail", "web", "sheet", "doc", "calendar", "dash", "search"]
 };
 /* product pages for the heat brands: Debbie works on Cadet and Convectair, not on the Dimplex fireplaces */
@@ -2131,13 +2144,15 @@ function desk(p){
   aoDecal(g, 0, -0.78, 1.9, 1.0);
   /* standing desk: the top and everything on it sit on a lift that rises; the legs telescope */
   var outer = g; g = new T.Group(); g.userData.lift = true; outer.add(g); p.deskOuter = outer;
-  add(G.box, deskTop, 1.7, 0.045, 0.82, 0, 0.74, -0.78, g);
-  add(G.box, M("#d9d6cf", { roughness:0.6 }), 1.7, 0.012, 0.82, 0, 0.712, -0.78, g, false);
+  var frameIn = new T.Group(), frameOut = new T.Group(); g.add(frameIn); outer.add(frameOut);
+  add(G.box, deskTop, 1.7, 0.045, 0.82, 0, 0.74, -0.78, frameIn);
+  add(G.box, M("#d9d6cf", { roughness:0.6 }), 1.7, 0.012, 0.82, 0, 0.712, -0.78, frameIn, false);
   [[-0.8,-0.42],[0.8,-0.42],[-0.8,-1.14],[0.8,-1.14]].forEach(function(q){
-    add(G.box, metalDark, 0.05, 0.56, 0.05, q[0], 0.28, q[1], outer, false);
-    add(G.box, metalDark, 0.036, 0.54, 0.036, q[0], 0.45, q[1], g, false);
+    add(G.box, metalDark, 0.05, 0.56, 0.05, q[0], 0.28, q[1], frameOut, false);
+    add(G.box, metalDark, 0.036, 0.54, 0.036, q[0], 0.45, q[1], frameIn, false);
   });
-  add(G.box, metalDark, 1.56, 0.3, 0.02, 0, 0.52, -1.16, g, false);
+  add(G.box, metalDark, 1.56, 0.3, 0.02, 0, 0.52, -1.16, frameIn, false);
+  mergeStatic(frameIn); mergeStatic(frameOut);
   /* Luis types on the laptop itself (no separate keyboard), mouse to its right */
   /* keyboard and mouse close to the front edge, where the hands of someone sitting in the chair land */
   if (p.id !== "luis") deskKeyboard(g, 0, -0.44);
@@ -2291,6 +2306,7 @@ monitor(BY.erica.deskGroup, 0, -1.0, 0.64, 0.38, "cal", 0);
 monitor(BY.allyson.deskGroup, 0, -1.0, 0.64, 0.38, "cal2", 0);
 /* Stephanie B.: one large monitor in design work (the candy bowl stays on her desk) */
 monitor(BY.stephanieb.deskGroup, -0.1, -1.0, 0.8, 0.46, "swatch", 0);
+if (MARISSA_IN) { monitor(BY.marissa.deskGroup, -0.3, -1.0, 0.56, 0.34, "swatch", 0.12); monitor(BY.marissa.deskGroup, 0.28, -1.0, 0.56, 0.34, "web", -0.12); }
 (function(){
   var g = new T.Group(); g.position.set(0.05, 0.765, -0.72); BY.carla.deskGroup.add(g);
   add(G.box, alu, 0.4, 0.015, 0.28, 0, 0, 0, g, false);
@@ -2346,7 +2362,7 @@ var heatStrips = [], heatMotes = [], heatLight;
 
 /* coffee point just outside the entrance */
 /* coffee is out along the cross corridor */
-plant(-2.45, 5.8, 0.85); plant(2.45, 5.8, 0.85); plant(-2.45, -3.7, 0.8); plant(2.45, -3.7, 0.8);
+plant(-2.45, 5.8, 0.85); plant(2.45, 5.8, 0.85); plant(MARISSA_IN ? -0.85 : -2.45, -3.7, 0.8); plant(2.45, -3.7, 0.8);
 
 /* the photo TV canvas: 16:9, redrawn only when the photo changes */
 var PHOTOTV = (function(){
@@ -2471,7 +2487,8 @@ function clockTick(){
 /* ---------- lunch, every day ----------
    12:00 to 12:30: Erica, Allyson and Carla go out, Stephanie, Debbie and Olivia eat at their desks on their phones.
    1:00 to 1:30: Luis goes out. The empty desks show a "Lunch time" card. */
-function LUNCH_T(){ return { erica:[12.5, 13, "out"], allyson:[12.5, 13, "out"], carla:[12, 12.5, "out"], luis:[13, 13.5, "out"],
+function LUNCH_T(){ var L = LUNCH_T0(); if (MARISSA_IN) L.marissa = [12, 12.5, "desk"]; return L; }
+function LUNCH_T0(){ return { erica:[12.5, 13, "out"], allyson:[12.5, 13, "out"], carla:[12, 12.5, "out"], luis:[13, 13.5, "out"],
   stephanie:[12, 12.5, "desk"], debbie:[12, 12.5, "desk"], olivia:[12, 12.5, "desk"], stephanieb:[12.5, 13, "desk"] }; }
 var LUNCH = LUNCH_T();
 var lunchCardTex = null;
@@ -2666,7 +2683,8 @@ var SCHEDULE = {
   carla:{ arrive:[8.05, 8.45], leave:[16.6, 16.95] },
   erica:{ arrive:[8.2, 8.55], leave:[16.7, 16.97] },
   allyson:{ arrive:[8.0, 8.35], leave:[16.6, 16.9] },
-  stephanieb:{ arrive:[8.0, 8.4], leave:[16.6, 16.95] }
+  stephanieb:{ arrive:[8.0, 8.4], leave:[16.6, 16.95] },
+  marissa:{ arrive:[7.9, 8.3], leave:[16.5, 16.85] }
 };
 var NO_WFH = /[?&]wfh=off/.test(location.search || "");
 /* Ontario holidays the office closes for */
@@ -3039,10 +3057,12 @@ function buildSeason(){
       add(G.box, M(gift[k % 4][1], { roughness:0.5 }), 0.16, 0.82, 1.02, 0, 0.4, 0, pg, false);
       add(G.sph, M(gift[k % 4][1], { roughness:0.5 }), 0.22, 0.16, 0.22, 0, 0.84, 0, pg, false);
     }
-    present(scene, -1.62, 0, -3.5, 0.2, 0, 0.3);
-    present(scene, -0.86, 0, -3.45, 0.16, 1, -0.4);
-    present(scene, -1.3, 0, -3.3, 0.13, 2, 0.8);
-    present(scene, -0.95, 0, -3.78, 0.12, 3, 0.1);
+    /* this week the small tree and its presents stand at the entrance (Marissa has the corner) */
+    var TX = MARISSA_IN ? -1.25 : -1.2, TZ = MARISSA_IN ? 5.75 : -3.72, TF = MARISSA_IN ? -1 : 1;
+    present(scene, TX - 0.42, 0, TZ + 0.22 * TF, 0.2, 0, 0.3);
+    present(scene, TX + 0.34, 0, TZ + 0.27 * TF, 0.16, 1, -0.4);
+    present(scene, TX - 0.1, 0, TZ + 0.42 * TF, 0.13, 2, 0.8);
+    present(scene, TX + 0.25, 0, TZ - 0.06 * TF, 0.12, 3, 0.1);
     present(dg0, 0.3, 0.762, -0.7, 0.08, 1, 0.5);
     present(BY.carla.deskGroup, -0.74, 0.762, -0.9, 0.07, 0, 0.3);
     present(BY.olivia.deskGroup, -0.74, 0.762, -0.9, 0.06, 3, -0.2);
@@ -3057,7 +3077,7 @@ function buildSeason(){
     tg2.traverse(function(o){ o.userData.dyn = true; });
     /* the original small tree by the logo wall */
     /* a small tree by the logo wall */
-    var tg = new T.Group(); tg.position.set(-1.2, 0, -3.72); scene.add(tg);
+    var tg = new T.Group(); tg.position.set(TX, 0, TZ); scene.add(tg);
     add(G.cyl, M("#7a2a22", { roughness:0.6 }), 0.13, 0.16, 0.13, 0, 0.08, 0, tg);
     var green = M("#1f6a3c", { roughness:0.8 });
     [[0.42, 0.5, 0.4], [0.34, 0.45, 0.72], [0.24, 0.38, 1.0]].forEach(function(q){ var c = new T.Mesh(new T.ConeGeometry(q[0], q[1], 18), green); c.position.y = q[2]; c.castShadow = true; tg.add(c); });
@@ -3229,6 +3249,8 @@ function buildPumpkinTrophy(){
     add(G.sph, eye, 0.004, 0.006, 0.003, -0.008, 0.017, 0.02, gh, false);
     add(G.sph, eye, 0.004, 0.006, 0.003, 0.008, 0.017, 0.02, gh, false);
   }
+  mergeStatic(spin);
+  mergeStatic(tg, [spin]);
   sh.traverse(function(o){ o.userData.dyn = true; });
   TROPHY = { spin:spin, tg:tg, sh:sh, base:tg.position.clone(), rot:tg.rotation.clone() };
 }
@@ -4437,7 +4459,7 @@ var REAL_MODELS = {
   itsam:{ url:"models/grant.glb", height:1.77, tint:{ Shirt:"#2f6f9e", Pants:"#2a2d35" }, ownHair:true, hairScale:[1.0, 0.9, 1.0], hairY:0.1, hairZ:-0.02 },
   grant:{ url:"models/grant.glb", height:1.79, tint:{ Shirt:"#6b6f76", Pants:"#23272e" }, ownHair:true, hairScale:[1.0, 0.9, 1.0], hairY:0.1, hairZ:-0.02, glasses:true },
   hana:{ url:"models/hana.glb", height:1.62, tint:{ Cloth:"#d9d4c7", SwappedPants:"#2c313b" }, pantsFrom:{ model:"stephanieb", mesh:"Pants", hide:["Socks"] }, ownHair:true, hairScale:[1.0, 0.88, 1.0], hairY:0.12, hairZ:-0.02, earrings:"#d4af5a" },
-  stephanieb:{ url:"models/stephanieb.glb", height:1.66, tint:{ Shirt:"#17181b", Pants:"#2b2f36", Sneakers:"#d9d4ca" }, ownHair:true, hairScale:[1.02, 0.88, 1.02], hairY:0.12, hairZ:-0.02, earrings:"#d9dade", hoop:2.1, lips:"#a8101f", lipsAlpha:0.8, hair:"#3d2216", highlight:"#5c3522", curl:1.5, freq:0.45, len:1.25, locks:34, thick:1.45, hatScale:0.95, hatDrop:0.06 }
+  stephanieb:{ url:"models/stephanieb.glb", height:1.66, tint:{ Shirt:"#17181b", Pants:"#2b2f36", Sneakers:"#d9d4ca" }, ownHair:true, hairScale:[1.02, 0.88, 1.02], hairY:0.12, hairZ:-0.02, earrings:"#d9dade", hoop:2.1, lips:"#a8101f", lipsAlpha:0.8, hair:"#3d2216", highlight:"#5c3522", curl:1.5, freq:0.45, len:1.25, locks:34, thick:1.45, hatScale:0.95, hatDrop:0.06, hairBack:0.2 }
 };
 var REAL = {}, CLIPS_R = {};
 var CH_SCALE = 1.70 / 1.806;
@@ -5392,6 +5414,7 @@ var PERSONA = {
   erica:     { focus:0.9, social:0.9, shop:0.6, coffee:1.1, breaky:0.6 },
   allyson:   { focus:0.9, social:0.9, shop:0.6, coffee:1.1, breaky:0.6 },
   stephanieb:{ focus:0.95, social:1.15, shop:1.0, coffee:1.0, breaky:0.8 },
+  marissa:   { focus:1.0, social:1.0, shop:0.9, coffee:1.1, breaky:0.8 },
   nolan:{ focus:0.5, social:1.5, shop:1, coffee:1, breaky:0.5 }, elena:{ focus:0.5, social:1.5, shop:1, coffee:1, breaky:0.5 },
   tessa:{ focus:0.5, social:1.2, shop:1, coffee:1, breaky:0.5 }, grant:{ focus:0.5, social:1.1, shop:1, coffee:1, breaky:0.5 },
   hana:{ focus:0.5, social:1.2, shop:1, coffee:1, breaky:0.5 }, itsam:{ focus:0.5, social:0.8, shop:1, coffee:1, breaky:0.5 }
@@ -5427,6 +5450,7 @@ var SITS = {
   carla:{ every:[60, 170], opts:[["", 2], ["crossR", 2], ["crossL", 2], ["recline", 1.5], ["edge", 1.5], ["tuck", 1.5]] },
   luis:{ every:[180, 420], opts:[["", 3], ["edge", 3.5], ["recline", 1], ["tuck", 1.5]] },
   stephanieb:{ every:[160, 400], opts:[["", 3], ["crossR", 2.5], ["crossL", 1.5], ["edge", 1.5], ["recline", 1]] },
+  marissa:{ every:[200, 460], opts:[["", 3], ["crossL", 2], ["tuck", 1.5], ["recline", 1.5]] },
   _:{ every:[300, 700], opts:[["", 5], ["crossR", 1], ["recline", 1]] }
 };
 /* ---------- standing desks ----------
@@ -5508,6 +5532,7 @@ var MOVE = {
   erica:{ type:1.1, lean:-0.05, swivel:0.12, bounce:0, curious:0.9, walk:1.1, hands:1.35 },
   allyson:{ type:1.0, lean:-0.06, swivel:0.06, bounce:0.2, curious:1.0, walk:1.0, hands:1.0 },
   stephanieb:{ type:1.0, lean:0.06, swivel:0.12, bounce:0.15, curious:1.2, walk:1.02, hands:1.3 },
+  marissa:{ type:1.05, lean:0.04, swivel:0.06, bounce:0.1, curious:1.0, walk:1.0, hands:1.1 },
   _:{ type:1, lean:0, swivel:0.05, bounce:0, curious:1, walk:1, hands:1 }
 };
 function mv(p){ return MOVE[p.id] || MOVE._; }
@@ -5520,6 +5545,7 @@ var POOLS = {
   erica:["phone","sip","phone"],
   allyson:["phone","sip","phone","chin"],
   stephanieb:["swatch","sip","chin","stretch","swatch","wave"],
+  marissa:["sip","phone","chin","swatch","stretch","sip"],
   nolan:["phone"], elena:["phone"], tessa:["phone"], grant:["phone"], hana:["phone"], itsam:["phone"]
 };
 var COFFEE_SPOT = new V3(-6.2, 0, 7.0), EXIT_SPOT = new V3(6.2, 0, 7.0);
@@ -5551,7 +5577,8 @@ var REQUESTS = {
   ],
   carla:[ { say:"I need the latest sell sheets for the tradeshow booth", task:"pulling the latest sell sheets for Carla's booth" } ],
   olivia:[ { say:"New lifestyle images are ready for the PDPs", task:"putting Olivia's new lifestyle images on the PDPs" } ],
-  stephanieb:[ { say:"The new homepage banner is ready, can you put it live?", task:"putting Stephanie's new banner on the homepage" } ]
+  stephanieb:[ { say:"The new homepage banner is ready, can you put it live?", task:"putting Stephanie's new banner on the homepage" } ],
+  marissa:[ { say:"I dropped the new images in the shared folder, can they go on the site?", task:"putting Marissa's new images on the site" } ]
 };
 var LUIS_REPLIES = ["On it!", "Done, check it in all 3 locales.", "Send me the PDFs.", "On it, give me ten minutes.", "Got it, adding it now.", "Sure, it'll be live today."];
 function makeRequest(p, t){
@@ -6027,6 +6054,16 @@ function chatter(a, b, t, casualOnly){
     if (rkb === 1 && rka !== 1 && RANK.pts[b.id] > 0) add(1.3, "rkb1" + b.id, ["How are you always first on the missions?", choose(["Practice lol", "I just say yes to every photo.", "Early bird gets the points."]), "Teach me your ways."]);
     if (RANK.pts[a.id] === 0 && !a.remote) add(1.0, "rk0" + a.id, ["I really need to start doing some missions.", "Start with an easy one, like your mug on your desk.", "Good idea. Today for sure."]);
   }
+  /* whoever is last on the missions table (Allyson and Marissa don't play) says it themselves, and the other one cheers
+     them on. Never someone else pointing it out. It follows the live table, so tomorrow it can be someone else. */
+  if (RANK && RANK.order && !a.guest && !b.guest && !a.remote && !b.remote) {
+    var rkPl = RANK.order.filter(function(o){ return BY[o.id] && !BY[o.id].guest && o.id !== "allyson" && o.id !== "marissa"; });
+    var rkLast = rkPl.length > 2 ? rkPl[rkPl.length - 1] : null;
+    if (rkLast && rkLast.id === a.id && rkLast.n < rkPl[rkPl.length - 2].n) add(1.4, "rklast" + a.id, [
+      choose(["I need to make some points.", "Okay, I'm last on the missions board. Time to make some points.", "Last place on the missions... I need some photos today.", "I really need to make some points this week.", "Note to self: missions. Lots of missions."]),
+      choose(["You've got this. Do the easy ones first.", "Plenty of missions left, you can climb fast.", "Let's do one together later!", "One good day and you're right back in it."]),
+      choose(["Okay, today for sure.", "Deal. Watch me lol", "Starting right after this coffee."])]);
+  }
   /* opinions: a small disagreement, then they make peace */
   if (!a.remote && !b.remote && !a.guest && !b.guest) {
     var OA = OPINIONS;
@@ -6289,10 +6326,10 @@ var MOODY_ACTS = { facepalm:1, fist:1, rubeyes:1 };
 function moodyNow(q){ return (q.frus || 0) > 0.6 || !!(q.act && MOODY_ACTS[q.act.n]); }
 /* opinions they hold, and argue about a little */
 var OPINIONS = {
-  fireplace:{ stephanie:"Revillusion", olivia:"Revillusion", allyson:"Revillusion", carla:"Optimyst", debbie:"Optimyst", luis:"Ignite XL", erica:"Ignite XL", stephanieb:"Optimyst" },
-  pineapple:{ carla:1, luis:1, debbie:1, stephanie:0, olivia:0, erica:0, allyson:0, stephanieb:1 },
-  season:{ stephanie:"winter", debbie:"winter", olivia:"winter", carla:"summer", luis:"summer", erica:"summer", allyson:"summer", stephanieb:"winter" },
-  cameras:{ erica:1, allyson:1, carla:1, stephanie:0, debbie:0, olivia:0, luis:0, stephanieb:1 }
+  fireplace:{ stephanie:"Revillusion", olivia:"Revillusion", allyson:"Revillusion", carla:"Optimyst", debbie:"Optimyst", luis:"Ignite XL", erica:"Ignite XL", stephanieb:"Optimyst", marissa:"Revillusion" },
+  pineapple:{ carla:1, luis:1, debbie:1, stephanie:0, olivia:0, erica:0, allyson:0, stephanieb:1, marissa:0 },
+  season:{ stephanie:"winter", debbie:"winter", olivia:"winter", carla:"summer", luis:"summer", erica:"summer", allyson:"summer", stephanieb:"winter", marissa:"summer" },
+  cameras:{ erica:1, allyson:1, carla:1, stephanie:0, debbie:0, olivia:0, luis:0, stephanieb:1, marissa:1 }
 };
 /* the managers hand out work that fits each person */
 var DELEGATE = {
@@ -6301,7 +6338,8 @@ var DELEGATE = {
   olivia:["Resize the banner for the dealers", "Pick photos for the newsletter", "Retouch the new product shots"],
   carla:["Send the booth list to the dealers", "Book the trailer for the next show", "Confirm the event dates"],
   luis:["Fix a link on the Cadet page", "Add the new manual to the downloads page", "Update the homepage banner"],
-  stephanieb:["Design the banner for the next campaign", "Make the social graphics for this week", "Check the new layouts against the brand guide"]
+  stephanieb:["Design the banner for the next campaign", "Make the social graphics for this week", "Check the new layouts against the brand guide"],
+  marissa:["Clean up the shared design folder", "Send the team update", "Resize the images for the newsletter"]
 };
 function lc(s){ return s ? s.charAt(0).toLowerCase() + s.slice(1) : ""; }
 /* too busy to talk right now: a deadline close, or deep in it */
@@ -6705,6 +6743,7 @@ function setState(p, st, t, dur){ p.state = st; p.t0 = t; p.dur = dur; NAPS[p.id
 function startReturn(p, t){
   var tr = p.trip, from = p.state === "away" || !tr.path ? EXIT_SPOT.clone() : tr.path.pts[tr.path.pts.length - 1].clone();
   tr.back = true;
+  if (tr.carry) tr.carry = null;
   if (tr.kind === "coffee") p.walkPhone = false;
   planWalk(p, tr, aislePath(from, 0, p.seat, p.side), t);
   setState(p, "walk", t, tr.ts - t + tr.w.D);
@@ -7049,7 +7088,7 @@ function gameSlots(dk){
   if (qg) { var tz = torontoAt(WORLD_NOW()); GAME.slots.unshift({ at:tz.h * 3600 + tz.mi * 60 + tz.s + 20, kind:GAME_KINDS.indexOf(qg[1]) >= 0 ? qg[1] : "chat" }); }
 }
 var GAME_TEST = /[?&]game=/.test(location.search || "");
-function gameFree(q, t){ return !q.remote && !q.guest && q.state === "sit" && !q.trip && !(q.busyUntil > t) && visAt(q, t) && !q.answering && (GAME_TEST || !lunchNow(q)) && !homeNow(q) && !(q.act && (q.act.plan || q.act.n === "vcall")); }
+function gameFree(q, t){ return !q.remote && !q.guest && q.state === "sit" && !q.trip && !(q.busyUntil > t) && visAt(q, t) && !q.answering && (GAME_TEST || !lunchNow(q)) && !homeNow(q) && !(q.act && (q.act.plan || q.act.n === "vcall")) && !(rollAt(q, t) > 0.01) && !q.chatWith; }
 /* someone from the ring, picked by the director */
 function gamePick(G2, not){ var L = G2.team.filter(function(q){ return q !== not && q.state === "stay"; }); return L.length ? L[Math.floor(R() * L.length)] : null; }
 var GAME_CHAT = [
@@ -8453,6 +8492,17 @@ var KB = {
   ], fallback:"Sorry, I was zoomed in on a logo. What was that?" }
 };
 
+if (MARISSA_IN) {
+  KB.marissa.qa = [
+    { q:"Are you in the office?", k:["remote","remotely","working from","on the call","in the office","this week"], a:"Yes, all this week! The desk in the back corner is mine." },
+    { q:"How is the office?", k:["office","desk","corner","like it"], a:"I love it. Real coffee and real people, no frozen video." },
+    { q:"How do you stay in the loop?", k:["loop","updates","stay in touch","shared files"], a:"Shared files and quick chats. This week the quick chats are in person." },
+    { q:"How do I reach you?", k:["reach","contact","ping","message you","email"], a:"Come by the corner desk, or message me anytime." }
+  ];
+  KB.marissa.fallback = "Sorry, I was deep in a shared folder. What was that?";
+  PROFILE.marissa.joke = "This week nobody can tell me I am on mute.";
+  PROFILE.marissa.dislikes = "a messy shared folder";
+}
 /* ---------- conversation: intents + live state ---------- */
 var INTENTS = [
   { id:"greet", k:["hi","hello","hey","good morning","good afternoon","morning","hiya","yo","howdy"] },
@@ -9544,6 +9594,8 @@ var SB = (!/[?&]demo=1/.test(location.search || "") && window.supabase) ? window
 /* the missions table as it stood at the start of today (and the day before), for the office small talk. Only approvals
    from before today's midnight count, so every screen gets the same standings all day, whenever it opened */
 var RANK = null;
+/* a game play has no approval: it counts from the moment it was played (the board and the race include it) */
+function achNorm(r){ if (r && r.data) r.data.forEach(function(a){ if (!a.approved_at && String(a.photo_path || "").indexOf("game:") === 0) a.approved_at = a.received_at; }); return r; }
 function rankDayKey(ms){ var z = torontoAt(ms); return z.y * 10000 + z.mo * 100 + z.d; }
 function rankBuild(rows){
   var today = rankDayKey(WORLD_NOW()), ids = ALL.filter(function(q){ return !q.guest; }).map(function(q){ return q.id; });
@@ -9560,7 +9612,7 @@ function rankBuild(rows){
   return { day:today, order:t0.order, place:t0.place, pts:t0.pts, up:up };
 }
 window.__rank = function(){ return { rank:RANK, said:CHAT_RECENT.filter(function(k){ return /^rk/.test(k); }) }; };
-var RANK_FIRST = (SB ? SB.from("achieved").select("team,sender,pts,approved_at") : Promise.resolve({ data:null }))
+var RANK_FIRST = (SB ? SB.from("achieved").select("team,sender,pts,approved_at,received_at,photo_path").then(achNorm) : Promise.resolve({ data:null }))
   .then(function(r){
     if (!r || !r.data || RANK) return;
     RANK = rankBuild(r.data);
@@ -9750,7 +9802,7 @@ function mraceShow(on){
   document.getElementById("raceClose").focus();
   document.getElementById("raceClock").textContent = "Loading…";
   /* always fresh: the latest approvals from the database, the same for everyone */
-  (SB ? SB.from("achieved").select("team,sender,pts,approved_at") : Promise.resolve({ data:(CH.st && CH.st.done || []).map(function(d){ return { team:d.team, sender:d.who, pts:d.pts, approved_at:new Date(d.ok || d.at).toISOString() }; }) }))
+  (SB ? SB.from("achieved").select("team,sender,pts,approved_at,received_at,photo_path").then(achNorm) : Promise.resolve({ data:(CH.st && CH.st.done || []).map(function(d){ return { team:d.team, sender:d.who, pts:d.pts, approved_at:new Date(d.ok || d.at).toISOString() }; }) }))
     .then(function(r){ if (mraceEl.hidden) return; mraceBuild((r && r.data) || []); MRACE.i = 0; mraceDraw(0); MRACE.timer = setTimeout(mraceStart, 600); })
     .catch(function(){ document.getElementById("raceClock").textContent = "Could not load the missions."; });
 }
@@ -10084,12 +10136,12 @@ function realHair(p, model, head, top){
   mergeByMaterial(g);
   model.updateMatrixWorld(true);
   head.attach(g);
-  skinHair(g, model, head);
+  skinHair(g, model, head, cfg.hairBack);
 }
-/* hair bends like real hair: the top follows the head, the ends follow the upper back, with a smooth blend between
-   them. Rigid on the head, long hair cut through the shoulders while walking and flickered in and out of the back. */
+/* hair bends like real hair: the top follows the head, the ends lean a little toward the upper back (20%: at 85% the
+   head turned and the hair stayed behind, showing the scalp for a moment, Luis 24 Nov). Rigid on the head, long hair cut through the shoulders while walking and flickered in and out of the back. */
 var HAIR_SKIN = !/[?&]hairskin=0/.test(location.search || ""); /* ?hairskin=0 shows the old rigid hair, to compare */
-function skinHair(g, model, head){
+function skinHair(g, model, head, follow){
   var sp = model.getObjectByName("mixamorigSpine2");
   if (!sp || !HAIR_SKIN) return;
   model.updateMatrixWorld(true);
@@ -10102,7 +10154,7 @@ function skinHair(g, model, head){
     var geo = m.geometry.clone().applyMatrix4(new T.Matrix4().multiplyMatrices(toModel, m.matrixWorld));
     var pos = geo.attributes.position, n = pos.count, si = new Uint16Array(n * 4), sw = new Float32Array(n * 4);
     for (var i = 0; i < n; i++) {
-      var t = clamp((yH - pos.getY(i)) / (yH - yS), 0, 1), ws = 0.85 * t * t * (3 - 2 * t);
+      var t = clamp((yH - pos.getY(i)) / (yH - yS), 0, 1), ws = (follow === undefined ? 0.2 : follow) * t * t * (3 - 2 * t);
       si[i * 4] = 0; si[i * 4 + 1] = 1; sw[i * 4] = 1 - ws; sw[i * 4 + 1] = ws;
     }
     geo.setAttribute("skinIndex", new T.Uint16BufferAttribute(si, 4));
@@ -10132,6 +10184,29 @@ function mergeByMaterial(g){
     var mg = BufferGeometryUtils.mergeGeometries(geos, false);
     if (!mg) return;
     var m = new T.Mesh(mg, mat); m.castShadow = false; g.add(m);
+  });
+}
+/* like mergeByMaterial, but the merged meshes keep casting and receiving shadows, and the subtrees in "keep" (parts
+   that move on their own) are left as they are. Fewer draw calls on weak laptop GPUs. */
+function mergeStatic(g, keep){
+  g.updateMatrixWorld(true);
+  var inv = g.matrixWorld.clone().invert(), buckets = new Map(), victims = [];
+  function kept(o){ for (var q = o; q && q !== g; q = q.parent) if (keep && keep.indexOf(q) >= 0) return true; return false; }
+  g.traverse(function(o){
+    if (!o.isMesh || o.isSkinnedMesh || Array.isArray(o.material) || kept(o)) return;
+    var geo = o.geometry.clone().applyMatrix4(new T.Matrix4().multiplyMatrices(inv, o.matrixWorld));
+    if (geo.index) geo = geo.toNonIndexed();
+    ["position", "normal", "uv"].forEach(function(k){ if (!geo.attributes[k]) geo.setAttribute(k, new T.Float32BufferAttribute(new Float32Array(geo.attributes.position.count * (k === "uv" ? 2 : 3)), k === "uv" ? 2 : 3)); });
+    Object.keys(geo.attributes).forEach(function(k){ if (["position", "normal", "uv"].indexOf(k) < 0) geo.deleteAttribute(k); });
+    var key = o.material.uuid + (o.castShadow ? "c" : "") + (o.receiveShadow ? "r" : "");
+    var b = buckets.get(key) || buckets.set(key, { mat:o.material, cast:o.castShadow, recv:o.receiveShadow, geos:[] }).get(key);
+    b.geos.push(geo); victims.push(o);
+  });
+  victims.forEach(function(o){ o.parent.remove(o); });
+  buckets.forEach(function(b){
+    var mg = BufferGeometryUtils.mergeGeometries(b.geos, false);
+    if (!mg) return;
+    var m = new T.Mesh(mg, b.mat); m.castShadow = b.cast; m.receiveShadow = b.recv; g.add(m);
   });
 }
 /* skull boxes: the vertices that follow the Head bone, in each model's own space */
@@ -10542,12 +10617,12 @@ REMOTE.forEach(function(p, i){
   p.seat = new V3(p.sx, 0, -4.1);
 });
 /* Stephanie B.'s old wall TV: still on the wall, switched off */
-(function(){
-  var g = new T.Group(); g.position.set(1.95, 1.8, -4.0); g.scale.setScalar(0.72); scene.add(g);
+(MARISSA_IN ? [1.95, -1.95] : [1.95]).forEach(function(sx){
+  var g = new T.Group(); g.position.set(sx, 1.8, -4.0); g.scale.setScalar(0.72); scene.add(g);
   add(G.box, M("#121418", { roughness:0.35, metalness:0.4 }), 2.0, 1.16, 0.07, 0, 0, 0, g);
   var off = new T.Mesh(G.plane, new T.MeshStandardMaterial({ color:"#0a0c0f", roughness:0.22, metalness:0.3 }));
   off.scale.set(1.9, 1.07, 1); off.position.z = 0.037; g.add(off);
-})();
+});
 /* director: a remote colleague's mood (it shows in what people say to them) */
 function simRemote(p, t, dt){
   p.mood.v += (moodTarget(p) - p.mood.v) * dt * 0.01;
@@ -10931,7 +11006,9 @@ function frame(){
   DYN.frames++;
   if (nowMs - DYN.t0 > 1500) {
     var dfps = DYN.frames * 1000 / (nowMs - DYN.t0), pr = renderer.getPixelRatio();
-    if (dfps < 38 && pr > DYN.min) renderer.setPixelRatio(Math.max(DYN.min, pr - 0.15));
+    /* still under 30 fps at 1x after the quality steps (integrated laptop GPUs): allow down to 0.8 */
+    if (dfps < 30 && PERF.done && pr <= 1 && DYN.min > 0.8) DYN.min = 0.8;
+    if (dfps < 38 && pr > DYN.min) renderer.setPixelRatio(Math.max(DYN.min, pr - 0.1));
     else if (dfps > 56 && pr < DYN.cap) renderer.setPixelRatio(Math.min(DYN.cap, pr + 0.1));
     DYN.t0 = nowMs; DYN.frames = 0;
   }
@@ -11010,8 +11087,8 @@ function frame(){
   m0 = performance.now();
   /* remote screens: low resolution, one screen per frame */
   if (frameNo % SHADOW_EVERY === 0) renderer.shadowMap.needsUpdate = true;
-  var rp = REMOTE[frameNo % REMOTE.length];
-  if (!rp.camOff) { renderer.setRenderTarget(rp.rt); renderer.render(rp.rs, rp.rcam); }
+  var rp = frameNo % 3 === 0 ? REMOTE[(frameNo / 3) % REMOTE.length] : null;
+  if (rp && !rp.camOff) { renderer.setRenderTarget(rp.rt); renderer.render(rp.rs, rp.rcam); }
   renderer.setRenderTarget(null);
   if (composer && !aoFailed) {
     try { composer.render(dt); } catch (e) { aoFailed = true; renderer.render(scene, camera); }
