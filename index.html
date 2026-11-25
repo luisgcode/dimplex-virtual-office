@@ -5923,8 +5923,10 @@ function logEvent(kind, p, t){
   if (OFFICE_EV.length > 12) OFFICE_EV.shift();
 }
 /* lines already used today (in memory only: the world must not depend on what one browser saw before) */
-var CHAT_RECENT = [];
+var CHAT_RECENT = [], WATCHN = { n:0, used:{} };
 function saidKey(k){
+  if (/^watch\d/.test(k)) { WATCHN.n++; WATCHN.used[k.slice(5)] = 1; }
+  if (/^rklast/.test(k)) WATCHN.last = 1;
   CHAT_RECENT.push(k); if (CHAT_RECENT.length > 60) CHAT_RECENT.shift();
 }
 function chatter(a, b, t, casualOnly){
@@ -6054,16 +6056,36 @@ function chatter(a, b, t, casualOnly){
     if (rkb === 1 && rka !== 1 && RANK.pts[b.id] > 0) add(1.3, "rkb1" + b.id, ["How are you always first on the missions?", choose(["Practice lol", "I just say yes to every photo.", "Early bird gets the points."]), "Teach me your ways."]);
     if (RANK.pts[a.id] === 0 && !a.remote) add(1.0, "rk0" + a.id, ["I really need to start doing some missions.", "Start with an easy one, like your mug on your desk.", "Good idea. Today for sure."]);
   }
-  /* whoever is last on the missions table (Allyson and Marissa don't play) says it themselves, and the other one cheers
+  /* whoever is last on the missions table (Allyson and Marissa don't play) says it themselves, once a day, and the other one cheers
      them on. Never someone else pointing it out. It follows the live table, so tomorrow it can be someone else. */
   if (RANK && RANK.order && !a.guest && !b.guest && !a.remote && !b.remote) {
     var rkPl = RANK.order.filter(function(o){ return BY[o.id] && !BY[o.id].guest && o.id !== "allyson" && o.id !== "marissa"; });
     var rkLast = rkPl.length > 2 ? rkPl[rkPl.length - 1] : null;
-    if (rkLast && rkLast.id === a.id && rkLast.n < rkPl[rkPl.length - 2].n) add(1.4, "rklast" + a.id, [
+    if (rkLast && !WATCHN.last && rkLast.id === a.id && rkLast.n < rkPl[rkPl.length - 2].n) add(1.4, "rklast" + a.id, [
       choose(["I need to make some points.", "Okay, I'm last on the missions board. Time to make some points.", "Last place on the missions... I need some photos today.", "I really need to make some points this week.", "Note to self: missions. Lots of missions."]),
       choose(["You've got this. Do the easy ones first.", "Plenty of missions left, you can climb fast.", "Let's do one together later!", "One good day and you're right back in it."]),
       choose(["Okay, today for sure.", "Deal. Watch me lol", "Starting right after this coffee."])]);
   }
+  /* now and then someone feels watched, the way a person would (they are: by whoever has the office open). Never
+     anything that sounds like they know it is a screen (clicks, zoom, the camera turning). Only twice a day, once in the
+     morning and once after 1 pm, and never the same one twice in a day, so they stay a surprise */
+  if (!a.guest && !b.guest && !a.remote && !b.remote && WATCHN.n < 2 && (WATCHN.n === 0 ? DAY.h < 13 : DAY.h >= 13)) (function(sets){
+    var k = Math.floor(R() * sets.length); if (!WATCHN.used[k]) add(0.5, "watch" + k, sets[k]);
+  })([
+    ["Sometimes I feel like somebody is watching us.", "Like, from above?", "Exactly. Wave, just in case."],
+    ["Don't you feel like someone is watching us?", "You mean the security cameras?", "No, no... I don't know. It's like I can feel them looking at me."],
+    ["Do you ever feel like we're in a video game?", "Every Monday.", "If we are, I want a better outfit lol"],
+    ["Hi to whoever is watching!", "Who are you talking to?", "No idea. It felt right."],
+    ["Do you think they can hear us?", "Who?", "Never mind. Smile, just in case."],
+    ["Don't you ever feel like we live in a simulation? Like somebody is controlling us?", "Hmm. Now that you say it...", "Anyway. Crazy thought of the day."],
+    ["Why do we always walk the exact same way to the coffee machine?", "Habit?", "Or someone programmed us. Just saying."],
+    ["What if the cat knows something we don't?", "Pixel definitely knows something.", "I knew it."],
+    ["Sometimes I get dizzy in here, like the whole office is slowly spinning. Doesn't that happen to you?", "Maybe you need more water.", "Or less coffee lol"],
+    ["Do you ever get deja vu here? Like this exact moment already happened.", "All the time, honestly.", "Okay, so it's not just me."],
+    ["Have you ever felt like every day is the same day? Same coffee, same chair...", "That's called a job lol", "Fair. Very fair."],
+    ["I had the weirdest dream. We were all tiny, inside a little box, working.", "That's oddly specific.", "Right? I can't stop thinking about it."],
+    ["Every time I blink, a new mission shows up on that board.", "Someone up there is busy.", "Or bored lol"]
+  ]);
   /* opinions: a small disagreement, then they make peace */
   if (!a.remote && !b.remote && !a.guest && !b.guest) {
     var OA = OPINIONS;
@@ -10741,7 +10763,7 @@ function resetWorld(){
     SIM.rng = wrng("director");
     if (!BASE_KEYS) { BASE_KEYS = {}; ALL.forEach(function(p){ var k = {}; Object.keys(p).forEach(function(n){ k[n] = 1; }); BASE_KEYS[p.id] = k; }); }
     ALL.forEach(function(p){ var bk = BASE_KEYS[p.id]; Object.keys(p).forEach(function(n){ if (!bk[n] && !KEEP_KEYS[n]) p[n] = undefined; }); });
-    chats = []; SAYS.length = 0; CHAT_RECENT.length = 0; OFFICE_EV.length = 0; POI = [];
+    chats = []; SAYS.length = 0; CHAT_RECENT.length = 0; WATCHN.n = 0; WATCHN.used = {}; WATCHN.last = 0; OFFICE_EV.length = 0; POI = [];
     KNOW = {}; KNOWFROM = {}; RIT_DONE = {}; WNEWS_USED = {}; perceive.wx = undefined; chatter.retry = false;
     HUDDLE.next = 0; HUDDLE.on = null; GUESTS.next = 0; GUESTS.cur = null;
     MISHAP.next = 0; MISHAP.cur = null; MISHAP.book.down = false; MISHAP.book.backAt = 0;
