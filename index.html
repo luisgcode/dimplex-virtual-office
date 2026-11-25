@@ -660,7 +660,11 @@ var PEOPLE = [
   { id:"hana", model:"hana", name:"Hana", role:"Visiting the managers", guest:true, freq:1, hosts:["erica","allyson"], side:1, z:0, personality:"Friendly, precise, and somehow always has snacks.", topics:"Budgets, invoices and approvals", shirt:"#d9d4c7", pants:"#2c3038", skin:"#f0d0b4", hair:"#0f0d0c", style:"straight", sleeves:true, earrings:"small",
     status:"Visiting the marketing floor", blurb:"Brings snacks and a budget question, in that order." },
   { id:"itsam", model:"itsam", name:"Sam", role:"IT support, visiting", guest:true, freq:0, hosts:[], side:1, z:0, personality:"Calm and quick. Has fixed every laptop on this floor at least once.", topics:"Laptops, Wi-Fi and passwords", shirt:"#2f6f9e", pants:"#2a2d35", skin:"#d8a57e", hair:"#2a1d14", style:"short", sleeves:true,
-    status:"Fixing a computer", blurb:"Turns it off and on again, and somehow that always works." }
+    status:"Fixing a computer", blurb:"Turns it off and on again, and somehow that always works." },
+  /* Stephanie B. moved from the wall TV to the free desk at the entrance (24 Nov, Luis): same rules as everyone */
+  { id:"stephanieb", name:"Stephanie B.", model:"stephanieb", fullName:"Stephanie Benoit", role:"Designer", side:1, z:4.5, shirt:"#151618", dot:"#b5543a", pants:"#2b2f36", skin:"#f1d3c2", hair:"#7a3b22", highlight:"#a5583a", style:"curly", sleeves:false, sleeveless:true, lips:"#b3122a", earrings:true, alwaysSmile:true, screen:"swatch",
+    status:"Working on new designs", personality:"Designer on the team. Notices every detail of the brand look.", topics:"Banners, layouts, social graphics and the brand look",
+    blurb:"Banners, layouts and social graphics. If a logo is stretched, she already saw it." }
 ];
 var LINES = {
   erica:["Jumping on a call","Back in 5, another meeting","Can we take this offline?","Who moved my 2:00?"],
@@ -671,15 +675,13 @@ var LINES = {
   luis:["Headphones on","Pushing to the site","Deploying now","Fixing one more page"],
   carla:["Booth ships Monday!","Who needs a show badge?","Hotel is booked","Which products go to the show?"],
   marissa:["Can you hear me okay?","You are on mute!","Hi everyone!","Let me share my screen"],
-  stephanieb:["Love the new banners!","Can we try it with more white space?","Brand colors only, please","Sharing my screen with the new layouts"],
+  stephanieb:["Love the new banners!","Can we try it with more white space?","Brand colors only, please","Come see the new layouts on my screen"],
   nolan:["A dealer called about the Ignite again","Do we have stock of the Revillusion?"], elena:["Customers keep asking for the manual","Another call about the Optimyst water"],
   tessa:["Specs for the new unit are almost final","Launch date might move"], grant:["Truck comes Thursday","Stock is looking good"], hana:["Approved, you're welcome","I brought cookies"], itsam:["Have you tried restarting it?","Ticket closed"]
 };
 var REMOTE = [
   { id:"marissa", model:"marissa", name:"Marissa", fullName:"Marissa", role:"Designer, remote", remote:true, sx:-1.95, shirt:"#4f7cc4", pants:"#2a2d35", skin:"#e9b996", hair:"#5a3a26", style:"wavy", sleeves:true, glasses:true,
-    status:"Online, working remotely", personality:"Works remotely and is always one message away.", topics:"Team updates and shared files" },
-  { id:"stephanieb", name:"Stephanie B.", model:"stephanieb", fullName:"Stephanie Benoit", role:"Designer, remote", remote:true, sx:1.95, shirt:"#151618", dot:"#b5543a", pants:"#2b2f36", skin:"#f1d3c2", hair:"#7a3b22", highlight:"#a5583a", style:"curly", sleeves:false, sleeveless:true, lips:"#b3122a", earrings:true, alwaysSmile:true,
-    status:"Working on new designs", personality:"Designer on the team, works remotely. Notices every detail of the brand look.", topics:"Banners, layouts, social graphics and the brand look" }
+    status:"Online, working remotely", personality:"Works remotely and is always one message away.", topics:"Team updates and shared files" }
 ];
 var ALL = PEOPLE.concat(REMOTE);
 var BY = {}; ALL.forEach(function(p, i){ BY[p.id] = p; p.idx = i; });
@@ -1464,6 +1466,7 @@ var ACT_POOLS = {
   olivia:["slides", "web", "mail", "photo", "design", "palette", "video", "photo", "design"],
   carla:["sheet", "mail", "call", "web", "floor", "calendar", "kanban", "map", "ship"],
   luis:["web", "mail", "code", "cms", "dash", "ticket", "search", "code", "cms"],
+  stephanieb:["design", "palette", "mail", "web", "photo", "slides", "design", "chat", "design"],
   _:["mail", "web", "sheet", "doc", "calendar", "dash", "search"]
 };
 /* product pages for the heat brands: Debbie works on Cadet and Convectair, not on the Dimplex fireplaces */
@@ -2154,10 +2157,7 @@ function desk(p){
 /* ---------- desks and props ---------- */
 PEOPLE.forEach(function(p){ if (!p.guest) desk(p); });
 /* the empty desk at the entrance, right side */
-var emptyDesk = { side:1, z:4.5 };
-desk(emptyDesk);
-emptyDesk.chairG.rotation.y = 0.45;
-emptyDesk.chairG.position.set(0.15, 0, 0.22);
+var emptyDesk = BY.stephanieb;
 /* ---------- the GOAT Trophy: the real prize of the missions tournament (gold goat, crown, aviators, chain, on a
    plaque base). It sits on the desk of whoever is first on the missions table this morning; click it for the photo */
 var GOAT = { g:null, hit:null, on:null };
@@ -2230,14 +2230,14 @@ function goatPlace(){
   var now = performance.now();
   if (GOAT.chk && now - GOAT.chk < 500) return;
   GOAT.chk = now;
-  var L = goatLeader(), p = L && BY[L.id], dg = p && p.deskGroup ? p.deskGroup : L ? emptyDesk.deskGroup : null;
+  var L = goatLeader(), p = L && BY[L.id], dg = p && p.deskGroup ? p.deskGroup : null;
   if (dg === GOAT.on) return;
   GOAT.on = dg;
   if (!dg) { GOAT.g.visible = false; return; }
   dg.add(GOAT.g);
   /* the front corner closest to the usual camera (next to the cup), where it reads best */
   var sd = p && p.deskGroup ? p.side : 1;
-  if (dg === emptyDesk.deskGroup) GOAT.g.position.set(0, 0.7625, -0.75); else GOAT.g.position.set(sd * 0.76, 0.7625, -0.47);
+  GOAT.g.position.set(sd * 0.76, 0.7625, -0.47);
   GOAT.g.rotation.y = sd * 0.45;
   GOAT.g.visible = true;
 }
@@ -2289,7 +2289,8 @@ monitor(BY.olivia.deskGroup, -0.2, -1.0, 0.9, 0.5, "swatch", 0.05);
 laptop(BY.olivia.deskGroup, 0.58, -0.5, "swatch", -0.25);
 monitor(BY.erica.deskGroup, 0, -1.0, 0.64, 0.38, "cal", 0);
 monitor(BY.allyson.deskGroup, 0, -1.0, 0.64, 0.38, "cal2", 0);
-monitor(emptyDesk.deskGroup, 0, -1.0, 0.64, 0.38, "off", 0);
+/* Stephanie B.: one large monitor in design work (the candy bowl stays on her desk) */
+monitor(BY.stephanieb.deskGroup, -0.1, -1.0, 0.8, 0.46, "swatch", 0);
 (function(){
   var g = new T.Group(); g.position.set(0.05, 0.765, -0.72); BY.carla.deskGroup.add(g);
   add(G.box, alu, 0.4, 0.015, 0.28, 0, 0, 0, g, false);
@@ -2471,7 +2472,7 @@ function clockTick(){
    12:00 to 12:30: Erica, Allyson and Carla go out, Stephanie, Debbie and Olivia eat at their desks on their phones.
    1:00 to 1:30: Luis goes out. The empty desks show a "Lunch time" card. */
 function LUNCH_T(){ return { erica:[12.5, 13, "out"], allyson:[12.5, 13, "out"], carla:[12, 12.5, "out"], luis:[13, 13.5, "out"],
-  stephanie:[12, 12.5, "desk"], debbie:[12, 12.5, "desk"], olivia:[12, 12.5, "desk"] }; }
+  stephanie:[12, 12.5, "desk"], debbie:[12, 12.5, "desk"], olivia:[12, 12.5, "desk"], stephanieb:[12.5, 13, "desk"] }; }
 var LUNCH = LUNCH_T();
 var lunchCardTex = null;
 /* what each of them eats at the desk: Stephanie a sandwich, Olivia a wrap, Debbie a salad with a fork */
@@ -2664,7 +2665,8 @@ var SCHEDULE = {
   olivia:{ arrive:[8.15, 8.45], leave:[16.75, 16.97] },
   carla:{ arrive:[8.05, 8.45], leave:[16.6, 16.95] },
   erica:{ arrive:[8.2, 8.55], leave:[16.7, 16.97] },
-  allyson:{ arrive:[8.0, 8.35], leave:[16.6, 16.9] }
+  allyson:{ arrive:[8.0, 8.35], leave:[16.6, 16.9] },
+  stephanieb:{ arrive:[8.0, 8.4], leave:[16.6, 16.95] }
 };
 var NO_WFH = /[?&]wfh=off/.test(location.search || "");
 /* Ontario holidays the office closes for */
@@ -5389,6 +5391,7 @@ var PERSONA = {
   carla:     { focus:0.8, social:1.45, shop:0.9, coffee:1.0, breaky:0.8 },
   erica:     { focus:0.9, social:0.9, shop:0.6, coffee:1.1, breaky:0.6 },
   allyson:   { focus:0.9, social:0.9, shop:0.6, coffee:1.1, breaky:0.6 },
+  stephanieb:{ focus:0.95, social:1.15, shop:1.0, coffee:1.0, breaky:0.8 },
   nolan:{ focus:0.5, social:1.5, shop:1, coffee:1, breaky:0.5 }, elena:{ focus:0.5, social:1.5, shop:1, coffee:1, breaky:0.5 },
   tessa:{ focus:0.5, social:1.2, shop:1, coffee:1, breaky:0.5 }, grant:{ focus:0.5, social:1.1, shop:1, coffee:1, breaky:0.5 },
   hana:{ focus:0.5, social:1.2, shop:1, coffee:1, breaky:0.5 }, itsam:{ focus:0.5, social:0.8, shop:1, coffee:1, breaky:0.5 }
@@ -5423,6 +5426,7 @@ var SITS = {
   olivia:{ every:[200, 480], opts:[["", 3], ["crossL", 2.5], ["edge", 2], ["tuck", 1]] },
   carla:{ every:[60, 170], opts:[["", 2], ["crossR", 2], ["crossL", 2], ["recline", 1.5], ["edge", 1.5], ["tuck", 1.5]] },
   luis:{ every:[180, 420], opts:[["", 3], ["edge", 3.5], ["recline", 1], ["tuck", 1.5]] },
+  stephanieb:{ every:[160, 400], opts:[["", 3], ["crossR", 2.5], ["crossL", 1.5], ["edge", 1.5], ["recline", 1]] },
   _:{ every:[300, 700], opts:[["", 5], ["crossR", 1], ["recline", 1]] }
 };
 /* ---------- standing desks ----------
@@ -5503,6 +5507,7 @@ var MOVE = {
   luis:{ type:1.4, lean:0.1, swivel:0, bounce:0.45, curious:0.35, walk:1.08, hands:0.6 },
   erica:{ type:1.1, lean:-0.05, swivel:0.12, bounce:0, curious:0.9, walk:1.1, hands:1.35 },
   allyson:{ type:1.0, lean:-0.06, swivel:0.06, bounce:0.2, curious:1.0, walk:1.0, hands:1.0 },
+  stephanieb:{ type:1.0, lean:0.06, swivel:0.12, bounce:0.15, curious:1.2, walk:1.02, hands:1.3 },
   _:{ type:1, lean:0, swivel:0.05, bounce:0, curious:1, walk:1, hands:1 }
 };
 function mv(p){ return MOVE[p.id] || MOVE._; }
@@ -5514,6 +5519,7 @@ var POOLS = {
   stephanie:["leanFire","phone","sip","leanFire","chin"],
   erica:["phone","sip","phone"],
   allyson:["phone","sip","phone","chin"],
+  stephanieb:["swatch","sip","chin","stretch","swatch","wave"],
   nolan:["phone"], elena:["phone"], tessa:["phone"], grant:["phone"], hana:["phone"], itsam:["phone"]
 };
 var COFFEE_SPOT = new V3(-6.2, 0, 7.0), EXIT_SPOT = new V3(6.2, 0, 7.0);
@@ -5544,7 +5550,8 @@ var REQUESTS = {
     { say:"Let's put the dashboards on the agenda", task:"prepping the dashboards for the agenda" }
   ],
   carla:[ { say:"I need the latest sell sheets for the tradeshow booth", task:"pulling the latest sell sheets for Carla's booth" } ],
-  olivia:[ { say:"New lifestyle images are ready for the PDPs", task:"putting Olivia's new lifestyle images on the PDPs" } ]
+  olivia:[ { say:"New lifestyle images are ready for the PDPs", task:"putting Olivia's new lifestyle images on the PDPs" } ],
+  stephanieb:[ { say:"The new homepage banner is ready, can you put it live?", task:"putting Stephanie's new banner on the homepage" } ]
 };
 var LUIS_REPLIES = ["On it!", "Done, check it in all 3 locales.", "Send me the PDFs.", "On it, give me ten minutes.", "Got it, adding it now.", "Sure, it'll be live today."];
 function makeRequest(p, t){
@@ -5799,7 +5806,7 @@ var TEAM_TOPICS = [
   { own:"debbie", mode:"tell", L:["The FOR heaters finally have matching bullets.", "In English and French?", "Both. Live on the site."] },
   { own:"debbie", mode:"ask", L:["Convectair or Cadet for a bathroom?", "Depends on the space. Fan-forced heats it fastest.", "Good to know."] },
   { own:"olivia", mode:"ask", L:["Are the new lifestyle shots in?", "Uploading them now.", "Can't wait to see them."] },
-  { own:"stephanieb", mode:"tell", L:["The new layouts are ready, want a look?", "Send them over!", "Sharing my screen now."] },
+  { own:"stephanieb", mode:"tell", L:["The new layouts are ready, want a look?", "Sure, show me!", "Come over, they are on my screen."] },
   { own:"stephanieb", mode:"ask", L:["Can you fit one more banner this week?", "I think so. Send me the brief.", "Thanks, no rush."] },
   { own:"olivia", mode:"tell", L:["I'm thinking of a Get Inspired gallery for the fireplaces.", "Real rooms, real installs?", "Exactly. I'll pull the best shots."] },
   { own:"olivia", mode:"tell", L:["The holiday banners are done.", "Already? They look great.", "Red and green everywhere."] },
@@ -6282,10 +6289,10 @@ var MOODY_ACTS = { facepalm:1, fist:1, rubeyes:1 };
 function moodyNow(q){ return (q.frus || 0) > 0.6 || !!(q.act && MOODY_ACTS[q.act.n]); }
 /* opinions they hold, and argue about a little */
 var OPINIONS = {
-  fireplace:{ stephanie:"Revillusion", olivia:"Revillusion", allyson:"Revillusion", carla:"Optimyst", debbie:"Optimyst", luis:"Ignite XL", erica:"Ignite XL" },
-  pineapple:{ carla:1, luis:1, debbie:1, stephanie:0, olivia:0, erica:0, allyson:0 },
-  season:{ stephanie:"winter", debbie:"winter", olivia:"winter", carla:"summer", luis:"summer", erica:"summer", allyson:"summer" },
-  cameras:{ erica:1, allyson:1, carla:1, stephanie:0, debbie:0, olivia:0, luis:0 }
+  fireplace:{ stephanie:"Revillusion", olivia:"Revillusion", allyson:"Revillusion", carla:"Optimyst", debbie:"Optimyst", luis:"Ignite XL", erica:"Ignite XL", stephanieb:"Optimyst" },
+  pineapple:{ carla:1, luis:1, debbie:1, stephanie:0, olivia:0, erica:0, allyson:0, stephanieb:1 },
+  season:{ stephanie:"winter", debbie:"winter", olivia:"winter", carla:"summer", luis:"summer", erica:"summer", allyson:"summer", stephanieb:"winter" },
+  cameras:{ erica:1, allyson:1, carla:1, stephanie:0, debbie:0, olivia:0, luis:0, stephanieb:1 }
 };
 /* the managers hand out work that fits each person */
 var DELEGATE = {
@@ -6293,7 +6300,8 @@ var DELEGATE = {
   debbie:["Check the heater wattages", "Answer the baseboard dealer email", "Update the heater price list"],
   olivia:["Resize the banner for the dealers", "Pick photos for the newsletter", "Retouch the new product shots"],
   carla:["Send the booth list to the dealers", "Book the trailer for the next show", "Confirm the event dates"],
-  luis:["Fix a link on the Cadet page", "Add the new manual to the downloads page", "Update the homepage banner"]
+  luis:["Fix a link on the Cadet page", "Add the new manual to the downloads page", "Update the homepage banner"],
+  stephanieb:["Design the banner for the next campaign", "Make the social graphics for this week", "Check the new layouts against the brand guide"]
 };
 function lc(s){ return s ? s.charAt(0).toLowerCase() + s.slice(1) : ""; }
 /* too busy to talk right now: a deadline close, or deep in it */
@@ -8277,7 +8285,7 @@ var PROFILE = {
   stephanieb:{ pron:"she", traits:{ patience:0.7, humour:0.85, chattiness:0.8, stressTol:0.7 },
     moodW:{ excited:1.5, great:2.5, good:2.5, okay:1.5, tired:1, stressed:0.8, off:0.4 },
     likes:"a design that needs zero revisions", dislikes:"logos stretched to fit",
-    joke:"I have perfected the can you see my screen face. And the can you move it two pixels left face.",
+    joke:"I have perfected the can you move it two pixels left face.",
     work:["Designing a new banner","Working on a layout","Making social graphics","Checking a campaign against the brand guide"] },
   erica:{ pron:"she", traits:{ patience:0.7, humour:0.8, chattiness:0.6, stressTol:0.7 },
     moodW:{ excited:1, great:2, good:2.5, okay:2, tired:1.5, stressed:1.5, off:0.4 },
@@ -8437,11 +8445,11 @@ var KB = {
   stephanieb:{ qa:[
     { q:"What are you working on?", k:["design team","designers","designs","working on","priorities","projects"], a:"Holiday campaign banners and social graphics. Olivia, Marissa and I share the design work." },
     { q:"Can you look at my design?", k:["review","feedback","look at","check my","approve"], a:"Send it over, happy to be a second pair of eyes on spacing and brand colors." },
-    { q:"Are you working remotely?", k:["remote","remotely","working from","on the call"], a:"Yes, I work remotely and I am on the call with the team all day." },
-    { q:"Can you see my screen?", k:["screen","share","camera","video"], a:"Yes, I can see it. Go ahead." },
-    { q:"How do I reach you?", k:["reach","contact","ping","message you","email"], a:"Message me anytime. I am always online during the day." },
+    { q:"Are you in the office?", k:["remote","remotely","working from","on the call","in the office"], a:"Yes, I sit at the desk by the entrance now. Come say hi." },
+    { q:"Can I show you something?", k:["screen","share","camera","video","show you"], a:"Sure, bring your laptop over or I can come to your desk." },
+    { q:"How do I reach you?", k:["reach","contact","ping","message you","email"], a:"Come by my desk, or message me anytime during the day." },
     { q:"How do we work together?", k:["work together","the office","come in","collaborate"], a:"Send me the file or drop it in the shared folder, and I will pick it up right away." }
-  ], fallback:"Sorry, my wifi is being dramatic. What was that?" }
+  ], fallback:"Sorry, I was zoomed in on a logo. What was that?" }
 };
 
 /* ---------- conversation: intents + live state ---------- */
@@ -10532,6 +10540,13 @@ REMOTE.forEach(function(p, i){
   p.spot = new V3(p.sx, 0, -3.15);
   p.seat = new V3(p.sx, 0, -4.1);
 });
+/* Stephanie B.'s old wall TV: still on the wall, switched off */
+(function(){
+  var g = new T.Group(); g.position.set(1.95, 1.8, -4.0); g.scale.setScalar(0.72); scene.add(g);
+  add(G.box, M("#121418", { roughness:0.35, metalness:0.4 }), 2.0, 1.16, 0.07, 0, 0, 0, g);
+  var off = new T.Mesh(G.plane, new T.MeshStandardMaterial({ color:"#0a0c0f", roughness:0.22, metalness:0.3 }));
+  off.scale.set(1.9, 1.07, 1); off.position.z = 0.037; g.add(off);
+})();
 /* director: a remote colleague's mood (it shows in what people say to them) */
 function simRemote(p, t, dt){
   p.mood.v += (moodTarget(p) - p.mood.v) * dt * 0.01;
