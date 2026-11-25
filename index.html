@@ -6821,7 +6821,7 @@ function lifeTreat(p, t){
 var TREATS = { on:false, day:0, until:0 };
 var PLYTIX = { on:false, next:0, until:0, lastAt:0 };
 var BOXEV = { day:0, next:0, on:false };
-/* ---------- a fireplace box to move: about 10 times a day a big box shows up in the middle of the office, two minutes
+/* ---------- a fireplace box to move: twice a day a big box shows up in the middle of the office, two minutes
    later 4 people get up, take a corner each, lift it together and carry it out to the hallway (the meetings way).
    They are back about 3 minutes later. The box has its own path; each carrier walks at a fixed spot next to it, so
    the four turn together. Everything follows the director and the clock, so every screen sees the same carry. */
@@ -6845,7 +6845,8 @@ function carryD(t){ var C = CARRY.cur; return C && C.w ? walkD(C.w, t - C.ts) : 
 function carrySlots(dk){
   if (CARRY.day === dk) return;
   CARRY.day = dk; CARRY.slots = []; CARRY.k = 0;
-  for (var k = 0; k < 10 && CARRY_LIVE; k++) { var r = wrng("carry", dk * 16 + k); CARRY.slots.push((8.75 + k * 0.78 + r() * 0.2) * 3600); }
+  /* twice a day, late morning and mid afternoon (it was 10 a day, Luis found it too much, 24 Nov) */
+  for (var k = 0; k < 2 && CARRY_LIVE; k++) { var r = wrng("carry", dk * 16 + k); CARRY.slots.push((10.25 + k * 4 + r() * 0.6) * 3600); }
   /* ?carry=1: one right away, to look at it (this screen only) */
   if (/[?&]carry=1/.test(location.search || "")) { var tz = torontoAt(WORLD_NOW()); CARRY.slots.unshift(tz.h * 3600 + tz.mi * 60 + tz.s + 25); }
 }
