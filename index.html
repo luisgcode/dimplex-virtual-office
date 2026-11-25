@@ -3057,8 +3057,9 @@ function buildSeason(){
       add(G.box, M(gift[k % 4][1], { roughness:0.5 }), 0.16, 0.82, 1.02, 0, 0.4, 0, pg, false);
       add(G.sph, M(gift[k % 4][1], { roughness:0.5 }), 0.22, 0.16, 0.22, 0, 0.84, 0, pg, false);
     }
-    /* this week the small tree and its presents stand at the entrance (Marissa has the corner) */
-    var TX = MARISSA_IN ? -1.25 : -1.2, TZ = MARISSA_IN ? 5.75 : -3.72, TF = MARISSA_IN ? -1 : 1;
+    /* this week the small tree and its presents move to the other side of the logo wall (Marissa has the corner; at
+       the entrance it stood in the way to the printers) */
+    var TX = MARISSA_IN ? 0.95 : -1.2, TZ = -3.72, TF = 1;
     present(scene, TX - 0.42, 0, TZ + 0.22 * TF, 0.2, 0, 0.3);
     present(scene, TX + 0.34, 0, TZ + 0.27 * TF, 0.16, 1, -0.4);
     present(scene, TX - 0.1, 0, TZ + 0.42 * TF, 0.13, 2, 0.8);
@@ -6664,10 +6665,10 @@ function lowestSkin(p, cx, cz, rad, ymin){
 function calibrate(p, t){
   if (p.remote || !p.rig || !p.root.visible) return;
   var r = p.rig;
-  /* measure only once the body has really been posed seated for a while: right after the page opens the skin
-     can still be in its standing pose, and measuring then sank people into their chairs */
+  /* measure only once the body has really been posed seated for a while (a few frames and 1.5 s): right after the
+     page opens the skin can still be in its standing pose, and measuring then sank people into their chairs */
   if (p.state === "sit" && r.sit > 0.995) r.sitSince = r.sitSince || t; else r.sitSince = 0;
-  if (frameNo < 90 || !r.sitSince || t - r.sitSince < 1.5) return;
+  if (frameNo < 12 || !r.sitSince || t - r.sitSince < 1.5) return;
   /* the seat height only looks at the hips, so crossed legs or a hand on the mouse do not spoil it; postures that move
      the hips (recline, sitting on the edge) and big acts still wait. The toe check after it needs a plain pose. */
   var hipsStill = !(p.posture && /recline|edge|lean|slouch|curl/i.test(p.posture)) && !(p.postCur && /recline|edge|lean|slouch|curl/i.test(p.postCur)) && !(p.act && /stand|turn|leanFire|stretch|yawn|answer/.test(p.act.n));
@@ -6676,8 +6677,9 @@ function calibrate(p, t){
     if (!p.seatCal) {
       r.b.Hips.getWorldPosition(_calC);
       var lo = lowestSkin(p, _calC.x, _calC.z, 0.12, _calC.y - 0.3);
-      /* a correction this big means the measure was wrong (pose not settled): try again later instead */
-      if (lo < 1 && Math.abs(SEAT_TOP - lo) > 0.18) { p.seatCalT = t + 2; return; }
+      /* a correction this big means the measure was wrong (pose not settled): try again later instead (0.18 was too
+         tight: Erica needs 0.23 and stayed sunk all day) */
+      if (lo < 1 && Math.abs(SEAT_TOP - lo) > 0.3) { p.seatCalT = t + 2; return; }
       if (lo < 1) p.seatFix = clamp((p.seatFix || 0) + SEAT_TOP - lo, -0.1, 0.35);
       p.seatCal = 1; p.seatCalT = t + 0.6;
     } else {
@@ -10553,6 +10555,11 @@ function swapShoes(dstRoot, srcRoot, opt){
   dstBody.parent.add(m);
   m.bind(new T.Skeleton(newBones), dstBody.matrixWorld.clone());
 }
+/* each body's seat height, measured on 24 Nov: everyone sits at the right height from the first frame (before, they
+   sat sunk into the chair until the self calibration ran, which on a slow laptop took many seconds). The calibration
+   still runs and fine tunes it. */
+var SEAT_FIX0 = { erica:0.233, allyson:0.2, stephanie:0.193, debbie:0.208, olivia:0.177, luis:0.124, carla:0.211, stephanieb:0.157, marissa:0.192 };
+PEOPLE.forEach(function(p){ if (p.seatFix === undefined && !p.remote) p.seatFix = SEAT_FIX0[p.id] !== undefined ? SEAT_FIX0[p.id] : 0.19; });
 PEOPLE.forEach(function(p){ makeRig(p); });
 PEOPLE.forEach(function(g){
   if (!g.guest) return;
@@ -10973,13 +10980,14 @@ var clock = new T.Clock(), headPos = new V3(), tv = new V3();
 var aoFailed = false, DT_MAX = 0.12;
 var frameNo = 0, LBL = null;
 var PERF = { t0:0, frames:0, done:false };
-var SHADOW_EVERY = 2;
+/* shadows update every frame: skipping frames left a dark "ghost" shadow where someone had been on slow laptops,
+   and measured on an Intel UHD 620 the shadow pass costs almost nothing here */
+var SHADOW_EVERY = 1;
 /* never below the screen's own resolution (1x): lower than that looks pixelated */
 var DYN = { t0:performance.now(), frames:0, cap:Math.min(window.devicePixelRatio || 1, 1.5), min:1 };
 function degrade(){
   if (composer) { composer = null; return true; }
   if (renderer.getPixelRatio() > 1) { renderer.setPixelRatio(1); return true; }
-  if (SHADOW_EVERY < 4) { SHADOW_EVERY = 4; return true; }
   if (sun.shadow.mapSize.x > 1024) { sun.shadow.mapSize.set(1024, 1024); if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; } return true; }
   return false;
 }
