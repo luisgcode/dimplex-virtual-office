@@ -9333,10 +9333,13 @@ function chalRender(){
   tb.appendChild(bd); Lf.appendChild(tb);
   Lf.appendChild(el("h3", "sec", "Achieved"));
   if (!CH.st.done.length) Lf.appendChild(el("p", "empty", "Nothing achieved yet."));
+  var seenImg = {};
   CH.st.done.slice().reverse().forEach(function(d, ri){
+    /* a split photo (e.g. the middle person 5, the rest 2) is 2 rows with the same photo: show it once with the split */
+    if (d.img) { var sk = d.mid + "|" + d.img; if (seenImg[sk]) return; seenImg[sk] = 1; }
     var i = CH.st.done.length - 1 - ri, m = chalDef(d.mid), bt = el("button", "dn"); bt.type = "button";
     var im = el("img"); im.src = d.img; im.alt = "Proof photo for " + (m ? m.title : d.mid); bt.appendChild(im);
-    var tx = el("div"); tx.appendChild(el("b", "", chalCap(d))); tx.appendChild(el("span", "", chalNames(d) + " · " + ptsTxt(d.pts) + " · " + fmtTime(d.at))); bt.appendChild(tx);
+    var tx = el("div"); tx.appendChild(el("b", "", chalCap(d))); tx.appendChild(el("span", "", chalSibs(d).map(function(x){ return chalNames(x) + " · " + ptsTxt(x.pts); }).join(" / ") + " · " + fmtTime(d.at))); bt.appendChild(tx);
     bt.addEventListener("click", function(){ CH.view = { kind:"proof", i:i }; chalRender(); });
     Lf.appendChild(bt);
   });
@@ -9569,13 +9572,15 @@ function chalPerson(B, id){
   });
   B.appendChild(list);
 }
+/* rows of the same mission with the same photo (a split group photo), most points first */
+function chalSibs(d){ return d.img ? CH.st.done.filter(function(x){ return x.mid === d.mid && x.img === d.img; }).sort(function(p, q){ return q.pts - p.pts; }) : [d]; }
 function chalProof(B, i){
   var d = CH.st.done[i], m = chalDef(d.mid), w = el("div", "proof");
   var back = el("button", "go ghost", "Back"); back.type = "button"; back.addEventListener("click", function(){ CH.view = (CH.view && CH.view.from) || null; chalRender(); });
   w.appendChild(back);
   w.appendChild(el("h3", "ms-title", chalCap(d)));
   var im = el("img"); im.src = d.img; im.alt = "Proof photo: " + (m ? m.title : d.mid) + ", " + chalNames(d); w.appendChild(im);
-  w.appendChild(el("p", "ms-title", chalNames(d) + " · " + d.pts + (d.pts === 1 ? " point" : " points")));
+  chalSibs(d).forEach(function(x){ w.appendChild(el("p", "ms-title", chalNames(x) + " · " + x.pts + (x.pts === 1 ? " point" : " points"))); });
   w.appendChild(el("p", "ms-meta", "Received " + fmtTime(d.at) + (d.taken ? " · taken " + fmtTime(d.taken) : "")));
   B.appendChild(w);
 }
