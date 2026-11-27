@@ -238,6 +238,157 @@ h1 em{font-style:normal;color:var(--accent)}
 .chal .pn:hover{text-decoration-style:solid}
 .chal .pn:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
 .chal .plist{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+/* ---------- the awards reveal, full screen ---------- */
+.wrap{position:fixed;inset:0;z-index:60;background:radial-gradient(120% 90% at 50% 0%,#2a1218 0%,#0d0f13 60%);color:#f4f5f7;font-family:var(--f-body);overflow:hidden;cursor:pointer;user-select:none}
+.wrap .wr-bars{position:absolute;top:14px;left:16px;right:170px;display:flex;gap:4px;z-index:2}
+.wrap .wr-bars i{flex:1;height:3px;border-radius:2px;background:rgba(255,255,255,.22);overflow:hidden}
+.wrap .wr-bars i b{display:block;height:100%;width:0;background:#fff}
+.wrap .wr-bars i.done b{width:100%}
+.wrap .wr-x{position:absolute;top:6px;right:14px;z-index:3;width:36px;height:36px;border:0;border-radius:50%;background:rgba(255,255,255,.1);color:#fff;font:600 22px/1 var(--f-body);cursor:pointer}
+.wrap .wr-mute{right:58px;width:auto;border-radius:999px;padding:0 14px;font:700 12px/1 var(--f-body)}
+.wrap .wr-x:focus-visible{outline:2px solid #fff;outline-offset:2px}
+.wrap .wr-stage{position:absolute;inset:40px 16px 16px;display:flex;align-items:center;justify-content:center}
+.wrap .wr-slide{width:min(860px,100%);max-height:100%;display:flex;flex-direction:column;align-items:center;text-align:center;gap:min(14px,1.8vh)}
+.wrap .wr-slide>*{opacity:0;animation:wrin .7s cubic-bezier(.2,.8,.2,1) forwards}
+.wrap .wr-slide>*:nth-child(2){animation-delay:.25s}
+.wrap .wr-slide>*:nth-child(3){animation-delay:.9s}
+.wrap .wr-slide>*:nth-child(4){animation-delay:1.6s}
+.wrap .wr-slide>*:nth-child(5){animation-delay:2.2s}
+@keyframes wrin{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+.wrap .wr-kicker{margin:0;font:700 12px/1 var(--f-body);letter-spacing:.2em;text-transform:uppercase;color:#f0364f}
+.wrap .wr-big{margin:0;font:900 min(11vw,16vh,110px)/.95 var(--f-body);letter-spacing:-.03em}
+.wrap .wr-cat{margin:0;font:800 min(6vw,7.5vh,52px)/1.05 var(--f-body);letter-spacing:-.02em}
+.wrap .wr-sub{margin:0;font:500 18px/1.4 var(--f-body);color:#b8bfc8}
+.wrap .wr-hint{margin:18px 0 0;font:600 12px/1 var(--f-body);letter-spacing:.14em;text-transform:uppercase;color:#7d8692}
+.wrap .wr-photos{display:flex;gap:16px;justify-content:center;flex-wrap:nowrap;width:100%;opacity:1;animation:none}
+.wrap .wr-photo{margin:0;width:auto;max-width:48%;opacity:0;animation:wrpop .9s cubic-bezier(.2,.9,.25,1.15) forwards;display:flex;flex-direction:column;gap:10px}
+.wrap .wr-photos.multi .wr-photo{max-width:32%}
+.wrap .wr-photo img{height:min(46vh,420px);width:auto;max-width:100%;aspect-ratio:4/5;object-fit:cover;border-radius:16px;box-shadow:0 24px 60px rgba(0,0,0,.55)}
+.wrap .wr-photo figcaption{display:flex;flex-direction:column;gap:4px}
+.wrap .wr-photo b{font:800 min(20px,3vh)/1.2 var(--f-body)}
+.wrap .wr-photo span{font-size:min(13px,2vh);line-height:1.35;color:#9aa3ad}
+@keyframes wrpop{from{opacity:0;transform:scale(.82) rotate(-2deg)}to{opacity:1;transform:none}}
+.wrap .wr-pts{margin:4px 0 0;font:800 min(22px,3.4vh)/1 var(--f-body);color:#fff;background:#e31837;border-radius:999px;padding:10px 18px}
+.wrap .wr-names{display:flex;gap:18px;justify-content:center;flex-wrap:wrap;opacity:1;animation:none}
+.wrap .wr-name{display:flex;flex-direction:column;align-items:center;gap:14px;opacity:0;animation:wrpop .9s cubic-bezier(.2,.9,.25,1.15) forwards}
+.wrap .wr-name i{width:min(132px,22vh);height:min(132px,22vh);border-radius:50%;display:flex;align-items:center;justify-content:center;font:900 min(46px,7vh)/1 var(--f-body);font-style:normal;color:#fff;box-shadow:0 20px 50px rgba(0,0,0,.5)}
+.wrap .wr-name b{font:900 min(6vw,7vh,50px)/1 var(--f-body);letter-spacing:-.02em}
+.wrap .wr-table{position:relative;width:100%;max-width:720px;text-align:left}
+.wrap .wr-row{position:absolute;left:0;right:0;height:min(40px,6vh);display:flex;align-items:center;gap:12px;transition:transform 1s cubic-bezier(.4,0,.2,1)}
+.wrap .wr-row .rk{width:24px;font:800 16px/1 var(--f-body);color:#7d8692;font-variant-numeric:tabular-nums}
+.wrap .wr-row .nm{width:130px;font:700 16px/1.1 var(--f-body)}
+.wrap .wr-row .tr{flex:1;height:22px;position:relative}
+.wrap .wr-row .bar{position:absolute;left:0;top:0;bottom:0;border-radius:4px;background:#3a414b;transition:width 1.2s cubic-bezier(.4,0,.2,1)}
+.wrap .wr-row .num{width:52px;text-align:right;font:800 18px/1 var(--f-body);font-variant-numeric:tabular-nums}
+.wrap .wr-row .plus{width:52px;font:800 14px/1 var(--f-body);color:#1fbf6a;opacity:0;transform:translateX(-8px);transition:opacity .4s,transform .4s}
+.wrap .wr-row .plus.in{opacity:1;transform:none}
+.wrap .wr-row.first .bar{background:#d4a72c}
+.wrap .wr-row.first .nm,.wrap .wr-row.first .num{color:#f4c84a}
+.wrap .wr-champ{margin:6px 0 0;min-height:28px;font:800 24px/1.2 var(--f-body);color:#f4c84a;opacity:0;transition:opacity .6s .9s}
+.wrap .wr-champ.in{opacity:1}
+.wrap .wr-slide.wr-hold{visibility:hidden}
+.wrap .wr-slide.wr-final:not(.wr-hold)>*{animation:wrin .7s cubic-bezier(.2,.8,.2,1) forwards}
+.wrap .wr-champion{position:absolute;inset:-40px -16px -16px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:min(10px,1.4vh);background:radial-gradient(70% 60% at 50% 45%,#3c141a,#0a0b0e);animation:wrfade .5s ease forwards;overflow:hidden;cursor:default}
+.wrap .wr-champion.out{animation:wrfadeout .5s ease forwards}
+@keyframes wrfade{from{opacity:0}to{opacity:1}}
+@keyframes wrfadeout{to{opacity:0}}
+.wrap .wr-champion>*{position:relative}
+/* beat 1: suspense */
+.wrap .wr-rays{position:absolute!important;left:50%;top:42%;width:150vmax;height:150vmax;margin:-75vmax 0 0 -75vmax;pointer-events:none;
+  background:repeating-conic-gradient(from 0deg,rgba(244,200,74,.13) 0 6deg,transparent 6deg 18deg);
+  -webkit-mask:radial-gradient(circle,#000 0,transparent 55%);mask:radial-gradient(circle,#000 0,transparent 55%);
+  opacity:0;animation:wrrays 3.6s ease-in forwards,wrspin 14s linear infinite}
+@keyframes wrrays{0%{opacity:0;transform:scale(.6)}100%{opacity:1;transform:scale(1)}}
+@keyframes wrspin{to{rotate:360deg}}
+.wrap .wr-tease{position:absolute!important;top:auto;bottom:22%;margin:0;font:800 min(4vw,5vh,34px)/1.1 var(--f-body);color:#d6dbe1;letter-spacing:-.01em;opacity:0;animation:wrtease 3.6s ease forwards}
+@keyframes wrtease{0%{opacity:0;transform:translateY(10px)}15%{opacity:1;transform:none}85%{opacity:1}100%{opacity:0;transform:translateY(-12px)}}
+.wrap .wr-coin{position:relative;width:min(200px,30vh);height:min(200px,30vh);perspective:900px}
+.wrap .wr-coin-bob{width:100%;height:100%;animation:wrbob .5s ease-in-out 6 alternate}
+@keyframes wrbob{from{transform:translateY(-6px)}to{transform:translateY(6px)}}
+.wrap .wr-coin-in{position:relative;width:100%;height:100%;transform-style:preserve-3d;animation:wrcoin2 4.4s forwards}
+/* drops in, spins faster and faster (the suspense), slams down showing the winner (the hit) */
+@keyframes wrcoin2{
+  0%{transform:translateY(-70vh) rotateY(0) scale(.5);animation-timing-function:cubic-bezier(.2,.8,.3,1)}
+  14%{transform:translateY(0) rotateY(180deg) scale(.9);animation-timing-function:cubic-bezier(.6,0,1,.6)}
+  78%{transform:translateY(0) rotateY(2160deg) scale(1);animation-timing-function:cubic-bezier(0,.6,.3,1)}
+  84%{transform:translateY(0) rotateY(2340deg) scale(1.32)}
+  92%{transform:translateY(0) rotateY(2340deg) scale(.94)}
+  100%{transform:translateY(0) rotateY(2340deg) scale(1)}}
+.wrap .wr-coin-face{position:absolute;inset:0;border-radius:50%;display:flex;align-items:center;justify-content:center;backface-visibility:hidden;-webkit-backface-visibility:hidden;
+  background:radial-gradient(circle at 35% 30%,#fff1b8 0%,#f4c84a 30%,#d4a72c 62%,#8f6a12 100%);box-shadow:0 0 0 6px #b8891a inset,0 0 0 12px #f4d46a inset,0 0 50px rgba(244,200,74,.45);animation:wrglow .6s ease-in-out 6 alternate}
+@keyframes wrglow{to{box-shadow:0 0 0 6px #b8891a inset,0 0 0 12px #f4d46a inset,0 0 90px rgba(244,200,74,.85)}}
+.wrap .wr-coin-front{transform:rotateY(180deg)}
+/* no spoilers while it spins: the winner only shows on the coin at the hit */
+.wrap .wr-coin-front>*{opacity:0;animation:wrshow .01s 3.55s forwards}
+.wrap .wr-coin-front::after{content:"?";position:absolute;font:900 min(66px,10vh)/1 var(--f-body);color:#5a3f06;animation:wrhide .01s 3.55s forwards}
+@keyframes wrshow{to{opacity:1}}
+@keyframes wrhide{to{opacity:0}}
+.wrap .wr-coin-front img{position:absolute;inset:14px;width:calc(100% - 28px);height:calc(100% - 28px);border-radius:50%;object-fit:cover;box-shadow:0 0 0 3px #8f6a12}
+.wrap .wr-coin-face span{font:900 min(66px,10vh)/1 var(--f-body);color:#5a3f06;letter-spacing:-.02em;text-shadow:0 1px 0 rgba(255,255,255,.5)}
+/* beat 2: the hit */
+.wrap .wr-ring{position:absolute;left:50%;top:50%;width:100%;height:100%;margin:-50% 0 0 -50%;border-radius:50%;border:4px solid #f4c84a;opacity:0;animation:wrring 1s 3.6s ease-out forwards;pointer-events:none}
+@keyframes wrring{0%{opacity:.9;transform:scale(.9)}100%{opacity:0;transform:scale(3.4)}}
+.wrap .wr-flash{position:absolute!important;inset:0;background:#fff;opacity:0;pointer-events:none;animation:wrflash .55s 3.55s ease-out forwards}
+@keyframes wrflash{0%{opacity:0}20%{opacity:.85}100%{opacity:0}}
+.wrap .wr-confetti{position:absolute!important;inset:0;pointer-events:none}
+.wrap .wr-confetti i{position:absolute;width:10px;height:6px;border-radius:1px;opacity:0}
+.wrap .wr-confetti i.burst{left:50%;top:42%;animation:wrburst 1.8s cubic-bezier(.1,.7,.3,1) forwards}
+@keyframes wrburst{0%{opacity:1;transform:translate(0,0) rotate(0)}70%{opacity:1}100%{opacity:0;transform:translate(var(--bx),calc(var(--by) + 18vh)) rotate(var(--rz))}}
+.wrap .wr-confetti i.rain{top:-20px;animation:wrconf linear forwards}
+@keyframes wrconf{0%{opacity:1;transform:translate(0,0) rotate(0)}100%{opacity:1;transform:translate(var(--dx),110vh) rotate(var(--rz))}}
+/* beat 3: the winner */
+.wrap .wr-champ-kick{opacity:0;animation:wrin .6s 3.9s forwards}
+.wrap .wr-champ-name{margin:min(8px,1.2vh) 0 0;font:900 min(10vw,13vh,96px)/1 var(--f-body);letter-spacing:-.03em;color:#fff;opacity:0;animation:wrname .9s 3.95s cubic-bezier(.2,.9,.25,1.25) forwards;text-shadow:0 0 40px rgba(244,200,74,.35)}
+@keyframes wrname{from{opacity:0;transform:scale(.4) translateY(20px)}to{opacity:1;transform:none}}
+.wrap .wr-champ-pts{margin:0;font:700 min(20px,3vh)/1 var(--f-body);color:#d6dbe1;opacity:0;animation:wrin .6s 4.3s forwards}
+.wrap .wr-champ-pts b{font:900 min(46px,6.8vh)/1 var(--f-body);color:#f4c84a;font-variant-numeric:tabular-nums}
+.wrap .wr-champ-sub{opacity:0;animation:wrin .6s 5s forwards}
+.wrap .wr-see{margin-top:min(10px,1.4vh);border:1px solid rgba(255,255,255,.3);background:none;color:#fff;border-radius:999px;padding:10px 18px;font:700 13px/1 var(--f-body);cursor:pointer;opacity:0;animation:wrin .6s 6s forwards}
+.wrap .wr-see:focus-visible{outline:2px solid #fff;outline-offset:2px}
+.wrap .wr-slide.wr-final>*{animation-delay:0s}
+@media (max-width:600px){.wrap .wr-row .nm{width:92px;font-size:14px}.wrap .wr-row .plus{width:40px}.wrap .wr-name i{width:96px;height:96px;font-size:34px}}
+/* ---------- Photo Awards: same look as the Missions panel ---------- */
+.awards .ch-body{position:relative}
+.awards .aw-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px}
+.awards .aw-ph{display:flex;flex-direction:column;gap:4px;padding:4px;border:1px solid var(--line);border-radius:10px;background:none;color:var(--ink);font:inherit;text-align:left;cursor:pointer}
+.awards .aw-ph img{width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:7px;display:block;background:var(--line)}
+.awards .aw-ph span{font-size:11px;line-height:1.3;color:var(--muted);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:28px}
+.awards .aw-ph:hover{border-color:var(--muted)}
+.awards .aw-ph:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.awards .aw-ph.sel{border:2px solid var(--accent);padding:3px}
+.awards .aw-ph.sel span{color:var(--ink);font-weight:600}
+.awards .aw-ph .yv{display:none;font:700 10px/1 var(--f-body);letter-spacing:.08em;text-transform:uppercase;color:var(--accent);min-height:0}
+.awards .aw-ph.sel .yv{display:block}
+.awards .aw-nav{display:flex;gap:8px;justify-content:space-between;align-items:center;position:sticky;bottom:-16px;margin:0 -16px -16px;padding:10px 16px;background:var(--surface);border-top:1px solid var(--line)}
+.awards .aw-nav .go{align-self:auto}
+.awards .aw-step{display:flex;gap:4px}
+.awards .aw-step i{width:22px;height:4px;border-radius:2px;background:var(--line)}
+.awards .aw-step i.on{background:var(--ink)}
+.awards .aw-step i.done{background:var(--muted)}
+.awards td.thumb{width:48px}
+.awards td.thumb img{width:44px;height:44px;border-radius:6px;object-fit:cover;display:block}
+.awards td.v{color:var(--muted);white-space:nowrap}
+.awards .aw-people{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px}
+.awards .aw-person{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:none;color:var(--ink);font:600 14px/1.2 var(--f-body);text-align:left;cursor:pointer}
+.awards .aw-person:hover{border-color:var(--muted)}
+.awards .aw-person.sel{border:2px solid var(--accent);padding:9px 11px}
+.awards .aw-person i{width:30px;height:30px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;font:800 12px/1 var(--f-body);font-style:normal;color:#fff}
+.awards .aw-person span{flex:1}
+.awards .aw-person small{font:700 10px/1 var(--f-body);letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.awards .aw-who-bar{margin:0;font-size:13px}
+.awards .aw-who-bar b{color:var(--ink)}
+.awards .aw-wins{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px}
+.awards .aw-win{display:flex;flex-direction:column;gap:5px;padding:10px;border:1px solid var(--line);border-radius:12px;background:none;color:var(--ink);font:inherit;text-align:left;cursor:pointer}
+.awards .aw-win:hover{border-color:var(--muted)}
+.awards .aw-win img{width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:8px;background:var(--line)}
+.awards .aw-win b{font:700 14px/1.25 var(--f-body)}
+.awards .aw-win .aw-cap{font-size:11px;line-height:1.3;color:var(--muted)}
+.awards .aw-win .pts{align-self:flex-start;margin:2px 0 0}
+.awards td.aw-hint{color:var(--muted);font-size:13px;line-height:1.35}
+.awards td.v.ok{color:#1f9d55;font-weight:700}
+.awards .aw-light{position:absolute;inset:0;background:var(--surface);display:flex;flex-direction:column;gap:10px;padding:14px 16px;z-index:3}
+.awards .aw-light img{flex:1;min-height:0;width:100%;object-fit:contain;border-radius:10px;background:var(--line)}
+@media (max-width:700px){.awards .ch-cols{grid-template-columns:1fr}.awards .ch-left{border-right:0;border-bottom:1px solid var(--line);max-height:200px}}
 .chal .dn{display:flex;gap:10px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:8px;background:none;color:var(--ink);text-align:left;cursor:pointer;font:inherit;width:100%}
 .chal .dn img{width:56px;height:56px;border-radius:8px;object-fit:cover;flex:none}
 .chal .dn b{display:block;font-size:14px}
@@ -473,6 +624,17 @@ body > header{display:none !important}
       <button class="pc-x" id="cardsClose" type="button" aria-label="Close">&times;</button>
     </div>
     <div class="cd-body" id="cardsBody"></div>
+  </div>
+  <div class="chal awards" id="awards" role="dialog" aria-labelledby="awTitle" hidden>
+    <div class="ch-head">
+      <h2 id="awTitle">Awards 2026</h2>
+      <span class="ch-demo" id="awTest" hidden>Test</span>
+      <button class="pc-x" id="awClose" type="button" aria-label="Close">&times;</button>
+    </div>
+    <div class="ch-cols">
+      <aside class="ch-left" id="awLeft" aria-label="Who voted"></aside>
+      <div class="ch-body" id="awBody"></div>
+    </div>
   </div>
   <div class="chal race" id="race" role="dialog" aria-labelledby="raceTitle" hidden>
     <div class="ch-head">
@@ -9330,7 +9492,15 @@ function chalRender(){
     nb.addEventListener("click", (function(pid){ return function(){ CH.view = { kind:"person", id:pid }; chalRender(); }; })(r.p.id));
     nt.appendChild(nb); tr.appendChild(nt); tr.appendChild(el("td", "n", String(r.n))); bd.appendChild(tr);
   });
-  tb.appendChild(bd); Lf.appendChild(tb);
+  tb.appendChild(bd);
+  if (typeof awHideBoard === "function" && awHideBoard()) {
+    /* voting closed: the final table is the end of the awards reveal, so it stays hidden until you watch it */
+    var hb = el("div", "ms"); hb.appendChild(el("span", "ms-label", "Awards 2026"));
+    hb.appendChild(el("p", "ms-title", "The final table is hidden"));
+    hb.appendChild(el("p", "ms-meta", "Voting is closed and the awards are in. Watch the results to see who won and the final table."));
+    var wb0 = el("button", "go", "Watch the results"); wb0.type = "button"; wb0.addEventListener("click", function(){ chalShow(false); wrapShow(); }); hb.appendChild(wb0);
+    Lf.appendChild(hb);
+  } else Lf.appendChild(tb);
   Lf.appendChild(el("h3", "sec", "Achieved"));
   if (!CH.st.done.length) Lf.appendChild(el("p", "empty", "Nothing achieved yet."));
   var seenImg = {};
@@ -9828,6 +9998,630 @@ function mraceShow(on){
 }
 mracePlay.addEventListener("click", function(){ if (MRACE.playing) mraceStop(); else { if (MRACE.i >= MRACE.snaps.length - 1) { MRACE.i = 0; mraceDraw(0); } mraceStart(); } });
 document.getElementById("raceRestart").addEventListener("click", function(){ MRACE.i = 0; mraceDraw(0); mraceStart(); });
+var AW_X = 0.18;
+/* ---------- Photo Awards (LOCAL TEST, 27 Nov): a board left of the race board. A single award at the end of the
+   tournament: from Dec 10 to Dec 31 everyone picks their name and votes one category at a time among all the photos. No names while voting and no results until it closes, so
+   people vote for the photo and not for who needs the points. Votes live only in this browser for now (localStorage);
+   the real version will store them in Supabase and give the points when voting closes on Dec 31. ---------- */
+var AW = {
+  cats:[
+    { id:"funny", name:"Funniest", hint:"The one that made everyone laugh." },
+    { id:"hard", name:"Hardest to get", hint:"The person, the place or the moment nobody thought they would get." },
+    { id:"effort", name:"Most effort", hint:"The one where someone clearly went above and beyond." },
+    { id:"creative", name:"Most creative", hint:"The smartest or most original take on the mission." },
+    { id:"acting", name:"Best acting", hint:"Fake snoring, mannequins, statues, secret handshakes: the most committed performance." },
+    { id:"prop", name:"Best costume or prop", hint:"Sticky note ties, toilet paper scarves, paper crowns, hats." },
+    { id:"crossteam", name:"Best with another department", hint:"The best photo with people from outside Marketing." },
+    { id:"memory", name:"Best memory", hint:"The photo you will remember the most when this is all over." }
+  ],
+  /* the second vote: for players, not photos */
+  pcats:[
+    { id:"p_overall", name:"Best overall performance", hint:"The best player of the tournament, all things considered." },
+    { id:"p_committed", name:"Most committed", hint:"Never stopped: kept sending photos and playing all the way to the end." },
+    { id:"p_recruiter", name:"Best recruiter", hint:"Got the most people from other departments involved in the game." },
+    { id:"p_teammate", name:"Best teammate", hint:"Helped others the most: showed up in their photos, took them, lent props." },
+    { id:"p_brave", name:"Bravest", hint:"Asked anyone, even the people nobody else dared to ask." },
+    { id:"p_attitude", name:"Best attitude", hint:"The most fun to compete with, and a good sport when losing." }
+  ],
+  ppts:5, pstep:0,
+  pts:3, KEY:"awards_test_v1", tab:"vote", voter:null, step:0, filter:"all", hit:null
+};
+/* one award only, for the whole tournament: voting is open from Dec 10 to Dec 31 at noon, 2026, on every photo since the
+   start. Before Dec 10 everyone can open the board, read how it works and look at the gallery, but not vote.
+   Voting can be tried early only on a local copy or with ?awtest=1 */
+var AW_OPEN = new Date(2026, 11, 10, 0, 0, 0).getTime(), AW_CLOSE = new Date(2026, 11, 31, 12, 0, 0).getTime();
+/* test mode only on a local copy (never on the public site): try voting, and ?awclosed=1 for the simulated results */
+var AW_TEST = !/[?&]awtest=0/.test(location.search || "") && /^(127\.0\.0\.1|localhost)$/.test(location.hostname);
+/* the votes are not in the database yet: until they are, nobody can vote on the public site, even after Dec 10 */
+var AW_DB_READY = false;
+function awPeriod(){ return { start:0, end:AW_CLOSE, key:"2026" }; }
+function awState(){ if (typeof AW_SIM !== "undefined" && AW_SIM) return "closed"; var n = Date.now(); return n < AW_OPEN ? "soon" : n > AW_CLOSE ? "closed" : "open"; }
+function awClose(){ return "December 31 at noon"; }
+function awCanVote(){ return (AW_DB_READY && awState() === "open") || (AW_TEST && awState() !== "closed"); }
+function awLoad(){ try { return JSON.parse(localStorage.getItem(AW.KEY)) || {}; } catch (e) { return {}; } }
+function awSave(db){ try { localStorage.setItem(AW.KEY, JSON.stringify(db)); } catch (e) {} }
+function awVotes(){ if (typeof AW_SIM !== "undefined" && AW_SIM) return awSimVotes(); return awLoad()[awPeriod().key] || {}; }
+function awSetVote(cat, img){
+  var db = awLoad(), k = awPeriod().key; db[k] = db[k] || {}; db[k][AW.voter] = db[k][AW.voter] || {};
+  if (img) db[k][AW.voter][cat] = img; else delete db[k][AW.voter][cat];
+  awSave(db); awBoardDraw();
+}
+function awVotedN(id){ var v = awVotes()[id] || {}; return AW.cats.filter(function(c){ return v[c.id]; }).length; }
+function awPts(c, player){ return c.pts || (player ? AW.ppts : AW.pts); }
+function awVotedP(id){ var v = awVotes()[id] || {}; return AW.pcats.filter(function(c){ return v[c.id]; }).length; }
+function awNames(x){ return x.team.map(function(id){ return BY[id] ? BY[id].name : id; }).join(", "); }
+/* every approved photo, once (a split group photo is one photo), newest first; games have no real photo */
+function awPhotos(){
+  if (!CH.st) chalLoad();
+  var seen = {}, out = [];
+  CH.st.done.slice().sort(function(a, b){ return (b.ok || b.at) - (a.ok || a.at); }).forEach(function(d){
+    var m = chalDef(d.mid); if (!d.img || (m && m.game) || /^(cards|coin|boxes|wheel|heist|lucky|advent)/.test(d.mid)) return;
+    if (seen[d.img]) return; seen[d.img] = 1;
+    var team = []; chalSibs(d).forEach(function(x){ (x.team || [x.who]).forEach(function(id){ if (team.indexOf(id) < 0) team.push(id); }); });
+    out.push({ img:d.img, mid:d.mid, team:team, who:d.who, t:d.ok || d.at, cap:chalCap(d) });
+  });
+  return out;
+}
+function awWeek(){ return awPhotos(); }
+var awEl = document.getElementById("awards"), awBody = document.getElementById("awBody"), awLeft = document.getElementById("awLeft");
+function awShow(on){
+  awEl.hidden = !on; if (!on) return;
+  document.getElementById("awTest").hidden = !AW_TEST;
+  if (chalEl && !chalEl.hidden) chalShow(false);
+  if (mraceEl && !mraceEl.hidden) mraceShow(false);
+  AW.step = 0; AW.pstep = 0; AW.voter = null; AW.tab = "vote"; awRender(); document.getElementById("awClose").focus();
+  if (CH.live && typeof chalSync === "function") { try { chalSync(true); } catch (e) {} }
+  /* the photos come in from the database a moment later: redraw once they are there, without losing the place */
+  clearTimeout(AW.redo); AW.redo = setTimeout(function(){ if (!awEl.hidden && !awBody.querySelector(".aw-light")) { var k = awBody.scrollTop; awRender(); awBody.scrollTop = k; } }, 1800);
+}
+document.getElementById("awClose").addEventListener("click", function(){ awShow(false); });
+window.addEventListener("keydown", function(e){ if (e.key !== "Escape" || awEl.hidden) return; var lb = awBody.querySelector(".aw-light"); if (lb) lb.remove(); else awShow(false); });
+function awLight(x, anon){
+  var lb = el("div", "aw-light"); lb.setAttribute("role", "dialog"); lb.setAttribute("aria-label", "Photo");
+  var c = el("button", "go ghost", "Back"); c.type = "button"; c.addEventListener("click", function(){ lb.remove(); }); lb.appendChild(c);
+  var im = el("img"); im.src = x.img; im.alt = x.cap; lb.appendChild(im);
+  lb.appendChild(el("p", "ms-title", x.cap));
+  if (!anon) lb.appendChild(el("p", "ms-meta", awNames(x) + " · " + fmtTime(x.t)));
+  awBody.appendChild(lb); awBody.scrollTop = 0; c.focus();
+}
+function awThumb(x, sub){
+  var b = el("button", "aw-ph"); b.type = "button";
+  var im = el("img"); im.src = x.img; im.alt = x.cap; im.loading = "lazy"; b.appendChild(im);
+  b.appendChild(el("span", "yv", "Your vote"));
+  b.appendChild(el("span", "", sub));
+  return b;
+}
+/* left column: who voted (never what), and the rules */
+function awLeftRender(){
+  awLeft.textContent = "";
+  awLeft.appendChild(el("h3", "sec", "Votes"));
+  awLeft.appendChild(el("p", "ms-meta", "Voting is open from December 10 to " + awClose() + ". One award, once."));
+  if (!awCanVote()) { awLeft.appendChild(el("p", "empty", awState() === "closed" ? "Voting is closed. The winners are in Results." : "Voting has not started yet.")); }
+  var tb = el("table"), hd = el("thead"), hr = el("tr"); hr.appendChild(el("th", "", "Name")); hr.appendChild(el("th", "", "Photos")); hr.appendChild(el("th", "", "Players")); hd.appendChild(hr); tb.appendChild(hd);
+  var bd = el("tbody");
+  if (awCanVote()) chalPlayers().forEach(function(q){
+    var n = awVotedN(q.id), np = awVotedP(q.id), tr = el("tr"); tr.appendChild(el("td", "", q.name));
+    tr.appendChild(el("td", "v" + (n ? " ok" : ""), n ? n + "/" + AW.cats.length : "Not yet"));
+    tr.appendChild(el("td", "v" + (np ? " ok" : ""), np ? np + "/" + AW.pcats.length : "Not yet")); bd.appendChild(tr);
+  });
+  tb.appendChild(bd); if (awCanVote()) awLeft.appendChild(tb);
+  awLeft.appendChild(el("h3", "sec", "How it works"));
+  var ul = el("ul", "how");
+  ["Pick your name and vote in each category, one at a time.",
+   "One vote per category. You can change it until voting closes.",
+   "Your own photos are not shown, and names are hidden while voting.",
+   "Votes are secret: everyone sees who voted, never which photo.",
+   "When voting closes, each award adds its points to the missions leaderboard: photo awards to everyone in the winning photo, player awards to the winner. Ties split the points.",
+   "Total on the table: " + AW.cats.reduce(function(t, c){ return t + awPts(c); }, 0) + " points in photo awards and " + AW.pcats.reduce(function(t, c){ return t + awPts(c, true); }, 0) + " in player awards."].forEach(function(t){ ul.appendChild(el("li", "", t)); });
+  awLeft.appendChild(ul);
+}
+function awTabs(){
+  var t = el("div", "mtags");
+  [["vote", "Photo awards"], ["players", "Player awards"], ["gallery", "Gallery"], ["results", "Results"]].forEach(function(o){
+    var b = el("button", "", o[1]); b.type = "button"; b.setAttribute("aria-pressed", AW.tab === o[0] ? "true" : "false");
+    b.addEventListener("click", function(){ AW.tab = o[0]; awRender(); }); t.appendChild(b);
+  });
+  awBody.appendChild(t);
+}
+function awRender(){
+  awLeftRender(); awBody.textContent = ""; awTabs();
+  if (AW_TEST) awBody.appendChild(el("p", "warn", "Test version: votes are saved only in this browser." + (awState() === "soon" ? " Voting really opens on December 10; you can try it now." : "")));
+  if (AW.tab === "gallery") return awGallery();
+  if (AW.tab === "results") return awResults();
+  if (awCanVote() && !AW.voter) return awWho();
+  if (awCanVote()) awVoterBar();
+  if (AW.tab === "players") return awPlayers();
+  if (!awCanVote()) return awSoon();
+  if (AW.step === 0) return awIntro();
+  var week = awWeek(), mine = awVotes()[AW.voter] || {};
+  if (!week.length) { awBody.appendChild(el("p", "empty", "No approved photos yet.")); return; }
+  if (AW.step > AW.cats.length) return awSummary(week, mine);
+  var c = AW.cats[AW.step - 1], box = el("div", "ms");
+  var top = el("div", "ms-top"); top.appendChild(el("span", "ms-label", "Category " + AW.step + " of " + AW.cats.length));
+  var stp = el("span", "aw-step"); AW.cats.forEach(function(cc, k){ stp.appendChild(el("i", k === AW.step - 1 ? "on" : mine[cc.id] ? "done" : "")); }); top.appendChild(stp);
+  top.appendChild(el("span", "pts", ptsTxt(awPts(c)))); box.appendChild(top);
+  box.appendChild(el("p", "ms-title", c.name));
+  box.appendChild(el("p", "ms-meta", c.hint + " Your own photos are not shown and names are hidden."));
+  awBody.appendChild(box);
+  var grid = el("div", "aw-grid");
+  week.filter(function(x){ return x.team.indexOf(AW.voter) < 0 && x.who !== AW.voter; }).forEach(function(x){
+    var b = awThumb(x, x.cap), on = mine[c.id] === x.img;
+    if (on) b.classList.add("sel"); b.setAttribute("aria-pressed", on ? "true" : "false");
+    b.addEventListener("click", function(){ awSetVote(c.id, on ? null : x.img); var k = awBody.scrollTop; awRender(); awBody.scrollTop = k; });
+    b.addEventListener("dblclick", function(){ awLight(x, true); });
+    grid.appendChild(b);
+  });
+  awBody.appendChild(grid);
+  awBody.appendChild(el("p", "note", "Click a photo to vote for it, click it again to remove the vote. Double click to see it big."));
+  var nav = el("div", "aw-nav"), back = el("button", "go ghost", "Back"); back.type = "button";
+  back.addEventListener("click", function(){ AW.step--; awRender(); awBody.scrollTop = 0; }); nav.appendChild(back);
+  var next = el("button", "go", mine[c.id] ? (AW.step === AW.cats.length ? "Finish" : "Next category") : "Skip"); next.type = "button";
+  next.addEventListener("click", function(){ AW.step++; awRender(); awBody.scrollTop = 0; });
+  nav.appendChild(next); awBody.appendChild(nav);
+}
+/* ---------- the player vote: same flow, but you pick a person instead of a photo ---------- */
+function awInitials(p){ return (p.name || p.id).split(/\s+/).map(function(w){ return w.charAt(0); }).join("").slice(0, 2).toUpperCase(); }
+function awPlayers(){
+  var cats = AW.pcats;
+  if (!awCanVote() || AW.pstep === 0) {
+    var box = el("div", "ms");
+    box.appendChild(el("span", "ms-label", "Player Awards 2026"));
+    box.appendChild(el("p", "ms-title", awCanVote() ? "Vote for the players of the tournament" : awState() === "closed" ? "Voting is closed" : "Voting opens on December 10"));
+    box.appendChild(el("p", "ms-meta", cats.length + " categories, one vote each, for anyone except yourself. Voting is open from December 10 to " + awClose() + ". Every award adds its points to the winner's total on the missions leaderboard."));
+    if (awCanVote()) {
+      var go = el("button", "go", awVotedP(AW.voter) ? "Review my votes" : "Start voting"); go.type = "button";
+      go.addEventListener("click", function(){ AW.pstep = awVotedP(AW.voter) ? cats.length + 1 : 1; awRender(); awBody.scrollTop = 0; });
+      box.appendChild(go);
+    }
+    awBody.appendChild(box);
+    awBody.appendChild(el("h3", "sec", "The " + cats.length + " categories"));
+    var tb0 = el("table"), bd0 = el("tbody");
+    cats.forEach(function(c){ var tr = el("tr"); tr.appendChild(el("td", "", c.name)); tr.appendChild(el("td", "aw-hint", c.hint)); tr.appendChild(el("td", "n", ptsTxt(awPts(c, true)))); bd0.appendChild(tr); });
+    tb0.appendChild(bd0); awBody.appendChild(tb0);
+    return;
+  }
+  var mine = awVotes()[AW.voter] || {};
+  if (AW.pstep > cats.length) {
+    var sb = el("div", "ms"); sb.appendChild(el("span", "ms-label", "Saved")); sb.appendChild(el("p", "ms-title", "Your player votes, " + BY[AW.voter].name));
+    sb.appendChild(el("p", "ms-meta", "You can change any of them until " + awClose() + ".")); awBody.appendChild(sb);
+    var tb = el("table"), hd = el("thead"), hr = el("tr"); ["Category", "Your vote", ""].forEach(function(h){ hr.appendChild(el("th", "", h)); }); hd.appendChild(hr); tb.appendChild(hd);
+    var bd = el("tbody");
+    cats.forEach(function(c, k){
+      var tr = el("tr"); tr.appendChild(el("td", "", c.name));
+      tr.appendChild(el("td", mine[c.id] ? "" : "v", mine[c.id] ? (BY[mine[c.id]] ? BY[mine[c.id]].name : mine[c.id]) : "No vote"));
+      var tc = el("td"), ch = el("button", "go ghost sm", "Change"); ch.type = "button"; ch.addEventListener("click", function(){ AW.pstep = k + 1; awRender(); awBody.scrollTop = 0; }); tc.appendChild(ch); tr.appendChild(tc);
+      bd.appendChild(tr);
+    });
+    tb.appendChild(bd); awBody.appendChild(tb);
+    var nv = el("div", "aw-nav"), sw = el("button", "go ghost", "Go to the photo awards"); sw.type = "button";
+    sw.addEventListener("click", function(){ AW.tab = "vote"; AW.step = 0; awRender(); awBody.scrollTop = 0; }); nv.appendChild(sw);
+    var dn = el("button", "go", "Done"); dn.type = "button"; dn.addEventListener("click", function(){ awShow(false); }); nv.appendChild(dn);
+    awBody.appendChild(nv); return;
+  }
+  var c = cats[AW.pstep - 1], box2 = el("div", "ms");
+  var top = el("div", "ms-top"); top.appendChild(el("span", "ms-label", "Category " + AW.pstep + " of " + cats.length));
+  var stp = el("span", "aw-step"); cats.forEach(function(cc, k){ stp.appendChild(el("i", k === AW.pstep - 1 ? "on" : mine[cc.id] ? "done" : "")); }); top.appendChild(stp);
+  top.appendChild(el("span", "pts", ptsTxt(awPts(c, true)))); box2.appendChild(top);
+  box2.appendChild(el("p", "ms-title", c.name));
+  box2.appendChild(el("p", "ms-meta", c.hint + " You can't vote for yourself, so your name is not in the list."));
+  awBody.appendChild(box2);
+  var list = el("div", "aw-people");
+  chalPlayers().filter(function(q){ return q.id !== AW.voter && !MRACE.skip[q.id]; }).forEach(function(q){
+    var on = mine[c.id] === q.id, b = el("button", "aw-person" + (on ? " sel" : "")); b.type = "button"; b.setAttribute("aria-pressed", on ? "true" : "false");
+    var i = el("i", "", awInitials(q)); i.style.background = q.shirt || "#667"; b.appendChild(i);
+    b.appendChild(el("span", "", q.name)); b.appendChild(el("small", "", on ? "Your vote" : ""));
+    b.addEventListener("click", function(){ awSetVote(c.id, on ? null : q.id); var k = awBody.scrollTop; awRender(); awBody.scrollTop = k; });
+    list.appendChild(b);
+  });
+  awBody.appendChild(list);
+  var nav = el("div", "aw-nav"), back = el("button", "go ghost", "Back"); back.type = "button";
+  back.addEventListener("click", function(){ AW.pstep--; awRender(); awBody.scrollTop = 0; }); nav.appendChild(back);
+  var next = el("button", "go", mine[c.id] ? (AW.pstep === cats.length ? "Finish" : "Next category") : "Skip"); next.type = "button";
+  next.addEventListener("click", function(){ AW.pstep++; awRender(); awBody.scrollTop = 0; });
+  nav.appendChild(next); awBody.appendChild(nav);
+}
+/* before Dec 10 (or after it closes): what it is, the categories, and the gallery to look around */
+function awSoon(){
+  var st = awState(), box = el("div", "ms");
+  box.appendChild(el("span", "ms-label", "Photo Awards 2026"));
+  box.appendChild(el("p", "ms-title", st === "closed" ? "Voting is closed" : "Voting opens on December 10"));
+  box.appendChild(el("p", "ms-meta", st === "closed" ? "The winners are in the Results tab." :
+    "From December 10 to " + awClose() + ", everyone votes for the best photos of the tournament, one category at a time, among every photo since the start. The winning photo of each category adds its points to the total of everyone in it, on the missions leaderboard."));
+  var gb = el("button", "go ghost", "Look at all the photos"); gb.type = "button"; gb.addEventListener("click", function(){ AW.tab = "gallery"; awRender(); }); box.appendChild(gb);
+  awBody.appendChild(box);
+  awBody.appendChild(el("h3", "sec", "The " + AW.cats.length + " categories"));
+  var tb = el("table"), bd = el("tbody");
+  AW.cats.forEach(function(c){ var tr = el("tr"); tr.appendChild(el("td", "", c.name)); tr.appendChild(el("td", "aw-hint", c.hint)); tr.appendChild(el("td", "n", ptsTxt(awPts(c)))); bd.appendChild(tr); });
+  tb.appendChild(bd); awBody.appendChild(tb);
+}
+/* first thing when voting: who you are. From then on your own photos and your own name never show up */
+function awWho(){
+  var box = el("div", "ms");
+  box.appendChild(el("span", "ms-label", "Awards 2026"));
+  box.appendChild(el("p", "ms-title", "Who are you?"));
+  box.appendChild(el("p", "ms-meta", "Pick your name first. You can't vote for yourself, so your own photos and your own name will not show up."));
+  var f = el("form"), lb = el("label", "", "Your name"), sel = el("select");
+  var o0 = el("option", "", "Choose your name"); o0.value = ""; sel.appendChild(o0);
+  chalPlayers().forEach(function(q){ var o = el("option", "", q.name); o.value = q.id; sel.appendChild(o); });
+  lb.appendChild(sel); f.appendChild(lb);
+  var go = el("button", "go", "Continue"); go.type = "submit"; go.disabled = true; f.appendChild(go);
+  sel.addEventListener("change", function(){ go.disabled = !sel.value; });
+  f.addEventListener("submit", function(e){ e.preventDefault(); if (!sel.value) return; AW.voter = sel.value; AW.step = 0; AW.pstep = 0; awRender(); awBody.scrollTop = 0; });
+  box.appendChild(f); awBody.appendChild(box);
+}
+function awVoterBar(){
+  var bar = el("p", "ms-meta aw-who-bar");
+  bar.appendChild(document.createTextNode("Voting as "));
+  bar.appendChild(el("b", "", BY[AW.voter] ? BY[AW.voter].name : AW.voter));
+  var ch = el("button", "pn", "Not you?"); ch.type = "button"; ch.addEventListener("click", function(){ AW.voter = null; AW.step = 0; AW.pstep = 0; awRender(); });
+  bar.appendChild(document.createTextNode(" · ")); bar.appendChild(ch);
+  awBody.appendChild(bar);
+}
+function awIntro(){
+  var box = el("div", "ms");
+  box.appendChild(el("span", "ms-label", "Photo Awards 2026"));
+  box.appendChild(el("p", "ms-title", "Vote for the best photos of the tournament"));
+  box.appendChild(el("p", "ms-meta", AW.cats.length + " categories, one vote each, among every photo since the start except your own. Voting is open from December 10 to " + awClose() + "."));
+  var go = el("button", "go", awVotedN(AW.voter) ? "Review my votes" : "Start voting"); go.type = "button";
+  go.addEventListener("click", function(){ AW.step = awVotedN(AW.voter) ? AW.cats.length + 1 : 1; awRender(); awBody.scrollTop = 0; });
+  box.appendChild(go); awBody.appendChild(box);
+  awBody.appendChild(el("h3", "sec", "The " + AW.cats.length + " categories"));
+  var tb = el("table"), bd = el("tbody");
+  AW.cats.forEach(function(c){ var tr = el("tr"); tr.appendChild(el("td", "", c.name)); tr.appendChild(el("td", "aw-hint", c.hint)); tr.appendChild(el("td", "n", ptsTxt(awPts(c)))); bd.appendChild(tr); });
+  tb.appendChild(bd); awBody.appendChild(tb);
+}
+function awSummary(week, mine){
+  var box = el("div", "ms");
+  box.appendChild(el("span", "ms-label", "Saved"));
+  box.appendChild(el("p", "ms-title", "Your votes, " + BY[AW.voter].name));
+  box.appendChild(el("p", "ms-meta", "You can change any of them until " + awClose() + "."));
+  awBody.appendChild(box);
+  var tb = el("table"), hd = el("thead"), hr = el("tr"); ["Category", "", "Your vote", ""].forEach(function(h){ hr.appendChild(el("th", "", h)); }); hd.appendChild(hr); tb.appendChild(hd);
+  var bd = el("tbody");
+  AW.cats.forEach(function(c, k){
+    var pick = week.filter(function(x){ return x.img === mine[c.id]; })[0], tr = el("tr");
+    tr.appendChild(el("td", "", c.name));
+    var th = el("td", "thumb"); if (pick) { var im = el("img"); im.src = pick.img; im.alt = ""; th.appendChild(im); } tr.appendChild(th);
+    tr.appendChild(el("td", pick ? "" : "v", pick ? pick.cap : "No vote"));
+    var tc = el("td"), ch = el("button", "go ghost sm", "Change"); ch.type = "button"; ch.addEventListener("click", function(){ AW.step = k + 1; awRender(); awBody.scrollTop = 0; }); tc.appendChild(ch); tr.appendChild(tc);
+    bd.appendChild(tr);
+  });
+  tb.appendChild(bd); awBody.appendChild(tb);
+  var nav = el("div", "aw-nav"), sw = el("button", "go ghost", "Go to the player awards"); sw.type = "button";
+  sw.addEventListener("click", function(){ AW.tab = "players"; AW.pstep = 0; awRender(); awBody.scrollTop = 0; }); nav.appendChild(sw);
+  var dn = el("button", "go", "Done"); dn.type = "button"; dn.addEventListener("click", function(){ awShow(false); }); nav.appendChild(dn);
+  awBody.appendChild(nav);
+}
+function awGallery(){
+  var all = awPhotos();
+  awBody.appendChild(el("h3", "sec", "All photos · " + all.length));
+  var f = el("div", "mtags");
+  [{ id:"all", name:"Everyone" }].concat(chalPlayers()).forEach(function(q){ var b = el("button", "", q.name); b.type = "button"; b.setAttribute("aria-pressed", AW.filter === q.id ? "true" : "false"); b.addEventListener("click", function(){ AW.filter = q.id; awRender(); }); f.appendChild(b); });
+  awBody.appendChild(f);
+  var list = all.filter(function(x){ return AW.filter === "all" || x.team.indexOf(AW.filter) >= 0; });
+  if (!list.length) { awBody.appendChild(el("p", "empty", "No photos yet.")); return; }
+  var g = el("div", "aw-grid");
+  list.forEach(function(x){ var b = awThumb(x, awNames(x)); b.addEventListener("click", function(){ awLight(x); }); g.appendChild(b); });
+  awBody.appendChild(g);
+}
+/* ---------- results ---------- */
+/* ?awclosed=1 on a local copy: pretend voting closed yesterday, with made-up votes from everyone, to see the results page */
+var AW_SIM = AW_TEST && /[?&]awclosed=1/.test(location.search || "");
+function awSimVotes(){
+  if (AW.sim) return AW.sim;
+  var photos = awPhotos(); if (photos.length < 8) return {};
+  var r = seeded(2026), v = {};
+  function pick(arr){ return arr[Math.floor(r() * arr.length)]; }
+  /* each category has a few photos people like, so winners come out like in a real vote */
+  var fav = {}; AW.cats.forEach(function(c){ var f = []; for (var i = 0; i < 4; i++) f.push(pick(photos)); fav[c.id] = f; });
+  var pfav = {}, ps = chalPlayers().filter(function(q){ return !MRACE.skip[q.id]; });
+  AW.pcats.forEach(function(c){ pfav[c.id] = [pick(ps), pick(ps), pick(ps)]; });
+  chalPlayers().forEach(function(q){
+    var mine = v[q.id] = {};
+    AW.cats.forEach(function(c){ var ok = fav[c.id].filter(function(x){ return x.team.indexOf(q.id) < 0 && x.who !== q.id; }); if (!ok.length) return; var x = r() < 0.8 ? pick(ok) : pick(photos); if (x.team.indexOf(q.id) < 0) mine[c.id] = x.img; });
+    AW.pcats.forEach(function(c){ var ok = pfav[c.id].filter(function(x){ return x.id !== q.id; }); var x = r() < 0.8 && ok.length ? pick(ok) : pick(ps); if (x.id !== q.id) mine[c.id] = x.id; });
+  });
+  return (AW.sim = v);
+}
+/* winners of a category: most votes; a tie splits the points (rounded up) */
+function awWinners(cid, v){
+  var n = {}; Object.keys(v).forEach(function(w){ var x = v[w][cid]; if (x) n[x] = (n[x] || 0) + 1; });
+  var max = 0; Object.keys(n).forEach(function(k){ if (n[k] > max) max = n[k]; });
+  return max ? Object.keys(n).filter(function(k){ return n[k] === max; }) : [];
+}
+/* has this person watched the reveal? On the real site it is remembered in the browser; in the simulation it resets on every reload */
+var AW_SEEN_SIM = false;
+function awSeen(){ if (AW_SIM) return AW_SEEN_SIM; try { return localStorage.getItem("awards_wrap_seen_2026") === "1"; } catch (e) { return false; } }
+function awMarkSeen(){ if (AW_SIM) { AW_SEEN_SIM = true; return; } try { localStorage.setItem("awards_wrap_seen_2026", "1"); } catch (e) {} }
+function awHideBoard(){ return (AW_DB_READY || AW_SIM) && awState() === "closed" && !awSeen(); }
+function awAwardPoints(v){
+  /* what every player gets from the awards, to add to the missions leaderboard */
+  var add = {}, photos = awPhotos();
+  AW.cats.forEach(function(c){
+    var w = awWinners(c.id, v); if (!w.length) return; var each = Math.ceil(awPts(c) / w.length);
+    w.forEach(function(img){ var x = photos.filter(function(p){ return p.img === img; })[0]; if (x) x.team.forEach(function(id){ add[id] = (add[id] || 0) + each; }); });
+  });
+  AW.pcats.forEach(function(c){
+    var w = awWinners(c.id, v); if (!w.length) return; var each = Math.ceil(awPts(c, true) / w.length);
+    w.forEach(function(id){ add[id] = (add[id] || 0) + each; });
+  });
+  return add;
+}
+function awResults(){
+  if (awState() !== "closed") {
+    /* nothing about the votes until voting closes */
+    awBody.appendChild(el("h3", "sec", "Photo Awards 2026"));
+    awBody.appendChild(el("p", "ms-meta", "The winners stay secret until voting closes on " + awClose() + ". Every award adds its points to the missions leaderboard: a photo award to everyone in the photo, a player award to that player. Ties split the points."));
+    [[AW.cats, false, "Photo Awards 2026"], [AW.pcats, true, "Player Awards 2026"]].forEach(function(set, k){
+      if (k) awBody.appendChild(el("h3", "sec", set[2]));
+      var tb = el("table"), hd = el("thead"), hr = el("tr"); ["Category", "Points", "Winner"].forEach(function(h){ hr.appendChild(el("th", "", h)); }); hd.appendChild(hr); tb.appendChild(hd);
+      var bd = el("tbody");
+      set[0].forEach(function(c){ var tr = el("tr"); tr.appendChild(el("td", "", c.name)); tr.appendChild(el("td", "n", ptsTxt(awPts(c, set[1])))); tr.appendChild(el("td", "v", "Revealed when voting closes")); bd.appendChild(tr); });
+      tb.appendChild(bd); awBody.appendChild(tb);
+    });
+    return;
+  }
+  /* closed: only the final result. Never who voted for whom, and no vote counts */
+  var v = awVotes(), photos = awPhotos();
+  if (AW_SIM) awBody.appendChild(el("p", "warn", "Simulation: voting closed, with made-up votes from everyone. Nothing here is real."));
+  var box = el("div", "ms"); box.appendChild(el("span", "ms-label", "Awards 2026"));
+  box.appendChild(el("p", "ms-title", "The winners")); box.appendChild(el("p", "ms-meta", "Voting closed on " + awClose() + ". The points are already on the missions leaderboard."));
+  var wb = el("button", "go", awSeen() ? "Watch it again" : "Watch the results"); wb.type = "button"; wb.addEventListener("click", function(){ wrapShow(); }); box.appendChild(wb);
+  awBody.appendChild(box);
+  if (!awSeen()) { box.querySelector(".ms-title").textContent = "The results are ready"; box.querySelector(".ms-meta").textContent = "Voting is closed. Watch the results to see the winners and the final table."; return; }
+  awBody.appendChild(el("h3", "sec", "Photo Awards"));
+  var g = el("div", "aw-wins");
+  AW.cats.forEach(function(c){
+    var w = awWinners(c.id, v), each = w.length ? Math.ceil(awPts(c) / w.length) : 0;
+    w.forEach(function(img){
+      var x = photos.filter(function(p){ return p.img === img; })[0]; if (!x) return;
+      var card = el("button", "aw-win"); card.type = "button";
+      card.appendChild(el("span", "ms-label", c.name + (w.length > 1 ? " · tie" : "")));
+      var im = el("img"); im.src = x.img; im.alt = x.cap; card.appendChild(im);
+      card.appendChild(el("b", "", awNames(x)));
+      card.appendChild(el("span", "aw-cap", x.cap));
+      card.appendChild(el("span", "pts", "+" + ptsTxt(each) + (x.team.length > 1 ? " each" : "")));
+      card.addEventListener("click", function(){ awLight(x); });
+      g.appendChild(card);
+    });
+  });
+  awBody.appendChild(g);
+  awBody.appendChild(el("h3", "sec", "Player Awards"));
+  var tb = el("table"), hd = el("thead"), hr = el("tr"); ["Category", "Winner", "Points"].forEach(function(h){ hr.appendChild(el("th", "", h)); }); hd.appendChild(hr); tb.appendChild(hd);
+  var bd = el("tbody");
+  AW.pcats.forEach(function(c){
+    var w = awWinners(c.id, v), each = w.length ? Math.ceil(awPts(c, true) / w.length) : 0, tr = el("tr");
+    tr.appendChild(el("td", "", c.name));
+    tr.appendChild(el("td", "", w.length ? w.map(function(id){ return BY[id] ? BY[id].name : id; }).join(", ") + (w.length > 1 ? " (tie)" : "") : "No votes"));
+    tr.appendChild(el("td", "n", w.length ? "+" + ptsTxt(each) + (w.length > 1 ? " each" : "") : "")); bd.appendChild(tr);
+  });
+  tb.appendChild(bd); awBody.appendChild(tb);
+  /* what it does to the final table */
+  awBody.appendChild(el("h3", "sec", "Final leaderboard"));
+  var add = awAwardPoints(v), rows = chalScores().filter(function(r){ return !MRACE.skip[r.p.id]; }).map(function(r){ return { p:r.p, before:r.n, add:add[r.p.id] || 0 }; });
+  rows.forEach(function(r){ r.after = r.before + r.add; });
+  var order0 = rows.slice().sort(function(a, b){ return b.before - a.before; }).map(function(r){ return r.p.id; });
+  rows.sort(function(a, b){ return b.after - a.after || a.p.name.localeCompare(b.p.name); });
+  var t2 = el("table"), h2 = el("thead"), r2 = el("tr"); ["#", "Name", "Missions", "Awards", "Final"].forEach(function(h){ r2.appendChild(el("th", "", h)); }); h2.appendChild(r2); t2.appendChild(h2);
+  var b2 = el("tbody");
+  rows.forEach(function(r, k){
+    var tr = el("tr", k === 0 ? "lead" : ""), was = order0.indexOf(r.p.id), rk = el("td", "rk", String(k + 1));
+    if (was > k) rk.appendChild(el("span", "mv up", "▲" + (was - k))); else if (was < k) rk.appendChild(el("span", "mv down", "▼" + (k - was)));
+    tr.appendChild(rk); tr.appendChild(el("td", "", r.p.name)); tr.appendChild(el("td", "n", String(r.before)));
+    tr.appendChild(el("td", "n", r.add ? "+" + r.add : "")); tr.appendChild(el("td", "n", String(r.after))); b2.appendChild(tr);
+  });
+  t2.appendChild(b2); awBody.appendChild(t2);
+}
+/* ---------- the reveal: full screen, story style. One slide per award, the final table at the end ---------- */
+var WRAP = { el:null, i:0, slides:[], timer:null, paused:false, music:null, muted:false };
+/* background music for the reveal: drop the song in audio/awards.mp3. If the file is not there it just plays silent */
+function wrapMusic(on){
+  var a = WRAP.music;
+  if (on) {
+    if (!a) { a = WRAP.music = new Audio("audio/awards.mp3"); a.loop = true; a.preload = "auto"; }
+    a.muted = WRAP.muted; a.volume = 0; a.currentTime = 0;
+    var p = a.play(); if (p && p.catch) p.catch(function(){});
+    var t0 = performance.now(); (function up(){ var k = Math.min(1, (performance.now() - t0) / 1500); a.volume = 0.6 * k; if (k < 1 && WRAP.el) requestAnimationFrame(up); })();
+  } else if (a) {
+    var v0 = a.volume, t1 = performance.now(); (function down(){ var k = Math.min(1, (performance.now() - t1) / 600); a.volume = v0 * (1 - k); if (k < 1) requestAnimationFrame(down); else a.pause(); })();
+  }
+}
+function wrapBuild(){
+  var v = awVotes(), photos = awPhotos(), S = [];
+  S.push({ kind:"intro" });
+  AW.cats.forEach(function(c){
+    var w = awWinners(c.id, v).map(function(img){ return photos.filter(function(p){ return p.img === img; })[0]; }).filter(Boolean);
+    if (w.length) S.push({ kind:"photo", c:c, w:w, each:Math.ceil(awPts(c) / w.length) });
+  });
+  S.push({ kind:"break" });
+  AW.pcats.forEach(function(c){
+    var w = awWinners(c.id, v);
+    if (w.length) S.push({ kind:"player", c:c, w:w, each:Math.ceil(awPts(c, true) / w.length) });
+  });
+  S.push({ kind:"final" });
+  return S;
+}
+function wrapShow(){
+  if (WRAP.el) WRAP.el.remove();
+  WRAP.slides = wrapBuild(); WRAP.i = 0;
+  var o = el("div", "wrap"); o.setAttribute("role", "dialog"); o.setAttribute("aria-label", "Awards 2026 results");
+  var bars = el("div", "wr-bars"); WRAP.slides.forEach(function(){ var b = el("i"); b.appendChild(el("b")); bars.appendChild(b); }); o.appendChild(bars);
+  var x = el("button", "wr-x", "×"); x.type = "button"; x.setAttribute("aria-label", "Close"); x.addEventListener("click", function(e){ e.stopPropagation(); wrapClose(); }); o.appendChild(x);
+  var mu = el("button", "wr-x wr-mute", WRAP.muted ? "Sound off" : "Sound on"); mu.type = "button"; mu.setAttribute("aria-pressed", WRAP.muted ? "false" : "true");
+  mu.addEventListener("click", function(e){ e.stopPropagation(); WRAP.muted = !WRAP.muted; if (WRAP.music) WRAP.music.muted = WRAP.muted; mu.textContent = WRAP.muted ? "Sound off" : "Sound on"; mu.setAttribute("aria-pressed", WRAP.muted ? "false" : "true"); });
+  o.appendChild(mu);
+  o.appendChild(el("div", "wr-stage"));
+  /* tap the right side for the next one, the left side to go back */
+  o.addEventListener("click", function(e){ if (e.target.closest(".wr-x")) return; var r = o.getBoundingClientRect(); wrapGo(e.clientX - r.left < r.width * 0.3 ? -1 : 1); });
+  document.body.appendChild(o); WRAP.el = o;
+  wrapMusic(true); wrapRender();
+}
+/* the winner's face on the coin: one photo per person, chosen by Luis (img/coin/<id>.jpg). Without one, the initials */
+var AW_FACES = {};
+function wrapChampion(r, then){
+  /* three beats: suspense (the coin spins faster and faster, light rays, a teaser line), the hit (flash, shock ring,
+     confetti bursting out, the coin slams down on the winner), then the name and the points counting up */
+  var q = r.p, ov = el("div", "wr-champion"), T0 = 3.6;
+  ov.appendChild(el("div", "wr-rays"));
+  ov.appendChild(el("p", "wr-tease", "And the GOAT Trophy goes to..."));
+  var coin = el("div", "wr-coin"), bob = el("div", "wr-coin-bob"), inner = el("div", "wr-coin-in");
+  var back = el("div", "wr-coin-face wr-coin-back"); back.appendChild(el("span", "", "?")); inner.appendChild(back);
+  var front = el("div", "wr-coin-face wr-coin-front");
+  if (AW_FACES[q.id]) { var fim = el("img"); fim.src = AW_FACES[q.id]; fim.alt = q.name; front.appendChild(fim); } else front.appendChild(el("span", "", awInitials(q)));
+  inner.appendChild(front);
+  bob.appendChild(inner); coin.appendChild(bob); coin.appendChild(el("i", "wr-ring")); ov.appendChild(coin);
+  /* confetti: a burst from the coin, then a slow rain */
+  var conf = el("div", "wr-confetti"), cols = ["#e31837", "#f4c84a", "#ffffff", "#2a9d8f", "#3d6fb0", "#d4a72c", "#f0364f"];
+  for (var i = 0; i < 70; i++) {
+    var c = el("i", "burst"), a = Math.random() * Math.PI * 2, d = 30 + Math.random() * 45;
+    c.style.background = cols[i % cols.length]; c.style.animationDelay = (T0 + Math.random() * 0.15) + "s";
+    c.style.setProperty("--bx", Math.cos(a) * d + "vw"); c.style.setProperty("--by", Math.sin(a) * d * 0.7 - 10 + "vh"); c.style.setProperty("--rz", (Math.random() * 1440 - 720) + "deg");
+    if (i % 3 === 0) { c.style.width = "7px"; c.style.height = "15px"; }
+    conf.appendChild(c);
+  }
+  for (var j = 0; j < 80; j++) {
+    var f = el("i", "rain"); f.style.left = (Math.random() * 100) + "%"; f.style.background = cols[j % cols.length];
+    f.style.animationDelay = (T0 + 0.4 + Math.random() * 3) + "s"; f.style.animationDuration = (3 + Math.random() * 2.5) + "s";
+    f.style.setProperty("--dx", (Math.random() * 160 - 80) + "px"); f.style.setProperty("--rz", (Math.random() * 1080 - 540) + "deg");
+    if (j % 3 === 0) { f.style.width = "7px"; f.style.height = "14px"; }
+    conf.appendChild(f);
+  }
+  ov.appendChild(conf);
+  ov.appendChild(el("div", "wr-flash"));
+  ov.appendChild(el("p", "wr-kicker wr-champ-kick", "Champion 2026"));
+  ov.appendChild(el("h1", "wr-champ-name", q.name));
+  var pts = el("p", "wr-champ-pts"), num = el("b", "", "0"); pts.appendChild(num); pts.appendChild(document.createTextNode(" points")); ov.appendChild(pts);
+  ov.appendChild(el("p", "wr-sub wr-champ-sub", "Winner of the GOAT Trophy"));
+  var see = el("button", "wr-see", "See the final table"); see.type = "button";
+  var done = false;
+  function finish(){ if (done) return; done = true; clearTimeout(auto); ov.classList.add("out"); setTimeout(function(){ ov.remove(); if (then) then(); }, 500); }
+  see.addEventListener("click", function(e){ e.stopPropagation(); finish(); });
+  ov.appendChild(see);
+  ov.addEventListener("click", function(e){ e.stopPropagation(); });
+  WRAP.el.querySelector(".wr-stage").appendChild(ov);
+  /* the points count up right after the hit */
+  setTimeout(function(){ var t0 = performance.now(); (function tick(){ var k = Math.min(1, (performance.now() - t0) / 1600); num.textContent = Math.round(r.after * (1 - Math.pow(1 - k, 3))); if (k < 1 && WRAP.el) requestAnimationFrame(tick); })(); }, (T0 + 0.8) * 1000);
+  /* if nobody taps, the table comes on its own */
+  var auto = setTimeout(finish, (T0 + 8) * 1000);
+}
+function wrapClose(){ clearTimeout(WRAP.timer); wrapMusic(false); if (WRAP.el) WRAP.el.remove(); WRAP.el = null; if (!awEl.hidden) awRender(); if (!chalEl.hidden) chalRender(); }
+function wrapGo(d){ var n = WRAP.i + d; if (n < 0) n = 0; if (n >= WRAP.slides.length) return; WRAP.i = n; wrapRender(); }
+window.addEventListener("keydown", function(e){
+  if (!WRAP.el) return;
+  if (e.key === "Escape") { e.stopImmediatePropagation(); wrapClose(); }
+  else if (e.key === "ArrowRight" || e.key === " ") { e.preventDefault(); wrapGo(1); }
+  else if (e.key === "ArrowLeft") wrapGo(-1);
+}, true);
+function wrapRender(){
+  clearTimeout(WRAP.timer);
+  var s = WRAP.slides[WRAP.i], st = WRAP.el.querySelector(".wr-stage"), slide = el("div", "wr-slide wr-" + s.kind);
+  Array.prototype.forEach.call(WRAP.el.querySelectorAll(".wr-bars i"), function(b, k){ b.className = k < WRAP.i ? "done" : k === WRAP.i ? "on" : ""; });
+  var dur = 5200;
+  if (s.kind === "intro") {
+    slide.appendChild(el("p", "wr-kicker", "Dimplex Marketing · Missions 2026"));
+    slide.appendChild(el("h1", "wr-big", "The Awards"));
+    slide.appendChild(el("p", "wr-sub", AW.cats.length + " photo awards, " + AW.pcats.length + " player awards, and the final table."));
+    slide.appendChild(el("p", "wr-hint", "Tap to continue"));
+    dur = 4200;
+  } else if (s.kind === "break") {
+    slide.appendChild(el("p", "wr-kicker", "Part two"));
+    slide.appendChild(el("h1", "wr-big", "The players"));
+    slide.appendChild(el("p", "wr-sub", "Voted by the team."));
+    dur = 3200;
+  } else if (s.kind === "photo") {
+    slide.appendChild(el("p", "wr-kicker", "Photo award"));
+    slide.appendChild(el("h2", "wr-cat", s.c.name));
+    var row = el("div", "wr-photos" + (s.w.length > 1 ? " multi" : ""));
+    s.w.forEach(function(x, k){
+      var f = el("figure", "wr-photo"); f.style.animationDelay = (1.1 + k * 0.25) + "s";
+      var im = el("img"); im.src = x.img; im.alt = x.cap; f.appendChild(im);
+      var fc = el("figcaption"); fc.appendChild(el("b", "", awNames(x))); fc.appendChild(el("span", "", x.cap)); f.appendChild(fc);
+      row.appendChild(f);
+    });
+    slide.appendChild(row);
+    slide.appendChild(el("p", "wr-pts", "+" + ptsTxt(s.each) + (s.w.length > 1 || s.w[0].team.length > 1 ? " each" : "") + (s.w.length > 1 ? " · tie" : "")));
+    dur = 6200;
+  } else if (s.kind === "player") {
+    slide.appendChild(el("p", "wr-kicker", "Player award"));
+    slide.appendChild(el("h2", "wr-cat", s.c.name));
+    var names = el("div", "wr-names");
+    s.w.forEach(function(id, k){
+      var q = BY[id], n = el("div", "wr-name"); n.style.animationDelay = (1.1 + k * 0.25) + "s";
+      var av = el("i", "", awInitials(q || { id:id })); av.style.background = (q && q.shirt) || "#667"; n.appendChild(av);
+      n.appendChild(el("b", "", q ? q.name : id)); names.appendChild(n);
+    });
+    slide.appendChild(names);
+    slide.appendChild(el("p", "wr-pts", "+" + ptsTxt(s.each) + (s.w.length > 1 ? " each · tie" : "")));
+    dur = 5200;
+  } else if (s.kind === "final") {
+    awMarkSeen();
+    slide.appendChild(el("p", "wr-kicker", "Missions + awards"));
+    slide.appendChild(el("h2", "wr-cat", "The final table"));
+    var add = awAwardPoints(awVotes());
+    var rows = chalScores().filter(function(r){ return !MRACE.skip[r.p.id]; }).map(function(r){ return { p:r.p, before:r.n, add:add[r.p.id] || 0 }; });
+    rows.forEach(function(r){ r.after = r.before + r.add; });
+    var by0 = rows.slice().sort(function(a, b){ return b.before - a.before; }), by1 = rows.slice().sort(function(a, b){ return b.after - a.after || a.p.name.localeCompare(b.p.name); });
+    var H = Math.max(30, Math.min(46, Math.floor((window.innerHeight - 220) / Math.max(rows.length, 1)))), tb = el("div", "wr-table"); tb.style.height = rows.length * H + "px";
+    var max = Math.max.apply(null, rows.map(function(r){ return r.after; }).concat([1]));
+    by0.forEach(function(r, k){
+      var line = el("div", "wr-row"); line.style.transform = "translateY(" + k * H + "px)";
+      var rk = el("span", "rk", String(k + 1)), nm = el("span", "nm", r.p.name), tr = el("span", "tr"), bar = el("span", "bar"), num = el("span", "num", String(r.before)), plus = el("span", "plus", r.add ? "+" + r.add : "");
+      bar.style.width = (r.before / max * 100) + "%"; tr.appendChild(bar);
+      line.appendChild(rk); line.appendChild(nm); line.appendChild(tr); line.appendChild(num); line.appendChild(plus);
+      tb.appendChild(line); r.line = line; r.rk = rk; r.bar = bar; r.num = num; r.plus = plus;
+    });
+    slide.appendChild(tb);
+    var win = el("p", "wr-champ"); slide.appendChild(win);
+    /* first the champion (coin, confetti, name, points), then the table: the award points land and the rows move */
+    slide.classList.add("wr-hold");
+    function runTable(){
+    if (!WRAP.el || WRAP.slides[WRAP.i] !== s) return;
+    slide.classList.remove("wr-hold");
+    setTimeout(function(){ rows.forEach(function(r){ if (r.add) r.plus.classList.add("in"); }); }, 700);
+    setTimeout(function(){
+      rows.forEach(function(r){
+        r.bar.style.width = (r.after / max * 100) + "%";
+        var t0 = performance.now(); (function tick(){ var k = Math.min(1, (performance.now() - t0) / 1200); r.num.textContent = Math.round(r.before + r.add * k); if (k < 1 && WRAP.el) requestAnimationFrame(tick); })();
+      });
+    }, 1700);
+    setTimeout(function(){
+      by1.forEach(function(r, k){ r.line.style.transform = "translateY(" + k * H + "px)"; r.rk.textContent = k + 1; if (k === 0) r.line.classList.add("first"); });
+      win.textContent = by1[0].p.name + " wins the GOAT Trophy"; win.classList.add("in");
+    }, 3300);
+    }
+    setTimeout(function(){ if (WRAP.el && WRAP.slides[WRAP.i] === s) wrapChampion(by1[0], runTable); }, 0);
+    dur = 0;
+  }
+  st.textContent = ""; st.appendChild(slide);
+  var on = WRAP.el.querySelector(".wr-bars i.on b"); if (on) { on.style.transition = "none"; on.style.width = "0"; void on.offsetWidth; if (dur) { on.style.transition = "width " + dur + "ms linear"; on.style.width = "100%"; } else on.style.width = "100%"; }
+  if (dur) WRAP.timer = setTimeout(function(){ wrapGo(1); }, dur);
+}
+/* the board on the wall: plain, like the "?" board next to it */
+function awBoardDraw(){
+  if (!AW.board) return;
+  var c = AW.board.c, g = AW.board.g, W = c.width, H = c.height;
+  g.fillStyle = "#ffffff"; g.fillRect(0, 0, W, H);
+  g.fillStyle = "#9aa1a9";
+  /* a simple cup */
+  g.beginPath(); g.moveTo(140, 36); g.lineTo(220, 36); g.quadraticCurveTo(220, 116, 180, 124); g.quadraticCurveTo(140, 116, 140, 36); g.fill();
+  g.lineWidth = 9; g.strokeStyle = "#9aa1a9"; g.beginPath(); g.arc(138, 68, 20, Math.PI * 0.5, Math.PI * 1.5); g.stroke(); g.beginPath(); g.arc(222, 68, 20, -Math.PI * 0.5, Math.PI * 0.5); g.stroke();
+  g.fillRect(172, 122, 16, 22); g.fillRect(150, 142, 60, 12);
+  g.fillStyle = "#5b6570"; g.textAlign = "center"; g.textBaseline = "middle"; g.font = "800 28px " + FONT; g.fillText("AWARDS 2026", W / 2, 186);
+  var n = Object.keys(awVotes()).filter(function(id){ return awVotedN(id); }).length;
+  g.fillStyle = "#9aa1a9"; g.font = "600 18px " + FONT; g.fillText(awCanVote() && n ? n + " voted so far" : "Voting Dec 10 to Dec 31", W / 2, 216);
+  g.textAlign = "left"; AW.board.tex.needsUpdate = true;
+}
+(function(){
+  var c = document.createElement("canvas"); c.width = 360; c.height = 240;
+  var tex = new T.CanvasTexture(c); tex.colorSpace = T.SRGBColorSpace; tex.anisotropy = maxAniso;
+  var gr = new T.Group(); gr.position.set(AW_X, 1.55, -3.995); scene.add(gr);
+  var frame = add(G.box, M("#2b3038", { roughness:0.5 }), 0.27, 0.2, 0.02, 0, 0, 0, gr, false); frame.userData.dyn = true;
+  var face = new T.Mesh(G.plane, new T.MeshBasicMaterial({ map:tex, toneMapped:false })); face.scale.set(0.24, 0.17, 1); face.position.z = 0.012; face.userData.dyn = true; gr.add(face);
+  var hitM = new T.Mesh(G.plane, new T.MeshBasicMaterial({ visible:false })); hitM.scale.set(0.26, 0.42, 1); hitM.position.set(0.02, 0, 0.02); gr.add(hitM);
+  AW.board = { c:c, g:c.getContext("2d"), tex:tex }; AW.hit = hitM;
+  awBoardDraw();
+})();
+window.__aw = { open:function(){ awShow(true); }, st:AW, wrap:function(){ wrapShow(); } };
 mraceSlider.addEventListener("input", function(){ mraceStop(); MRACE.i = +mraceSlider.value; mraceDraw(MRACE.i); });
 document.getElementById("raceClose").addEventListener("click", function(){ mraceShow(false); });
 window.addEventListener("keydown", function(e){ if (e.key === "Escape" && !mraceEl.hidden) mraceShow(false); });
@@ -10053,6 +10847,7 @@ function pick(e){
   ray.setFromCamera(ndc, camera);
   /* the Challenges board on the wall */
   if (MRACE.hit && ray.intersectObject(MRACE.hit, false).length) { mraceShow(true); return; }
+  if (AW.hit && ray.intersectObject(AW.hit, false).length) { awShow(true); return; }
   if (CH.board && ray.intersectObject(CH.board.hit, false).length) { chalShow(true, "mission"); return; }
   /* the GOAT Trophy on the leader's desk */
   if (GOAT.g && GOAT.g.visible && ray.intersectObject(GOAT.hit, false).length) { goatCard(); return; }
