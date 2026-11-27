@@ -391,6 +391,19 @@ h1 em{font-style:normal;color:var(--accent)}
 .awards .aw-sched li span{font-size:12px;line-height:1.35;color:var(--muted)}
 .awards .aw-sched li.past{opacity:.45}
 .awards td.n{white-space:nowrap}
+.awards .aw-votes{display:flex;flex-direction:column;gap:8px}
+.awards .aw-vrow{display:flex;gap:12px;align-items:flex-start;padding:8px;border:1px solid var(--line);border-radius:12px;background:none;color:var(--ink);font:inherit;text-align:left}
+.awards button.aw-vrow{cursor:pointer}
+.awards button.aw-vrow:hover{border-color:var(--muted)}
+.awards .aw-vrow img{width:64px;height:64px;border-radius:8px;object-fit:cover;flex:none}
+.awards .aw-vrow>i{width:40px;height:40px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;font:800 14px/1 var(--f-body);font-style:normal;color:#fff}
+.awards .aw-vrow .t{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
+.awards .aw-vrow .t b{font:700 13px/1.3 var(--f-body)}
+.awards .aw-vrow .t>span{font-size:12px;color:var(--muted)}
+.awards .aw-chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:2px}
+.awards .aw-chip{font:600 11px/1 var(--f-body);padding:5px 8px;border-radius:999px;border:1px solid var(--line);color:var(--ink)}
+.awards .aw-chip.won{background:#d4a72c;border-color:#d4a72c;color:#1d1606}
+.awards td.aw-nomcell{white-space:nowrap;text-align:right}
 .awards td.aw-hint{color:var(--muted);font-size:13px;line-height:1.35}
 .awards td.v.ok{color:#1f9d55;font-weight:700}
 .awards .aw-light{position:absolute;inset:0;background:var(--surface);display:flex;flex-direction:column;gap:10px;padding:14px 16px;z-index:3}
@@ -10062,6 +10075,26 @@ function awSchedule(){
   });
   return tb;
 }
+/* the nominees: Luis picks them by hand, one folder per category (Downloads/Awards 2026 nominees). A category with
+   nominees only shows those photos when voting; a category without them yet shows "coming soon". More are added
+   until Dec 16 (Luis, 27 Nov) */
+var AW_NOMS = {
+  funny:["allyson/80e6fb83-74f4-4ff3-97b7-8d78b3816ee2.jpg", "anyfamousmemerecreated/6f632a03-da09-44c7-b894-b812275c398d.jpg", "anyfamousmemerecreated/a26c0a0b-07c5-41a3-a962-09e9b70c5dca.jpg", "asleepkeyboardfakesnor/e5038c47-6567-4206-8f63-2328ef742938.jpg", "asleepkeyboardfakesnor/ee3b9a3d-e070-493d-a046-4948618a9521.jpg", "coworkersittingbackbac/324fc60d-b5d5-4da6-8606-2fbe4790c69b.jpg", "duoteach/92cf92db-0e47-4410-aeba-be5ff503a0a5.jpg", "duoteach/aa174b82-8113-4c73-b761-7deddd228ccd.jpg", "experience/5add0b82-77c8-429c-80ba-7a941ba1c879.jpg", "filterbaby/5102dbf3-b7dd-4b52-861b-514ba9d96f3f.jpg", "filterbaby/acd433b5-48c9-4fe1-aa01-587228b9155d.jpg", "filterold/7bd6f77c-f876-4a93-b91c-86c1babbdd8c.jpg", "filterold/c907e6ac-1568-4716-8364-9136c673bd63.jpg", "filterugly/6cfbe136-3fbb-4cba-8521-4ad7137595fd.jpg", "filterugly/f8ea28d6-7ab2-4566-bb41-5b4cea4878e2.jpg", "fullbeardmadestickynot/25030420-c0b7-4bc4-8382-73821947f1c8.jpg", "fullbeardmadestickynot/5cb4c36a-f0f5-430b-a9a1-6d6d3c5a9e9e.jpg", "mughead/682c543f-4a78-432d-b4b3-3a598f98e592.jpg", "paparazzi/75d23e94-1837-4b71-ba78-1c594bd424bb.jpg", "paparazzi/9fba5293-775d-4eb5-815f-2c191abb409e.jpg", "pennose/5237a2c4-3934-461a-93ed-c429986d6eee.jpg", "pennose/f5cd7ca4-bb4e-44e7-a48e-ccf34b1db6f4.jpg", "petoutfit/b2d461c9-6d86-4912-9008-d03994dc056c.jpg", "plantpeek/4222da0f-3960-404d-83e5-3066cec2b6f1.jpg", "plantpeek/cc11d8c3-a49f-480d-b32a-fe3aebc8ed41.jpg", "showroomliving/f767601e-d360-430b-b9ee-e7cd66abc6c0.jpg", "wearingtoiletpaperassc/3cbabee2-48a1-4747-9df6-5037607df796.jpg", "wrongway/06e39b67-5fdf-4042-afa4-21f396ca09db.jpg"],
+  hard:["allyson/80e6fb83-74f4-4ff3-97b7-8d78b3816ee2.jpg", "andreit/2c728b42-2ed7-4f88-9993-cddc75b7da48.jpg", "andreit/fbfe197a-9742-4a6c-a2b0-4fc1b37020ad.jpg", "fivedepts/2efb0e02-576a-4988-b4ca-d3e51b28e369.jpg", "fivedepts/d6dc8073-1f39-433c-b403-bd565873d2ac.jpg", "hlunchallyson/bbfc21ed-e348-4676-9fa4-738c36f7a4e4.jpg", "hlunchallyson/d7200ad0-f5ce-4869-933f-9a643731a2de.jpg", "james/210c63e1-19e1-4e95-b800-e3de26c8f1a0.jpg", "managerfromanotherdepa/fb0a81fe-5361-49fc-8694-d9be43f24b70.jpg", "papercrown/9763bbc6-4432-4b5e-9840-e206d44918ce.jpg", "papercrown/a9a2f205-b93e-4e6a-bd19-036fd53a5679.jpg", "sherif/68f0ca0e-550d-4c1f-a8c2-b97085fe947c.jpg", "threemanagers/8023788e-9bf0-4423-be21-7384bfaeb946.jpg", "twanya/bd733a25-899f-43a8-96c0-cb8279d1235f.jpg"]
+};
+function awNoms(c){ var l = AW_NOMS[c.id]; return l && l.length ? awPhotos().filter(function(x){ return l.indexOf(x.path) >= 0; }) : null; }
+function awNomView(c){
+  awBody.textContent = ""; awTabs();
+  var back = el("button", "go ghost", "Back"); back.type = "button"; back.addEventListener("click", function(){ AW.nomView = null; awRender(); }); awBody.appendChild(back);
+  var box = el("div", "ms"), list = awNoms(c) || [];
+  box.appendChild(el("span", "ms-label", "Nominees so far"));
+  box.appendChild(el("p", "ms-title", c.name + " · " + list.length + " nominees"));
+  box.appendChild(el("p", "ms-meta", c.hint + " These are the nominees so far: more are added until December 16. Voting opens on December 13."));
+  awBody.appendChild(box);
+  var g = el("div", "aw-grid");
+  list.forEach(function(x){ var b = awThumb(x, x.cap); b.addEventListener("click", function(){ awLight(x, true); }); g.appendChild(b); });
+  awBody.appendChild(g);
+}
 function awRevealed(){ return (typeof AW_SIM !== "undefined" && AW_SIM) || Date.now() >= AW_REVEAL; }
 function awCanVote(){ return (AW_DB_READY && awState() === "open") || (AW_TEST && awState() !== "closed"); }
 function awLoad(){ try { return JSON.parse(localStorage.getItem(AW.KEY)) || {}; } catch (e) { return {}; } }
@@ -10085,7 +10118,7 @@ function awPhotos(){
     var m = chalDef(d.mid); if (!d.img || (m && m.game) || /^(cards|coin|boxes|wheel|heist|lucky|advent)/.test(d.mid)) return;
     if (seen[d.img]) return; seen[d.img] = 1;
     var team = []; chalSibs(d).forEach(function(x){ (x.team || [x.who]).forEach(function(id){ if (team.indexOf(id) < 0) team.push(id); }); });
-    out.push({ img:d.img, mid:d.mid, team:team, who:d.who, t:d.ok || d.at, cap:chalCap(d) });
+    out.push({ img:d.img, path:decodeURIComponent(String(d.img).split("/proof/")[1] || ""), mid:d.mid, team:team, who:d.who, t:d.ok || d.at, cap:chalCap(d) });
   });
   return out;
 }
@@ -10096,13 +10129,13 @@ function awShow(on){
   document.getElementById("awTest").hidden = !AW_TEST;
   if (chalEl && !chalEl.hidden) chalShow(false);
   if (mraceEl && !mraceEl.hidden) mraceShow(false);
-  AW.step = 0; AW.pstep = 0; AW.voter = null; AW.tab = "vote"; awRender(); document.getElementById("awClose").focus();
+  AW.step = 0; AW.pstep = 0; AW.voter = null; AW.tab = "vote"; AW.nomView = null; awRender(); document.getElementById("awClose").focus();
   if (CH.live && typeof chalSync === "function") { try { chalSync(true); } catch (e) {} }
   /* the photos come in from the database a moment later: redraw once they are there, without losing the place */
   clearTimeout(AW.redo); AW.redo = setTimeout(function(){ if (!awEl.hidden && !awBody.querySelector(".aw-light")) { var k = awBody.scrollTop; awRender(); awBody.scrollTop = k; } }, 1800);
 }
 document.getElementById("awClose").addEventListener("click", function(){ awShow(false); });
-window.addEventListener("keydown", function(e){ if (e.key !== "Escape" || awEl.hidden) return; var lb = awBody.querySelector(".aw-light"); if (lb) lb.remove(); else awShow(false); });
+window.addEventListener("keydown", function(e){ if (e.key !== "Escape" || awEl.hidden || (typeof WRAP !== "undefined" && (WRAP.el || Date.now() - (WRAP.closedAt || 0) < 300))) return; var lb = awBody.querySelector(".aw-light"); if (lb) lb.remove(); else awShow(false); });
 function awLight(x, anon){
   var lb = el("div", "aw-light"); lb.setAttribute("role", "dialog"); lb.setAttribute("aria-label", "Photo");
   var c = el("button", "go ghost", "Back"); c.type = "button"; c.addEventListener("click", function(){ lb.remove(); }); lb.appendChild(c);
@@ -10159,6 +10192,7 @@ function awRender(){
   if (awCanVote() && !AW.voter) return awWho();
   if (awCanVote()) awVoterBar();
   if (AW.tab === "players") return awPlayers();
+  if (AW.tab === "vote" && AW.nomView) { var nc = AW.cats.filter(function(c){ return c.id === AW.nomView; })[0]; if (nc) return awNomView(nc); }
   if (!awCanVote()) return awSoon();
   if (AW.step === 0) return awIntro();
   var week = awWeek(), mine = awVotes()[AW.voter] || {};
@@ -10169,10 +10203,10 @@ function awRender(){
   var stp = el("span", "aw-step"); AW.cats.forEach(function(cc, k){ stp.appendChild(el("i", k === AW.step - 1 ? "on" : mine[cc.id] ? "done" : "")); }); top.appendChild(stp);
   top.appendChild(el("span", "pts", ptsTxt(awPts(c)))); box.appendChild(top);
   box.appendChild(el("p", "ms-title", c.name));
-  box.appendChild(el("p", "ms-meta", c.hint + " Your own photos are not shown and names are hidden."));
+  box.appendChild(el("p", "ms-meta", c.hint + (awNoms(c) ? " " + awNoms(c).length + " nominees." : "") + " Your own photos are not shown and names are hidden."));
   awBody.appendChild(box);
   var grid = el("div", "aw-grid");
-  week.filter(function(x){ return x.team.indexOf(AW.voter) < 0 && x.who !== AW.voter; }).forEach(function(x){
+  (awNoms(c) || week).filter(function(x){ return x.team.indexOf(AW.voter) < 0 && x.who !== AW.voter; }).forEach(function(x){
     var b = awThumb(x, x.cap), on = mine[c.id] === x.img;
     if (on) b.classList.add("sel"); b.setAttribute("aria-pressed", on ? "true" : "false");
     b.addEventListener("click", function(){ awSetVote(c.id, on ? null : x.img); var k = awBody.scrollTop; awRender(); awBody.scrollTop = k; });
@@ -10259,8 +10293,15 @@ function awSoon(){
   awBody.appendChild(box);
   awBody.appendChild(el("h3", "sec", "The " + AW.cats.length + " categories"));
   var tb = el("table"), bd = el("tbody");
-  AW.cats.forEach(function(c){ var tr = el("tr"); tr.appendChild(el("td", "", c.name)); tr.appendChild(el("td", "aw-hint", c.hint)); tr.appendChild(el("td", "n", ptsTxt(awPts(c)))); bd.appendChild(tr); });
+  AW.cats.forEach(function(c){
+    var tr = el("tr"); tr.appendChild(el("td", "", c.name)); tr.appendChild(el("td", "aw-hint", c.hint)); tr.appendChild(el("td", "n", ptsTxt(awPts(c))));
+    var nl = awNoms(c), td = el("td", "aw-nomcell");
+    if (nl) { var nb = el("button", "go ghost sm", nl.length + " nominees"); nb.type = "button"; nb.addEventListener("click", function(){ AW.nomView = c.id; awRender(); awBody.scrollTop = 0; }); td.appendChild(nb); }
+    else td.appendChild(el("span", "v", "Coming soon"));
+    tr.appendChild(td); bd.appendChild(tr);
+  });
   tb.appendChild(bd); awBody.appendChild(tb);
+  awBody.appendChild(el("p", "note", "Nominees so far. More are added until December 16."));
 }
 /* first thing when voting: who you are. From then on your own photos and your own name never show up */
 function awWho(){
@@ -10295,8 +10336,15 @@ function awIntro(){
   box.appendChild(go); awBody.appendChild(box);
   awBody.appendChild(el("h3", "sec", "The " + AW.cats.length + " categories"));
   var tb = el("table"), bd = el("tbody");
-  AW.cats.forEach(function(c){ var tr = el("tr"); tr.appendChild(el("td", "", c.name)); tr.appendChild(el("td", "aw-hint", c.hint)); tr.appendChild(el("td", "n", ptsTxt(awPts(c)))); bd.appendChild(tr); });
+  AW.cats.forEach(function(c){
+    var tr = el("tr"); tr.appendChild(el("td", "", c.name)); tr.appendChild(el("td", "aw-hint", c.hint)); tr.appendChild(el("td", "n", ptsTxt(awPts(c))));
+    var nl = awNoms(c), td = el("td", "aw-nomcell");
+    if (nl) { var nb = el("button", "go ghost sm", nl.length + " nominees"); nb.type = "button"; nb.addEventListener("click", function(){ AW.nomView = c.id; awRender(); awBody.scrollTop = 0; }); td.appendChild(nb); }
+    else td.appendChild(el("span", "v", "Coming soon"));
+    tr.appendChild(td); bd.appendChild(tr);
+  });
   tb.appendChild(bd); awBody.appendChild(tb);
+  awBody.appendChild(el("p", "note", "Nominees so far. More are added until December 16."));
 }
 function awSummary(week, mine){
   var box = el("div", "ms");
@@ -10362,6 +10410,50 @@ var AW_SEEN_SIM = false;
 function awSeen(){ if (AW_SIM) return AW_SEEN_SIM; try { return localStorage.getItem("awards_wrap_seen_2026") === "1"; } catch (e) { return false; } }
 function awMarkSeen(){ if (AW_SIM) { AW_SEEN_SIM = true; return; } try { localStorage.setItem("awards_wrap_seen_2026", "1"); } catch (e) {} }
 function awHideBoard(){ return (AW_DB_READY || AW_SIM) && awState() === "closed" && !awSeen(); }
+/* every photo / player that got at least one vote: which categories and how many votes. Only after the reveal,
+   only totals: nobody can tell who voted for what */
+function awTallyAll(v, cats){
+  var out = {};
+  cats.forEach(function(c){
+    var win = awWinners(c.id, v);
+    Object.keys(v).forEach(function(w){ var x = v[w][c.id]; if (!x) return; var o = out[x] = out[x] || { total:0, cats:{} }; o.total++; o.cats[c.id] = (o.cats[c.id] || 0) + 1; if (win.indexOf(x) >= 0) (o.won = o.won || {})[c.id] = 1; });
+  });
+  return out;
+}
+function awChips(o, cats){
+  var box = el("div", "aw-chips");
+  cats.filter(function(c){ return o.cats[c.id]; }).sort(function(a, b){ return o.cats[b.id] - o.cats[a.id]; }).forEach(function(c){
+    var won = o.won && o.won[c.id], ch = el("span", "aw-chip" + (won ? " won" : ""), (won ? "Winner · " : "") + c.name + " · " + o.cats[c.id] + (o.cats[c.id] === 1 ? " vote" : " votes"));
+    box.appendChild(ch);
+  });
+  return box;
+}
+function awVoteBreakdown(v, photos){
+  var tp = awTallyAll(v, AW.cats), keys = Object.keys(tp).sort(function(a, b){ return tp[b].total - tp[a].total; });
+  awBody.appendChild(el("h3", "sec", "Every photo that got votes · " + keys.length));
+  awBody.appendChild(el("p", "ms-meta", "Only the winners get points, but these photos were also voted. Totals only: nobody can see who voted for what."));
+  var list = el("div", "aw-votes");
+  keys.forEach(function(img){
+    var x = photos.filter(function(p){ return p.img === img; })[0]; if (!x) return;
+    var row = el("button", "aw-vrow"); row.type = "button";
+    var im = el("img"); im.src = x.img; im.alt = x.cap; im.loading = "lazy"; row.appendChild(im);
+    var t = el("div", "t"); t.appendChild(el("b", "", x.cap)); t.appendChild(el("span", "", "Sent by " + awSender(x) + " · " + tp[img].total + (tp[img].total === 1 ? " vote" : " votes")));
+    t.appendChild(awChips(tp[img], AW.cats)); row.appendChild(t);
+    row.addEventListener("click", function(){ awLight(x); });
+    list.appendChild(row);
+  });
+  awBody.appendChild(list);
+  var tq = awTallyAll(v, AW.pcats), pk = Object.keys(tq).sort(function(a, b){ return tq[b].total - tq[a].total; });
+  awBody.appendChild(el("h3", "sec", "Every player that got votes · " + pk.length));
+  var pl = el("div", "aw-votes");
+  pk.forEach(function(id){
+    var q = BY[id], row = el("div", "aw-vrow");
+    var av = el("i", "", awInitials(q || { id:id })); av.style.background = (q && q.shirt) || "#667"; row.appendChild(av);
+    var t = el("div", "t"); t.appendChild(el("b", "", q ? q.name : id)); t.appendChild(el("span", "", tq[id].total + (tq[id].total === 1 ? " vote" : " votes")));
+    t.appendChild(awChips(tq[id], AW.pcats)); row.appendChild(t); pl.appendChild(row);
+  });
+  awBody.appendChild(pl);
+}
 function awAwardPoints(v){
   /* what every player gets from the awards, to add to the missions leaderboard */
   var add = {}, photos = awPhotos();
@@ -10432,6 +10524,7 @@ function awResults(){
   });
   tb.appendChild(bd); awBody.appendChild(tb);
   /* what it does to the final table */
+  awVoteBreakdown(v, photos);
   awBody.appendChild(el("h3", "sec", "Final leaderboard"));
   var add = awAwardPoints(v), rows = chalScores().filter(function(r){ return !MRACE.skip[r.p.id]; }).map(function(r){ return { p:r.p, before:r.n, add:add[r.p.id] || 0 }; });
   rows.forEach(function(r){ r.after = r.before + r.add; });
@@ -10539,7 +10632,7 @@ function wrapChampion(r, then){
   /* if nobody taps, the table comes on its own */
   var auto = setTimeout(finish, (T0 + 8) * 1000);
 }
-function wrapClose(){ clearTimeout(WRAP.timer); wrapMusic(false); if (WRAP.el) WRAP.el.remove(); WRAP.el = null; if (!awEl.hidden) awRender(); if (!chalEl.hidden) chalRender(); }
+function wrapClose(){ WRAP.closedAt = Date.now(); clearTimeout(WRAP.timer); wrapMusic(false); if (WRAP.el) WRAP.el.remove(); WRAP.el = null; if (!awEl.hidden) awRender(); if (!chalEl.hidden) chalRender(); }
 function wrapGo(d){ var n = WRAP.i + d; if (n < 0) n = 0; if (n >= WRAP.slides.length) return; WRAP.i = n; wrapRender(); }
 window.addEventListener("keydown", function(e){
   if (!WRAP.el) return;
