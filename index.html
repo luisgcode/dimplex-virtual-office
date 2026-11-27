@@ -10291,6 +10291,15 @@ function awSoon(){
     "From December 13 to " + awClose() + ", everyone votes for the best photos of the tournament, one category at a time, among every photo since the start. The winning photo of each category adds its points to the person who sent it, on the missions leaderboard."));
   var gb = el("button", "go ghost", "Look at all the photos"); gb.type = "button"; gb.addEventListener("click", function(){ AW.tab = "gallery"; awRender(); }); box.appendChild(gb);
   awBody.appendChild(box);
+  /* the nominees first, easy to find, so people can check them and tell Luis if one is missing */
+  var withN = AW.cats.filter(function(c){ return awNoms(c); });
+  if (withN.length) {
+    var nbx = el("div", "ms"); nbx.appendChild(el("span", "ms-label", "Nominees so far"));
+    nbx.appendChild(el("p", "ms-meta", "Take a look. More nominees are added until December 16; if you think one is missing, tell Luis."));
+    var row = el("div", "row");
+    withN.forEach(function(c){ var b = el("button", "go", c.name + " · " + awNoms(c).length); b.type = "button"; b.addEventListener("click", function(){ AW.nomView = c.id; awRender(); awBody.scrollTop = 0; }); row.appendChild(b); });
+    nbx.appendChild(row); awBody.appendChild(nbx);
+  }
   awBody.appendChild(el("h3", "sec", "The " + AW.cats.length + " categories"));
   var tb = el("table"), bd = el("tbody");
   AW.cats.forEach(function(c){
