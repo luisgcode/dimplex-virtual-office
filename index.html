@@ -384,6 +384,13 @@ h1 em{font-style:normal;color:var(--accent)}
 .awards .aw-win b{font:700 14px/1.25 var(--f-body)}
 .awards .aw-win .aw-cap{font-size:11px;line-height:1.3;color:var(--muted)}
 .awards .aw-win .pts{align-self:flex-start;margin:2px 0 0}
+.awards .aw-sched{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;border-left:2px solid var(--line);margin-left:4px}
+.awards .aw-sched li{position:relative;padding:0 0 12px 16px;display:flex;flex-direction:column;gap:3px}
+.awards .aw-sched li::before{content:"";position:absolute;left:-6px;top:3px;width:10px;height:10px;border-radius:50%;background:var(--accent)}
+.awards .aw-sched li b{font:700 13px/1.2 var(--f-body)}
+.awards .aw-sched li span{font-size:12px;line-height:1.35;color:var(--muted)}
+.awards .aw-sched li.past{opacity:.45}
+.awards td.n{white-space:nowrap}
 .awards td.aw-hint{color:var(--muted);font-size:13px;line-height:1.35}
 .awards td.v.ok{color:#1f9d55;font-weight:700}
 .awards .aw-light{position:absolute;inset:0;background:var(--surface);display:flex;flex-direction:column;gap:10px;padding:14px 16px;z-index:3}
@@ -9277,7 +9284,7 @@ var PETS = {
 function goatCard(){
   var L = goatLeader(), who = L ? (BY[L.id] ? BY[L.id].name : L.id) + ", " + L.n + " points" : "Nobody yet";
   PETS.goat = { tag:"The prize", no:"", img:"img/goat-trophy.jpg", name:"The GOAT Trophy", role:"1st place in the missions tournament takes it home", wide:true, tall:true,
-    rows:[["First place now", who], ["When", "After the tournament ends on December 31, 2026"]] };
+    rows:[["First place now", who], ["When", "Thursday, December 17 at 11 am, together at the office"]] };
   petCard(true, "goat");
 }
 function petCard(on, id){
@@ -9392,8 +9399,10 @@ function chalUpdateLeaders(){
   ALL.forEach(function(q){ if (q.tag) q.tag.classList.toggle("lead", CH.leaders.indexOf(q.id) >= 0); });
 }
 function chalNames(d){ return (d.team || [d.who]).map(function(id){ return BY[id] ? BY[id].name : id; }).join(", "); }
-/* the tournament ends on Dec 31, 2026 (office time): days left counting today, 0 once it is over */
-var CHAL_END = Date.UTC(2026, 11, 31);
+/* the tournament ends on Dec 16, 2026 at midnight (office time): the last day to send photos. On Thursday Dec 17 the
+   winners are revealed together at the office (Luis, 27 Nov). Days left counting today, 0 once it is over */
+var CHAL_END = Date.UTC(2026, 11, 16);
+function chalOver(){ return chalDaysLeft() === 0; }
 function chalDaysLeft(){ var tz = torontoAt(Date.now()); return Math.max(0, Math.round((CHAL_END - Date.UTC(tz.y, tz.mo - 1, tz.d)) / 86400000) + 1); }
 /* lead limit: nobody can be more than 25 points ahead of 5th place; over it, no new photos until 5th place catches up (public.lead_cap() in the database) */
 var CHAL_LEAD = 25;
@@ -9478,7 +9487,7 @@ function chalRender(){
   /* the prize: the real GOAT Trophy, click for the big photo */
   var gp = el("button", "goatprize"); gp.type = "button";
   var gim = el("img"); gim.src = "img/goat-trophy.jpg"; gim.alt = "The GOAT Trophy, a gold goat with a crown and sunglasses"; gp.appendChild(gim);
-  var gtx = el("div"); gtx.appendChild(el("b", "", "1st place wins the GOAT Trophy")); gtx.appendChild(el("span", "", "The real one, handed over in person after the tournament ends on Dec 31.")); gp.appendChild(gtx);
+  var gtx = el("div"); gtx.appendChild(el("b", "", "1st place wins the GOAT Trophy")); gtx.appendChild(el("span", "", "The real one, handed over in person at the office on Thursday, Dec 17.")); gp.appendChild(gtx);
   gp.addEventListener("click", function(){ goatCard(); });
   Lf.appendChild(gp);
   var tb = el("table"), hd = el("tr"); ["#", "Name", "Points"].forEach(function(h, i){ var th = el("th", "", h); if (i === 2) th.style.textAlign = "right"; hd.appendChild(th); });
@@ -9497,8 +9506,11 @@ function chalRender(){
     /* voting closed: the final table is the end of the awards reveal, so it stays hidden until you watch it */
     var hb = el("div", "ms"); hb.appendChild(el("span", "ms-label", "Awards 2026"));
     hb.appendChild(el("p", "ms-title", "The final table is hidden"));
-    hb.appendChild(el("p", "ms-meta", "Voting is closed and the awards are in. Watch the results to see who won and the final table."));
-    var wb0 = el("button", "go", "Watch the results"); wb0.type = "button"; wb0.addEventListener("click", function(){ chalShow(false); wrapShow(); }); hb.appendChild(wb0);
+    if (!awRevealed()) hb.appendChild(el("p", "ms-meta", "The tournament is over. The winners and the final table are revealed together at the office on Thursday, December 17 at 11 am."));
+    else {
+      hb.appendChild(el("p", "ms-meta", "The awards are in. Watch the results to see who won and the final table."));
+      var wb0 = el("button", "go", "Watch the results"); wb0.type = "button"; wb0.addEventListener("click", function(){ chalShow(false); wrapShow(); }); hb.appendChild(wb0);
+    }
     Lf.appendChild(hb);
   } else Lf.appendChild(tb);
   Lf.appendChild(el("h3", "sec", "Achieved"));
@@ -9532,7 +9544,7 @@ function chalRender(){
   /* one rules card: the countdown on top, then the 3 rules, all in the same style so nothing competes */
   var left = chalDaysLeft(), rc = el("div", "rules"), rt = el("div", "r-top");
   rt.appendChild(el("b", "", left > 1 ? left + " days left" : left === 1 ? "Last day!" : "The tournament is over"));
-  rt.appendChild(el("span", "", "Ends at midnight on Dec 31, 2026. Most points wins."));
+  rt.appendChild(el("span", "", left ? "Last day to send photos: Dec 16, 2026, until midnight. Winners revealed together at the office on Thursday, Dec 17 at 11 am. Most points wins." : "No more photos. Winners revealed together at the office on Thursday, Dec 17 at 11 am."));
   rc.appendChild(rt);
   var ru = el("ul");
   function rule(h, t){ var li = el("li"); li.appendChild(el("b", "", h)); li.appendChild(document.createTextNode(" " + t)); ru.appendChild(li); }
@@ -9813,7 +9825,7 @@ CH.live = !!SB; CH.defs = {}; CH.admin = false; CH.seen = null;
 if (CH.live) { document.getElementById("chalDemo").hidden = true; CH.st = null; chalLoad(); }
 else if (/[?&]demo=1/.test(location.search || "") === false) { document.getElementById("chalDemo").textContent = "Offline"; }
 function liveFail(e){ var m = (e && (e.message || e.error_description)) || String(e);
-  return new Error({ wrong_code:"That code is not right.", locked:"Too many wrong codes for this name. Try again in an hour.", mission_closed:"This mission is closed. Check the open ones.", excluded:"You are the one in this mission, so you can't win it.", already_won:"You already have points in this mission. Leave the spot for someone else.", already_sent:"You already sent a photo for this mission. Wait for the review.", old_photo:"This photo was taken before 2026. Only photos taken in 2026 count, take a new one.", tournament_over:"The mission tournament ended on December 31, 2026. Thanks for playing!", already_played:"You already played this game. One try each.", door_taken:"Today's door is already open. Come back tomorrow.", not_a_game:"This is not a game.", bad_choice:"That choice is not valid. Nothing was saved.", bad_target:"Pick another player to rob.", lead_limit:"You're more than 25 points ahead of 5th place. Get the others to play, and you can send photos again once 5th place catches up.", not_admin:"This account can't review photos." }[m] || m); }
+  return new Error({ wrong_code:"That code is not right.", locked:"Too many wrong codes for this name. Try again in an hour.", mission_closed:"This mission is closed. Check the open ones.", excluded:"You are the one in this mission, so you can't win it.", already_won:"You already have points in this mission. Leave the spot for someone else.", already_sent:"You already sent a photo for this mission. Wait for the review.", old_photo:"This photo was taken before 2026. Only photos taken in 2026 count, take a new one.", tournament_over:"The tournament is over: the last day to send photos was December 16. See you at the office on Thursday, Dec 17!", already_played:"You already played this game. One try each.", door_taken:"Today's door is already open. Come back tomorrow.", not_a_game:"This is not a game.", bad_choice:"That choice is not valid. Nothing was saved.", bad_target:"Pick another player to rob.", lead_limit:"You're more than 25 points ahead of 5th place. Get the others to play, and you can send photos again once 5th place catches up.", not_admin:"This account can't review photos." }[m] || m); }
 function dataToBlob(d){ var b = atob(d.split(",")[1]), a = new Uint8Array(b.length); for (var i = 0; i < b.length; i++) a[i] = b.charCodeAt(i); return new Blob([a], { type:"image/jpeg" }); }
 function uid(){ return (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + R().toString(36).slice(2)); }
 async function chalRefresh(){
@@ -10000,9 +10012,9 @@ mracePlay.addEventListener("click", function(){ if (MRACE.playing) mraceStop(); 
 document.getElementById("raceRestart").addEventListener("click", function(){ MRACE.i = 0; mraceDraw(0); mraceStart(); });
 var AW_X = 0.18;
 /* ---------- Photo Awards (LOCAL TEST, 27 Nov): a board left of the race board. A single award at the end of the
-   tournament: from Dec 10 to Dec 31 everyone picks their name and votes one category at a time among all the photos. No names while voting and no results until it closes, so
+   tournament: from Dec 13 to Dec 16 everyone picks their name and votes one category at a time among all the photos. No names while voting and no results until it closes, so
    people vote for the photo and not for who needs the points. Votes live only in this browser for now (localStorage);
-   the real version will store them in Supabase and give the points when voting closes on Dec 31. ---------- */
+   the real version will store them in Supabase and give the points when voting closes on Dec 16, revealed together at the office on Dec 17. ---------- */
 var AW = {
   cats:[
     { id:"funny", name:"Funniest", hint:"The one that made everyone laugh." },
@@ -10026,17 +10038,31 @@ var AW = {
   ppts:5, pstep:0,
   pts:3, KEY:"awards_test_v1", tab:"vote", voter:null, step:0, filter:"all", hit:null
 };
-/* one award only, for the whole tournament: voting is open from Dec 10 to Dec 31 at noon, 2026, on every photo since the
-   start. Before Dec 10 everyone can open the board, read how it works and look at the gallery, but not vote.
+/* one award only, for the whole tournament: voting is open from Dec 13 to Dec 16 at midnight, 2026, on every photo since the
+   start. Before Dec 13 everyone can open the board, read how it works and look at the gallery, but not vote.
    Voting can be tried early only on a local copy or with ?awtest=1 */
-var AW_OPEN = new Date(2026, 11, 10, 0, 0, 0).getTime(), AW_CLOSE = new Date(2026, 11, 31, 12, 0, 0).getTime();
+var AW_OPEN = new Date(2026, 11, 13, 0, 0, 0).getTime(), AW_CLOSE = new Date(2026, 11, 17, 0, 0, 0).getTime();
+/* the reveal: Thursday Dec 17 at 11 am, watched together at the office */
+var AW_REVEAL = new Date(2026, 11, 17, 11, 0, 0).getTime();
 /* test mode only on a local copy (never on the public site): try voting, and ?awclosed=1 for the simulated results */
 var AW_TEST = !/[?&]awtest=0/.test(location.search || "") && /^(127\.0\.0\.1|localhost)$/.test(location.hostname);
-/* the votes are not in the database yet: until they are, nobody can vote on the public site, even after Dec 10 */
+/* the votes are not in the database yet: until they are, nobody can vote on the public site, even after Dec 13 */
 var AW_DB_READY = false;
 function awPeriod(){ return { start:0, end:AW_CLOSE, key:"2026" }; }
 function awState(){ if (typeof AW_SIM !== "undefined" && AW_SIM) return "closed"; var n = Date.now(); return n < AW_OPEN ? "soon" : n > AW_CLOSE ? "closed" : "open"; }
-function awClose(){ return "December 31 at noon"; }
+function awClose(){ return "December 16 at midnight"; }
+/* the schedule, the same everywhere so nobody gets confused */
+function awSchedule(){
+  var tb = el("ol", "aw-sched"), now = Date.now();
+  [["Until Wed, Dec 16", "Last day to send mission photos and play the games (until midnight).", CHAL_END + 86400000 + 5 * 3600000],
+   ["Sun, Dec 13 to Wed, Dec 16", "Vote for the best photos and the best players. Votes are private.", AW_CLOSE],
+   ["Thu, Dec 17 at 11 am", "We watch the results together at the office: the awards, the champion and the final table.", AW_REVEAL + 3 * 3600000]
+  ].forEach(function(r, k){
+    var li = el("li", now > r[2] ? "past" : ""); li.appendChild(el("b", "", r[0])); li.appendChild(el("span", "", r[1])); tb.appendChild(li);
+  });
+  return tb;
+}
+function awRevealed(){ return (typeof AW_SIM !== "undefined" && AW_SIM) || Date.now() >= AW_REVEAL; }
 function awCanVote(){ return (AW_DB_READY && awState() === "open") || (AW_TEST && awState() !== "closed"); }
 function awLoad(){ try { return JSON.parse(localStorage.getItem(AW.KEY)) || {}; } catch (e) { return {}; } }
 function awSave(db){ try { localStorage.setItem(AW.KEY, JSON.stringify(db)); } catch (e) {} }
@@ -10094,8 +10120,9 @@ function awThumb(x, sub){
 /* left column: who voted (never what), and the rules */
 function awLeftRender(){
   awLeft.textContent = "";
+  awLeft.appendChild(el("h3", "sec", "Schedule"));
+  awLeft.appendChild(awSchedule());
   awLeft.appendChild(el("h3", "sec", "Votes"));
-  awLeft.appendChild(el("p", "ms-meta", "Voting is open from December 10 to " + awClose() + ". One award, once."));
   if (!awCanVote()) { awLeft.appendChild(el("p", "empty", awState() === "closed" ? "Voting is closed. The winners are in Results." : "Voting has not started yet.")); }
   var tb = el("table"), hd = el("thead"), hr = el("tr"); hr.appendChild(el("th", "", "Name")); hr.appendChild(el("th", "", "Photos")); hr.appendChild(el("th", "", "Players")); hd.appendChild(hr); tb.appendChild(hd);
   var bd = el("tbody");
@@ -10125,7 +10152,7 @@ function awTabs(){
 }
 function awRender(){
   awLeftRender(); awBody.textContent = ""; awTabs();
-  if (AW_TEST) awBody.appendChild(el("p", "warn", "Test version: votes are saved only in this browser." + (awState() === "soon" ? " Voting really opens on December 10; you can try it now." : "")));
+  if (AW_TEST) awBody.appendChild(el("p", "warn", "Test version: votes are saved only in this browser." + (awState() === "soon" ? " Voting really opens on December 13; you can try it now." : "")));
   if (AW.tab === "gallery") return awGallery();
   if (AW.tab === "results") return awResults();
   if (awCanVote() && !AW.voter) return awWho();
@@ -10166,8 +10193,8 @@ function awPlayers(){
   if (!awCanVote() || AW.pstep === 0) {
     var box = el("div", "ms");
     box.appendChild(el("span", "ms-label", "Player Awards 2026"));
-    box.appendChild(el("p", "ms-title", awCanVote() ? "Vote for the players of the tournament" : awState() === "closed" ? "Voting is closed" : "Voting opens on December 10"));
-    box.appendChild(el("p", "ms-meta", cats.length + " categories, one vote each, for anyone except yourself. Voting is open from December 10 to " + awClose() + ". Every award adds its points to the winner's total on the missions leaderboard."));
+    box.appendChild(el("p", "ms-title", awCanVote() ? "Vote for the players of the tournament" : awState() === "closed" ? "Voting is closed" : "Voting opens on December 13"));
+    box.appendChild(el("p", "ms-meta", cats.length + " categories, one vote each, for anyone except yourself. Voting is open from December 13 to " + awClose() + ". Every award adds its points to the winner's total on the missions leaderboard."));
     if (awCanVote()) {
       var go = el("button", "go", awVotedP(AW.voter) ? "Review my votes" : "Start voting"); go.type = "button";
       go.addEventListener("click", function(){ AW.pstep = awVotedP(AW.voter) ? cats.length + 1 : 1; awRender(); awBody.scrollTop = 0; });
@@ -10220,13 +10247,13 @@ function awPlayers(){
   next.addEventListener("click", function(){ AW.pstep++; awRender(); awBody.scrollTop = 0; });
   nav.appendChild(next); awBody.appendChild(nav);
 }
-/* before Dec 10 (or after it closes): what it is, the categories, and the gallery to look around */
+/* before Dec 13 (or after it closes): what it is, the categories, and the gallery to look around */
 function awSoon(){
   var st = awState(), box = el("div", "ms");
   box.appendChild(el("span", "ms-label", "Photo Awards 2026"));
-  box.appendChild(el("p", "ms-title", st === "closed" ? "Voting is closed" : "Voting opens on December 10"));
+  box.appendChild(el("p", "ms-title", st === "closed" ? "Voting is closed" : "Voting opens on December 13"));
   box.appendChild(el("p", "ms-meta", st === "closed" ? "The winners are in the Results tab." :
-    "From December 10 to " + awClose() + ", everyone votes for the best photos of the tournament, one category at a time, among every photo since the start. The winning photo of each category adds its points to the total of everyone in it, on the missions leaderboard."));
+    "From December 13 to " + awClose() + ", everyone votes for the best photos of the tournament, one category at a time, among every photo since the start. The winning photo of each category adds its points to the total of everyone in it, on the missions leaderboard."));
   var gb = el("button", "go ghost", "Look at all the photos"); gb.type = "button"; gb.addEventListener("click", function(){ AW.tab = "gallery"; awRender(); }); box.appendChild(gb);
   awBody.appendChild(box);
   awBody.appendChild(el("h3", "sec", "The " + AW.cats.length + " categories"));
@@ -10261,7 +10288,7 @@ function awIntro(){
   var box = el("div", "ms");
   box.appendChild(el("span", "ms-label", "Photo Awards 2026"));
   box.appendChild(el("p", "ms-title", "Vote for the best photos of the tournament"));
-  box.appendChild(el("p", "ms-meta", AW.cats.length + " categories, one vote each, among every photo since the start except your own. Voting is open from December 10 to " + awClose() + "."));
+  box.appendChild(el("p", "ms-meta", AW.cats.length + " categories, one vote each, among every photo since the start except your own. Voting is open from December 13 to " + awClose() + "."));
   var go = el("button", "go", awVotedN(AW.voter) ? "Review my votes" : "Start voting"); go.type = "button";
   go.addEventListener("click", function(){ AW.step = awVotedN(AW.voter) ? AW.cats.length + 1 : 1; awRender(); awBody.scrollTop = 0; });
   box.appendChild(go); awBody.appendChild(box);
@@ -10361,11 +10388,17 @@ function awResults(){
     });
     return;
   }
+  if (!awRevealed()) {
+    var wt = el("div", "ms"); wt.appendChild(el("span", "ms-label", "Awards 2026"));
+    wt.appendChild(el("p", "ms-title", "Voting is closed"));
+    wt.appendChild(el("p", "ms-meta", "The winners are revealed together at the office on Thursday, December 17 at 11 am."));
+    awBody.appendChild(wt); return;
+  }
   /* closed: only the final result. Never who voted for whom, and no vote counts */
   var v = awVotes(), photos = awPhotos();
   if (AW_SIM) awBody.appendChild(el("p", "warn", "Simulation: voting closed, with made-up votes from everyone. Nothing here is real."));
   var box = el("div", "ms"); box.appendChild(el("span", "ms-label", "Awards 2026"));
-  box.appendChild(el("p", "ms-title", "The winners")); box.appendChild(el("p", "ms-meta", "Voting closed on " + awClose() + ". The points are already on the missions leaderboard."));
+  box.appendChild(el("p", "ms-title", "The winners")); box.appendChild(el("p", "ms-meta", "Voting closed on " + awClose() + ". Revealed together at the office on Thursday, December 17 at 11 am."));
   var wb = el("button", "go", awSeen() ? "Watch it again" : "Watch the results"); wb.type = "button"; wb.addEventListener("click", function(){ wrapShow(); }); box.appendChild(wb);
   awBody.appendChild(box);
   if (!awSeen()) { box.querySelector(".ms-title").textContent = "The results are ready"; box.querySelector(".ms-meta").textContent = "Voting is closed. Watch the results to see the winners and the final table."; return; }
@@ -10608,7 +10641,7 @@ function awBoardDraw(){
   g.fillRect(172, 122, 16, 22); g.fillRect(150, 142, 60, 12);
   g.fillStyle = "#5b6570"; g.textAlign = "center"; g.textBaseline = "middle"; g.font = "800 28px " + FONT; g.fillText("AWARDS 2026", W / 2, 186);
   var n = Object.keys(awVotes()).filter(function(id){ return awVotedN(id); }).length;
-  g.fillStyle = "#9aa1a9"; g.font = "600 18px " + FONT; g.fillText(awCanVote() && n ? n + " voted so far" : "Voting Dec 10 to Dec 31", W / 2, 216);
+  g.fillStyle = "#9aa1a9"; g.font = "600 18px " + FONT; g.fillText(awCanVote() && n ? n + " voted so far" : "Voting Dec 13 to Dec 16", W / 2, 216);
   g.textAlign = "left"; AW.board.tex.needsUpdate = true;
 }
 (function(){
