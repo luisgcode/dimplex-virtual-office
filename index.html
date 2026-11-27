@@ -10075,6 +10075,7 @@ function awSetVote(cat, img){
 function awVotedN(id){ var v = awVotes()[id] || {}; return AW.cats.filter(function(c){ return v[c.id]; }).length; }
 function awPts(c, player){ return c.pts || (player ? AW.ppts : AW.pts); }
 function awVotedP(id){ var v = awVotes()[id] || {}; return AW.pcats.filter(function(c){ return v[c.id]; }).length; }
+function awSender(x){ return BY[x.who] ? BY[x.who].name : x.who; }
 function awNames(x){ return x.team.map(function(id){ return BY[id] ? BY[id].name : id; }).join(", "); }
 /* every approved photo, once (a split group photo is one photo), newest first; games have no real photo */
 function awPhotos(){
@@ -10138,7 +10139,7 @@ function awLeftRender(){
    "One vote per category. You can change it until voting closes.",
    "Your own photos are not shown, and names are hidden while voting.",
    "Votes are secret: everyone sees who voted, never which photo.",
-   "When voting closes, each award adds its points to the missions leaderboard: photo awards to everyone in the winning photo, player awards to the winner. Ties split the points.",
+   "When voting closes, each award adds its points to the missions leaderboard: a photo award to the person who sent the photo (who captured the moment), a player award to the winner. Ties split the points.",
    "Total on the table: " + AW.cats.reduce(function(t, c){ return t + awPts(c); }, 0) + " points in photo awards and " + AW.pcats.reduce(function(t, c){ return t + awPts(c, true); }, 0) + " in player awards."].forEach(function(t){ ul.appendChild(el("li", "", t)); });
   awLeft.appendChild(ul);
 }
@@ -10253,7 +10254,7 @@ function awSoon(){
   box.appendChild(el("span", "ms-label", "Photo Awards 2026"));
   box.appendChild(el("p", "ms-title", st === "closed" ? "Voting is closed" : "Voting opens on December 13"));
   box.appendChild(el("p", "ms-meta", st === "closed" ? "The winners are in the Results tab." :
-    "From December 13 to " + awClose() + ", everyone votes for the best photos of the tournament, one category at a time, among every photo since the start. The winning photo of each category adds its points to the total of everyone in it, on the missions leaderboard."));
+    "From December 13 to " + awClose() + ", everyone votes for the best photos of the tournament, one category at a time, among every photo since the start. The winning photo of each category adds its points to the person who sent it, on the missions leaderboard."));
   var gb = el("button", "go ghost", "Look at all the photos"); gb.type = "button"; gb.addEventListener("click", function(){ AW.tab = "gallery"; awRender(); }); box.appendChild(gb);
   awBody.appendChild(box);
   awBody.appendChild(el("h3", "sec", "The " + AW.cats.length + " categories"));
@@ -10366,7 +10367,8 @@ function awAwardPoints(v){
   var add = {}, photos = awPhotos();
   AW.cats.forEach(function(c){
     var w = awWinners(c.id, v); if (!w.length) return; var each = Math.ceil(awPts(c) / w.length);
-    w.forEach(function(img){ var x = photos.filter(function(p){ return p.img === img; })[0]; if (x) x.team.forEach(function(id){ add[id] = (add[id] || 0) + each; }); });
+    /* a photo award goes to the person who sent the photo, the one who captured the moment (Luis, 27 Nov) */
+    w.forEach(function(img){ var x = photos.filter(function(p){ return p.img === img; })[0]; if (x && x.who) add[x.who] = (add[x.who] || 0) + each; });
   });
   AW.pcats.forEach(function(c){
     var w = awWinners(c.id, v); if (!w.length) return; var each = Math.ceil(awPts(c, true) / w.length);
@@ -10378,7 +10380,7 @@ function awResults(){
   if (awState() !== "closed") {
     /* nothing about the votes until voting closes */
     awBody.appendChild(el("h3", "sec", "Photo Awards 2026"));
-    awBody.appendChild(el("p", "ms-meta", "The winners stay secret until voting closes on " + awClose() + ". Every award adds its points to the missions leaderboard: a photo award to everyone in the photo, a player award to that player. Ties split the points."));
+    awBody.appendChild(el("p", "ms-meta", "The winners stay secret until voting closes on " + awClose() + ". Every award adds its points to the missions leaderboard: a photo award to the person who sent the photo, a player award to that player. Ties split the points."));
     [[AW.cats, false, "Photo Awards 2026"], [AW.pcats, true, "Player Awards 2026"]].forEach(function(set, k){
       if (k) awBody.appendChild(el("h3", "sec", set[2]));
       var tb = el("table"), hd = el("thead"), hr = el("tr"); ["Category", "Points", "Winner"].forEach(function(h){ hr.appendChild(el("th", "", h)); }); hd.appendChild(hr); tb.appendChild(hd);
@@ -10411,9 +10413,9 @@ function awResults(){
       var card = el("button", "aw-win"); card.type = "button";
       card.appendChild(el("span", "ms-label", c.name + (w.length > 1 ? " · tie" : "")));
       var im = el("img"); im.src = x.img; im.alt = x.cap; card.appendChild(im);
-      card.appendChild(el("b", "", awNames(x)));
+      card.appendChild(el("b", "", "Sent by " + awSender(x)));
       card.appendChild(el("span", "aw-cap", x.cap));
-      card.appendChild(el("span", "pts", "+" + ptsTxt(each) + (x.team.length > 1 ? " each" : "")));
+      card.appendChild(el("span", "pts", "+" + ptsTxt(each)));
       card.addEventListener("click", function(){ awLight(x); });
       g.appendChild(card);
     });
@@ -10568,11 +10570,11 @@ function wrapRender(){
     s.w.forEach(function(x, k){
       var f = el("figure", "wr-photo"); f.style.animationDelay = (1.1 + k * 0.25) + "s";
       var im = el("img"); im.src = x.img; im.alt = x.cap; f.appendChild(im);
-      var fc = el("figcaption"); fc.appendChild(el("b", "", awNames(x))); fc.appendChild(el("span", "", x.cap)); f.appendChild(fc);
+      var fc = el("figcaption"); fc.appendChild(el("b", "", "Sent by " + awSender(x))); fc.appendChild(el("span", "", x.cap)); f.appendChild(fc);
       row.appendChild(f);
     });
     slide.appendChild(row);
-    slide.appendChild(el("p", "wr-pts", "+" + ptsTxt(s.each) + (s.w.length > 1 || s.w[0].team.length > 1 ? " each" : "") + (s.w.length > 1 ? " · tie" : "")));
+    slide.appendChild(el("p", "wr-pts", "+" + ptsTxt(s.each) + (s.w.length > 1 ? " each · tie" : "")));
     dur = 6200;
   } else if (s.kind === "player") {
     slide.appendChild(el("p", "wr-kicker", "Player award"));
